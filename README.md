@@ -1,0 +1,2 @@
+# Eddie
+MQTT Automation Client
