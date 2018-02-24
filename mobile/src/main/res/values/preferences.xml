@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Connection -->
+    <string name="pref_broker_uri">rocks.teagantotally.eddie.pref.broker_uri</string>
+    <string name="pref_connection_timeout">rocks.teagantotally.eddie.pref
+        .connection_timeout</string>
+    <string name="pref_resend_delay">rocks.teagantotally.eddie.pref.resend_delay</string>
+    <string name="pref_blocking_timeout">rocks.teagantotally.eddie.pref.blocking_timeout</string>
+    <string name="pref_keep_alive">rocks.teagantotally.eddie.pref.keep_alive</string>
+
+    <!-- Identification -->
+    <string name="pref_device_id">rocks.teagantotally.eddie.pref.device_id</string>
+    <string name="pref_use_auth">rocks.teagantotally.eddie.pref.use_auth</string>
+    <string name="pref_username">rocks.teagantotally.eddie.pref.username</string>
+    <string name="pref_password">rocks.teagantotally.eddie.pref.password</string>
+</resources>

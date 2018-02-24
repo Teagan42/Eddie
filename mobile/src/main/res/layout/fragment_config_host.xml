@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    >
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_margin="16dp"
+        >
+
+        <android.support.design.widget.TextInputLayout
+            android:id="@+id/uri_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/broker_uri"
+            app:errorEnabled="false"
+            >
+
+            <android.support.design.widget.TextInputEditText
+                android:id="@+id/uri"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textUri"
+                />
+
+        </android.support.design.widget.TextInputLayout>
+
+        <android.support.design.widget.TextInputLayout
+            android:id="@+id/connection_timeout_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/connection_timeout"
+            app:errorEnabled="false"
+            >
+
+            <android.support.design.widget.TextInputEditText
+                android:id="@+id/connection_timeout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                />
+
+        </android.support.design.widget.TextInputLayout>
+
+        <android.support.design.widget.TextInputLayout
+            android:id="@+id/resend_timeout_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/resend_delay"
+            app:errorEnabled="false"
+            >
+
+            <android.support.design.widget.TextInputEditText
+                android:id="@+id/resend_timeout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                />
+
+        </android.support.design.widget.TextInputLayout>
+
+        <android.support.design.widget.TextInputLayout
+            android:id="@+id/blocking_timeout_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/blocking_timeout"
+            app:errorEnabled="false"
+            >
+
+            <android.support.design.widget.TextInputEditText
+                android:id="@+id/blocking_timeout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                />
+
+        </android.support.design.widget.TextInputLayout>
+
+        <android.support.design.widget.TextInputLayout
+            android:id="@+id/keep_alive_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/keep_alive"
+            app:errorEnabled="false"
+            >
+
+            <android.support.design.widget.TextInputEditText
+                android:id="@+id/keep_alive"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                />
+
+        </android.support.design.widget.TextInputLayout>
+
+    </LinearLayout>
+</ScrollView>

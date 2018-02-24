@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Eddie</string>
+
+    <string name="title_host_config">Configure Host</string>
+    <string name="title_identification_config">Configure Identification</string>
+    <string name="connection_timeout">Connection Timeout</string>
+    <string name="resend_delay">Resend Delay</string>
+    <string name="blocking_timeout">Blocking Timeout</string>
+    <string name="broker_uri">Broker Uri</string>
+    <string name="keep_alive">Keep Alive</string>
+    <string name="client_id">Client Id</string>
+    <string name="enable_authentication">Enable Authentication</string>
+    <string name="password">Password</string>
+    <string name="username">Username</string>
+    <string name="save">Save</string>
+</resources>
