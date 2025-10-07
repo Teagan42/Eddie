@@ -8,22 +8,23 @@ import type {
   ProviderAdapter,
   ToolDefinition,
 } from "../../../../src/core/types";
-import {
-  AgentInvocation,
-  type AgentRunRequest,
-  type AgentRuntimeOptions,
-  type AgentOrchestratorService,
-} from "../../../../src/core/agents";
-import { ToolRegistryFactory } from "../../../../src/core/tools";
-import type { ConfigService } from "../../../../src/config";
+import { AgentInvocation } from "../../../../src/core/agents/agent-invocation";
+import type {
+  AgentRunRequest,
+  AgentRuntimeOptions,
+  AgentOrchestratorService,
+} from "../../../../src/core/agents/agent-orchestrator.service";
+import { ToolRegistryFactory } from "../../../../src/core/tools/tool-registry.service";
+import type { ConfigService } from "../../../../src/config/config.service";
 import type { ContextService } from "../../../../src/core/context/context.service";
 import type { ProviderFactoryService } from "../../../../src/core/providers/provider-factory.service";
-import { HOOK_EVENTS, HookBus, blockHook } from "../../../../src/hooks";
-import type { HooksService } from "../../../../src/hooks";
-import type { ConfirmService } from "../../../../src/io";
-import { LoggerService } from "../../../../src/io";
-import type { TokenizerService } from "../../../../src/core/tokenizers";
-import type { McpToolSourceService } from "../../../../src/integrations";
+import { HOOK_EVENTS, blockHook } from "../../../../src/hooks/types";
+import { HookBus } from "../../../../src/hooks/hook-bus.service";
+import type { HooksService } from "../../../../src/hooks/hooks.service";
+import type { ConfirmService } from "../../../../src/io/confirm.service";
+import { LoggerService } from "../../../../src/io/logger.service";
+import type { TokenizerService } from "../../../../src/core/tokenizers/tokenizer.service";
+import type { McpToolSourceService } from "../../../../src/integrations/mcp/mcp-tool-source.service";
 
 class FakeAgentOrchestrator {
   shouldFail = false;

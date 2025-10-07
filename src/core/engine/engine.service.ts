@@ -3,31 +3,31 @@ import { Buffer } from "buffer";
 import { randomUUID } from "crypto";
 import path from "path";
 import type { CliRuntimeOptions } from "../../config/types";
-import { ConfigService } from "../../config";
+import { ConfigService } from "../../config/config.service";
 import { ContextService } from "../context/context.service";
 import { ProviderFactoryService } from "../providers/provider-factory.service";
-import { builtinTools } from "../tools";
-import { ConfirmService, LoggerService } from "../../io";
-import { HOOK_EVENTS, HooksService } from "../../hooks";
+import { builtinTools } from "../tools/builtin/builtin-tools";
+import { ConfirmService } from "../../io/confirm.service";
+import { LoggerService } from "../../io/logger.service";
+import { HooksService } from "../../hooks/hooks.service";
+import { HOOK_EVENTS } from "../../hooks/types";
 import type {
   HookBus,
   HookDispatchResult,
   HookEventName,
   SessionMetadata,
   SessionStatus,
-} from "../../hooks";
+} from "../../hooks/types";
 import type { ChatMessage } from "../types";
 import type { PackedContext, PackedResource, ToolDefinition } from "../types";
-import { TokenizerService } from "../tokenizers";
-import {
-  AgentOrchestratorService,
-  type AgentDefinition,
-  type AgentInvocation,
-  type AgentRuntimeOptions,
-} from "../agents";
+import { TokenizerService } from "../tokenizers/tokenizer.service";
+import { AgentOrchestratorService } from "../agents/agent-orchestrator.service";
+import type { AgentDefinition } from "../agents/agent-definition";
+import type { AgentInvocation } from "../agents/agent-invocation";
+import type { AgentRuntimeOptions } from "../agents/agent-orchestrator.service";
 import type { Logger } from "pino";
-import { McpToolSourceService } from "../../integrations";
-import type { DiscoveredMcpResource } from "../../integrations";
+import { McpToolSourceService } from "../../integrations/mcp/mcp-tool-source.service";
+import type { DiscoveredMcpResource } from "../../integrations/mcp/types";
 
 export interface EngineOptions extends CliRuntimeOptions {
   history?: ChatMessage[];

@@ -1,12 +1,9 @@
 import "reflect-metadata";
 import { describe, it, expect, vi, afterEach } from "vitest";
-import {
-  CliRunnerService,
-  CliParserService,
-  CliParseError,
-  type CliArguments,
-  type CliCommand,
-} from "../../src/cli";
+import { CliRunnerService } from "../../src/cli/cli-runner.service";
+import { CliParserService, CliParseError } from "../../src/cli/cli-parser.service";
+import type { CliArguments } from "../../src/cli/cli-arguments";
+import type { CliCommand } from "../../src/cli/commands/cli-command";
 
 afterEach(() => {
   vi.restoreAllMocks();

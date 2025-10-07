@@ -10,8 +10,8 @@ import type {
   ContextResourceTemplateConfig,
 } from "../../config/types";
 import type { PackedContext, PackedFile, PackedResource } from "../types";
-import { LoggerService } from "../../io";
-import { TemplateRendererService } from "../templates";
+import { LoggerService } from "../../io/logger.service";
+import { TemplateRendererService } from "../templates/template-renderer.service";
 import type { TemplateVariables } from "../../shared/template.types";
 
 const DEFAULT_MAX_BYTES = 250_000;

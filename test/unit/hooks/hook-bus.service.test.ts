@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { HOOK_EVENTS, HookBus, blockHook } from "../../../src/hooks";
-import type { HookBlockResponse } from "../../../src/hooks";
+import { HOOK_EVENTS, blockHook } from "../../../src/hooks/types";
+import { HookBus } from "../../../src/hooks/hook-bus.service";
+import type { HookBlockResponse } from "../../../src/hooks/types";
 
 describe("HookBus", () => {
   it("returns listener results in registration order", async () => {

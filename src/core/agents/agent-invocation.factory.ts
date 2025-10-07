@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import type { TemplateVariables } from "../../shared/template.types";
 import type { PackedContext } from "../types";
-import type { ToolRegistryFactory } from "../tools";
-import { TemplateRendererService } from "../templates";
+import type { ToolRegistryFactory } from "../tools/tool-registry.service";
+import { TemplateRendererService } from "../templates/template-renderer.service";
 import type { AgentDefinition } from "./agent-definition";
 import { AgentInvocation, type AgentInvocationOptions } from "./agent-invocation";
 

@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { EngineService } from "../../core/engine";
+import { EngineService } from "../../core/engine/engine.service";
 import type { CliArguments } from "../cli-arguments";
 import { CliOptionsService } from "../cli-options.service";
 import type { CliCommand, CliCommandMetadata } from "./cli-command";

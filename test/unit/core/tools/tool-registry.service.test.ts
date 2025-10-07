@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ToolRegistry } from "../../../../src/core/tools";
+import { ToolRegistry } from "../../../../src/core/tools/tool-registry.service";
 
 const ctx = {
   cwd: process.cwd(),

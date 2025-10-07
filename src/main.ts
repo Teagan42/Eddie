@@ -2,7 +2,7 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
-import { CliRunnerService } from "./cli";
+import { CliRunnerService } from "./cli/cli-runner.service";
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.createApplicationContext(AppModule, {
