@@ -1,5 +1,3 @@
-import type { BufferEncoding } from "node:buffer";
-
 export interface TemplateVariables {
   [key: string]: unknown;
 }

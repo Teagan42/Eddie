@@ -7,6 +7,7 @@ import {
   type HookEventHandlers,
   isHookEventName,
   type HookEventName,
+  type HookListener,
 } from "./types";
 
 export type { HookEventHandlers } from "./types";
@@ -82,7 +83,8 @@ export class HooksLoaderService {
         continue;
       }
 
-      bus.on(resolvedEvent, handler);
+      const hookEvent: HookEventName = resolvedEvent;
+      bus.on(hookEvent, handler as HookListener<HookEventName>);
     }
   }
 }

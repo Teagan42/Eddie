@@ -2,7 +2,6 @@ import { Injectable } from "@nestjs/common";
 import fs from "fs/promises";
 import path from "path";
 import { Eta } from "eta";
-import type { BufferEncoding } from "node:buffer";
 import type {
   TemplateDescriptor,
   TemplateVariables,
@@ -23,10 +22,9 @@ export class TemplateRendererService {
     variables: TemplateVariables = {}
   ): Promise<string> {
     const absolutePath = this.resolvePath(descriptor);
-    const source = await fs.readFile(
-      absolutePath,
-      descriptor.encoding ?? DEFAULT_ENCODING
-    );
+    const source = await fs.readFile(absolutePath, {
+      encoding: descriptor.encoding ?? DEFAULT_ENCODING,
+    });
     return this.renderString(source, {
       ...(descriptor.variables ?? {}),
       ...variables,
@@ -38,9 +36,24 @@ export class TemplateRendererService {
     variables: TemplateVariables = {},
     filename?: string
   ): Promise<string> {
-    const rendered = await this.engine.renderStringAsync(template, variables, {
-      filename,
-    });
+    if (filename) {
+      const cacheKey = `@${filename}`;
+      const cached = this.engine.templatesAsync.get(cacheKey);
+      if (!cached) {
+        const compiled = this.engine.compile(template, {
+          async: true,
+          filepath: filename,
+        });
+        this.engine.templatesAsync.define(cacheKey, compiled);
+      }
+
+      const rendered = await this.engine.renderAsync(cacheKey, variables, {
+        filepath: filename,
+      });
+      return rendered ?? "";
+    }
+
+    const rendered = await this.engine.renderStringAsync(template, variables);
     return rendered ?? "";
   }
 
