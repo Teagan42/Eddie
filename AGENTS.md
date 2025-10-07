@@ -8,7 +8,7 @@ Eddie acts as a command-line facilitator for agentic AI workflows. This document
 CLI (commander)
   ├─ ask/run/chat/context/trace commands
   └─ resolveCliOptions → Engine
-Engine (src/core/engine.ts)
+Engine (src/core/engine)
   ├─ loadConfig → config/loader.ts (merges defaults + file + CLI flags)
   ├─ packContext → core/context/packer.ts (glob, ignore, budgets)
   ├─ makeProvider → core/providers/* (adapter pattern)

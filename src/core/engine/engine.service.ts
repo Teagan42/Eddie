@@ -1,19 +1,19 @@
 import { Injectable } from "@nestjs/common";
 import path from "path";
-import type { CliRuntimeOptions } from "../config/types";
-import { ConfigService } from "../config/loader";
-import { ContextService } from "./context/packer";
-import { ProviderFactory } from "./providers";
-import { ToolRegistryFactory } from "./tools/registry";
-import { builtinTools } from "./tools/builtin";
-import { StreamRendererService } from "../io/stream_renderer";
-import { JsonlWriterService } from "../io/jsonl_writer";
-import { HooksService } from "../hooks/loader";
-import type { ChatMessage, StreamEvent } from "./types";
-import type { PackedContext } from "./types";
-import { ConfirmService } from "../io/confirm";
-import { TokenizerService } from "./tokenizers/strategy";
-import { LoggerService } from "../io/logger";
+import type { CliRuntimeOptions } from "../../config/types";
+import { ConfigService } from "../../config/loader";
+import { ContextService } from "../context/packer";
+import { ProviderFactory } from "../providers";
+import { ToolRegistryFactory } from "../tools/registry";
+import { builtinTools } from "../tools/builtin";
+import { StreamRendererService } from "../../io/stream_renderer";
+import { JsonlWriterService } from "../../io/jsonl_writer";
+import { HooksService } from "../../hooks/loader";
+import type { ChatMessage, StreamEvent } from "../types";
+import type { PackedContext } from "../types";
+import { ConfirmService } from "../../io/confirm";
+import { TokenizerService } from "../tokenizers/strategy";
+import { LoggerService } from "../../io/logger";
 
 export interface EngineOptions extends CliRuntimeOptions {
   history?: ChatMessage[];
@@ -27,6 +27,11 @@ export interface EngineResult {
   tracePath?: string;
 }
 
+/**
+ * EngineService orchestrates the full CLI execution flow by layering configuration,
+ * preparing context, invoking the selected provider, and coordinating tool usage
+ * and trace emission.
+ */
 @Injectable()
 export class EngineService {
   constructor(
