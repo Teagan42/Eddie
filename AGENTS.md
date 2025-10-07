@@ -56,6 +56,7 @@ To add a new agent mode:
 
 ## Contribution Workflow
 
+- Use a new branch for a series of tasks following the pattern `codex/$description`.
 - Use [Conventional Commits](https://www.conventionalcommits.org/) for every commit (e.g., `feat: add foo support`, `fix: handle bar edge case`), keep commits atomic, and group related work logically: documentation, scaffolding, refactor, logic/feature, bugs, test.
 - Capture any significant architectural or design decision in an ADR placed under `adr/` (one file per decision, numbered chronologically).
 - Add or update test cases for all behaviour changes; ensure fixtures resemble real-world inputs so regressions surface quickly - add any necessary devDependencies to package.json.
