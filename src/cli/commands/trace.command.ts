@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { Injectable } from "@nestjs/common";
-import { ConfigService } from "../../config/loader";
+import { ConfigService } from "../../config";
 import type { CliArguments } from "../cli-arguments";
 import { CliOptionsService } from "../cli-options.service";
 import type { CliCommand } from "./cli-command";

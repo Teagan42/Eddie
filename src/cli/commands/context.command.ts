@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { ConfigService } from "../../config/loader";
+import { ConfigService } from "../../config";
 import { ContextService } from "../../core/context/packer";
 import { TokenizerService } from "../../core/tokenizers/strategy";
 import { LoggerService } from "../../io/logger";
