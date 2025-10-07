@@ -2,11 +2,11 @@ import "reflect-metadata";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import fs from "fs/promises";
 import path from "path";
-import { AgentInvocationFactory } from "../../../../src/core/agents";
-import { ToolRegistryFactory } from "../../../../src/core/tools";
-import type { AgentDefinition } from "../../../../src/core/agents";
+import { AgentInvocationFactory } from "../../../../src/core/agents/agent-invocation.factory";
+import { ToolRegistryFactory } from "../../../../src/core/tools/tool-registry.service";
+import type { AgentDefinition } from "../../../../src/core/agents/agent-definition";
 import type { PackedContext } from "../../../../src/core/types";
-import { TemplateRendererService } from "../../../../src/core/templates";
+import { TemplateRendererService } from "../../../../src/core/templates/template-renderer.service";
 
 const tmpDir = path.join(process.cwd(), "test-temp", "agent-factory");
 let factory: AgentInvocationFactory;

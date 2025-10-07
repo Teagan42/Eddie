@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { describe, it, expect, beforeAll } from "vitest";
-import { CliParserService, CliParseError } from "../../src/cli";
+import { CliParserService, CliParseError } from "../../src/cli/cli-parser.service";
 
 describe("CliParserService", () => {
   let parser: CliParserService;

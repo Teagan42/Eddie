@@ -1,15 +1,16 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "../../config/config.module";
 import { ContextModule } from "../context/context.module";
-import { IoModule } from "../../io";
-import { HooksModule } from "../../hooks";
+import { IoModule } from "../../io/io.module";
+import { HooksModule } from "../../hooks/hooks.module";
 import { ProvidersModule } from "../providers/providers.module";
-import { TokenizersModule } from "../tokenizers";
-import { TemplateModule } from "../templates";
+import { TokenizersModule } from "../tokenizers/tokenizers.module";
+import { TemplateModule } from "../templates/template.module";
 import { EngineService } from "./engine.service";
-import { ToolsModule } from "../tools";
-import { AgentInvocationFactory, AgentOrchestratorService } from "../agents";
-import { MCPModule } from "../../integrations";
+import { ToolsModule } from "../tools/tools.module";
+import { AgentInvocationFactory } from "../agents/agent-invocation.factory";
+import { AgentOrchestratorService } from "../agents/agent-orchestrator.service";
+import { MCPModule } from "../../integrations/mcp/mcp.module";
 
 @Module({
   imports: [

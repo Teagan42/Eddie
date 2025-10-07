@@ -6,16 +6,19 @@ import type {
   PackedContext,
   ChatMessage,
 } from "../../../../src/core/types";
+import { AgentInvocationFactory } from "../../../../src/core/agents/agent-invocation.factory";
 import {
-  AgentInvocationFactory,
   AgentOrchestratorService,
   type AgentRuntimeOptions,
   type TranscriptCompactor,
-} from "../../../../src/core/agents";
-import { ToolRegistryFactory } from "../../../../src/core/tools";
-import { JsonlWriterService, StreamRendererService, LoggerService } from "../../../../src/io";
-import { HOOK_EVENTS, HookBus, blockHook } from "../../../../src/hooks";
-import { TemplateRendererService } from "../../../../src/core/templates";
+} from "../../../../src/core/agents/agent-orchestrator.service";
+import { ToolRegistryFactory } from "../../../../src/core/tools/tool-registry.service";
+import { JsonlWriterService } from "../../../../src/io/jsonl-writer.service";
+import { StreamRendererService } from "../../../../src/io/stream-renderer.service";
+import { LoggerService } from "../../../../src/io/logger.service";
+import { HOOK_EVENTS, blockHook } from "../../../../src/hooks/types";
+import { HookBus } from "../../../../src/hooks/hook-bus.service";
+import { TemplateRendererService } from "../../../../src/core/templates/template-renderer.service";
 
 class RecordingStreamRendererService extends StreamRendererService {
   readonly events: StreamEvent[] = [];

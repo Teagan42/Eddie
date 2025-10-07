@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
-import { IoModule } from "../../io";
-import { TemplateModule } from "../templates";
+import { IoModule } from "../../io/io.module";
+import { TemplateModule } from "../templates/template.module";
 import { ContextService } from "./context.service";
 
 @Module({

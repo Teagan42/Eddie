@@ -1,7 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import type { Logger } from "pino";
-import { JsonlWriterService, StreamRendererService } from "../../io";
-import { HOOK_EVENTS } from "../../hooks";
+import { JsonlWriterService } from "../../io/jsonl-writer.service";
+import { StreamRendererService } from "../../io/stream-renderer.service";
+import { HOOK_EVENTS } from "../../hooks/types";
 import type {
   AgentLifecyclePayload,
   AgentMetadata,
@@ -10,7 +11,7 @@ import type {
   HookDispatchResult,
   HookEventMap,
   HookEventName,
-} from "../../hooks";
+} from "../../hooks/types";
 import type { ProviderAdapter } from "../types";
 import type { AgentDefinition } from "./agent-definition";
 import {

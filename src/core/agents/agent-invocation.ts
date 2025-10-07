@@ -1,7 +1,7 @@
 import type { TemplateDescriptor, TemplateVariables } from "../../shared/template.types";
 import type { ChatMessage, PackedContext } from "../types";
 import type { ToolRegistry } from "../tools/tool-registry.service";
-import type { ToolRegistryFactory } from "../tools";
+import type { ToolRegistryFactory } from "../tools/tool-registry.service";
 import type { AgentDefinition } from "./agent-definition";
 
 const EMPTY_CONTEXT: PackedContext = { files: [], totalBytes: 0, text: "" };
