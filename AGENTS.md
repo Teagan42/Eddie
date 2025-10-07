@@ -49,7 +49,7 @@ To add a new agent mode:
 
 ## Implementation Notes
 
-- Tests live under `test/unit` and rely on Vitest; add fixtures for providers/tools as new behaviours land.
+- Tests live under `test/unit` and `test/integration`, both powered by Vitest. Add isolated logic specs to `test/unit`, and cover multi-service flows or CLI wiring in `test/integration` with realistic fixtures mirroring scenarios such as `test/integration/cli-runner.integration.test.ts`.
 - When writing new adapters, follow the existing ones: parse streaming payloads incrementally and normalise into `StreamEvent` objects.
 - Tool authors should return concise payloads; heavy binary outputs should be redirected to files and referenced in the tool result string.
 - Write tests alongside every code change, preferring realistic data that mirrors production usage (e.g., representative file contents, plausible API payloads).
