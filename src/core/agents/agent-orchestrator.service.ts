@@ -299,11 +299,31 @@ export class AgentOrchestratorService {
                 env: process.env,
               });
 
+              this.streamRenderer.render({
+                type: "tool_result",
+                name: event.name,
+                id: event.id,
+                result,
+              });
+
+              const messagePayload: Record<string, unknown> = {
+                schema: result.schema,
+                content: result.content,
+              };
+
+              if (result.data !== undefined) {
+                messagePayload.data = result.data;
+              }
+
+              if (result.metadata !== undefined) {
+                messagePayload.metadata = result.metadata;
+              }
+
               invocation.messages.push({
                 role: "tool",
                 name: event.name,
                 tool_call_id: event.id,
-                content: result.content,
+                content: JSON.stringify(messagePayload),
               });
 
               await this.dispatchHookOrThrow(
@@ -324,8 +344,7 @@ export class AgentOrchestratorService {
                   iteration,
                   id: event.id,
                   name: event.name,
-                  result: result.content,
-                  metadata: result.metadata,
+                  result,
                 },
               });
 

@@ -298,19 +298,33 @@ describe("AgentOrchestratorService", () => {
           id: "manager",
           systemPrompt: "coordinate",
           tools: [
-            {
-              name: "echo",
-              description: "echo tool",
-              jsonSchema: {
-                type: "object",
-                properties: { text: { type: "string" } },
-                required: ["text"],
-              },
-              async handler(args) {
-                const text = String((args as { text: string }).text);
-                return { content: `echo:${text}` };
-              },
+          {
+            name: "echo",
+            description: "echo tool",
+            jsonSchema: {
+              type: "object",
+              properties: { text: { type: "string" } },
+              required: ["text"],
             },
+            outputSchema: {
+              $id: "test.tools.echo.result",
+              type: "object",
+              properties: {
+                text: { type: "string" },
+              },
+              required: ["text"],
+              additionalProperties: false,
+            },
+            async handler(args) {
+              const text = String((args as { text: string }).text);
+              const payload = `echo:${text}`;
+              return {
+                schema: "test.tools.echo.result",
+                content: payload,
+                data: { text: payload },
+              };
+            },
+          },
           ],
         },
         prompt: "delegate work",
@@ -361,7 +375,22 @@ describe("AgentOrchestratorService", () => {
     )?.event as any;
     expect(toolResultRecord.data).toMatchObject({
       name: "echo",
-      result: "echo:hi",
+      result: {
+        schema: "test.tools.echo.result",
+        content: "echo:hi",
+        data: { text: "echo:hi" },
+      },
+    });
+
+    const toolMessage = invocation.messages.find(
+      (message) => message.role === "tool"
+    );
+    expect(toolMessage).toBeDefined();
+    const parsed = JSON.parse(toolMessage!.content);
+    expect(parsed).toMatchObject({
+      schema: "test.tools.echo.result",
+      content: "echo:hi",
+      data: { text: "echo:hi" },
     });
 
     const completeRecord = traceWriter.writes.at(-1)?.event as any;
@@ -441,9 +470,22 @@ describe("AgentOrchestratorService", () => {
               type: "object",
               properties: { text: { type: "string" } },
             },
+            outputSchema: {
+              $id: "test.tools.echo.result",
+              type: "object",
+              properties: {
+                text: { type: "string" },
+              },
+              required: ["text"],
+              additionalProperties: false,
+            },
             async handler(args) {
               const text = String((args as { text: string }).text);
-              return { content: text };
+              return {
+                schema: "test.tools.echo.result",
+                content: text,
+                data: { text },
+              };
             },
           },
         ],
@@ -476,6 +518,15 @@ describe("AgentOrchestratorService", () => {
     ).toEqual(["starting", "finishing"]);
     expect(notifications[1]?.payload.event.metadata).toMatchObject({
       severity: "info",
+    });
+
+    const postTool = recorded.find(
+      (entry) => entry.event === HOOK_EVENTS.postToolUse
+    );
+    expect(postTool?.payload.result).toMatchObject({
+      schema: "test.tools.echo.result",
+      content: "child",
+      data: { text: "child" },
     });
 
     const rootStop = recorded.find(
@@ -527,9 +578,22 @@ describe("AgentOrchestratorService", () => {
                 properties: { text: { type: "string" } },
                 required: ["text"],
               },
+              outputSchema: {
+                $id: "test.tools.echo.result",
+                type: "object",
+                properties: {
+                  text: { type: "string" },
+                },
+                required: ["text"],
+                additionalProperties: false,
+              },
               async handler() {
                 toolExecuted = true;
-                return { content: "should not run" };
+                return {
+                  schema: "test.tools.echo.result",
+                  content: "should not run",
+                  data: { text: "should not run" },
+                };
               },
             },
           ],
@@ -594,9 +658,22 @@ describe("AgentOrchestratorService", () => {
                   type: "object",
                   properties: { text: { type: "string" } },
                 },
+                outputSchema: {
+                  $id: "test.tools.echo.result",
+                  type: "object",
+                  properties: {
+                    text: { type: "string" },
+                  },
+                  required: ["text"],
+                  additionalProperties: false,
+                },
                 async handler() {
                   toolExecuted = true;
-                  return { content: "should not run" };
+                  return {
+                    schema: "test.tools.echo.result",
+                    content: "should not run",
+                    data: { text: "should not run" },
+                  };
                 },
               },
             ],

@@ -1,4 +1,9 @@
-import type { ChatMessage, PackedContext, StreamEvent } from "../core/types";
+import type {
+  ChatMessage,
+  PackedContext,
+  StreamEvent,
+  ToolResult,
+} from "../core/types";
 import type { CliRuntimeOptions, EddieConfig } from "../config/types";
 
 /**
@@ -204,7 +209,7 @@ export interface AgentToolCallPayload extends AgentLifecyclePayload {
 export interface AgentToolResultPayload extends AgentLifecyclePayload {
   iteration: number;
   event: Extract<StreamEvent, { type: "tool_call" }>;
-  result: { content: string; metadata?: Record<string, unknown> };
+  result: ToolResult;
 }
 
 /**

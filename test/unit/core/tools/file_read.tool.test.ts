@@ -28,7 +28,13 @@ describe("fileReadTool", () => {
       },
     );
 
+    expect(result.schema).toBe("eddie.tool.file_read.result.v1");
     expect(result.content).toBe("hello from ctx");
+    expect(result.data).toEqual({
+      path: fileName,
+      bytes: Buffer.byteLength("hello from ctx", "utf-8"),
+      truncated: false,
+    });
   });
 
   it("truncates content when maxBytes is provided", async () => {
@@ -47,6 +53,12 @@ describe("fileReadTool", () => {
       },
     );
 
+    expect(result.schema).toBe("eddie.tool.file_read.result.v1");
     expect(result.content).toBe("abc");
+    expect(result.data).toEqual({
+      path: fileName,
+      bytes: Buffer.byteLength("abc", "utf-8"),
+      truncated: true,
+    });
   });
 });
