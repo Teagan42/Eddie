@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { Buffer } from "buffer";
 import { randomUUID } from "crypto";
 import path from "path";
 import type { CliRuntimeOptions } from "../../config/types";
@@ -16,7 +17,7 @@ import type {
   SessionStatus,
 } from "../../hooks";
 import type { ChatMessage } from "../types";
-import type { PackedContext, ToolDefinition } from "../types";
+import type { PackedContext, PackedResource, ToolDefinition } from "../types";
 import { TokenizerService } from "../tokenizers";
 import {
   AgentOrchestratorService,
@@ -26,6 +27,7 @@ import {
 } from "../agents";
 import type { Logger } from "pino";
 import { McpToolSourceService } from "../../integrations";
+import type { DiscoveredMcpResource } from "../../integrations";
 
 export interface EngineOptions extends CliRuntimeOptions {
   history?: ChatMessage[];
@@ -126,6 +128,15 @@ export class EngineService {
         { allowBlock: true }
       );
       const context = await this.contextService.pack(cfg.context);
+      const {
+        tools: remoteTools,
+        resources: discoveredResources,
+      } = await this.mcpToolSourceService.collectTools(cfg.tools?.sources);
+
+      if (discoveredResources.length > 0) {
+        this.applyMcpResourcesToContext(context, discoveredResources);
+      }
+
       const afterContextPack = await hooks.emitAsync(
         HOOK_EVENTS.afterContextPack,
         {
@@ -148,10 +159,6 @@ export class EngineService {
       logger.debug({ contextTokens }, "Packed context");
 
       const provider = this.providerFactory.create(cfg.provider);
-
-      const remoteTools = await this.mcpToolSourceService.collectTools(
-        cfg.tools?.sources
-      );
       const toolsEnabled = this.filterTools(
         [...builtinTools, ...remoteTools],
         cfg.tools?.enabled,
@@ -248,6 +255,91 @@ export class EngineService {
         );
       }
     }
+  }
+
+  private applyMcpResourcesToContext(
+    context: PackedContext,
+    discoveredResources: DiscoveredMcpResource[]
+  ): void {
+    const packedResources = discoveredResources.map((resource) =>
+      this.toPackedResource(resource)
+    );
+
+    if (packedResources.length === 0) {
+      return;
+    }
+
+    context.resources = [...(context.resources ?? []), ...packedResources];
+
+    const resourceSections = packedResources
+      .map((resource) => this.composeResourceText(resource))
+      .filter((section) => section.trim().length > 0);
+
+    if (resourceSections.length > 0) {
+      const baseSections =
+        context.text && context.text.trim().length > 0 ? [context.text] : [];
+      context.text = [...baseSections, ...resourceSections].join("\n\n");
+    }
+
+    const additionalBytes = packedResources.reduce(
+      (total, resource) => total + Buffer.byteLength(resource.text, "utf-8"),
+      0
+    );
+    context.totalBytes += additionalBytes;
+  }
+
+  private toPackedResource(resource: DiscoveredMcpResource): PackedResource {
+    const label = resource.name ?? resource.uri;
+    const idBase = label ?? resource.uri;
+    const normalizedId = `mcp:${resource.sourceId}:${idBase}`
+      .replace(/\s+/g, "-")
+      .replace(/[^a-zA-Z0-9:_-]/g, "_");
+
+    const metadata: Record<string, unknown> = {
+      sourceId: resource.sourceId,
+      uri: resource.uri,
+    };
+
+    if (resource.mimeType) {
+      metadata.mimeType = resource.mimeType;
+    }
+
+    if (resource.metadata && Object.keys(resource.metadata).length > 0) {
+      metadata.attributes = structuredClone(resource.metadata);
+    }
+
+    const details: string[] = [`URI: ${resource.uri}`];
+    if (resource.mimeType) {
+      details.push(`MIME: ${resource.mimeType}`);
+    }
+    if (resource.metadata && Object.keys(resource.metadata).length > 0) {
+      details.push(
+        `Metadata: ${JSON.stringify(resource.metadata, null, 2)}`
+      );
+    }
+
+    return {
+      id: normalizedId,
+      type: "template",
+      name: label,
+      description: resource.description,
+      text: details.join("\n"),
+      metadata,
+    };
+  }
+
+  private composeResourceText(resource: PackedResource): string {
+    const label = resource.name ?? resource.id;
+    const description = resource.description ? ` - ${resource.description}` : "";
+    const body = resource.text.trimEnd();
+    const lines = [`// Resource: ${label}${description}`];
+
+    if (body.length > 0) {
+      lines.push(body);
+    }
+
+    lines.push(`// End Resource: ${label}`);
+    return lines.join("\n");
   }
 
   private filterTools(
