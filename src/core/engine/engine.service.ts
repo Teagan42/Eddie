@@ -3,7 +3,7 @@ import path from "path";
 import type { CliRuntimeOptions } from "../../config/types";
 import { ConfigService } from "../../config";
 import { ContextService } from "../context/context.service";
-import { ProviderFactory } from "../providers/provider-factory.service";
+import { ProviderFactoryService } from "../providers/provider-factory.service";
 import { ToolRegistryFactory, builtinTools } from "../tools";
 import {
   ConfirmService,
@@ -38,7 +38,7 @@ export class EngineService {
   constructor(
     private readonly configService: ConfigService,
     private readonly contextService: ContextService,
-    private readonly providerFactory: ProviderFactory,
+    private readonly providerFactory: ProviderFactoryService,
     private readonly toolRegistryFactory: ToolRegistryFactory,
     private readonly streamRenderer: StreamRendererService,
     private readonly traceWriter: JsonlWriterService,
