@@ -11,6 +11,12 @@ interface OpenAICompatConfig {
   headers?: Record<string, string>;
 }
 
+interface ToolAccumulator {
+  id?: string;
+  name?: string;
+  args: string;
+}
+
 export class OpenAICompatibleAdapter implements ProviderAdapter {
   readonly name = "openai_compatible";
 
@@ -49,6 +55,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    const toolBuffer = new Map<number, ToolAccumulator>();
 
     while (true) {
       const { done, value } = await reader.read();
@@ -75,6 +82,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
           }
 
           const delta = json.choices?.[0]?.delta;
+          const choice = json.choices?.[0];
           const deltaContent = delta?.content;
           if (typeof deltaContent === "string") {
             yield { type: "delta", text: deltaContent };
@@ -89,7 +97,45 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
               }
             }
           }
-          if (json.choices?.[0]?.finish_reason === "stop") {
+
+          if (Array.isArray(choice?.delta?.tool_calls)) {
+            for (const call of choice.delta.tool_calls) {
+              const index = call.index ?? 0;
+              const accumulator =
+                toolBuffer.get(index) ?? { id: call.id, name: undefined, args: "" };
+              if (call.id) accumulator.id = call.id;
+              if (call.function?.name) accumulator.name = call.function.name;
+              if (call.function?.arguments) {
+                accumulator.args += call.function.arguments;
+              }
+              toolBuffer.set(index, accumulator);
+            }
+          }
+
+          if (choice?.finish_reason === "tool_calls") {
+            for (const accumulator of toolBuffer.values()) {
+              let parsed: unknown = accumulator.args;
+              try {
+                parsed = JSON.parse(accumulator.args || "{}");
+              } catch {
+                // keep raw string when parsing fails
+              }
+              yield {
+                type: "tool_call",
+                id: accumulator.id,
+                name: accumulator.name ?? "unknown_tool",
+                arguments:
+                  typeof parsed === "object" && parsed !== null
+                    ? (parsed as Record<string, unknown>)
+                    : { input: parsed },
+                raw: accumulator.args,
+              };
+            }
+            toolBuffer.clear();
+            continue;
+          }
+
+          if (choice?.finish_reason === "stop") {
             yield { type: "end", reason: "stop", usage: json.usage };
             return;
           }
