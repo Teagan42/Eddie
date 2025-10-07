@@ -29,12 +29,17 @@ export class StreamRendererService {
         break;
       }
       case "tool_result": {
-        const summary =
-          typeof event.result === "string"
-            ? event.result
-            : JSON.stringify(event.result, null, 2);
+        const summary = redactSecrets(event.result.content, DEFAULT_PATTERNS);
+        const structured =
+          event.result.data !== undefined
+            ? ` ${redactSecrets(JSON.stringify(event.result.data, null, 2), DEFAULT_PATTERNS)}`
+            : "";
+        const metadata =
+          event.result.metadata && Object.keys(event.result.metadata).length > 0
+            ? ` ${redactSecrets(JSON.stringify(event.result.metadata), DEFAULT_PATTERNS)}`
+            : "";
         process.stdout.write(
-          `\n${chalk.green("[tool_result]")} ${event.name} ${summary}\n`
+          `\n${chalk.green("[tool_result]")} ${event.name} <${event.result.schema}> ${summary}${structured}${metadata}\n`
         );
         break;
       }

@@ -14,18 +14,42 @@ export const fileWriteTool: ToolDefinition = {
     required: ["path", "content"],
     additionalProperties: false,
   },
+  outputSchema: {
+    $id: "eddie.tool.file_write.result.v1",
+    type: "object",
+    properties: {
+      path: { type: "string" },
+      bytesWritten: { type: "number" },
+    },
+    required: ["path", "bytesWritten"],
+    additionalProperties: false,
+  },
   async handler(args, ctx) {
     const relPath = String(args.path ?? "");
     const content = String(args.content ?? "");
     const approved = await ctx.confirm(`Write file: ${relPath}`);
     if (!approved) {
-      return { content: "Write cancelled by user." };
+      return {
+        schema: "eddie.tool.file_write.result.v1",
+        content: "Write cancelled by user.",
+        data: {
+          path: relPath,
+          bytesWritten: 0,
+        },
+      };
     }
 
     const absolute = path.resolve(ctx.cwd, relPath);
     await fs.mkdir(path.dirname(absolute), { recursive: true });
     await fs.writeFile(absolute, content, "utf-8");
-    return { content: `Wrote ${relPath}` };
+    return {
+      schema: "eddie.tool.file_write.result.v1",
+      content: `Wrote ${relPath}`,
+      data: {
+        path: relPath,
+        bytesWritten: Buffer.byteLength(content, "utf-8"),
+      },
+    };
   },
 };
 

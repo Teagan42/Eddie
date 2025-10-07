@@ -19,6 +19,29 @@ export interface ToolSchema {
   parameters: Record<string, unknown>;
 }
 
+export interface ToolResult<TData = unknown> {
+  /**
+   * Canonical identifier for the schema describing {@link ToolResult.data}.
+   * Enables consumers to safely discriminate between tool payload shapes.
+   */
+  schema: string;
+  /**
+   * Human-readable summary surfaced to the model and CLI logs.
+   */
+  content: string;
+  /**
+   * Structured JSON payload that adheres to the schema denoted by
+   * {@link ToolResult.schema}.
+   */
+  data?: TData;
+  /**
+   * Optional metadata emitted alongside the structured payload.
+   */
+  metadata?: Record<string, unknown>;
+}
+
+export type ToolOutput<TData = unknown> = ToolResult<TData>;
+
 export type StreamEvent =
   | {
       type: "delta";
@@ -35,7 +58,7 @@ export type StreamEvent =
   | {
       type: "tool_result";
       name: string;
-      result: unknown;
+      result: ToolResult;
       id?: string;
     }
   | {
@@ -89,9 +112,9 @@ export interface ToolDefinition {
   name: string;
   description?: string;
   jsonSchema: Record<string, unknown>;
-  validate?: (data: unknown) => boolean;
+  outputSchema?: Record<string, unknown>;
   handler(
     args: ToolCallArguments,
     ctx: ToolExecutionContext,
-  ): Promise<{ content: string; metadata?: Record<string, unknown> }>;
+  ): Promise<ToolResult>;
 }

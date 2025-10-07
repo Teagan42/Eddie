@@ -16,12 +16,29 @@ export const bashTool: ToolDefinition = {
     required: ["command"],
     additionalProperties: false,
   },
+  outputSchema: {
+    $id: "eddie.tool.bash.result.v1",
+    type: "object",
+    properties: {
+      stdout: { type: "string" },
+      stderr: { type: "string" },
+    },
+    required: ["stdout", "stderr"],
+    additionalProperties: false,
+  },
   async handler(args, ctx) {
     const command = String(args.command ?? "");
     const timeoutMs = Number(args.timeoutMs ?? 15_000);
     const approved = await ctx.confirm(`Run command: ${command}`);
     if (!approved) {
-      return { content: "Command rejected by user." };
+      return {
+        schema: "eddie.tool.bash.result.v1",
+        content: "Command rejected by user.",
+        data: {
+          stdout: "",
+          stderr: "Command rejected by user.",
+        },
+      };
     }
 
     const { stdout, stderr } = await execAsync(command, {
@@ -31,7 +48,14 @@ export const bashTool: ToolDefinition = {
     });
 
     const output = stdout || stderr || "(no output)";
-    return { content: output };
+    return {
+      schema: "eddie.tool.bash.result.v1",
+      content: output,
+      data: {
+        stdout: stdout ?? "",
+        stderr: stderr ?? "",
+      },
+    };
   },
 };
 

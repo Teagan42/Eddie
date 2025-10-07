@@ -1,8 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import Ajv, { type ValidateFunction } from "ajv";
-import type { ToolDefinition, ToolSchema } from "../types";
-
-const ajv = new Ajv({ allErrors: true, strict: false });
+import type { ToolDefinition, ToolResult, ToolSchema } from "../types";
 
 function formatErrors(validator: ValidateFunction | undefined): string | undefined {
   if (!validator || !validator.errors) return undefined;
@@ -12,19 +10,67 @@ function formatErrors(validator: ValidateFunction | undefined): string | undefin
 }
 
 export class ToolRegistry {
-  private readonly tools = new Map<string, ToolDefinition & { validate?: ValidateFunction }>();
+  private readonly ajv: Ajv;
+  private readonly toolResultValidator: ValidateFunction;
+  private readonly tools = new Map<
+    string,
+    ToolDefinition & {
+      inputValidator: ValidateFunction;
+      outputValidator: ValidateFunction;
+      dataValidator?: ValidateFunction;
+      expectedSchemaId?: string;
+    }
+  >();
 
   constructor(definitions: ToolDefinition[] = []) {
+    this.ajv = new Ajv({ allErrors: true, strict: false });
+    this.toolResultValidator = this.ajv.compile({
+      type: "object",
+      additionalProperties: false,
+      required: ["schema", "content"],
+      properties: {
+        schema: { type: "string", minLength: 1 },
+        content: { type: "string" },
+        data: {},
+        metadata: {
+          type: "object",
+          additionalProperties: true,
+        },
+      },
+    });
+
     for (const def of definitions) {
       this.register(def);
     }
   }
 
   register(definition: ToolDefinition): void {
-    const validator = ajv.compile(definition.jsonSchema) as ValidateFunction;
-    const compiled: ToolDefinition & { validate: ValidateFunction } = {
+    const inputValidator = this.ajv.compile(definition.jsonSchema) as ValidateFunction;
+
+    let dataValidator: ValidateFunction | undefined;
+    let expectedSchemaId: string | undefined;
+    if (definition.outputSchema) {
+      if (typeof (definition.outputSchema as { $id?: unknown }).$id !== "string") {
+        throw new Error(
+          `Tool ${definition.name} output schema must declare a string $id property for discrimination.`
+        );
+      }
+
+      expectedSchemaId = (definition.outputSchema as { $id: string }).$id;
+      dataValidator = this.ajv.compile(definition.outputSchema) as ValidateFunction;
+    }
+
+    const compiled: ToolDefinition & {
+      inputValidator: ValidateFunction;
+      outputValidator: ValidateFunction;
+      dataValidator?: ValidateFunction;
+      expectedSchemaId?: string;
+    } = {
       ...definition,
-      validate: validator,
+      inputValidator,
+      outputValidator: this.toolResultValidator,
+      dataValidator,
+      expectedSchemaId,
     };
     this.tools.set(definition.name, compiled);
   }
@@ -33,11 +79,25 @@ export class ToolRegistry {
     this.tools.delete(name);
   }
 
-  get(name: string): (ToolDefinition & { validate?: ValidateFunction }) | undefined {
+  get(
+    name: string
+  ):
+    | (ToolDefinition & {
+        inputValidator: ValidateFunction;
+        outputValidator: ValidateFunction;
+        dataValidator?: ValidateFunction;
+        expectedSchemaId?: string;
+      })
+    | undefined {
     return this.tools.get(name);
   }
 
-  list(): (ToolDefinition & { validate?: ValidateFunction })[] {
+  list(): (ToolDefinition & {
+    inputValidator: ValidateFunction;
+    outputValidator: ValidateFunction;
+    dataValidator?: ValidateFunction;
+    expectedSchemaId?: string;
+  })[] {
     return Array.from(this.tools.values());
   }
 
@@ -53,7 +113,7 @@ export class ToolRegistry {
   async execute(
     call: { name: string; arguments: unknown },
     ctx: Parameters<ToolDefinition["handler"]>[1]
-  ): Promise<{ content: string; metadata?: Record<string, unknown> }> {
+  ): Promise<ToolResult> {
     const tool = this.tools.get(call.name);
     if (!tool) {
       throw new Error(`Unknown tool: ${call.name}`);
@@ -72,12 +132,42 @@ export class ToolRegistry {
       parsedArgs = args as Record<string, unknown>;
     }
 
-    if (tool.validate && !tool.validate(parsedArgs)) {
-      const errors = formatErrors(tool.validate);
+    if (!tool.inputValidator(parsedArgs)) {
+      const errors = formatErrors(tool.inputValidator);
       throw new Error(`Validation failed for tool ${tool.name}: ${errors ?? "unknown error"}`);
     }
 
-    return tool.handler(parsedArgs, ctx);
+    const result = await tool.handler(parsedArgs, ctx);
+
+    if (!tool.outputValidator(result)) {
+      const errors = formatErrors(tool.outputValidator);
+      throw new Error(
+        `Output validation failed for tool ${tool.name}: ${errors ?? "unknown error"}`
+      );
+    }
+
+    if (tool.expectedSchemaId && result.schema !== tool.expectedSchemaId) {
+      throw new Error(
+        `Output validation failed for tool ${tool.name}: expected schema ${tool.expectedSchemaId} but received ${result.schema}`
+      );
+    }
+
+    if (tool.dataValidator) {
+      if (result.data === undefined) {
+        throw new Error(
+          `Output validation failed for tool ${tool.name}: structured data missing for schema ${tool.expectedSchemaId}`
+        );
+      }
+
+      if (!tool.dataValidator(result.data)) {
+        const errors = formatErrors(tool.dataValidator);
+        throw new Error(
+          `Output validation failed for tool ${tool.name}: ${errors ?? "unknown error"}`
+        );
+      }
+    }
+
+    return result;
   }
 }
 
