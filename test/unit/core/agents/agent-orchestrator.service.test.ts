@@ -4,7 +4,7 @@ import type { StreamEvent, ProviderAdapter, PackedContext } from "../../../../sr
 import { AgentOrchestratorService, type AgentRuntimeOptions } from "../../../../src/core/agents";
 import { ToolRegistryFactory } from "../../../../src/core/tools";
 import { JsonlWriterService, StreamRendererService, LoggerService } from "../../../../src/io";
-import { HookBus } from "../../../../src/hooks";
+import { HookBus, blockHook } from "../../../../src/hooks";
 
 class RecordingStreamRendererService extends StreamRendererService {
   readonly events: StreamEvent[] = [];
@@ -462,5 +462,73 @@ describe("AgentOrchestratorService", () => {
       (entry) => entry.event === "Stop" && entry.payload.metadata.id === "manager"
     );
     expect(rootStop).toBeTruthy();
+  });
+
+  it("skips tool execution when a PreToolUse hook vetoes the call", async () => {
+    const provider = new MockProvider([
+      createStream([
+        {
+          type: "tool_call",
+          name: "echo",
+          arguments: { text: "blocked" },
+          id: "call-1",
+        },
+      ]),
+      createStream([
+        { type: "delta", text: "fallback" },
+        { type: "end" },
+      ]),
+    ]);
+
+    const hookBus = new HookBus();
+    let postToolInvocations = 0;
+
+    hookBus.on("PreToolUse", () => blockHook("policy veto"));
+    hookBus.on("PostToolUse", () => {
+      postToolInvocations += 1;
+    });
+
+    let toolExecuted = false;
+
+    const runtime = baseRuntime(provider, { hooks: hookBus });
+    const invocation = await orchestrator.runAgent(
+      {
+        definition: {
+          id: "manager",
+          systemPrompt: "coordinate",
+          tools: [
+            {
+              name: "echo",
+              description: "echo tool",
+              jsonSchema: {
+                type: "object",
+                properties: { text: { type: "string" } },
+                required: ["text"],
+              },
+              async handler() {
+                toolExecuted = true;
+                return { content: "should not run" };
+              },
+            },
+          ],
+        },
+        prompt: "delegate work",
+        context: contextSlice("ctx"),
+      },
+      runtime
+    );
+
+    expect(toolExecuted).toBe(false);
+    expect(postToolInvocations).toBe(0);
+
+    const toolMessage = invocation.messages.find(
+      (message) =>
+        message.role === "tool" &&
+        message.name === "echo" &&
+        message.tool_call_id === "call-1"
+    );
+
+    expect(toolMessage?.content).toBe("policy veto");
+    expect(invocation.messages.at(-1)?.content).toBe("fallback");
   });
 });
