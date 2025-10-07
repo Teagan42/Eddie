@@ -73,10 +73,12 @@ export interface PackedContext {
   text: string;
 }
 
+import type { ProcessEnv } from "node:process";
+
 export interface ToolExecutionContext {
   cwd: string;
   confirm(message: string): Promise<boolean>;
-  env: NodeJS.ProcessEnv;
+  env: ProcessEnv;
 }
 
 export interface ToolDefinition {
@@ -89,4 +91,3 @@ export interface ToolDefinition {
     ctx: ToolExecutionContext
   ): Promise<{ content: string; metadata?: Record<string, unknown> }>;
 }
-

@@ -44,7 +44,6 @@ export async function loadHooks(config?: HooksConfig): Promise<HookBus> {
         attachObjectHooks(bus, hookModule as Record<string, unknown>);
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error(`Failed to load hook module "${entry}"`, error);
     }
   }

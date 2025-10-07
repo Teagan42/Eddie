@@ -7,10 +7,8 @@ export class HookBus extends EventEmitter {
       await Promise.resolve()
         .then(() => (listener as (arg?: unknown) => unknown)(payload))
         .catch((error) => {
-          // eslint-disable-next-line no-console
-          console.error(`Hook "${event}" failed`, error);
+      console.error(`Hook "${event}" failed`, error);
         });
     }
   }
 }
-

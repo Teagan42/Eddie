@@ -10,7 +10,6 @@ export async function chat(options: Record<string, unknown>): Promise<void> {
   const history: ChatMessage[] = [];
 
   try {
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       const prompt = (await rl.question("> ")).trim();
       if (!prompt) continue;
