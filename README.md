@@ -5,7 +5,7 @@ Provider-agnostic AI assistant for the command line. Eddie hydrates prompts with
 ## Features
 
 - Multi-provider adapters (OpenAI, Anthropic, Groq-compatible) with streaming support
-- Context packer that pulls files via glob patterns, budgets tokens, and feeds models rich workspace snippets
+- Context service that packs workspace files via glob patterns, budgets tokens, and feeds models rich snippets
 - Tool registry with built-in `bash`, `file_read`, and `file_write` helpers plus confirmation prompts
 - Lifecycle hooks, optional OpenTelemetry spans, and JSONL traces for observability
 - Interactive chat, single-shot prompts, context previews, and automated run mode

@@ -9,6 +9,11 @@
 - Integration tests covering the Nest-backed command runner and CLI argument parsing parity.
 - Migration guide documenting environment variables, configuration lookups, and build steps for downstream consumers.
 
+## [1.0.2] - 2025-10-08
+
+### Changed
+- Renamed the context packing service to `context.service.ts` and updated consumers to use the new barrel export.
+
 ## [1.0.1] - 2025-10-07
 
 ### Changed
