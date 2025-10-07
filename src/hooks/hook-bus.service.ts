@@ -9,9 +9,21 @@ import type {
 } from "./types";
 import { isHookBlockResponse } from "./types";
 
+/**
+ * Hook event bus capable of fanning out to an arbitrary number of listeners.
+ *
+ * The default Node.js `EventEmitter` warns after 10 listeners which is too low
+ * for Eddie's hook system. We explicitly disable that cap so integrations can
+ * register freely without triggering warnings.
+ */
 @Injectable()
 export class HookBus extends EventEmitter {
   private readonly logger = new Logger(HookBus.name);
+
+  constructor() {
+    super();
+    this.setMaxListeners(0);
+  }
 
   async emitAsync<K extends HookEventName>(
     event: K,
