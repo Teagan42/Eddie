@@ -1,6 +1,6 @@
 # Eddie CLI
 
-Provider-agnostic AI assistant for the command line. Eddie hydrates prompts with context from your workspace, streams responses from multiple model providers, orchestrates tool calls, and records structured traces for reproducible automation.
+Provider-agnostic AI assistant for the command line. Eddie hydrates prompts with context from your workspace, streams responses from multiple model providers, orchestrates tool calls, and records structured traces for reproducible automation. The CLI is now backed by a Nest application context so every command benefits from dependency injection, a shared logger, and cohesive lifecycle management.
 
 ## Features
 
@@ -12,18 +12,26 @@ Provider-agnostic AI assistant for the command line. Eddie hydrates prompts with
 
 ## Getting Started
 
-```bash
-npm install
-npm run build
-npm run dev -- ask "Summarize src/core/engine.ts"
-```
+1. Install dependencies and compile the Nest application. The `build` script runs `nest build`, emitting the `dist/main.js` binary that is also published as the `eddie` executable.
 
-Or install globally once published:
+   ```bash
+   npm install
+   npm run build
+   ```
 
-```bash
-npm install -g eddie-cli
-eddie ask "List recent changes" --context "src/**/*.ts"
-```
+2. Execute commands through the compiled binary (or via `npm exec eddie`):
+
+   ```bash
+   node dist/main.js ask "Summarize src/core/engine.ts"
+   # or
+   npm exec -- eddie context --context "src/**/*.ts"
+   ```
+
+3. For local development with hot-reload, start the Nest CLI wrapper:
+
+   ```bash
+   npm run dev -- ask "Summarize src/core/engine.ts"
+   ```
 
 ## Configuration
 
@@ -59,10 +67,15 @@ CLI flags override config values: `--model`, `--provider`, `--context`, `--auto-
 ## Testing
 
 ```bash
+npm run lint
 npm test
 ```
 
-Vitest covers utilities such as secret redaction, with room to expand using fixtures for provider adapters and tool loops.
+Vitest covers utilities such as secret redaction, provider wiring, and CLI behaviours, while ESLint enforces the shared Nest coding standards.
+
+## Migration Notes
+
+If you are upgrading from the legacy Commander-based CLI, review [the Nest CLI migration guide](docs/migration/cli-nest-refactor.md) for details on environment variables, configuration file lookup, and build steps.
 
 ## License
 

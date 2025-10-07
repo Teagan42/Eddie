@@ -1,14 +1,29 @@
-import { describe, it, expect, afterEach } from "vitest";
+import "reflect-metadata";
+import { describe, it, expect, afterEach, beforeAll, afterAll } from "vitest";
+import { Test, type TestingModule } from "@nestjs/testing";
 import fs from "fs/promises";
 import path from "path";
 import { LoggerService } from "../../src/io/logger";
 
-const loggerService = new LoggerService();
+let moduleRef: TestingModule;
+let loggerService: LoggerService;
+
+beforeAll(async () => {
+  moduleRef = await Test.createTestingModule({
+    providers: [LoggerService],
+  }).compile();
+
+  loggerService = moduleRef.get(LoggerService);
+});
 
 afterEach(async () => {
   loggerService.reset();
   const tmpDir = path.join(process.cwd(), "test-logs");
   await fs.rm(tmpDir, { recursive: true, force: true });
+});
+
+afterAll(async () => {
+  await moduleRef.close();
 });
 
 describe("logging framework", () => {

@@ -1,17 +1,22 @@
+import "reflect-metadata";
 import { describe, it, expect, vi, afterEach } from "vitest";
+import { Test, type TestingModule } from "@nestjs/testing";
 import { CliRunnerService } from "../../src/cli/cli-runner.service";
 import type { CliArguments } from "../../src/cli/cli-arguments";
-import { CliParseError } from "../../src/cli/cli-parser.service";
+import { CliParseError, CliParserService } from "../../src/cli/cli-parser.service";
 import type { CliCommand } from "../../src/cli/commands/cli-command";
-import type { CliParserService } from "../../src/cli/cli-parser.service";
-import type { AskCommand } from "../../src/cli/commands/ask.command";
-import type { RunCommand } from "../../src/cli/commands/run.command";
-import type { ContextCommand } from "../../src/cli/commands/context.command";
-import type { ChatCommand } from "../../src/cli/commands/chat.command";
-import type { TraceCommand } from "../../src/cli/commands/trace.command";
+import { AskCommand } from "../../src/cli/commands/ask.command";
+import { RunCommand } from "../../src/cli/commands/run.command";
+import { ContextCommand } from "../../src/cli/commands/context.command";
+import { ChatCommand } from "../../src/cli/commands/chat.command";
+import { TraceCommand } from "../../src/cli/commands/trace.command";
 
-afterEach(() => {
+const modules: TestingModule[] = [];
+
+afterEach(async () => {
   vi.restoreAllMocks();
+  await Promise.all(modules.map((module) => module.close()));
+  modules.length = 0;
 });
 
 interface StubCommand extends CliCommand {
@@ -25,7 +30,7 @@ const createStubCommand = (name: string, aliases: string[] = []): StubCommand =>
 });
 
 describe("CliRunnerService", () => {
-  const createRunner = (overrides?: {
+  const createRunner = async (overrides?: {
     parser?: Partial<CliParserService> & { parse?: ReturnType<typeof vi.fn> };
     ask?: StubCommand;
     run?: StubCommand;
@@ -42,8 +47,8 @@ describe("CliRunnerService", () => {
       } satisfies CliArguments));
 
     const parser = {
+      ...(overrides?.parser ?? {}),
       parse: parseMock,
-      ...overrides?.parser,
     } as CliParserService;
 
     const ask = (overrides?.ask ?? createStubCommand("ask")) as AskCommand;
@@ -52,13 +57,45 @@ describe("CliRunnerService", () => {
     const chat = (overrides?.chat ?? createStubCommand("chat")) as ChatCommand;
     const trace = (overrides?.trace ?? createStubCommand("trace")) as TraceCommand;
 
-    const runner = new CliRunnerService(parser, ask, run, context, chat, trace);
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        {
+          provide: CliRunnerService,
+          useFactory: (
+            injectedParser: CliParserService,
+            askCommand: AskCommand,
+            runCommand: RunCommand,
+            contextCommand: ContextCommand,
+            chatCommand: ChatCommand,
+            traceCommand: TraceCommand
+          ) => new CliRunnerService(injectedParser, askCommand, runCommand, contextCommand, chatCommand, traceCommand),
+          inject: [
+            CliParserService,
+            AskCommand,
+            RunCommand,
+            ContextCommand,
+            ChatCommand,
+            TraceCommand,
+          ],
+        },
+        { provide: CliParserService, useValue: parser },
+        { provide: AskCommand, useValue: ask },
+        { provide: RunCommand, useValue: run },
+        { provide: ContextCommand, useValue: context },
+        { provide: ChatCommand, useValue: chat },
+        { provide: TraceCommand, useValue: trace },
+      ],
+    }).compile();
+
+    modules.push(moduleRef);
+
+    const runner = moduleRef.get(CliRunnerService);
 
     return { runner, parser, parseMock, ask, run, context, chat, trace };
   };
 
   it("delegates to the parsed command", async () => {
-    const { runner, parseMock, ask } = createRunner();
+    const { runner, parseMock, ask } = await createRunner();
     const parsed: CliArguments = {
       command: "ask",
       options: { auto: true },
@@ -74,7 +111,7 @@ describe("CliRunnerService", () => {
 
   it("supports command aliases", async () => {
     const aliasCommand = createStubCommand("trace", ["t"]);
-    const { runner, parseMock } = createRunner({ trace: aliasCommand });
+    const { runner, parseMock } = await createRunner({ trace: aliasCommand });
     const parsed: CliArguments = { command: "t", options: {}, positionals: [] };
     parseMock.mockReturnValue(parsed);
 
@@ -84,7 +121,7 @@ describe("CliRunnerService", () => {
   });
 
   it("prints usage information when help is requested", async () => {
-    const { runner, ask, run, context, chat, trace } = createRunner();
+    const { runner, ask, run, context, chat, trace } = await createRunner();
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
     await runner.run(["help"]);
@@ -104,13 +141,13 @@ describe("CliRunnerService", () => {
       }),
     } as unknown as CliParserService;
 
-    const { runner } = createRunner({ parser });
+    const { runner } = await createRunner({ parser });
 
     await expect(runner.run(["ask"])).rejects.toThrowError(new Error("bad news"));
   });
 
   it("rejects unknown commands", async () => {
-    const { runner, parseMock } = createRunner();
+    const { runner, parseMock } = await createRunner();
     const parsed: CliArguments = { command: "unknown", options: {}, positionals: [] };
     parseMock.mockReturnValue(parsed);
 
@@ -120,7 +157,7 @@ describe("CliRunnerService", () => {
   });
 
   it("requires a command to be provided", async () => {
-    const { runner } = createRunner();
+    const { runner } = await createRunner();
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
     await expect(runner.run([])).rejects.toThrowError(new Error("No command provided."));
