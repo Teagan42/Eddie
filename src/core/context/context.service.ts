@@ -5,7 +5,7 @@ import fg from "fast-glob";
 import ignore from "ignore";
 import type { ContextConfig } from "../../config/types";
 import type { PackedContext } from "../types";
-import { LoggerService } from "../../io/logger";
+import { LoggerService } from "../../io";
 
 const DEFAULT_MAX_BYTES = 250_000;
 const DEFAULT_MAX_FILES = 64;

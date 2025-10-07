@@ -14,7 +14,7 @@ Engine (src/core/engine)
   ├─ makeProvider → core/providers/* (adapter pattern)
   ├─ ToolRegistry → core/tools/* (AJV validated tool calls)
   ├─ stream loop → handles deltas, tool calls, traces, hooks
-  └─ initLogging → io/logger.ts (per-run structured logging)
+  └─ initLogging → io/logger.service.ts (per-run structured logging)
 ```
 
 Key flows:
@@ -23,8 +23,8 @@ Key flows:
 2. **Configuration Layering** – `loadConfig` merges defaults (`DEFAULT_CONFIG`), optional YAML/JSON configs, and CLI overrides, yielding a typed `EddieConfig` used everywhere.
 3. **Context Packing** – `packContext` resolves globs relative to `context.baseDir`, enforces `maxFiles/maxBytes`, and produces both file metadata and a stitched text payload. It logs budget decisions with a scoped logger.
 4. **Provider Abstraction** – `core/providers` exposes OpenAI, Anthropic, and generic OpenAI-compatible adapters, each yielding `StreamEvent`s with deltas, tool calls, and errors.
-5. **Tool Loop** – Tool calls stream from providers, are validated via AJV schemas in `ToolRegistry`, and dispatched to built-ins (`bash`, `file_read`, `file_write`). Confirmation prompts are mediated through `io/confirm` and respect `--auto-approve`/`--non-interactive` flags.
-6. **Observability** – `io/logger` centralises logging configuration (stdout/stderr/file with optional pretty transport). The engine writes JSONL traces, while hooks can emit additional telemetry.
+5. **Tool Loop** – Tool calls stream from providers, are validated via AJV schemas in `ToolRegistry`, and dispatched to built-ins (`bash`, `file_read`, `file_write`). Confirmation prompts are mediated through `io/confirm.service` and respect `--auto-approve`/`--non-interactive` flags.
+6. **Observability** – `io/logger.service` centralises logging configuration (stdout/stderr/file with optional pretty transport). The engine writes JSONL traces, while hooks can emit additional telemetry.
 
 ## Agents & Hooks
 
