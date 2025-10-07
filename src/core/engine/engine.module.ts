@@ -6,7 +6,7 @@ import { HooksModule } from "../../hooks";
 import { ProvidersModule } from "../providers/providers.module";
 import { TokenizersModule } from "../tokenizers";
 import { EngineService } from "./engine.service";
-import { ToolRegistryFactory } from "../tools/registry";
+import { ToolsModule } from "../tools";
 
 @Module({
   imports: [
@@ -16,14 +16,15 @@ import { ToolRegistryFactory } from "../tools/registry";
     HooksModule,
     ProvidersModule,
     TokenizersModule,
+    ToolsModule,
   ],
-  providers: [EngineService, ToolRegistryFactory],
+  providers: [EngineService],
   exports: [
     EngineService,
-    ToolRegistryFactory,
     HooksModule,
     ProvidersModule,
     TokenizersModule,
+    ToolsModule,
   ],
 })
 export class EngineModule {}
