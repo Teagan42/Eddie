@@ -1,15 +1,19 @@
 import "reflect-metadata";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { Test, type TestingModule } from "@nestjs/testing";
-import { CliRunnerService } from "../../src/cli/cli-runner.service";
-import type { CliArguments } from "../../src/cli/cli-arguments";
-import { CliParseError, CliParserService } from "../../src/cli/cli-parser.service";
-import type { CliCommand } from "../../src/cli/commands/cli-command";
-import { AskCommand } from "../../src/cli/commands/ask.command";
-import { RunCommand } from "../../src/cli/commands/run.command";
-import { ContextCommand } from "../../src/cli/commands/context.command";
-import { ChatCommand } from "../../src/cli/commands/chat.command";
-import { TraceCommand } from "../../src/cli/commands/trace.command";
+import {
+  CliModule,
+  CliRunnerService,
+  CliParserService,
+  CliParseError,
+  type CliArguments,
+  type CliCommand,
+  AskCommand,
+  RunCommand,
+  ContextCommand,
+  ChatCommand,
+  TraceCommand,
+} from "../../src/cli";
 
 const modules: TestingModule[] = [];
 
@@ -58,34 +62,48 @@ describe("CliRunnerService", () => {
     const trace = (overrides?.trace ?? createStubCommand("trace")) as TraceCommand;
 
     const moduleRef = await Test.createTestingModule({
-      providers: [
-        {
-          provide: CliRunnerService,
-          useFactory: (
-            injectedParser: CliParserService,
-            askCommand: AskCommand,
-            runCommand: RunCommand,
-            contextCommand: ContextCommand,
-            chatCommand: ChatCommand,
-            traceCommand: TraceCommand
-          ) => new CliRunnerService(injectedParser, askCommand, runCommand, contextCommand, chatCommand, traceCommand),
-          inject: [
-            CliParserService,
-            AskCommand,
-            RunCommand,
-            ContextCommand,
-            ChatCommand,
-            TraceCommand,
-          ],
-        },
-        { provide: CliParserService, useValue: parser },
-        { provide: AskCommand, useValue: ask },
-        { provide: RunCommand, useValue: run },
-        { provide: ContextCommand, useValue: context },
-        { provide: ChatCommand, useValue: chat },
-        { provide: TraceCommand, useValue: trace },
-      ],
-    }).compile();
+      imports: [CliModule],
+    })
+      .overrideProvider(CliParserService)
+      .useValue(parser)
+      .overrideProvider(AskCommand)
+      .useValue(ask)
+      .overrideProvider(RunCommand)
+      .useValue(run)
+      .overrideProvider(ContextCommand)
+      .useValue(context)
+      .overrideProvider(ChatCommand)
+      .useValue(chat)
+      .overrideProvider(TraceCommand)
+      .useValue(trace)
+      .overrideProvider(CliRunnerService)
+      .useFactory({
+        factory: (
+          injectedParser: CliParserService,
+          askCommand: AskCommand,
+          runCommand: RunCommand,
+          contextCommand: ContextCommand,
+          chatCommand: ChatCommand,
+          traceCommand: TraceCommand
+        ) =>
+          new CliRunnerService(
+            injectedParser,
+            askCommand,
+            runCommand,
+            contextCommand,
+            chatCommand,
+            traceCommand
+          ),
+        inject: [
+          CliParserService,
+          AskCommand,
+          RunCommand,
+          ContextCommand,
+          ChatCommand,
+          TraceCommand,
+        ],
+      })
+      .compile();
 
     modules.push(moduleRef);
 
@@ -111,13 +129,13 @@ describe("CliRunnerService", () => {
 
   it("supports command aliases", async () => {
     const aliasCommand = createStubCommand("trace", ["t"]);
-    const { runner, parseMock } = await createRunner({ trace: aliasCommand });
+    const { runner, parseMock, trace } = await createRunner({ trace: aliasCommand });
     const parsed: CliArguments = { command: "t", options: {}, positionals: [] };
     parseMock.mockReturnValue(parsed);
 
     await runner.run(["t"]);
 
-    expect(aliasCommand.run).toHaveBeenCalledWith(parsed);
+    expect(trace.run).toHaveBeenCalledWith(parsed);
   });
 
   it("prints usage information when help is requested", async () => {

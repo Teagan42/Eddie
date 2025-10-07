@@ -1,7 +1,16 @@
 import "reflect-metadata";
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { Test, type TestingModule } from "@nestjs/testing";
-import { CliParserService, CliParseError } from "../../src/cli/cli-parser.service";
+import {
+  CliModule,
+  CliParserService,
+  CliParseError,
+  AskCommand,
+  RunCommand,
+  ContextCommand,
+  ChatCommand,
+  TraceCommand,
+} from "../../src/cli";
 
 describe("CliParserService", () => {
   let moduleRef: TestingModule;
@@ -9,8 +18,19 @@ describe("CliParserService", () => {
 
   beforeAll(async () => {
     moduleRef = await Test.createTestingModule({
-      providers: [CliParserService],
-    }).compile();
+      imports: [CliModule],
+    })
+      .overrideProvider(AskCommand)
+      .useValue({ name: "ask", run: vi.fn(), aliases: [] })
+      .overrideProvider(RunCommand)
+      .useValue({ name: "run", run: vi.fn(), aliases: [] })
+      .overrideProvider(ContextCommand)
+      .useValue({ name: "context", run: vi.fn(), aliases: [] })
+      .overrideProvider(ChatCommand)
+      .useValue({ name: "chat", run: vi.fn(), aliases: [] })
+      .overrideProvider(TraceCommand)
+      .useValue({ name: "trace", run: vi.fn(), aliases: [] })
+      .compile();
 
     parser = moduleRef.get(CliParserService);
   });
