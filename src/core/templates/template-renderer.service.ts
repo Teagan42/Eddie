@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import fs from "fs/promises";
 import path from "path";
 import { Eta } from "eta";
+import type { BufferEncoding } from "node:buffer";
 import type {
   TemplateDescriptor,
   TemplateVariables,
