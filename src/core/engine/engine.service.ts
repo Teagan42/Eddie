@@ -4,17 +4,18 @@ import type { CliRuntimeOptions } from "../../config/types";
 import { ConfigService } from "../../config";
 import { ContextService } from "../context/context.service";
 import { ProviderFactoryService } from "../providers/provider-factory.service";
-import { ToolRegistryFactory, builtinTools } from "../tools";
-import {
-  ConfirmService,
-  JsonlWriterService,
-  LoggerService,
-  StreamRendererService,
-} from "../../io";
+import { builtinTools } from "../tools";
+import { ConfirmService, LoggerService } from "../../io";
 import { HooksService } from "../../hooks";
-import type { ChatMessage, StreamEvent } from "../types";
+import type { ChatMessage } from "../types";
 import type { PackedContext } from "../types";
 import { TokenizerService } from "../tokenizers";
+import {
+  AgentOrchestratorService,
+  type AgentDefinition,
+  type AgentInvocation,
+  type AgentRuntimeOptions,
+} from "../agents";
 
 export interface EngineOptions extends CliRuntimeOptions {
   history?: ChatMessage[];
@@ -26,6 +27,7 @@ export interface EngineResult {
   messages: ChatMessage[];
   context: PackedContext;
   tracePath?: string;
+  agents: AgentInvocation[];
 }
 
 /**
@@ -39,13 +41,11 @@ export class EngineService {
     private readonly configService: ConfigService,
     private readonly contextService: ContextService,
     private readonly providerFactory: ProviderFactoryService,
-    private readonly toolRegistryFactory: ToolRegistryFactory,
-    private readonly streamRenderer: StreamRendererService,
-    private readonly traceWriter: JsonlWriterService,
     private readonly hooksService: HooksService,
     private readonly confirmService: ConfirmService,
     private readonly tokenizerService: TokenizerService,
-    private readonly loggerService: LoggerService
+    private readonly loggerService: LoggerService,
+    private readonly agentOrchestrator: AgentOrchestratorService
   ) {}
 
   async run(prompt: string, options: EngineOptions = {}): Promise<EngineResult> {
@@ -74,10 +74,6 @@ export class EngineService {
       cfg.tools?.enabled,
       cfg.tools?.disabled
     );
-    const registry = this.toolRegistryFactory.create(toolsEnabled);
-    const toolSchemas =
-      toolsEnabled.length > 0 ? registry.schemas() : undefined;
-
     const confirm = this.confirmService.create({
       autoApprove: options.autoApprove ?? cfg.tools?.autoApprove,
       nonInteractive: options.nonInteractive ?? false,
@@ -87,155 +83,41 @@ export class EngineService {
       ? path.resolve(cfg.output.jsonlTrace)
       : undefined;
 
-    if (tracePath) {
-      await this.traceWriter.write(
-        tracePath,
-        {
-          type: "start",
-          model: cfg.model,
-          provider: provider.name,
-          prompt,
-          timestamp: new Date().toISOString(),
-        },
-        cfg.output?.jsonlAppend ?? true
-      );
-    }
+    const agentDefinition: AgentDefinition = {
+      id: "manager",
+      systemPrompt: cfg.systemPrompt,
+      tools: toolsEnabled,
+    };
 
-    const messages = this.buildInitialMessages(
-      prompt,
-      context,
-      cfg.systemPrompt,
-      options.history
+    const runtime: AgentRuntimeOptions = {
+      provider,
+      model: cfg.model,
+      hooks,
+      confirm,
+      cwd: cfg.context.baseDir ?? process.cwd(),
+      logger,
+      tracePath,
+      traceAppend: cfg.output?.jsonlAppend ?? true,
+    };
+
+    const rootInvocation = await this.agentOrchestrator.runAgent(
+      {
+        definition: agentDefinition,
+        prompt,
+        context,
+        history: options.history,
+      },
+      runtime
     );
 
-    let iteration = 0;
-    let continueConversation = true;
-
-    while (continueConversation) {
-      iteration += 1;
-      continueConversation = false;
-
-      await hooks.emitAsync("beforeModelCall", { iteration, messages });
-
-      const stream = provider.stream({
-        model: cfg.model,
-        messages,
-        tools: toolSchemas,
-      });
-
-      let assistantBuffer = "";
-
-      for await (const event of stream) {
-        if (event.type === "delta") {
-          assistantBuffer += event.text;
-          this.streamRenderer.render(event);
-          continue;
-        }
-
-        if (event.type === "tool_call") {
-          this.streamRenderer.flush();
-          this.streamRenderer.render(event);
-          await hooks.emitAsync("onToolCall", { event, iteration });
-
-          messages.push({
-            role: "assistant",
-            content: "",
-            name: event.name,
-            tool_call_id: event.id,
-          });
-
-          try {
-            const result = await registry.execute(event, {
-              cwd: cfg.context.baseDir ?? process.cwd(),
-              confirm,
-              env: process.env,
-            });
-
-            messages.push({
-              role: "tool",
-              name: event.name,
-              tool_call_id: event.id,
-              content: result.content,
-            });
-
-            await hooks.emitAsync("onToolResult", {
-              event,
-              result,
-            });
-
-            await this.logTrace(tracePath, {
-              type: "tool_result",
-              name: event.name,
-              id: event.id,
-              result: result.content,
-            });
-
-            continueConversation = true;
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            logger.error(
-              { err: message, tool: event.name },
-              "Tool execution failed"
-            );
-            messages.push({
-              role: "tool",
-              name: event.name,
-              tool_call_id: event.id,
-              content: `Tool execution failed: ${message}`,
-            });
-          }
-
-          continue;
-       }
-
-        if (event.type === "error") {
-          this.streamRenderer.render(event);
-          await hooks.emitAsync("onError", event);
-          continueConversation = false;
-        }
-
-        if (event.type === "end") {
-          this.streamRenderer.render(event);
-          if (assistantBuffer.trim().length > 0) {
-            messages.push({ role: "assistant", content: assistantBuffer });
-          }
-          await hooks.emitAsync("onComplete", { messages, iteration });
-        }
-      }
-    }
-
-    if (tracePath) {
-      await this.traceWriter.write(tracePath, {
-        type: "end",
-        timestamp: new Date().toISOString(),
-      });
-    }
+    const agents = this.agentOrchestrator.collectInvocations(rootInvocation);
 
     return {
-      messages,
+      messages: rootInvocation.messages,
       context,
       tracePath,
+      agents,
     };
-  }
-
-  private buildInitialMessages(
-    prompt: string,
-    context: PackedContext,
-    systemPrompt: string,
-    history?: ChatMessage[]
-  ): ChatMessage[] {
-    const messages: ChatMessage[] = [
-      { role: "system", content: systemPrompt },
-      ...(history ?? []),
-    ];
-
-    const withContext =
-      context.text.trim().length > 0
-        ? `${prompt}\n\n<workspace_context>\n${context.text}\n</workspace_context>`
-        : prompt;
-
-    messages.push({ role: "user", content: withContext });
-    return messages;
   }
 
   private filterTools(enabled?: string[], disabled?: string[]) {
@@ -249,18 +131,5 @@ export class EngineService {
       if (enabledSet) return enabledSet.has(tool.name);
       return true;
     });
-  }
-
-  private async logTrace(
-    tracePath: string | undefined,
-    event: StreamEvent,
-    append = true
-  ): Promise<void> {
-    if (!tracePath) return;
-    await this.traceWriter.write(
-      tracePath,
-      { ...event, timestamp: new Date().toISOString() },
-      append
-    );
   }
 }
