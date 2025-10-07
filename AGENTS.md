@@ -5,21 +5,21 @@ Eddie acts as a command-line facilitator for agentic AI workflows. This document
 ## High-Level Architecture
 
 ```
-CLI (commander)
+CLI (CliRunnerService → CliParserService)
   ├─ ask/run/chat/context/trace commands
-  └─ resolveCliOptions → Engine
+  └─ CliOptionsService.parse → Engine
 Engine (src/core/engine)
   ├─ loadConfig → config/config.service.ts (merges defaults + file + CLI flags)
   ├─ ContextService → core/context/context.service.ts (glob, ignore, budgets)
   ├─ makeProvider → core/providers/* (adapter pattern)
   ├─ ToolRegistry → core/tools/* (AJV validated tool calls)
   ├─ stream loop → handles deltas, tool calls, traces, hooks
-  └─ initLogging → io/logger.service.ts (per-run structured logging)
+  └─ LoggerService.configure → io/logger.service.ts (per-run structured logging)
 ```
 
 Key flows:
 
-1. **Command Entry** – Commands collect flags, pass them through `resolveCliOptions`, and call the engine.
+1. **Command Entry** – Commands collect flags, pass them through `CliOptionsService.parse`, and call the engine.
 2. **Configuration Layering** – `loadConfig` merges defaults (`DEFAULT_CONFIG`), optional YAML/JSON configs, and CLI overrides, yielding a typed `EddieConfig` used everywhere.
 3. **Context Packing** – `packContext` resolves globs relative to `context.baseDir`, enforces `maxFiles/maxBytes`, and produces both file metadata and a stitched text payload. It logs budget decisions with a scoped logger.
 4. **Provider Abstraction** – `core/providers` exposes OpenAI, Anthropic, and generic OpenAI-compatible adapters, each yielding `StreamEvent`s with deltas, tool calls, and errors.
@@ -44,7 +44,7 @@ To add a new agent mode:
 - **Adapter Pattern** – Providers conform to `ProviderAdapter`, isolating API quirks (stream formats, tool-call semantics).
 - **Dependency Injection via Config** – Configuration objects flow from CLI → engine → subsystems, avoiding global state besides the logger singleton.
 - **Functional Core / Imperative Shell** – Pure data transforms (context packing, config merge) feed into side-effecting loops (streaming, file IO), simplifying tests.
-- **Structured Logging** – `initLogging` must be called once per command; scoped loggers (`getLogger("engine")`) tag events for later filtering.
+- **Structured Logging** – `LoggerService.configure` must be called once per command; scoped loggers (`getLogger("engine")`) tag events for later filtering.
 - **Extensibility Hooks** – Hook bus uses Node’s `EventEmitter`; modules can export an installer function or an event map, making composition dead-simple.
 
 ## Implementation Notes
