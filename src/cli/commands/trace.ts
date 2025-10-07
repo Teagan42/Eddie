@@ -1,13 +1,15 @@
 import fs from "fs/promises";
 import path from "path";
-import { resolveCliOptions } from "../utils";
-import { loadConfig } from "../../config/loader";
+import { ConfigService } from "../../config/loader";
+import { createCliApplicationContext, resolveCliOptions } from "../utils";
 
 export async function trace(
   options: Record<string, unknown>
 ): Promise<void> {
   const engineOptions = resolveCliOptions(options);
-  const cfg = await loadConfig(engineOptions);
+  const app = await createCliApplicationContext();
+  const configService = app.get(ConfigService);
+  const cfg = await configService.load(engineOptions);
 
   const tracePath =
     engineOptions.jsonlTrace ??
@@ -33,6 +35,8 @@ export async function trace(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`Unable to read trace at ${tracePath}: ${message}`);
+  } finally {
+    await app.close();
   }
 }
 
