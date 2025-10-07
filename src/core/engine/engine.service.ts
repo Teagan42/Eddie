@@ -3,7 +3,7 @@ import path from "path";
 import type { CliRuntimeOptions } from "../../config/types";
 import { ConfigService } from "../../config";
 import { ContextService } from "../context/context.service";
-import { ProviderFactory } from "../providers";
+import { ProviderFactory } from "../providers/provider-factory.service";
 import { ToolRegistryFactory } from "../tools/registry";
 import { builtinTools } from "../tools/builtin";
 import {
@@ -121,23 +121,23 @@ export class EngineService {
       const stream = provider.stream({
         model: cfg.model,
         messages,
-        tools: toolSchemas,
+        tool_choice: cfg.tools?.defaultTool,
+        tool_namespaces: cfg.tools?.namespaces,
+        tool_schemas: toolSchemas,
       });
 
       let assistantBuffer = "";
 
       for await (const event of stream) {
-        await this.logTrace(tracePath, event);
-
-        this.streamRenderer.render(event);
-
         if (event.type === "delta") {
-          assistantBuffer += event.text;
+          assistantBuffer += event.value;
+          this.streamRenderer.render(event.value);
           continue;
         }
 
         if (event.type === "tool_call") {
-          await hooks.emitAsync("onToolCall", event);
+          this.streamRenderer.flush();
+          await hooks.emitAsync("onToolCall", { event, iteration });
 
           messages.push({
             role: "assistant",

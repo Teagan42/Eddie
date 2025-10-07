@@ -4,6 +4,7 @@
 
 ### Changed
 - Refactored the CLI bootstrap to run inside a Nest application context, ensuring dependency-injected command runners and shared services.
+- Extracted the provider factory into a dedicated service/module to clarify dependency injection boundaries.
 
 ### Added
 - Integration tests covering the Nest-backed command runner and CLI argument parsing parity.
