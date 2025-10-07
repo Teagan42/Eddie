@@ -22,7 +22,7 @@ Provider-agnostic AI assistant for the command line. Eddie hydrates prompts with
 2. Execute commands through the compiled binary (or via `npm exec eddie`):
 
    ```bash
-   node dist/main.js ask "Summarize src/core/engine.ts"
+   node dist/main.js ask "Summarize src/core/engine/engine.service.ts"
    # or
    npm exec -- eddie context --context "src/**/*.ts"
    ```
@@ -30,7 +30,7 @@ Provider-agnostic AI assistant for the command line. Eddie hydrates prompts with
 3. For local development with hot-reload, start the Nest CLI wrapper:
 
    ```bash
-   npm run dev -- ask "Summarize src/core/engine.ts"
+   npm run dev -- ask "Summarize src/core/engine/engine.service.ts"
    ```
 
 ## Configuration
