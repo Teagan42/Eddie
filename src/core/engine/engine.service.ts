@@ -57,6 +57,13 @@ export class EngineService {
     private readonly agentOrchestrator: AgentOrchestratorService
   ) {}
 
+  /**
+   * Executes a single CLI run, emitting hooks in the order
+   * `sessionStart` → `beforeContextPack` → `afterContextPack` →
+   * `userPromptSubmit` before delegating to the agent orchestrator. Once the
+   * agent tree finishes, a terminal `sessionEnd` hook is dispatched with the
+   * aggregated result or failure context.
+   */
   async run(prompt: string, options: EngineOptions = {}): Promise<EngineResult> {
     const runStartedAt = Date.now();
     const sessionId = randomUUID();
