@@ -54,12 +54,12 @@ To add a new agent mode:
 - Tool authors should return concise payloads; heavy binary outputs should be redirected to files and referenced in the tool result string.
 - Write tests alongside every code change, preferring realistic data that mirrors production usage (e.g., representative file contents, plausible API payloads).
 
-## Contribution Workflow
+## Contribution Best Practices
 
-- Use a new branch for a series of tasks following the pattern `codex/$description`.
-- Use [Conventional Commits](https://www.conventionalcommits.org/) for every commit (e.g., `feat: add foo support`, `fix: handle bar edge case`), keep commits atomic, and group related work logically: documentation, scaffolding, refactor, logic/feature, bugs, test.
-- Capture any significant architectural or design decision in an ADR placed under `adr/` (one file per decision, numbered chronologically).
-- Add or update test cases for all behaviour changes; ensure fixtures resemble real-world inputs so regressions surface quickly - add any necessary devDependencies to package.json.
-- Ensure all code follows proper documentation standards for Typescript.
+- Create feature branches using the pattern `codex/$description` to keep work isolated and reviewable.
+- Follow [Conventional Commits](https://www.conventionalcommits.org/) for every commit (for example, `feat: add foo support` or `fix: handle bar edge case`). Keep commits atomic and group related work logically across documentation, scaffolding, refactors, logic/features, bug fixes, and tests.
+- Record all significant architectural or design decisions as ADRs stored under `adr/`, numbering each file sequentially (`0001-some-decision.md`, `0002-another-decision.md`, and so on).
+- Update or add tests for every behavioural change. Prefer fixtures that mirror real-world inputs so regressions surface quickly, and include any required `devDependencies` in `package.json` to keep the test suite runnable.
+- Ensure all TypeScript code adheres to the project's documentation standards (JSDoc/TSdoc annotations where applicable, public APIs documented, etc.).
 
-By adhering to these conventions, Eddie stays maintainable while acting as a flexible agent host for future LLM integrations.
+Adhering to these practices keeps Eddie maintainable while acting as a flexible agent host for future LLM integrations.
