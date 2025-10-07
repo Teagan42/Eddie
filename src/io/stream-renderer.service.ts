@@ -52,4 +52,8 @@ export class StreamRendererService {
         break;
     }
   }
+
+  flush(): void {
+    process.stdout.write("\n");
+  }
 }

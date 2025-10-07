@@ -120,22 +120,21 @@ export class EngineService {
       const stream = provider.stream({
         model: cfg.model,
         messages,
-        tool_choice: cfg.tools?.defaultTool,
-        tool_namespaces: cfg.tools?.namespaces,
-        tool_schemas: toolSchemas,
+        tools: toolSchemas,
       });
 
       let assistantBuffer = "";
 
       for await (const event of stream) {
         if (event.type === "delta") {
-          assistantBuffer += event.value;
-          this.streamRenderer.render(event.value);
+          assistantBuffer += event.text;
+          this.streamRenderer.render(event);
           continue;
         }
 
         if (event.type === "tool_call") {
           this.streamRenderer.flush();
+          this.streamRenderer.render(event);
           await hooks.emitAsync("onToolCall", { event, iteration });
 
           messages.push({
@@ -187,14 +186,16 @@ export class EngineService {
           }
 
           continue;
-        }
+       }
 
         if (event.type === "error") {
+          this.streamRenderer.render(event);
           await hooks.emitAsync("onError", event);
           continueConversation = false;
         }
 
         if (event.type === "end") {
+          this.streamRenderer.render(event);
           if (assistantBuffer.trim().length > 0) {
             messages.push({ role: "assistant", content: assistantBuffer });
           }
