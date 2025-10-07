@@ -1,15 +1,15 @@
 {
     "name": "eddie",
     "version": "1.0.0",
-    "main": "dist/cli/index.js",
+    "main": "dist/main.js",
     "bin": {
-        "eddie": "dist/cli/index.js"
+        "eddie": "dist/main.js"
     },
     "scripts": {
-        "build": "tsc -p tsconfig.json",
+        "build": "nest build",
         "lint": "eslint 'src/**/*.ts'",
         "test": "vitest",
-        "dev": "ts-node src/cli/index.ts"
+        "dev": "nest start --watch"
     },
     "repository": {
         "type": "git",
@@ -24,6 +24,8 @@
     "homepage": "https://github.com/Teagan42/Eddie#readme",
     "description": "",
     "dependencies": {
+        "@nestjs/common": "^11.0.0",
+        "@nestjs/core": "^11.0.0",
         "@opentelemetry/api": "^1.9.0",
         "ajv": "^8.17.1",
         "chalk": "^5.6.2",
@@ -31,17 +33,18 @@
         "fast-glob": "^3.3.3",
         "ignore": "^7.0.5",
         "pino": "^10.0.0",
+        "reflect-metadata": "^0.2.2",
         "tiktoken-node": "^0.0.7",
         "undici": "^7.16.0",
         "yaml": "^2.6.0"
     },
     "devDependencies": {
+        "@nestjs/cli": "^11.0.0",
         "@types/node": "^24.7.0",
         "@typescript-eslint/eslint-plugin": "^8.46.0",
         "@typescript-eslint/parser": "^8.46.0",
         "eslint": "^9.37.0",
         "pino-pretty": "^11.2.2",
-        "ts-node": "^10.9.2",
         "typescript": "^5.9.3",
         "vitest": "^3.2.4"
     }
