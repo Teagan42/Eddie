@@ -1,6 +1,6 @@
 import "reflect-metadata";
-import { describe, it, expect } from "vitest";
-import { HookBus, HooksLoaderService } from "../../../src/hooks";
+import { describe, it, expect, vi } from "vitest";
+import { HOOK_EVENTS, HookBus, HooksLoaderService } from "../../../src/hooks";
 
 const lifecyclePayload = {
   metadata: {
@@ -26,12 +26,12 @@ describe("HooksLoaderService", () => {
     const beforeStart: unknown[] = [];
 
     loader.attachObjectHooks(bus, {
-      beforeAgentStart: (payload) => {
+      [HOOK_EVENTS.beforeAgentStart]: (payload) => {
         beforeStart.push(payload);
       },
     });
 
-    await bus.emitAsync("beforeAgentStart", lifecyclePayload);
+    await bus.emitAsync(HOOK_EVENTS.beforeAgentStart, lifecyclePayload);
 
     expect(beforeStart).toHaveLength(1);
     expect(beforeStart[0]).toMatchObject({
@@ -44,12 +44,38 @@ describe("HooksLoaderService", () => {
     const bus = new HookBus();
 
     loader.attachObjectHooks(bus, {
-      beforeAgentStart: () => undefined,
+      [HOOK_EVENTS.beforeAgentStart]: () => undefined,
       // @ts-expect-error ensure invalid events are ignored gracefully
       customEvent: () => undefined,
     });
 
-    expect(bus.listenerCount("beforeAgentStart")).toBe(1);
+    expect(bus.listenerCount(HOOK_EVENTS.beforeAgentStart)).toBe(1);
     expect(bus.eventNames()).not.toContain("customEvent");
+  });
+
+  it("translates legacy PascalCase events and warns", async () => {
+    const loader = new HooksLoaderService();
+    const bus = new HookBus();
+    const calls: unknown[] = [];
+    const warnSpy = vi.spyOn((loader as any).logger, "warn");
+
+    loader.attachObjectHooks(bus, {
+      // legacy casing
+      SessionStart: (payload) => {
+        calls.push(payload);
+      },
+    });
+
+    await bus.emitAsync(HOOK_EVENTS.sessionStart, {
+      metadata: lifecyclePayload.metadata,
+      config: {} as any,
+      options: {} as any,
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("SessionStart")
+    );
+    warnSpy.mockRestore();
   });
 });

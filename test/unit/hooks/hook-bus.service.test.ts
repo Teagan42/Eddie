@@ -1,15 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
-import { HookBus, blockHook } from "../../../src/hooks";
+import { HOOK_EVENTS, HookBus, blockHook } from "../../../src/hooks";
 import type { HookBlockResponse } from "../../../src/hooks";
 
 describe("HookBus", () => {
   it("returns listener results in registration order", async () => {
     const bus = new HookBus();
 
-    bus.on("beforeContextPack", () => "first");
-    bus.on("beforeContextPack", async () => "second");
+    bus.on(HOOK_EVENTS.beforeContextPack, () => "first");
+    bus.on(HOOK_EVENTS.beforeContextPack, async () => "second");
 
-    const result = await bus.emitAsync("beforeContextPack", {
+    const result = await bus.emitAsync(HOOK_EVENTS.beforeContextPack, {
       config: {} as any,
       options: {} as any,
     });
@@ -23,12 +23,12 @@ describe("HookBus", () => {
     const bus = new HookBus();
     const observed: HookBlockResponse[] = [];
 
-    bus.on("beforeModelCall", () => blockHook("not allowed"));
-    bus.on("beforeModelCall", () => {
+    bus.on(HOOK_EVENTS.beforeModelCall, () => blockHook("not allowed"));
+    bus.on(HOOK_EVENTS.beforeModelCall, () => {
       throw new Error("should not run");
     });
 
-    const result = await bus.emitAsync("beforeModelCall", {
+    const result = await bus.emitAsync(HOOK_EVENTS.beforeModelCall, {
       metadata: { id: "agent", parentId: undefined, depth: 0, isRoot: true, systemPrompt: "", tools: [] },
       prompt: "prompt",
       context: { totalBytes: 0, fileCount: 0 },
@@ -51,16 +51,16 @@ describe("HookBus", () => {
     const bus = new HookBus();
     const calls: string[] = [];
 
-    bus.on("Stop", () => {
+    bus.on(HOOK_EVENTS.stop, () => {
       calls.push("first");
       throw new Error("boom");
     });
-    bus.on("Stop", () => {
+    bus.on(HOOK_EVENTS.stop, () => {
       calls.push("second");
       return undefined;
     });
 
-    const result = await bus.emitAsync("Stop", {
+    const result = await bus.emitAsync(HOOK_EVENTS.stop, {
       metadata: { id: "agent", parentId: undefined, depth: 0, isRoot: true, systemPrompt: "", tools: [] },
       prompt: "",
       context: { totalBytes: 0, fileCount: 0 },
@@ -80,12 +80,12 @@ describe("HookBus", () => {
 
     const events: number[] = [];
     for (let i = 0; i < 11; i += 1) {
-      bus.on("beforeContextPack", () => {
+      bus.on(HOOK_EVENTS.beforeContextPack, () => {
         events.push(i);
       });
     }
 
-    await bus.emitAsync("beforeContextPack", {
+    await bus.emitAsync(HOOK_EVENTS.beforeContextPack, {
       config: {} as any,
       options: {} as any,
     });

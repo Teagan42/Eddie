@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type { Logger } from "pino";
 import { JsonlWriterService, StreamRendererService } from "../../io";
+import { HOOK_EVENTS } from "../../hooks";
 import type {
   AgentLifecyclePayload,
   AgentMetadata,
@@ -149,7 +150,7 @@ export class AgentOrchestratorService {
     }
 
     const lifecycle = this.createLifecyclePayload(invocation);
-    await runtime.hooks.emitAsync("beforeAgentStart", lifecycle);
+    await runtime.hooks.emitAsync(HOOK_EVENTS.beforeAgentStart, lifecycle);
 
     await this.writeTrace(
       runtime,
@@ -174,7 +175,7 @@ export class AgentOrchestratorService {
         return;
       }
       subagentStopEmitted = true;
-      await runtime.hooks.emitAsync("SubagentStop", lifecycle);
+      await runtime.hooks.emitAsync(HOOK_EVENTS.subagentStop, lifecycle);
     };
 
     try {
@@ -195,7 +196,10 @@ export class AgentOrchestratorService {
           lifecycle
         );
 
-        await runtime.hooks.emitAsync("beforeModelCall", iterationPayload);
+        await runtime.hooks.emitAsync(
+          HOOK_EVENTS.beforeModelCall,
+          iterationPayload
+        );
         await this.writeTrace(runtime, invocation, {
           phase: "model_call",
           data: {
@@ -231,7 +235,7 @@ export class AgentOrchestratorService {
             const preToolDispatch = await this.dispatchHookOrThrow(
               runtime,
               invocation,
-              "PreToolUse",
+              HOOK_EVENTS.preToolUse,
               {
                 ...lifecycle,
                 iteration,
@@ -295,12 +299,17 @@ export class AgentOrchestratorService {
                 content: result.content,
               });
 
-              await this.dispatchHookOrThrow(runtime, invocation, "PostToolUse", {
-                ...lifecycle,
-                iteration,
-                event,
-                result,
-              });
+              await this.dispatchHookOrThrow(
+                runtime,
+                invocation,
+                HOOK_EVENTS.postToolUse,
+                {
+                  ...lifecycle,
+                  iteration,
+                  event,
+                  result,
+                }
+              );
 
               await this.writeTrace(runtime, invocation, {
                 phase: "tool_result",
@@ -327,10 +336,15 @@ export class AgentOrchestratorService {
                 content: `Tool execution failed: ${serialized.message}`,
               });
               agentFailed = true;
-              await this.dispatchHookOrThrow(runtime, invocation, "onAgentError", {
-                ...lifecycle,
-                error: serialized,
-              });
+              await this.dispatchHookOrThrow(
+                runtime,
+                invocation,
+                HOOK_EVENTS.onAgentError,
+                {
+                  ...lifecycle,
+                  error: serialized,
+                }
+              );
               await this.writeTrace(runtime, invocation, {
                 phase: "agent_error",
                 data: {
@@ -349,18 +363,28 @@ export class AgentOrchestratorService {
             this.streamRenderer.render(event);
             agentFailed = true;
 
-            await this.dispatchHookOrThrow(runtime, invocation, "onError", {
-              ...lifecycle,
-              iteration,
-              error: event,
-            });
-            await this.dispatchHookOrThrow(runtime, invocation, "onAgentError", {
-              ...lifecycle,
-              error: {
-                message: event.message,
-                cause: event.cause,
-              },
-            });
+            await this.dispatchHookOrThrow(
+              runtime,
+              invocation,
+              HOOK_EVENTS.onError,
+              {
+                ...lifecycle,
+                iteration,
+                error: event,
+              }
+            );
+            await this.dispatchHookOrThrow(
+              runtime,
+              invocation,
+              HOOK_EVENTS.onAgentError,
+              {
+                ...lifecycle,
+                error: {
+                  message: event.message,
+                  cause: event.cause,
+                },
+              }
+            );
             await this.writeTrace(runtime, invocation, {
               phase: "agent_error",
               data: {
@@ -375,7 +399,7 @@ export class AgentOrchestratorService {
 
           if (event.type === "notification") {
             this.streamRenderer.render(event);
-            await runtime.hooks.emitAsync("Notification", {
+            await runtime.hooks.emitAsync(HOOK_EVENTS.notification, {
               ...lifecycle,
               iteration,
               event,
@@ -392,7 +416,7 @@ export class AgentOrchestratorService {
               });
             }
 
-            await runtime.hooks.emitAsync("Stop", {
+            await runtime.hooks.emitAsync(HOOK_EVENTS.stop, {
               ...lifecycle,
               iteration,
               messages: invocation.messages,
@@ -419,7 +443,7 @@ export class AgentOrchestratorService {
     } catch (error) {
       agentFailed = true;
       const serialized = this.serializeError(error);
-      await this.dispatchHookOrThrow(runtime, invocation, "onAgentError", {
+      await this.dispatchHookOrThrow(runtime, invocation, HOOK_EVENTS.onAgentError, {
         ...lifecycle,
         error: serialized,
       });
@@ -436,7 +460,7 @@ export class AgentOrchestratorService {
       return;
     }
 
-    await runtime.hooks.emitAsync("afterAgentComplete", {
+    await runtime.hooks.emitAsync(HOOK_EVENTS.afterAgentComplete, {
       ...lifecycle,
       iterations: iteration,
       messages: invocation.messages,
@@ -583,7 +607,7 @@ export class AgentOrchestratorService {
       reason: plan.reason,
     };
 
-    await runtime.hooks.emitAsync("PreCompact", payload);
+    await runtime.hooks.emitAsync(HOOK_EVENTS.preCompact, payload);
     const result = await plan.apply();
     if (result && typeof result === "object") {
       runtime.logger.debug(

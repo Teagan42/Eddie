@@ -17,7 +17,7 @@ import { ToolRegistryFactory } from "../../../../src/core/tools";
 import type { ConfigService } from "../../../../src/config";
 import type { ContextService } from "../../../../src/core/context/context.service";
 import type { ProviderFactoryService } from "../../../../src/core/providers/provider-factory.service";
-import { HookBus, blockHook } from "../../../../src/hooks";
+import { HOOK_EVENTS, HookBus, blockHook } from "../../../../src/hooks";
 import type { HooksService } from "../../../../src/hooks";
 import type { ConfirmService } from "../../../../src/io";
 import { LoggerService } from "../../../../src/io";
@@ -161,23 +161,23 @@ describe("EngineService hooks", () => {
     const harness = createEngineHarness();
     const events: Array<{ event: string; payload: any }> = [];
 
-    harness.hookBus.on("SessionStart", (payload) =>
-      events.push({ event: "SessionStart", payload })
+    harness.hookBus.on(HOOK_EVENTS.sessionStart, (payload) =>
+      events.push({ event: HOOK_EVENTS.sessionStart, payload })
     );
-    harness.hookBus.on("UserPromptSubmit", (payload) =>
-      events.push({ event: "UserPromptSubmit", payload })
+    harness.hookBus.on(HOOK_EVENTS.userPromptSubmit, (payload) =>
+      events.push({ event: HOOK_EVENTS.userPromptSubmit, payload })
     );
-    harness.hookBus.on("SessionEnd", (payload) =>
-      events.push({ event: "SessionEnd", payload })
+    harness.hookBus.on(HOOK_EVENTS.sessionEnd, (payload) =>
+      events.push({ event: HOOK_EVENTS.sessionEnd, payload })
     );
 
     const history: ChatMessage[] = [{ role: "user", content: "earlier" }];
     const result = await harness.engine.run("Execute plan", { history });
 
     expect(events.map((entry) => entry.event)).toEqual([
-      "SessionStart",
-      "UserPromptSubmit",
-      "SessionEnd",
+      HOOK_EVENTS.sessionStart,
+      HOOK_EVENTS.userPromptSubmit,
+      HOOK_EVENTS.sessionEnd,
     ]);
 
     const start = events[0]?.payload;
@@ -201,27 +201,27 @@ describe("EngineService hooks", () => {
     expect(harness.fakeOrchestrator.lastRuntime?.hooks).toBe(harness.hookBus);
   });
 
-  it("emits SessionEnd with error details when orchestration fails", async () => {
+  it("emits sessionEnd with error details when orchestration fails", async () => {
     const harness = createEngineHarness({ orchestratorShouldFail: true });
     const events: Array<{ event: string; payload: any }> = [];
 
-    harness.hookBus.on("SessionStart", (payload) =>
-      events.push({ event: "SessionStart", payload })
+    harness.hookBus.on(HOOK_EVENTS.sessionStart, (payload) =>
+      events.push({ event: HOOK_EVENTS.sessionStart, payload })
     );
-    harness.hookBus.on("UserPromptSubmit", (payload) =>
-      events.push({ event: "UserPromptSubmit", payload })
+    harness.hookBus.on(HOOK_EVENTS.userPromptSubmit, (payload) =>
+      events.push({ event: HOOK_EVENTS.userPromptSubmit, payload })
     );
-    harness.hookBus.on("SessionEnd", (payload) =>
-      events.push({ event: "SessionEnd", payload })
+    harness.hookBus.on(HOOK_EVENTS.sessionEnd, (payload) =>
+      events.push({ event: HOOK_EVENTS.sessionEnd, payload })
     );
 
     await expect(harness.engine.run("Failing run"))
       .rejects.toThrow("orchestrator failed");
 
     expect(events.map((entry) => entry.event)).toEqual([
-      "SessionStart",
-      "UserPromptSubmit",
-      "SessionEnd",
+      HOOK_EVENTS.sessionStart,
+      HOOK_EVENTS.userPromptSubmit,
+      HOOK_EVENTS.sessionEnd,
     ]);
 
     const end = events.at(-1)?.payload;
@@ -232,20 +232,23 @@ describe("EngineService hooks", () => {
 
   it("rejects when a hook listener fails and surfaces the hook error", async () => {
     const harness = createEngineHarness();
-    harness.hookBus.on("SessionStart", () => {
+    harness.hookBus.on(HOOK_EVENTS.sessionStart, () => {
       throw new Error("hook boom");
     });
 
     await expect(harness.engine.run("hook failure"))
       .rejects.toMatchObject({
-        message: 'Hook "SessionStart" failed: hook boom',
+        message: 'Hook "sessionStart" failed: hook boom',
         cause: expect.objectContaining({ message: "hook boom" }),
       });
   });
 
   it("aborts the run when a hook blocks a critical event", async () => {
     const harness = createEngineHarness();
-    harness.hookBus.on("beforeContextPack", () => blockHook("policy veto"));
+    harness.hookBus.on(
+      HOOK_EVENTS.beforeContextPack,
+      () => blockHook("policy veto")
+    );
 
     await expect(harness.engine.run("blocked"))
       .rejects.toThrow("policy veto");

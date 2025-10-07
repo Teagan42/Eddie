@@ -13,7 +13,7 @@ import {
 } from "../../../../src/core/agents";
 import { ToolRegistryFactory } from "../../../../src/core/tools";
 import { JsonlWriterService, StreamRendererService, LoggerService } from "../../../../src/io";
-import { HookBus, blockHook } from "../../../../src/hooks";
+import { HOOK_EVENTS, HookBus, blockHook } from "../../../../src/hooks";
 
 class RecordingStreamRendererService extends StreamRendererService {
   readonly events: StreamEvent[] = [];
@@ -198,11 +198,11 @@ describe("AgentOrchestratorService", () => {
 
     const hookBus = new HookBus();
     const lifecycleEvents: Array<{ event: string; payload: any }> = [];
-    hookBus.on("beforeAgentStart", (payload) =>
-      lifecycleEvents.push({ event: "beforeAgentStart", payload })
+    hookBus.on(HOOK_EVENTS.beforeAgentStart, (payload) =>
+      lifecycleEvents.push({ event: HOOK_EVENTS.beforeAgentStart, payload })
     );
-    hookBus.on("afterAgentComplete", (payload) =>
-      lifecycleEvents.push({ event: "afterAgentComplete", payload })
+    hookBus.on(HOOK_EVENTS.afterAgentComplete, (payload) =>
+      lifecycleEvents.push({ event: HOOK_EVENTS.afterAgentComplete, payload })
     );
 
     const runtime = baseRuntime(provider, { hooks: hookBus });
@@ -230,7 +230,7 @@ describe("AgentOrchestratorService", () => {
     );
 
     const startEvents = lifecycleEvents.filter(
-      (entry) => entry.event === "beforeAgentStart"
+      (entry) => entry.event === HOOK_EVENTS.beforeAgentStart
     );
     expect(startEvents.map((entry) => entry.payload.metadata.id)).toEqual([
       "manager",
@@ -244,7 +244,7 @@ describe("AgentOrchestratorService", () => {
     expect(startEvents[1]?.payload.context.totalBytes).toBe("slice".length);
 
     const completeEvents = lifecycleEvents.filter(
-      (entry) => entry.event === "afterAgentComplete"
+      (entry) => entry.event === HOOK_EVENTS.afterAgentComplete
     );
     expect(completeEvents.map((entry) => entry.payload.metadata.id)).toEqual([
       "manager",
@@ -392,18 +392,20 @@ describe("AgentOrchestratorService", () => {
     const hookBus = new HookBus();
     const recorded: Array<{ event: string; payload: any }> = [];
 
-    hookBus.on("Notification", (payload) =>
-      recorded.push({ event: "Notification", payload })
+    hookBus.on(HOOK_EVENTS.notification, (payload) =>
+      recorded.push({ event: HOOK_EVENTS.notification, payload })
     );
-    hookBus.on("PreToolUse", (payload) =>
-      recorded.push({ event: "PreToolUse", payload })
+    hookBus.on(HOOK_EVENTS.preToolUse, (payload) =>
+      recorded.push({ event: HOOK_EVENTS.preToolUse, payload })
     );
-    hookBus.on("PostToolUse", (payload) =>
-      recorded.push({ event: "PostToolUse", payload })
+    hookBus.on(HOOK_EVENTS.postToolUse, (payload) =>
+      recorded.push({ event: HOOK_EVENTS.postToolUse, payload })
     );
-    hookBus.on("Stop", (payload) => recorded.push({ event: "Stop", payload }));
-    hookBus.on("SubagentStop", (payload) =>
-      recorded.push({ event: "SubagentStop", payload })
+    hookBus.on(HOOK_EVENTS.stop, (payload) =>
+      recorded.push({ event: HOOK_EVENTS.stop, payload })
+    );
+    hookBus.on(HOOK_EVENTS.subagentStop, (payload) =>
+      recorded.push({ event: HOOK_EVENTS.subagentStop, payload })
     );
 
     const runtime = baseRuntime(provider, { hooks: hookBus });
@@ -449,16 +451,16 @@ describe("AgentOrchestratorService", () => {
       .map((entry) => entry.event);
 
     expect(childEvents).toEqual([
-      "Notification",
-      "PreToolUse",
-      "PostToolUse",
-      "Notification",
-      "Stop",
-      "SubagentStop",
+      HOOK_EVENTS.notification,
+      HOOK_EVENTS.preToolUse,
+      HOOK_EVENTS.postToolUse,
+      HOOK_EVENTS.notification,
+      HOOK_EVENTS.stop,
+      HOOK_EVENTS.subagentStop,
     ]);
 
     const notifications = recorded.filter(
-      (entry) => entry.event === "Notification"
+      (entry) => entry.event === HOOK_EVENTS.notification
     );
     expect(notifications).toHaveLength(2);
     expect(
@@ -469,7 +471,9 @@ describe("AgentOrchestratorService", () => {
     });
 
     const rootStop = recorded.find(
-      (entry) => entry.event === "Stop" && entry.payload.metadata.id === "manager"
+      (entry) =>
+        entry.event === HOOK_EVENTS.stop &&
+        entry.payload.metadata.id === "manager"
     );
     expect(rootStop).toBeTruthy();
   });
@@ -493,8 +497,8 @@ describe("AgentOrchestratorService", () => {
     const hookBus = new HookBus();
     let postToolInvocations = 0;
 
-    hookBus.on("PreToolUse", () => blockHook("policy veto"));
-    hookBus.on("PostToolUse", () => {
+    hookBus.on(HOOK_EVENTS.preToolUse, () => blockHook("policy veto"));
+    hookBus.on(HOOK_EVENTS.postToolUse, () => {
       postToolInvocations += 1;
     });
 
@@ -557,10 +561,10 @@ describe("AgentOrchestratorService", () => {
     const hookBus = new HookBus();
     const agentErrors: Array<{ message: string }> = [];
 
-    hookBus.on("PreToolUse", () => {
+    hookBus.on(HOOK_EVENTS.preToolUse, () => {
       throw new Error("pre-hook failure");
     });
-    hookBus.on("onAgentError", (payload) => {
+    hookBus.on(HOOK_EVENTS.onAgentError, (payload) => {
       agentErrors.push({ message: payload.error.message });
     });
 
@@ -612,7 +616,7 @@ describe("AgentOrchestratorService", () => {
     const hookBus = new HookBus();
     const preCompactEvents: Array<{ beforeLength: number; reason?: string }> = [];
     let removedCount: number | undefined;
-    hookBus.on("PreCompact", (payload) => {
+    hookBus.on(HOOK_EVENTS.preCompact, (payload) => {
       preCompactEvents.push({
         beforeLength: payload.messages.length,
         reason: payload.reason,
