@@ -1,3 +1,4 @@
+import type { TemplateDescriptor, TemplateVariables } from "../../shared/template.types";
 import type { PackedContext, ToolDefinition } from "../types";
 
 export interface AgentDefinition {
@@ -9,6 +10,19 @@ export interface AgentDefinition {
    * Base system prompt applied to every invocation.
    */
   systemPrompt: string;
+  /**
+   * Optional template used to render {@link systemPrompt} with runtime variables.
+   */
+  systemPromptTemplate?: TemplateDescriptor;
+  /**
+   * Optional template used to render the user prompt when none is supplied at
+   * invocation time.
+   */
+  userPromptTemplate?: TemplateDescriptor;
+  /**
+   * Default variables injected into prompt templates for this agent.
+   */
+  variables?: TemplateVariables;
   /**
    * Optional default context slice applied when an invocation does not supply
    * an explicit context override.
