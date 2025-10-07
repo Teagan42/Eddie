@@ -1,3 +1,5 @@
+import type { ProcessEnv } from "node:process";
+
 export type Role = "system" | "user" | "assistant" | "tool";
 
 export interface ChatMessage {
@@ -76,7 +78,7 @@ export interface PackedContext {
 export interface ToolExecutionContext {
   cwd: string;
   confirm(message: string): Promise<boolean>;
-  env: NodeJS.ProcessEnv;
+  env: ProcessEnv;
 }
 
 export interface ToolDefinition {
