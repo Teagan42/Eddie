@@ -5,6 +5,9 @@
     "bin": {
         "eddie": "dist/main.js"
     },
+    "engines": {
+        "node": ">=20.0.0"
+    },
     "scripts": {
         "build": "nest build",
         "lint": "eslint 'src/**/*.ts'",
