@@ -1,7 +1,12 @@
 import type { CliArguments } from "../cli-arguments";
 
-export interface CliCommand {
+export interface CliCommandMetadata {
   readonly name: string;
+  readonly description: string;
   readonly aliases?: string[];
-  run(args: CliArguments): Promise<void>;
+}
+
+export interface CliCommand {
+  readonly metadata: CliCommandMetadata;
+  execute(args: CliArguments): Promise<void>;
 }

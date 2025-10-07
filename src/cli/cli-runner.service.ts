@@ -1,27 +1,17 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
+import { CLI_COMMANDS } from "./cli.constants";
 import type { CliCommand } from "./commands/cli-command";
-import { AskCommand } from "./commands/ask.command";
-import { ChatCommand } from "./commands/chat.command";
-import { ContextCommand } from "./commands/context.command";
-import { RunCommand } from "./commands/run.command";
-import { TraceCommand } from "./commands/trace.command";
 import type { CliArguments } from "./cli-arguments";
 import { CliParserService, CliParseError } from "./cli-parser.service";
 
 @Injectable()
 export class CliRunnerService {
-  private readonly commands: CliCommand[];
+  private readonly logger = new Logger(CliRunnerService.name);
 
   constructor(
     private readonly parser: CliParserService,
-    ask: AskCommand,
-    run: RunCommand,
-    context: ContextCommand,
-    chat: ChatCommand,
-    trace: TraceCommand
-  ) {
-    this.commands = [ask, run, context, chat, trace];
-  }
+    @Inject(CLI_COMMANDS) private readonly commands: CliCommand[]
+  ) {}
 
   async run(argv: string[]): Promise<void> {
     const normalizedArgs = argv[0] === "--" ? argv.slice(1) : argv;
@@ -49,16 +39,19 @@ export class CliRunnerService {
       throw new Error(`Unknown command: ${parsed.command}`);
     }
 
-    await command.run(parsed);
+    this.logger.debug(`Executing command ${command.metadata.name}`);
+
+    await command.execute(parsed);
   }
 
   private resolveCommand(name: string): CliCommand | undefined {
     const normalized = name.toLowerCase();
     return this.commands.find((command) => {
-      if (command.name === normalized) {
+      const { metadata } = command;
+      if (metadata.name === normalized) {
         return true;
       }
-      return command.aliases?.includes(normalized);
+      return metadata.aliases?.some((alias) => alias.toLowerCase() === normalized);
     });
   }
 
@@ -67,9 +60,18 @@ export class CliRunnerService {
   }
 
   private printUsage(): void {
-    const names = this.commands.map((command) => command.name).join(", ");
+    const rows = this.commands.map(({ metadata }) => {
+      const aliasSuffix = metadata.aliases?.length
+        ? ` (aliases: ${metadata.aliases.join(", ")})`
+        : "";
+      return `- ${metadata.name}${aliasSuffix}: ${metadata.description}`;
+    });
+
     console.log("Usage: eddie <command> [options]");
     console.log("");
-    console.log(`Available commands: ${names}`);
+    console.log("Available commands:");
+    for (const row of rows) {
+      console.log(row);
+    }
   }
 }

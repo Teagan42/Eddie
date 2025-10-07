@@ -5,18 +5,21 @@ import { EngineService } from "../../core/engine";
 import type { ChatMessage } from "../../core/types";
 import type { CliArguments } from "../cli-arguments";
 import { CliOptionsService } from "../cli-options.service";
-import type { CliCommand } from "./cli-command";
+import type { CliCommand, CliCommandMetadata } from "./cli-command";
 
 @Injectable()
 export class ChatCommand implements CliCommand {
-  readonly name = "chat";
+  readonly metadata: CliCommandMetadata = {
+    name: "chat",
+    description: "Start an interactive chat session.",
+  };
 
   constructor(
     private readonly engine: EngineService,
     private readonly optionsService: CliOptionsService
   ) {}
 
-  async run(args: CliArguments): Promise<void> {
+  async execute(args: CliArguments): Promise<void> {
     const engineOptions = this.optionsService.parse(args.options);
     const rl = readline.createInterface({ input, output });
     const history: ChatMessage[] = [];

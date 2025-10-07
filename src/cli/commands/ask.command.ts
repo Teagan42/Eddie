@@ -2,18 +2,21 @@ import { Injectable } from "@nestjs/common";
 import { EngineService } from "../../core/engine";
 import type { CliArguments } from "../cli-arguments";
 import { CliOptionsService } from "../cli-options.service";
-import type { CliCommand } from "./cli-command";
+import type { CliCommand, CliCommandMetadata } from "./cli-command";
 
 @Injectable()
 export class AskCommand implements CliCommand {
-  readonly name = "ask";
+  readonly metadata: CliCommandMetadata = {
+    name: "ask",
+    description: "Send a single prompt to the engine.",
+  };
 
   constructor(
     private readonly engine: EngineService,
     private readonly optionsService: CliOptionsService
   ) {}
 
-  async run(args: CliArguments): Promise<void> {
+  async execute(args: CliArguments): Promise<void> {
     const prompt = args.positionals[0];
     if (!prompt) {
       throw new Error("The ask command requires a prompt argument.");

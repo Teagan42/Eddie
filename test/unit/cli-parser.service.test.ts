@@ -1,42 +1,12 @@
 import "reflect-metadata";
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import { Test, type TestingModule } from "@nestjs/testing";
-import {
-  CliModule,
-  CliParserService,
-  CliParseError,
-  AskCommand,
-  RunCommand,
-  ContextCommand,
-  ChatCommand,
-  TraceCommand,
-} from "../../src/cli";
+import { describe, it, expect, beforeAll } from "vitest";
+import { CliParserService, CliParseError } from "../../src/cli";
 
 describe("CliParserService", () => {
-  let moduleRef: TestingModule;
   let parser: CliParserService;
 
   beforeAll(async () => {
-    moduleRef = await Test.createTestingModule({
-      imports: [CliModule],
-    })
-      .overrideProvider(AskCommand)
-      .useValue({ name: "ask", run: vi.fn(), aliases: [] })
-      .overrideProvider(RunCommand)
-      .useValue({ name: "run", run: vi.fn(), aliases: [] })
-      .overrideProvider(ContextCommand)
-      .useValue({ name: "context", run: vi.fn(), aliases: [] })
-      .overrideProvider(ChatCommand)
-      .useValue({ name: "chat", run: vi.fn(), aliases: [] })
-      .overrideProvider(TraceCommand)
-      .useValue({ name: "trace", run: vi.fn(), aliases: [] })
-      .compile();
-
-    parser = moduleRef.get(CliParserService);
-  });
-
-  afterAll(async () => {
-    await moduleRef.close();
+    parser = new CliParserService();
   });
 
   it("parses options, aliases, and repeated values", () => {
