@@ -12,13 +12,13 @@ import type {
   HookEventName,
 } from "../../hooks";
 import type { ProviderAdapter } from "../types";
-import { ToolRegistryFactory } from "../tools";
 import type { AgentDefinition } from "./agent-definition";
 import {
   AgentInvocation,
   type AgentInvocationOptions,
   type AgentSpawnHandler,
 } from "./agent-invocation";
+import { AgentInvocationFactory } from "./agent-invocation.factory";
 
 interface AgentTraceEvent {
   phase: string;
@@ -64,7 +64,7 @@ export class AgentOrchestratorService {
   private readonly runtimeMap = new WeakMap<AgentInvocation, AgentRuntimeOptions>();
 
   constructor(
-    private readonly toolRegistryFactory: ToolRegistryFactory,
+    private readonly agentInvocationFactory: AgentInvocationFactory,
     private readonly streamRenderer: StreamRendererService,
     private readonly traceWriter: JsonlWriterService
   ) {}
@@ -73,14 +73,13 @@ export class AgentOrchestratorService {
     request: AgentRunRequest,
     runtime: AgentRuntimeOptions
   ): Promise<AgentInvocation> {
-    const invocation = new AgentInvocation(
+    const invocation = this.agentInvocationFactory.create(
       request.definition,
       {
         prompt: request.prompt,
         context: request.context,
         history: request.history,
       },
-      this.toolRegistryFactory,
       request.parent
     );
 
@@ -109,10 +108,9 @@ export class AgentOrchestratorService {
       );
     }
 
-    const invocation = new AgentInvocation(
+    const invocation = this.agentInvocationFactory.create(
       definition,
       options,
-      this.toolRegistryFactory,
       parent
     );
 
