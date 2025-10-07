@@ -1,8 +1,23 @@
-import { describe, it, expect } from "vitest";
+import "reflect-metadata";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { Test, type TestingModule } from "@nestjs/testing";
 import { CliParserService, CliParseError } from "../../src/cli/cli-parser.service";
 
 describe("CliParserService", () => {
-  const parser = new CliParserService();
+  let moduleRef: TestingModule;
+  let parser: CliParserService;
+
+  beforeAll(async () => {
+    moduleRef = await Test.createTestingModule({
+      providers: [CliParserService],
+    }).compile();
+
+    parser = moduleRef.get(CliParserService);
+  });
+
+  afterAll(async () => {
+    await moduleRef.close();
+  });
 
   it("parses options, aliases, and repeated values", () => {
     const result = parser.parse([
