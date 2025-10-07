@@ -37,16 +37,17 @@ export class TemplateRendererService {
     filename?: string
   ): Promise<string> {
     if (filename) {
-      const cached = this.engine.templatesAsync.get(filename);
+      const cacheKey = `@${filename}`;
+      const cached = this.engine.templatesAsync.get(cacheKey);
       if (!cached) {
         const compiled = this.engine.compile(template, {
           async: true,
           filepath: filename,
         });
-        this.engine.templatesAsync.define(filename, compiled);
+        this.engine.templatesAsync.define(cacheKey, compiled);
       }
 
-      const rendered = await this.engine.renderAsync(filename, variables, {
+      const rendered = await this.engine.renderAsync(cacheKey, variables, {
         filepath: filename,
       });
       return rendered ?? "";
