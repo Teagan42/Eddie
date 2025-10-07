@@ -52,5 +52,13 @@ To add a new agent mode:
 - Tests live under `test/unit` and rely on Vitest; add fixtures for providers/tools as new behaviours land.
 - When writing new adapters, follow the existing ones: parse streaming payloads incrementally and normalise into `StreamEvent` objects.
 - Tool authors should return concise payloads; heavy binary outputs should be redirected to files and referenced in the tool result string.
+- Write tests alongside every code change, preferring realistic data that mirrors production usage (e.g., representative file contents, plausible API payloads).
+
+## Contribution Workflow
+
+- Use [Conventional Commits](https://www.conventionalcommits.org/) for every commit (e.g., `feat: add foo support`, `fix: handle bar edge case`), keep commits atomic, and group related work logically: documentation, scaffolding, refactor, logic/feature, bugs, test.
+- Capture any significant architectural or design decision in an ADR placed under `adr/` (one file per decision, numbered chronologically).
+- Add or update test cases for all behaviour changes; ensure fixtures resemble real-world inputs so regressions surface quickly - add any necessary devDependencies to package.json.
+- Ensure all code follows proper documentation standards for Typescript.
 
 By adhering to these conventions, Eddie stays maintainable while acting as a flexible agent host for future LLM integrations.
