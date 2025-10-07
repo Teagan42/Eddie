@@ -4,68 +4,17 @@ import type {
   MCPToolSourceConfig,
   MCPAuthConfig,
 } from "../../config/types";
+import type {
+  McpInitializeResult,
+  McpResourceDescription,
+  McpResourcesListResult,
+  McpToolDescription,
+  McpToolSourceDiscovery,
+  McpToolsListResult,
+  JsonRpcRequest,
+  JsonRpcResponse,
+} from "./types";
 import type { ToolDefinition, ToolResult, ToolCallArguments } from "../../core/types";
-
-interface JsonRpcRequest {
-  jsonrpc: "2.0";
-  id: string;
-  method: string;
-  params?: unknown;
-}
-
-interface JsonRpcSuccess<T> {
-  jsonrpc: "2.0";
-  id: string | number | null;
-  result: T;
-}
-
-interface JsonRpcError {
-  jsonrpc: "2.0";
-  id: string | number | null;
-  error: {
-    code: number;
-    message: string;
-    data?: unknown;
-  };
-}
-
-type JsonRpcResponse<T> = JsonRpcSuccess<T> | JsonRpcError;
-
-interface McpInitializeResult {
-  sessionId?: string;
-  protocolVersion?: string;
-  capabilities?: Record<string, unknown>;
-  serverInfo?: Record<string, unknown>;
-}
-
-interface McpToolDescription {
-  name: string;
-  description?: string;
-  inputSchema: Record<string, unknown>;
-  outputSchema?: Record<string, unknown>;
-}
-
-export interface McpResourceDescription {
-  name: string;
-  uri: string;
-  description?: string;
-  mimeType?: string;
-  metadata?: Record<string, unknown>;
-}
-
-interface McpToolsListResult {
-  tools?: McpToolDescription[];
-}
-
-interface McpResourcesListResult {
-  resources?: McpResourceDescription[];
-}
-
-export interface McpToolSourceDiscovery {
-  sourceId: string;
-  tools: ToolDefinition[];
-  resources: McpResourceDescription[];
-}
 
 @Injectable()
 export class McpToolSourceService {
