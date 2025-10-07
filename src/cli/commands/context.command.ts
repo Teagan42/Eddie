@@ -5,11 +5,14 @@ import { TokenizerService } from "../../core/tokenizers";
 import { LoggerService } from "../../io";
 import type { CliArguments } from "../cli-arguments";
 import { CliOptionsService } from "../cli-options.service";
-import type { CliCommand } from "./cli-command";
+import type { CliCommand, CliCommandMetadata } from "./cli-command";
 
 @Injectable()
 export class ContextCommand implements CliCommand {
-  readonly name = "context";
+  readonly metadata: CliCommandMetadata = {
+    name: "context",
+    description: "Preview packed context files and token counts.",
+  };
 
   constructor(
     private readonly optionsService: CliOptionsService,
@@ -19,7 +22,7 @@ export class ContextCommand implements CliCommand {
     private readonly tokenizerService: TokenizerService
   ) {}
 
-  async run(args: CliArguments): Promise<void> {
+  async execute(args: CliArguments): Promise<void> {
     const engineOptions = this.optionsService.parse(args.options);
     const cfg = await this.configService.load(engineOptions);
 

@@ -4,6 +4,7 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import { CliRunnerService } from "../../src/cli/cli-runner.service";
 import { CliParserService } from "../../src/cli/cli-parser.service";
 import { CliOptionsService } from "../../src/cli/cli-options.service";
+import { CLI_COMMANDS } from "../../src/cli/cli.constants";
 import { AskCommand } from "../../src/cli/commands/ask.command";
 import { RunCommand } from "../../src/cli/commands/run.command";
 import { ContextCommand } from "../../src/cli/commands/context.command";
@@ -20,13 +21,12 @@ import type { EddieConfig } from "../../src/config/types";
 import type { PackedContext } from "../../src/core/types";
 
 interface StubCommand extends CliCommand {
-  run: ReturnType<typeof vi.fn<[CliArguments], Promise<void>>>;
+  execute: ReturnType<typeof vi.fn<[CliArguments], Promise<void>>>;
 }
 
-const createStubCommand = (name: string, aliases: string[] = []): StubCommand => ({
-  name,
-  aliases,
-  run: vi.fn<[CliArguments], Promise<void>>().mockResolvedValue(),
+const createStubCommand = (name: string, description = "", aliases: string[] = []): StubCommand => ({
+  metadata: { name, description, aliases },
+  execute: vi.fn<[CliArguments], Promise<void>>().mockResolvedValue(),
 });
 
 describe("CliRunnerService integration", () => {
@@ -89,31 +89,21 @@ describe("CliRunnerService integration", () => {
           ],
         },
         {
-          provide: CliRunnerService,
+          provide: CLI_COMMANDS,
           useFactory: (
-            parserService: CliParserService,
             askCommand: AskCommand,
             runCommand: RunCommand,
             contextCommand: ContextCommand,
             chatCommand: ChatCommand,
             traceCommand: TraceCommand
-          ) =>
-            new CliRunnerService(
-              parserService,
-              askCommand,
-              runCommand,
-              contextCommand,
-              chatCommand,
-              traceCommand
-            ),
-          inject: [
-            CliParserService,
-            AskCommand,
-            RunCommand,
-            ContextCommand,
-            ChatCommand,
-            TraceCommand,
-          ],
+          ): CliCommand[] => [askCommand, runCommand, contextCommand, chatCommand, traceCommand],
+          inject: [AskCommand, RunCommand, ContextCommand, ChatCommand, TraceCommand],
+        },
+        {
+          provide: CliRunnerService,
+          useFactory: (parserService: CliParserService, commands: CliCommand[]) =>
+            new CliRunnerService(parserService, commands),
+          inject: [CliParserService, CLI_COMMANDS],
         },
         { provide: ChatCommand, useValue: createStubCommand("chat") },
         { provide: TraceCommand, useValue: createStubCommand("trace") },

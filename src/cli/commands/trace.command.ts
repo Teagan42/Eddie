@@ -4,18 +4,21 @@ import { Injectable } from "@nestjs/common";
 import { ConfigService } from "../../config";
 import type { CliArguments } from "../cli-arguments";
 import { CliOptionsService } from "../cli-options.service";
-import type { CliCommand } from "./cli-command";
+import type { CliCommand, CliCommandMetadata } from "./cli-command";
 
 @Injectable()
 export class TraceCommand implements CliCommand {
-  readonly name = "trace";
+  readonly metadata: CliCommandMetadata = {
+    name: "trace",
+    description: "Pretty-print recent JSONL trace entries.",
+  };
 
   constructor(
     private readonly optionsService: CliOptionsService,
     private readonly configService: ConfigService
   ) {}
 
-  async run(args: CliArguments): Promise<void> {
+  async execute(args: CliArguments): Promise<void> {
     const engineOptions = this.optionsService.parse(args.options);
     const cfg = await this.configService.load(engineOptions);
 
