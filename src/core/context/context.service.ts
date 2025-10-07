@@ -15,7 +15,7 @@ export class ContextService {
   constructor(private readonly loggerService: LoggerService) {}
 
   async pack(config: ContextConfig): Promise<PackedContext> {
-    const logger = this.loggerService.getLogger("context:packer");
+    const logger = this.loggerService.getLogger("context:service");
     const baseDir = config.baseDir ?? process.cwd();
     const includePatterns = config.include?.length ? config.include : ["**/*"];
     const excludePatterns = config.exclude ?? [];

@@ -10,7 +10,7 @@ CLI (commander)
   └─ resolveCliOptions → Engine
 Engine (src/core/engine)
   ├─ loadConfig → config/loader.ts (merges defaults + file + CLI flags)
-  ├─ packContext → core/context/packer.ts (glob, ignore, budgets)
+  ├─ ContextService → core/context/context.service.ts (glob, ignore, budgets)
   ├─ makeProvider → core/providers/* (adapter pattern)
   ├─ ToolRegistry → core/tools/* (AJV validated tool calls)
   ├─ stream loop → handles deltas, tool calls, traces, hooks

@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { IoModule } from "../../io/io.module";
-import { ContextService } from "./packer";
+import { ContextService } from "./context.service";
 
 @Module({
   imports: [IoModule],
