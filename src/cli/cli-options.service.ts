@@ -55,12 +55,14 @@ export class CliOptionsService {
         : undefined;
 
     const tools = toStringArray(options.tools);
+    const disabledTools = toStringArray(options.disableTools);
 
     return {
       ...base,
       autoApprove,
       nonInteractive,
       tools,
+      disabledTools,
     };
   }
 }

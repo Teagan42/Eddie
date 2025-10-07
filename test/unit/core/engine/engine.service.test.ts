@@ -6,6 +6,7 @@ import type {
   ChatMessage,
   PackedContext,
   ProviderAdapter,
+  ToolDefinition,
 } from "../../../../src/core/types";
 import {
   AgentInvocation,
@@ -258,5 +259,46 @@ describe("EngineService hooks", () => {
     await expect(harness.engine.run("blocked"))
       .rejects.toThrow("policy veto");
     expect(harness.contextPackSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("EngineService tool filtering", () => {
+  const invokeFilter = (
+    engine: EngineService,
+    available: ToolDefinition[],
+    enabled?: string[],
+    disabled?: string[]
+  ) =>
+    (engine as unknown as {
+      filterTools(
+        available: ToolDefinition[],
+        enabled?: string[],
+        disabled?: string[]
+      ): ToolDefinition[];
+    }).filterTools(available, enabled, disabled);
+
+  const tool = (name: string): ToolDefinition =>
+    ({
+      name,
+      jsonSchema: {},
+      handler: vi.fn(),
+    } as unknown as ToolDefinition);
+
+  it("removes disabled tools from the available set", () => {
+    const { engine } = createEngineHarness();
+    const available = [tool("bash"), tool("write"), tool("lint")];
+
+    const filtered = invokeFilter(engine, available, undefined, ["write"]);
+
+    expect(filtered.map((entry) => entry.name)).toEqual(["bash", "lint"]);
+  });
+
+  it("honours both enabled and disabled selections", () => {
+    const { engine } = createEngineHarness();
+    const available = [tool("bash"), tool("write"), tool("lint")];
+
+    const filtered = invokeFilter(engine, available, ["bash", "write"], ["write"]);
+
+    expect(filtered.map((entry) => entry.name)).toEqual(["bash"]);
   });
 });

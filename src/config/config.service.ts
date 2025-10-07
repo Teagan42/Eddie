@@ -229,6 +229,13 @@ export class ConfigService {
       };
     }
 
+    if (options.disabledTools?.length) {
+      merged.tools = {
+        ...(merged.tools ?? {}),
+        disabled: options.disabledTools,
+      };
+    }
+
     if (typeof options.autoApprove === "boolean") {
       merged.tools = {
         ...(merged.tools ?? {}),

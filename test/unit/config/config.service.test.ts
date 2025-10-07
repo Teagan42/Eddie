@@ -66,6 +66,24 @@ describe("ConfigService agent configuration", () => {
     expect(applied.agents.enableSubagents).toBe(false);
   });
 
+  it("applies CLI tool enable/disable overrides", () => {
+    const service = createService();
+    const base = cloneConfig(DEFAULT_CONFIG);
+    base.tools = { enabled: ["bash"], disabled: ["write"] };
+    const overrides: CliRuntimeOptions = {
+      tools: ["lint"],
+      disabledTools: ["bash"],
+    };
+
+    const applied = (service as unknown as {
+      applyCliOverrides(config: EddieConfig, options: CliRuntimeOptions): EddieConfig;
+    }).applyCliOverrides(base, overrides);
+
+    expect(applied.tools?.enabled).toEqual(["lint"]);
+    expect(applied.tools?.disabled).toEqual(["bash"]);
+    expect(applied.tools?.autoApprove).toBe(base.tools?.autoApprove);
+  });
+
   it("validates agent definitions", () => {
     const service = createService();
     const invalid = cloneConfig(DEFAULT_CONFIG);
