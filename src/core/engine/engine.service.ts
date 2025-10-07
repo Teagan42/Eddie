@@ -12,10 +12,10 @@ import {
   LoggerService,
   StreamRendererService,
 } from "../../io";
-import { HooksService } from "../../hooks/loader";
+import { HooksService } from "../../hooks";
 import type { ChatMessage, StreamEvent } from "../types";
 import type { PackedContext } from "../types";
-import { TokenizerService } from "../tokenizers/strategy";
+import { TokenizerService } from "../tokenizers";
 
 export interface EngineOptions extends CliRuntimeOptions {
   history?: ChatMessage[];

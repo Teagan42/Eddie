@@ -12,7 +12,7 @@ import { TraceCommand } from "../../src/cli/commands/trace.command";
 import { EngineService } from "../../src/core/engine";
 import { ConfigService } from "../../src/config";
 import { ContextService } from "../../src/core/context";
-import { TokenizerService } from "../../src/core/tokenizers/strategy";
+import { TokenizerService } from "../../src/core/tokenizers";
 import { LoggerService } from "../../src/io";
 import type { CliCommand } from "../../src/cli/commands/cli-command";
 import type { CliArguments } from "../../src/cli/cli-arguments";
