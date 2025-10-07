@@ -139,6 +139,15 @@ export class AgentOrchestratorService {
     return result;
   }
 
+  /**
+   * Drives a single agent invocation through its lifecycle, emitting
+   * `beforeAgentStart` once, then for each iteration optionally `preCompact`,
+   * followed by `beforeModelCall`. Tool calls trigger the
+   * `preToolUse`/`postToolUse` pair (or `onAgentError` on failure), stream
+   * anomalies emit `notification`, `onError`, and `onAgentError`, and each
+   * iteration culminates with `stop`. When the agent finishes cleanly,
+   * `afterAgentComplete` fires, and non-root agents also raise `subagentStop`.
+   */
   private async executeInvocation(invocation: AgentInvocation): Promise<void> {
     const runtime = this.runtimeMap.get(invocation);
     if (!runtime) {
