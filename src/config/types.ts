@@ -117,10 +117,49 @@ export interface OutputConfig {
   prettyStream?: boolean;
 }
 
+export interface MCPBasicAuthConfig {
+  type: "basic";
+  username: string;
+  password: string;
+}
+
+export interface MCPBearerAuthConfig {
+  type: "bearer";
+  token: string;
+}
+
+export interface MCPNoAuthConfig {
+  type: "none";
+}
+
+export type MCPAuthConfig =
+  | MCPBasicAuthConfig
+  | MCPBearerAuthConfig
+  | MCPNoAuthConfig;
+
+export interface MCPToolSourceCapabilitiesConfig {
+  tools?: Record<string, unknown>;
+  resources?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface MCPToolSourceConfig {
+  id: string;
+  type: "mcp";
+  url: string;
+  name?: string;
+  headers?: Record<string, string>;
+  auth?: MCPAuthConfig;
+  capabilities?: MCPToolSourceCapabilitiesConfig;
+}
+
+export type ToolSourceConfig = MCPToolSourceConfig;
+
 export interface ToolsConfig {
   enabled?: string[];
   disabled?: string[];
   autoApprove?: boolean;
+  sources?: ToolSourceConfig[];
 }
 
 export interface HooksConfig {

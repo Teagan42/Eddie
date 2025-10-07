@@ -11,6 +11,7 @@ import type {
   EddieConfig,
   EddieConfigInput,
   LoggingConfig,
+  ToolsConfig,
 } from "./types";
 
 const CONFIG_FILENAMES = [
@@ -365,6 +366,8 @@ export class ConfigService {
   }
 
   private validateConfig(config: EddieConfig): void {
+    this.validateToolsConfig(config.tools);
+
     const { agents } = config;
 
     if (!agents) {
@@ -480,5 +483,112 @@ export class ConfigService {
         }
       }
     }
+  }
+
+  private validateToolsConfig(tools: ToolsConfig | undefined): void {
+    if (!tools?.sources) {
+      return;
+    }
+
+    if (!Array.isArray(tools.sources)) {
+      throw new Error("tools.sources must be an array when provided.");
+    }
+
+    tools.sources.forEach((source, index) => {
+      if (!source || typeof source !== "object") {
+        throw new Error(`tools.sources[${index}] must be an object.`);
+      }
+
+      if (source.type !== "mcp") {
+        throw new Error(
+          `tools.sources[${index}].type must be the literal string "mcp".`
+        );
+      }
+
+      if (typeof source.id !== "string" || source.id.trim() === "") {
+        throw new Error(
+          `tools.sources[${index}].id must be provided as a non-empty string.`
+        );
+      }
+
+      if (typeof source.url !== "string" || source.url.trim() === "") {
+        throw new Error(
+          `tools.sources[${index}].url must be provided as a non-empty string.`
+        );
+      }
+
+      if (
+        typeof source.name !== "undefined" &&
+        (typeof source.name !== "string" || source.name.trim() === "")
+      ) {
+        throw new Error(
+          `tools.sources[${index}].name must be a non-empty string when provided.`
+        );
+      }
+
+      if (typeof source.headers !== "undefined") {
+        if (
+          !source.headers ||
+          typeof source.headers !== "object" ||
+          Array.isArray(source.headers)
+        ) {
+          throw new Error(
+            `tools.sources[${index}].headers must be an object with string values when provided.`
+          );
+        }
+
+        for (const [key, value] of Object.entries(source.headers)) {
+          if (typeof value !== "string") {
+            throw new Error(
+              `tools.sources[${index}].headers.${key} must be a string.`
+            );
+          }
+        }
+      }
+
+      if (typeof source.auth !== "undefined") {
+        const auth = source.auth;
+        if (!auth || typeof auth !== "object") {
+          throw new Error(
+            `tools.sources[${index}].auth must be an object when provided.`
+          );
+        }
+
+        if (auth.type === "basic") {
+          if (
+            typeof auth.username !== "string" ||
+            auth.username.trim() === "" ||
+            typeof auth.password !== "string"
+          ) {
+            throw new Error(
+              `tools.sources[${index}].auth must include non-empty username and password for basic auth.`
+            );
+          }
+        } else if (auth.type === "bearer") {
+          if (typeof auth.token !== "string" || auth.token.trim() === "") {
+            throw new Error(
+              `tools.sources[${index}].auth.token must be a non-empty string for bearer auth.`
+            );
+          }
+        } else if (auth.type === "none") {
+          // nothing additional
+        } else {
+          throw new Error(
+            `tools.sources[${index}].auth.type must be one of "basic", "bearer", or "none".`
+          );
+        }
+      }
+
+      if (
+        typeof source.capabilities !== "undefined" &&
+        (typeof source.capabilities !== "object" ||
+          source.capabilities === null ||
+          Array.isArray(source.capabilities))
+      ) {
+        throw new Error(
+          `tools.sources[${index}].capabilities must be an object when provided.`
+        );
+      }
+    });
   }
 }

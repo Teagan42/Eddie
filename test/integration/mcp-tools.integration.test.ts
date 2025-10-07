@@ -1,0 +1,227 @@
+import "reflect-metadata";
+import { beforeAll, afterAll, describe, expect, it } from "vitest";
+import * as http from "http";
+import type { IncomingMessage, ServerResponse } from "http";
+import { McpToolSourceService } from "../../src/integrations";
+import type { MCPToolSourceConfig } from "../../src/config/types";
+import { ToolRegistryFactory } from "../../src/core/tools";
+
+interface RecordedRequest {
+  method: string;
+  params?: Record<string, unknown>;
+  headers: http.IncomingHttpHeaders;
+}
+
+describe("MCP tool source integration", () => {
+  const requests: RecordedRequest[] = [];
+  const expectedToken = "mock-token";
+  const toolSchema = {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      query: { type: "string" },
+    },
+    required: ["query"],
+  };
+  const outputSchema = {
+    $id: "schema://mock/tool-result",
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      items: {
+        type: "array",
+        items: { type: "string" },
+      },
+    },
+    required: ["items"],
+  };
+
+  let server: http.Server;
+  let baseUrl: string;
+
+  beforeAll(async () => {
+    server = http.createServer(async (req: IncomingMessage, res: ServerResponse) => {
+      if (req.method !== "POST") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) {
+        chunks.push(Buffer.from(chunk));
+      }
+
+      const rawBody = Buffer.concat(chunks).toString("utf-8");
+      const message = rawBody.length > 0 ? JSON.parse(rawBody) : {};
+
+      requests.push({
+        method: message.method,
+        params: message.params,
+        headers: req.headers,
+      });
+
+      if (req.headers.authorization !== `Bearer ${expectedToken}`) {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: message.id ?? null,
+            error: { code: -32001, message: "unauthorized" },
+          })
+        );
+        return;
+      }
+
+      let responsePayload: unknown;
+      switch (message.method) {
+        case "initialize":
+          responsePayload = {
+            jsonrpc: "2.0",
+            id: message.id,
+            result: {
+              sessionId: "mock-session",
+              protocolVersion: "2024-11-05",
+              capabilities: { tools: {}, resources: {} },
+            },
+          };
+          break;
+        case "tools/list":
+          responsePayload = {
+            jsonrpc: "2.0",
+            id: message.id,
+            result: {
+              tools: [
+                {
+                  name: "mock_search",
+                  description: "Searches mock data",
+                  inputSchema: toolSchema,
+                  outputSchema,
+                },
+              ],
+            },
+          };
+          break;
+        case "resources/list":
+          responsePayload = {
+            jsonrpc: "2.0",
+            id: message.id,
+            result: {
+              resources: [
+                {
+                  name: "mock-docs",
+                  uri: "https://example.com/docs",
+                  description: "Mock documentation",
+                  mimeType: "text/plain",
+                  metadata: { version: "1.0.0" },
+                },
+              ],
+            },
+          };
+          break;
+        case "tools/call":
+          responsePayload = {
+            jsonrpc: "2.0",
+            id: message.id,
+            result: {
+              schema: outputSchema.$id,
+              content: `results for ${message.params?.arguments?.query}`,
+              data: { items: ["alpha", "beta"] },
+              metadata: { tookMs: 12 },
+            },
+          };
+          break;
+        default:
+          responsePayload = {
+            jsonrpc: "2.0",
+            id: message.id,
+            error: { code: -32601, message: `Unknown method ${message.method}` },
+          };
+      }
+
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify(responsePayload));
+    });
+
+    await new Promise<void>((resolve) => {
+      server.listen(0, "127.0.0.1", () => resolve());
+    });
+
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("Failed to bind mock MCP server");
+    }
+    baseUrl = `http://127.0.0.1:${address.port}`;
+  });
+
+  afterAll(async () => {
+    await new Promise<void>((resolve, reject) => {
+      server.close((err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+  });
+
+  it("discovers tools and executes MCP-backed handlers", async () => {
+    requests.length = 0;
+    const service = new McpToolSourceService();
+    const config: MCPToolSourceConfig = {
+      id: "mock",
+      type: "mcp",
+      url: `${baseUrl}/rpc`,
+      auth: { type: "bearer", token: expectedToken },
+      capabilities: { tools: {}, resources: {} },
+    };
+
+    const discoveries = await service.discoverSources([config]);
+    expect(discoveries).toHaveLength(1);
+    const discovery = discoveries[0];
+    expect(discovery.sourceId).toBe("mock");
+    expect(discovery.tools).toHaveLength(1);
+    expect(discovery.resources).toEqual([
+      {
+        name: "mock-docs",
+        uri: "https://example.com/docs",
+        description: "Mock documentation",
+        mimeType: "text/plain",
+        metadata: { version: "1.0.0" },
+      },
+    ]);
+
+    expect(requests.map((req) => req.method)).toEqual([
+      "initialize",
+      "tools/list",
+      "resources/list",
+    ]);
+    expect(requests[0].headers.authorization).toBe(`Bearer ${expectedToken}`);
+    expect(requests[1].params?.sessionId).toBe("mock-session");
+    expect(requests[2].params?.sessionId).toBe("mock-session");
+
+    const registry = new ToolRegistryFactory().create(discovery.tools);
+    const result = await registry.execute(
+      { name: "mock_search", arguments: { query: "beta" } },
+      {
+        cwd: process.cwd(),
+        confirm: async () => true,
+        env: process.env,
+      }
+    );
+
+    expect(requests.map((req) => req.method)).toEqual([
+      "initialize",
+      "tools/list",
+      "resources/list",
+      "tools/call",
+    ]);
+    expect(requests[3].params?.sessionId).toBe("mock-session");
+    expect(requests[3].params?.arguments).toEqual({ query: "beta" });
+
+    expect(result).toEqual({
+      schema: outputSchema.$id,
+      content: "results for beta",
+      data: { items: ["alpha", "beta"] },
+      metadata: { tookMs: 12 },
+    });
+  });
+});
