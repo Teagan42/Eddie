@@ -1,6 +1,13 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { EventEmitter } from "events";
-import type { HookEventMap, HookEventName, HookListener } from "./types";
+import type {
+  HookDispatchResult,
+  HookEventMap,
+  HookEventName,
+  HookListener,
+  HookListenerResult,
+} from "./types";
+import { isHookBlockResponse } from "./types";
 
 @Injectable()
 export class HookBus extends EventEmitter {
@@ -9,12 +16,20 @@ export class HookBus extends EventEmitter {
   async emitAsync<K extends HookEventName>(
     event: K,
     payload: HookEventMap[K]
-  ): Promise<void> {
+  ): Promise<HookDispatchResult<K>> {
     const listeners = this.listeners(event) as HookListener<K>[];
+    const results: HookListenerResult<K>[] = [];
 
     for (const listener of listeners) {
       try {
-        await Promise.resolve(listener(payload));
+        const result = (await Promise.resolve(
+          listener(payload)
+        )) as HookListenerResult<K>;
+        results.push(result);
+
+        if (isHookBlockResponse(result)) {
+          return { results, blocked: result };
+        }
       } catch (error) {
         if (error instanceof Error) {
           this.logger.error(
@@ -24,8 +39,12 @@ export class HookBus extends EventEmitter {
         } else {
           this.logger.error(`Hook "${event}" failed: ${String(error)}`);
         }
+
+        return { results, error };
       }
     }
+
+    return { results };
   }
 
   override on<K extends HookEventName>(

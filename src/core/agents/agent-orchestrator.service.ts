@@ -195,7 +195,7 @@ export class AgentOrchestratorService {
             this.streamRenderer.flush();
             this.streamRenderer.render(event);
 
-            await runtime.hooks.emitAsync("PreToolUse", {
+            const preToolDispatch = await runtime.hooks.emitAsync("PreToolUse", {
               ...lifecycle,
               iteration,
               event,
@@ -216,6 +216,32 @@ export class AgentOrchestratorService {
               name: event.name,
               tool_call_id: event.id,
             });
+
+            const blockSignal = preToolDispatch.blocked;
+
+            if (blockSignal) {
+              const reason =
+                blockSignal.reason ?? "Tool execution blocked by hook.";
+
+              invocation.messages.push({
+                role: "tool",
+                name: event.name,
+                tool_call_id: event.id,
+                content: reason,
+              });
+
+              runtime.logger.warn(
+                {
+                  tool: event.name,
+                  agent: invocation.id,
+                  reason,
+                },
+                "Tool execution vetoed by hook"
+              );
+
+              continueConversation = true;
+              continue;
+            }
 
             try {
               const result = await invocation.toolRegistry.execute(event, {

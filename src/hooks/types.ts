@@ -78,6 +78,34 @@ export type HookListener<K extends HookEventName> = (
   payload: HookEventMap[K]
 ) => unknown | Promise<unknown>;
 
+export type HookListenerResult<K extends HookEventName> = Awaited<
+  ReturnType<HookListener<K>>
+>;
+
+export interface HookBlockResponse {
+  blocked: true;
+  reason?: string;
+}
+
+export interface HookDispatchResult<K extends HookEventName> {
+  results: HookListenerResult<K>[];
+  blocked?: HookBlockResponse;
+  error?: unknown;
+}
+
+export function blockHook(reason?: string): HookBlockResponse {
+  return { blocked: true, reason };
+}
+
+export function isHookBlockResponse(value: unknown): value is HookBlockResponse {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "blocked" in value &&
+    (value as HookBlockResponse).blocked === true
+  );
+}
+
 export type HookEventHandlers = {
   [K in HookEventName]?: HookListener<K>;
 };
