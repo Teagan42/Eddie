@@ -11,7 +11,7 @@ import { ChatCommand } from "../../src/cli/commands/chat.command";
 import { TraceCommand } from "../../src/cli/commands/trace.command";
 import { EngineService } from "../../src/core/engine";
 import { ConfigService } from "../../src/config";
-import { ContextService } from "../../src/core/context/packer";
+import { ContextService } from "../../src/core/context";
 import { TokenizerService } from "../../src/core/tokenizers/strategy";
 import { LoggerService } from "../../src/io/logger";
 import type { CliCommand } from "../../src/cli/commands/cli-command";
