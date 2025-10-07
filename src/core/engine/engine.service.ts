@@ -4,8 +4,7 @@ import type { CliRuntimeOptions } from "../../config/types";
 import { ConfigService } from "../../config";
 import { ContextService } from "../context/context.service";
 import { ProviderFactory } from "../providers/provider-factory.service";
-import { ToolRegistryFactory } from "../tools/registry";
-import { builtinTools } from "../tools/builtin";
+import { ToolRegistryFactory, builtinTools } from "../tools";
 import {
   ConfirmService,
   JsonlWriterService,
