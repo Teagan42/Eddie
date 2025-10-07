@@ -1,5 +1,8 @@
+import { Injectable } from "@nestjs/common";
 import { fetch } from "undici";
+import type { ProviderConfig } from "../../config/types";
 import type { ProviderAdapter, StreamEvent, StreamOptions } from "../types";
+import type { ProviderAdapterFactory } from "./provider.tokens";
 
 interface OpenAICompatConfig {
   baseUrl?: string;
@@ -82,6 +85,26 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
         }
       }
     }
+  }
+}
+
+@Injectable()
+export class OpenAICompatibleAdapterFactory
+  implements ProviderAdapterFactory
+{
+  readonly name = "openai_compatible";
+
+  create(config: ProviderConfig): ProviderAdapter {
+    const adapterConfig: OpenAICompatConfig = {
+      baseUrl: typeof config.baseUrl === "string" ? config.baseUrl : undefined,
+      apiKey: typeof config.apiKey === "string" ? config.apiKey : undefined,
+      headers:
+        config.headers && typeof config.headers === "object"
+          ? (config.headers as Record<string, string>)
+          : undefined,
+    };
+
+    return new OpenAICompatibleAdapter(adapterConfig);
   }
 }
 

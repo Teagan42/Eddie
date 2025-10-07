@@ -1,5 +1,8 @@
+import { Injectable } from "@nestjs/common";
 import { fetch } from "undici";
+import type { ProviderConfig } from "../../config/types";
 import type { ProviderAdapter, StreamEvent, StreamOptions } from "../types";
+import type { ProviderAdapterFactory } from "./provider.tokens";
 
 interface AnthropicConfig {
   baseUrl?: string;
@@ -129,5 +132,19 @@ export class AnthropicAdapter implements ProviderAdapter {
         }
       }
     }
+  }
+}
+
+@Injectable()
+export class AnthropicAdapterFactory implements ProviderAdapterFactory {
+  readonly name = "anthropic";
+
+  create(config: ProviderConfig): ProviderAdapter {
+    const adapterConfig: AnthropicConfig = {
+      baseUrl: typeof config.baseUrl === "string" ? config.baseUrl : undefined,
+      apiKey: typeof config.apiKey === "string" ? config.apiKey : undefined,
+    };
+
+    return new AnthropicAdapter(adapterConfig);
   }
 }
