@@ -5,6 +5,7 @@ import type {
   MCPAuthConfig,
 } from "../../config/types";
 import type {
+  DiscoveredMcpResource,
   McpInitializeResult,
   McpResourceDescription,
   McpResourcesListResult,
@@ -22,9 +23,20 @@ export class McpToolSourceService {
 
   async collectTools(
     sources: MCPToolSourceConfig[] | undefined
-  ): Promise<ToolDefinition[]> {
+  ): Promise<{
+    tools: ToolDefinition[];
+    resources: DiscoveredMcpResource[];
+  }> {
     const discoveries = await this.discoverSources(sources);
-    return discoveries.flatMap((entry) => entry.tools);
+    const tools = discoveries.flatMap((entry) => entry.tools);
+    const resources = discoveries.flatMap((entry) =>
+      entry.resources.map((resource) => ({
+        ...resource,
+        sourceId: entry.sourceId,
+      }))
+    );
+
+    return { tools, resources };
   }
 
   async discoverSources(

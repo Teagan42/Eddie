@@ -60,3 +60,7 @@ export interface McpToolSourceDiscovery {
   tools: ToolDefinition[];
   resources: McpResourceDescription[];
 }
+
+export interface DiscoveredMcpResource extends McpResourceDescription {
+  sourceId: string;
+}
