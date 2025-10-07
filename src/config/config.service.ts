@@ -501,7 +501,7 @@ export class ConfigService {
 
       if (source.type !== "mcp") {
         throw new Error(
-          `tools.sources[${index}].type must be the literal string \"mcp\".`
+          `tools.sources[${index}].type must be the literal string "mcp".`
         );
       }
 
