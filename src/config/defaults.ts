@@ -37,4 +37,15 @@ export const DEFAULT_CONFIG: EddieConfig = {
   tokenizer: {
     provider: "openai",
   },
+  agents: {
+    mode: "single",
+    manager: {
+      prompt: DEFAULT_SYSTEM_PROMPT,
+    },
+    subagents: [],
+    routing: {
+      confidenceThreshold: 0.5,
+    },
+    enableSubagents: true,
+  },
 };

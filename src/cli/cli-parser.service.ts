@@ -19,12 +19,14 @@ export class CliParserService {
     ["--jsonl-trace", "jsonlTrace"],
     ["--log-level", "logLevel"],
     ["--log-file", "logFile"],
+    ["--agent-mode", "agentMode"],
   ]);
 
   private static readonly BOOLEAN_FLAGS = new Map<string, string>([
     ["--auto-approve", "autoApprove"],
     ["--auto", "auto"],
     ["--non-interactive", "nonInteractive"],
+    ["--disable-subagents", "disableSubagents"],
   ]);
 
   parse(argv: string[]): CliArguments {
