@@ -16,6 +16,8 @@ export class CliParserService {
     ["-p", "provider"],
     ["--tools", "tools"],
     ["-t", "tools"],
+    ["--disable-tools", "disableTools"],
+    ["-D", "disableTools"],
     ["--jsonl-trace", "jsonlTrace"],
     ["--log-level", "logLevel"],
     ["--log-file", "logFile"],

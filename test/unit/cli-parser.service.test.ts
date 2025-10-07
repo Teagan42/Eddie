@@ -18,6 +18,10 @@ describe("CliParserService", () => {
       "bash",
       "--tools",
       "edit",
+      "--disable-tools",
+      "write",
+      "-D",
+      "exec",
       "-C",
       "context-dir",
       "prompt",
@@ -29,6 +33,7 @@ describe("CliParserService", () => {
       options: {
         model: "gpt-4",
         tools: ["bash", "edit"],
+        disableTools: ["write", "exec"],
         context: "context-dir",
       },
       positionals: ["prompt", "question"],

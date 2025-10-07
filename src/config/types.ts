@@ -140,6 +140,10 @@ export interface CliRuntimeOptions {
   autoApprove?: boolean;
   nonInteractive?: boolean;
   tools?: string[];
+  /**
+   * Tool identifiers to disable for this run (via `--disable-tools`).
+   */
+  disabledTools?: string[];
   logLevel?: LogLevel;
   logFile?: string;
   agentMode?: string;
