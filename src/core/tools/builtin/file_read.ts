@@ -14,9 +14,9 @@ export const fileReadTool: ToolDefinition = {
     required: ["path"],
     additionalProperties: false,
   },
-  async handler(args) {
+  async handler(args, ctx) {
     const relPath = String(args.path ?? "");
-    const absolute = path.resolve(process.cwd(), relPath);
+    const absolute = path.resolve(ctx.cwd, relPath);
     const content = await fs.readFile(absolute, "utf-8");
     const maxBytes = args.maxBytes ? Number(args.maxBytes) : undefined;
     const slice =
