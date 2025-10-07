@@ -38,6 +38,19 @@ export class StreamRendererService {
         );
         break;
       }
+      case "notification": {
+        const body =
+          typeof event.payload === "string"
+            ? event.payload
+            : JSON.stringify(event.payload, null, 2);
+        const metadata = event.metadata && Object.keys(event.metadata).length > 0
+          ? ` ${redactSecrets(JSON.stringify(event.metadata), DEFAULT_PATTERNS)}`
+          : "";
+        process.stdout.write(
+          `\n${chalk.yellow("[notification]")} ${redactSecrets(body, DEFAULT_PATTERNS)}${metadata}\n`
+        );
+        break;
+      }
       case "error": {
         process.stderr.write(
           `\n${chalk.red("[error]")} ${event.message}\n${event.cause ?? ""}\n`

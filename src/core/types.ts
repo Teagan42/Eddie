@@ -44,6 +44,11 @@ export type StreamEvent =
         cause?: unknown;
     }
     | {
+        type: "notification";
+        payload: unknown;
+        metadata?: Record<string, unknown>;
+    }
+    | {
         type: "end";
         reason?: string;
         usage?: Record<string, unknown>;

@@ -3,6 +3,7 @@ import { fetch } from "undici";
 import type { ProviderConfig } from "../../config/types";
 import type { ProviderAdapter, StreamEvent, StreamOptions } from "../types";
 import type { ProviderAdapterFactory } from "./provider.tokens";
+import { extractNotificationEvents } from "./notifications";
 
 interface OpenAICompatConfig {
   baseUrl?: string;
@@ -68,9 +69,25 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
 
         try {
           const json = JSON.parse(payload);
+
+          for (const notification of extractNotificationEvents(json)) {
+            yield notification;
+          }
+
           const delta = json.choices?.[0]?.delta;
-          if (delta?.content) {
-            yield { type: "delta", text: delta.content };
+          const deltaContent = delta?.content;
+          if (typeof deltaContent === "string") {
+            yield { type: "delta", text: deltaContent };
+          } else if (Array.isArray(deltaContent)) {
+            for (const item of deltaContent) {
+              if (
+                item &&
+                typeof item === "object" &&
+                typeof (item as { text?: string }).text === "string"
+              ) {
+                yield { type: "delta", text: (item as { text: string }).text };
+              }
+            }
           }
           if (json.choices?.[0]?.finish_reason === "stop") {
             yield { type: "end", reason: "stop", usage: json.usage };

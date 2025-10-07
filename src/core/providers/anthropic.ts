@@ -3,6 +3,7 @@ import { fetch } from "undici";
 import type { ProviderConfig } from "../../config/types";
 import type { ProviderAdapter, StreamEvent, StreamOptions } from "../types";
 import type { ProviderAdapterFactory } from "./provider.tokens";
+import { extractNotificationEvents } from "./notifications";
 
 interface AnthropicConfig {
   baseUrl?: string;
@@ -73,6 +74,11 @@ export class AnthropicAdapter implements ProviderAdapter {
 
         try {
           const json = JSON.parse(payload);
+
+          for (const notification of extractNotificationEvents(json)) {
+            yield notification;
+          }
+
           switch (json.type) {
             case "message_start":
             case "connection_ack":

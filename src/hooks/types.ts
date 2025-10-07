@@ -52,6 +52,11 @@ export interface AgentErrorPayload extends AgentLifecyclePayload {
   error: { message: string; stack?: string; cause?: unknown };
 }
 
+export interface AgentNotificationPayload extends AgentLifecyclePayload {
+  iteration: number;
+  event: Extract<StreamEvent, { type: "notification" }>;
+}
+
 export interface HookEventMap {
   beforeContextPack: { config: EddieConfig; options: CliRuntimeOptions };
   afterContextPack: { context: PackedContext };
@@ -59,10 +64,12 @@ export interface HookEventMap {
   afterAgentComplete: AgentCompletionPayload;
   onAgentError: AgentErrorPayload;
   beforeModelCall: AgentIterationPayload;
-  onToolCall: AgentToolCallPayload;
-  onToolResult: AgentToolResultPayload;
+  PreToolUse: AgentToolCallPayload;
+  PostToolUse: AgentToolResultPayload;
+  Notification: AgentNotificationPayload;
   onError: AgentStreamErrorPayload;
-  onComplete: AgentIterationPayload;
+  Stop: AgentIterationPayload;
+  SubagentStop: AgentLifecyclePayload;
 }
 
 export type HookEventName = keyof HookEventMap;
@@ -82,10 +89,12 @@ export const hookEventNames: HookEventName[] = [
   "afterAgentComplete",
   "onAgentError",
   "beforeModelCall",
-  "onToolCall",
-  "onToolResult",
+  "PreToolUse",
+  "PostToolUse",
+  "Notification",
   "onError",
-  "onComplete",
+  "Stop",
+  "SubagentStop",
 ];
 
 export function isHookEventName(value: string): value is HookEventName {

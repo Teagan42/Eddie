@@ -352,4 +352,115 @@ describe("AgentOrchestratorService", () => {
       messageCount: invocation.messages.length,
     });
   });
+
+  it("emits notification and tool lifecycle hooks in order", async () => {
+    const provider = new MockProvider([
+      createStream([
+        { type: "delta", text: "manager" },
+        { type: "end" },
+      ]),
+      createStream([
+        { type: "notification", payload: { message: "starting" } },
+        {
+          type: "tool_call",
+          name: "echo",
+          arguments: { text: "child" },
+          id: "call-1",
+        },
+      ]),
+      createStream([
+        {
+          type: "notification",
+          payload: { message: "finishing" },
+          metadata: { severity: "info" },
+        },
+        { type: "delta", text: "child done" },
+        { type: "end" },
+      ]),
+    ]);
+
+    const hookBus = new HookBus();
+    const recorded: Array<{ event: string; payload: any }> = [];
+
+    hookBus.on("Notification", (payload) =>
+      recorded.push({ event: "Notification", payload })
+    );
+    hookBus.on("PreToolUse", (payload) =>
+      recorded.push({ event: "PreToolUse", payload })
+    );
+    hookBus.on("PostToolUse", (payload) =>
+      recorded.push({ event: "PostToolUse", payload })
+    );
+    hookBus.on("Stop", (payload) => recorded.push({ event: "Stop", payload }));
+    hookBus.on("SubagentStop", (payload) =>
+      recorded.push({ event: "SubagentStop", payload })
+    );
+
+    const runtime = baseRuntime(provider, { hooks: hookBus });
+    const manager = await orchestrator.runAgent(
+      {
+        definition: {
+          id: "manager",
+          systemPrompt: "coordinate",
+        },
+        prompt: "delegate work",
+        context: contextSlice("root"),
+      },
+      runtime
+    );
+
+    await manager.spawn(
+      {
+        id: "worker",
+        systemPrompt: "execute",
+        tools: [
+          {
+            name: "echo",
+            description: "echo tool",
+            jsonSchema: {
+              type: "object",
+              properties: { text: { type: "string" } },
+            },
+            async handler(args) {
+              const text = String((args as { text: string }).text);
+              return { content: text };
+            },
+          },
+        ],
+      },
+      {
+        prompt: "do task",
+        context: contextSlice("slice"),
+      }
+    );
+
+    const childEvents = recorded
+      .filter((entry) => entry.payload.metadata.id === "worker")
+      .map((entry) => entry.event);
+
+    expect(childEvents).toEqual([
+      "Notification",
+      "PreToolUse",
+      "PostToolUse",
+      "Notification",
+      "Stop",
+      "SubagentStop",
+    ]);
+
+    const notifications = recorded.filter(
+      (entry) => entry.event === "Notification"
+    );
+    expect(notifications).toHaveLength(2);
+    expect(
+      notifications.map((entry) => entry.payload.event.payload.message)
+    ).toEqual(["starting", "finishing"]);
+    expect(notifications[1]?.payload.event.metadata).toMatchObject({
+      severity: "info",
+    });
+
+    const rootStop = recorded.find(
+      (entry) => entry.event === "Stop" && entry.payload.metadata.id === "manager"
+    );
+    expect(rootStop).toBeTruthy();
+  });
 });

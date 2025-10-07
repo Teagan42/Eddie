@@ -141,6 +141,15 @@ export class AgentOrchestratorService {
     let iteration = 0;
     let agentFailed = false;
     let continueConversation = true;
+    let subagentStopEmitted = false;
+
+    const emitSubagentStop = async (): Promise<void> => {
+      if (invocation.isRoot || subagentStopEmitted) {
+        return;
+      }
+      subagentStopEmitted = true;
+      await runtime.hooks.emitAsync("SubagentStop", lifecycle);
+    };
 
     try {
       while (continueConversation) {
@@ -186,7 +195,7 @@ export class AgentOrchestratorService {
             this.streamRenderer.flush();
             this.streamRenderer.render(event);
 
-            await runtime.hooks.emitAsync("onToolCall", {
+            await runtime.hooks.emitAsync("PreToolUse", {
               ...lifecycle,
               iteration,
               event,
@@ -222,7 +231,7 @@ export class AgentOrchestratorService {
                 content: result.content,
               });
 
-              await runtime.hooks.emitAsync("onToolResult", {
+              await runtime.hooks.emitAsync("PostToolUse", {
                 ...lifecycle,
                 iteration,
                 event,
@@ -300,6 +309,16 @@ export class AgentOrchestratorService {
             break;
           }
 
+          if (event.type === "notification") {
+            this.streamRenderer.render(event);
+            await runtime.hooks.emitAsync("Notification", {
+              ...lifecycle,
+              iteration,
+              event,
+            });
+            continue;
+          }
+
           if (event.type === "end") {
             this.streamRenderer.render(event);
             if (assistantBuffer.trim().length > 0) {
@@ -309,7 +328,7 @@ export class AgentOrchestratorService {
               });
             }
 
-            await runtime.hooks.emitAsync("onComplete", {
+            await runtime.hooks.emitAsync("Stop", {
               ...lifecycle,
               iteration,
               messages: invocation.messages,
@@ -344,10 +363,12 @@ export class AgentOrchestratorService {
         phase: "agent_error",
         data: serialized,
       });
+      await emitSubagentStop();
       throw error;
     }
 
     if (agentFailed) {
+      await emitSubagentStop();
       return;
     }
 
@@ -356,6 +377,7 @@ export class AgentOrchestratorService {
       iterations: iteration,
       messages: invocation.messages,
     });
+    await emitSubagentStop();
     await this.writeTrace(runtime, invocation, {
       phase: "agent_complete",
       data: {
