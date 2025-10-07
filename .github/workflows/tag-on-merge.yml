@@ -8,7 +8,7 @@ on:
 jobs:
   tag:
     runs-on: ubuntu-latest
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && !contains(github.event.head_commit.message, 'chore: release v')
     permissions:
       contents: write
     steps:
@@ -57,21 +57,20 @@ jobs:
         run: npm ci
 
       - name: Bump version
-        run: npm version ${{ steps.bump.outputs.bump }} --no-git-tag-version
-
-      - name: Commit version bump
-        id: commit
+        id: version
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          version=$(node -p "require('./package.json').version")
-          message="chore: release v${version}"
-          if [ -n "${{ steps.bump.outputs.pr_number }}" ]; then
-            message="${message} (PR #${{ steps.bump.outputs.pr_number }})"
-          fi
-          git diff --quiet && echo "No changes to commit" && exit 0
-          git commit -am "$message"
-          git push
+          npm version ${{ steps.bump.outputs.bump }} --no-git-tag-version
+          echo "version=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
+
+      - name: Create release pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: release/v${{ steps.version.outputs.version }}
+          commit-message: chore: release v${{ steps.version.outputs.version }}
+          title: chore: release v${{ steps.version.outputs.version }}
+          committer: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
+          author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
+          labels: release
 
       - name: Refresh repository state
         run: git fetch origin main --depth=1
