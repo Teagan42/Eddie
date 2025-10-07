@@ -6,14 +6,16 @@ import { ContextService } from "../context/context.service";
 import { ProviderFactory } from "../providers";
 import { ToolRegistryFactory } from "../tools/registry";
 import { builtinTools } from "../tools/builtin";
-import { StreamRendererService } from "../../io/stream_renderer";
-import { JsonlWriterService } from "../../io/jsonl_writer";
+import {
+  ConfirmService,
+  JsonlWriterService,
+  LoggerService,
+  StreamRendererService,
+} from "../../io";
 import { HooksService } from "../../hooks/loader";
 import type { ChatMessage, StreamEvent } from "../types";
 import type { PackedContext } from "../types";
-import { ConfirmService } from "../../io/confirm";
 import { TokenizerService } from "../tokenizers/strategy";
-import { LoggerService } from "../../io/logger";
 
 export interface EngineOptions extends CliRuntimeOptions {
   history?: ChatMessage[];

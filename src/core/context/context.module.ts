@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { IoModule } from "../../io/io.module";
+import { IoModule } from "../../io";
 import { ContextService } from "./context.service";
 
 @Module({

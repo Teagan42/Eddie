@@ -4,7 +4,7 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import fs from "fs/promises";
 import path from "path";
 import { ContextService } from "../../src/core/context";
-import { LoggerService } from "../../src/io/logger";
+import { LoggerService } from "../../src/io";
 
 const tmpDir = path.join(process.cwd(), "test-temp");
 let moduleRef: TestingModule;
