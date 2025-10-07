@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import path from "path";
 import type { CliRuntimeOptions } from "../../config/types";
-import { ConfigService } from "../../config/loader";
+import { ConfigService } from "../../config";
 import { ContextService } from "../context/context.service";
 import { ProviderFactory } from "../providers";
 import { ToolRegistryFactory } from "../tools/registry";

@@ -9,7 +9,7 @@ CLI (commander)
   ├─ ask/run/chat/context/trace commands
   └─ resolveCliOptions → Engine
 Engine (src/core/engine)
-  ├─ loadConfig → config/loader.ts (merges defaults + file + CLI flags)
+  ├─ loadConfig → config/config.service.ts (merges defaults + file + CLI flags)
   ├─ ContextService → core/context/context.service.ts (glob, ignore, budgets)
   ├─ makeProvider → core/providers/* (adapter pattern)
   ├─ ToolRegistry → core/tools/* (AJV validated tool calls)

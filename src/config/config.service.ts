@@ -20,6 +20,10 @@ const CONFIG_FILENAMES = [
   ".eddierc.yaml",
 ];
 
+/**
+ * ConfigService resolves Eddie configuration from disk and merges it with CLI
+ * runtime overrides, normalising legacy fields along the way.
+ */
 @Injectable()
 export class ConfigService {
   async load(options: CliRuntimeOptions): Promise<EddieConfig> {
