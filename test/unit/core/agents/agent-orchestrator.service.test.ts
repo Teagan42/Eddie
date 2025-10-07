@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import { describe, it, beforeEach, afterEach, expect } from "vitest";
+import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
 import type {
   StreamEvent,
   ProviderAdapter,
@@ -7,6 +7,7 @@ import type {
   ChatMessage,
 } from "../../../../src/core/types";
 import {
+  AgentInvocationFactory,
   AgentOrchestratorService,
   type AgentRuntimeOptions,
   type TranscriptCompactor,
@@ -71,13 +72,15 @@ describe("AgentOrchestratorService", () => {
   let orchestrator: AgentOrchestratorService;
   let renderer: RecordingStreamRendererService;
   let loggerService: LoggerService;
+  let agentInvocationFactory: AgentInvocationFactory;
 
   beforeEach(() => {
     const toolRegistryFactory = new ToolRegistryFactory();
+    agentInvocationFactory = new AgentInvocationFactory(toolRegistryFactory);
     renderer = new RecordingStreamRendererService();
     const traceWriter = new JsonlWriterService();
     orchestrator = new AgentOrchestratorService(
-      toolRegistryFactory,
+      agentInvocationFactory,
       renderer,
       traceWriter
     );
@@ -85,6 +88,7 @@ describe("AgentOrchestratorService", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     loggerService.reset();
   });
 
@@ -110,6 +114,7 @@ describe("AgentOrchestratorService", () => {
   });
 
   it("streams a single agent conversation", async () => {
+    const createSpy = vi.spyOn(agentInvocationFactory, "create");
     const provider = new MockProvider([
       createStream([
         { type: "delta", text: "partial" },
@@ -138,9 +143,11 @@ describe("AgentOrchestratorService", () => {
     ]);
     expect(invocation.messages.at(-1)?.content).toBe("partial response");
     expect(renderer.events.map((event) => event.type)).toEqual(["delta", "delta", "end"]);
+    expect(createSpy).toHaveBeenCalledTimes(1);
   });
 
   it("allows a parent agent to spawn a subagent with independent context", async () => {
+    const createSpy = vi.spyOn(agentInvocationFactory, "create");
     const provider = new MockProvider([
       createStream([
         { type: "delta", text: "manager" },
@@ -182,6 +189,8 @@ describe("AgentOrchestratorService", () => {
     expect(worker.messages.at(-1)?.content).toBe("sub");
     expect(worker.messages.find((m) => m.role === "user")?.content).toContain("slice");
     expect(renderer.flushCount).toBe(1);
+    expect(createSpy).toHaveBeenCalledTimes(2);
+    expect(createSpy.mock.calls[1]?.[2]).toBe(manager);
   });
 
   it("emits lifecycle hooks with metadata for nested agents", async () => {
@@ -256,10 +265,9 @@ describe("AgentOrchestratorService", () => {
   });
 
   it("writes trace records for agent phases with metadata", async () => {
-    const toolRegistryFactory = new ToolRegistryFactory();
     const traceWriter = new RecordingJsonlWriterService();
     orchestrator = new AgentOrchestratorService(
-      toolRegistryFactory,
+      agentInvocationFactory,
       renderer,
       traceWriter
     );
