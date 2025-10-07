@@ -25,6 +25,12 @@ export function resolveCliOptions(
   if (typeof options.jsonlTrace === "string") {
     base.jsonlTrace = options.jsonlTrace;
   }
+  if (typeof options.logLevel === "string") {
+    base.logLevel = options.logLevel as CliRuntimeOptions["logLevel"];
+  }
+  if (typeof options.logFile === "string") {
+    base.logFile = options.logFile;
+  }
 
   const autoApprove =
     typeof options.autoApprove === "boolean"
@@ -47,4 +53,3 @@ export function resolveCliOptions(
     tools,
   };
 }
-

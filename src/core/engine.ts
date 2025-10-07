@@ -12,7 +12,7 @@ import type { ChatMessage, StreamEvent } from "./types";
 import type { PackedContext } from "./types";
 import { createConfirm } from "../io/confirm";
 import { makeTokenizer } from "./tokenizers/strategy";
-import { logger } from "../io/logger";
+import { getLogger, initLogging } from "../io/logger";
 
 export interface EngineOptions extends CliRuntimeOptions {
   history?: ChatMessage[];
@@ -71,6 +71,12 @@ export async function runEngine(
   options: EngineOptions = {}
 ): Promise<EngineResult> {
   const cfg = await loadConfig(options);
+  initLogging({
+    level: cfg.logging?.level ?? cfg.logLevel,
+    destination: cfg.logging?.destination,
+    enableTimestamps: cfg.logging?.enableTimestamps,
+  });
+  const logger = getLogger("engine");
   const hooks = await loadHooks(cfg.hooks);
 
   await hooks.emitAsync("beforeContextPack", { config: cfg, options });
@@ -79,7 +85,7 @@ export async function runEngine(
 
   const tokenizer = makeTokenizer(cfg.tokenizer?.provider ?? cfg.provider.name);
   const contextTokens = tokenizer.countTokens(context.text);
-  logger.debug?.({ contextTokens }, "Packed context");
+  logger.debug({ contextTokens }, "Packed context");
 
   const provider = makeProvider(cfg.provider);
 
@@ -186,6 +192,7 @@ export async function runEngine(
           });
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
+          logger.error({ err: message, tool: event.name }, "Tool execution failed");
           messages.push({
             role: "tool",
             name: event.name,
@@ -199,6 +206,7 @@ export async function runEngine(
       }
 
       if (event.type === "error") {
+        logger.error({ event }, "Provider reported error");
         await hooks.emitAsync("onError", event);
         continueConversation = false;
         break;
@@ -233,4 +241,3 @@ export async function runEngine(
     tracePath,
   };
 }
-

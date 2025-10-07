@@ -8,6 +8,19 @@ export interface ProviderConfig {
   [key: string]: unknown;
 }
 
+export interface LoggingDestination {
+  type: "stdout" | "stderr" | "file";
+  path?: string;
+  pretty?: boolean;
+  colorize?: boolean;
+}
+
+export interface LoggingConfig {
+  level: LogLevel;
+  destination?: LoggingDestination;
+  enableTimestamps?: boolean;
+}
+
 export interface ContextConfig {
   include: string[];
   exclude?: string[];
@@ -22,6 +35,7 @@ export interface EddieConfig {
   context: ContextConfig;
   systemPrompt: string;
   logLevel: LogLevel;
+  logging?: LoggingConfig;
   output?: OutputConfig;
   tools?: ToolsConfig;
   hooks?: HooksConfig;
@@ -34,6 +48,7 @@ export interface EddieConfigInput {
   context?: Partial<ContextConfig>;
   systemPrompt?: string;
   logLevel?: LogLevel;
+  logging?: Partial<LoggingConfig>;
   output?: Partial<OutputConfig>;
   tools?: Partial<ToolsConfig>;
   hooks?: Partial<HooksConfig>;
@@ -49,6 +64,8 @@ export interface CliRuntimeOptions {
   autoApprove?: boolean;
   nonInteractive?: boolean;
   tools?: string[];
+  logLevel?: LogLevel;
+  logFile?: string;
 }
 
 export interface OutputConfig {

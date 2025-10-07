@@ -13,6 +13,15 @@ export const DEFAULT_CONFIG: EddieConfig = {
   },
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
   logLevel: "info",
+  logging: {
+    level: "info",
+    destination: {
+      type: "stdout",
+      pretty: true,
+      colorize: true,
+    },
+    enableTimestamps: true,
+  },
   output: {
     jsonlTrace: ".eddie/trace.jsonl",
     jsonlAppend: true,

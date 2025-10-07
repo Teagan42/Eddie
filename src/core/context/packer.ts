@@ -4,12 +4,13 @@ import fg from "fast-glob";
 import ignore from "ignore";
 import type { ContextConfig } from "../../config/types";
 import type { PackedContext } from "../types";
-import { logger } from "../../io/logger";
+import { getLogger } from "../../io/logger";
 
 const DEFAULT_MAX_BYTES = 250_000;
 const DEFAULT_MAX_FILES = 64;
 
 export async function packContext(config: ContextConfig): Promise<PackedContext> {
+  const logger = getLogger("context:packer");
   const baseDir = config.baseDir ?? process.cwd();
   const includePatterns = config.include?.length ? config.include : ["**/*"];
   const excludePatterns = config.exclude ?? [];
@@ -29,7 +30,7 @@ export async function packContext(config: ContextConfig): Promise<PackedContext>
 
   for (const relPath of globResults) {
     if (files.length >= maxFiles) {
-      logger.debug?.(`Context file limit reached (${maxFiles}).`);
+      logger.debug(`Context file limit reached (${maxFiles}).`);
       break;
     }
 
@@ -42,9 +43,7 @@ export async function packContext(config: ContextConfig): Promise<PackedContext>
       const content = await fs.readFile(absolutePath, "utf-8");
       const bytes = Buffer.byteLength(content);
       if (totalBytes + bytes > maxBytes) {
-        logger.debug?.(
-          `Skipping ${relPath} due to maxBytes budget (${maxBytes}).`
-        );
+        logger.debug({ file: relPath, maxBytes }, "Skipping file beyond budget");
         continue;
       }
 
@@ -55,8 +54,8 @@ export async function packContext(config: ContextConfig): Promise<PackedContext>
       });
       totalBytes += bytes;
     } catch (error) {
-      logger.warn?.(
-        { err: error, file: relPath },
+      logger.warn(
+        { err: error instanceof Error ? error.message : error, file: relPath },
         "Failed to read context file"
       );
     }
@@ -75,4 +74,3 @@ export async function packContext(config: ContextConfig): Promise<PackedContext>
     text,
   };
 }
-

@@ -1,6 +1,7 @@
 import { loadConfig } from "../../config/loader";
 import { packContext } from "../../core/context/packer";
 import { makeTokenizer } from "../../core/tokenizers/strategy";
+import { initLogging, getLogger } from "../../io/logger";
 import { resolveCliOptions } from "../utils";
 
 export async function context(
@@ -8,6 +9,13 @@ export async function context(
 ): Promise<void> {
   const engineOptions = resolveCliOptions(options);
   const cfg = await loadConfig(engineOptions);
+  initLogging({
+    level: cfg.logging?.level ?? cfg.logLevel,
+    destination: cfg.logging?.destination,
+    enableTimestamps: cfg.logging?.enableTimestamps,
+  });
+  const logger = getLogger("cli:context");
+  logger.debug({ include: cfg.context.include, exclude: cfg.context.exclude }, "Packing context preview");
   const packed = await packContext(cfg.context);
 
   if (packed.files.length === 0) {
@@ -25,4 +33,3 @@ export async function context(
     console.log(`• ${file.path} (${file.bytes} bytes)`);
   }
 }
-

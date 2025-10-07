@@ -17,7 +17,9 @@ function withSharedOptions(command: Command) {
     .option("-t, --tools <names>", "Comma separated tool allowlist")
     .option("--jsonl-trace <path>", "Override JSONL trace path")
     .option("--auto-approve", "Automatically approve tool execution", false)
-    .option("--non-interactive", "Disable interactive confirmations", false);
+    .option("--non-interactive", "Disable interactive confirmations", false)
+    .option("--log-level <level>", "Override log level (silent|info|debug)")
+    .option("--log-file <path>", "Write logs to file instead of stdout");
 }
 
 const program = new Command();

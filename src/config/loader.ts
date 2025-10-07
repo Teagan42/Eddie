@@ -7,6 +7,7 @@ import type {
   ContextConfig,
   EddieConfig,
   EddieConfigInput,
+  LoggingConfig,
 } from "./types";
 
 const CONFIG_FILENAMES = [
@@ -82,11 +83,31 @@ function mergeConfig(
     ...(input.context ?? {}),
   });
 
+  const mergedLogging: LoggingConfig = {
+    level: base.logging?.level ?? base.logLevel,
+    destination: base.logging?.destination,
+    enableTimestamps: base.logging?.enableTimestamps,
+  };
+
+  if (input.logging?.destination) {
+    mergedLogging.destination = {
+      ...mergedLogging.destination,
+      ...input.logging.destination,
+    };
+  }
+
+  if (typeof input.logging?.enableTimestamps !== "undefined") {
+    mergedLogging.enableTimestamps = input.logging.enableTimestamps;
+  }
+
+  const loggingLevel = input.logging?.level ?? input.logLevel ?? mergedLogging.level;
+  const effectiveLevel = loggingLevel ?? base.logLevel;
+  mergedLogging.level = effectiveLevel;
+
   return {
     ...base,
     ...(input.model ? { model: input.model } : {}),
     ...(input.systemPrompt ? { systemPrompt: input.systemPrompt } : {}),
-    ...(input.logLevel ? { logLevel: input.logLevel } : {}),
     provider: {
       ...base.provider,
       ...(input.provider ?? {}),
@@ -108,6 +129,8 @@ function mergeConfig(
       ...base.tokenizer,
       ...(input.tokenizer ?? {}),
     },
+    logging: mergedLogging,
+    logLevel: effectiveLevel,
   };
 }
 
@@ -156,6 +179,30 @@ function applyCliOverrides(
     };
   }
 
+  if (options.logLevel) {
+    merged.logLevel = options.logLevel;
+    merged.logging = {
+      ...(merged.logging ?? { level: options.logLevel }),
+      level: options.logLevel,
+    };
+  } else if (merged.logging?.level) {
+    merged.logLevel = merged.logging.level;
+  }
+
+  if (options.logFile) {
+    const destination = {
+      ...(merged.logging?.destination ?? {}),
+      type: "file" as const,
+      path: options.logFile,
+      pretty: false,
+      colorize: false,
+    };
+    merged.logging = {
+      ...(merged.logging ?? { level: merged.logLevel }),
+      destination,
+    };
+  }
+
   return merged;
 }
 
@@ -165,5 +212,13 @@ export async function loadConfig(
   const configPath = await resolveConfigPath(options);
   const fileConfig = configPath ? await readConfigFile(configPath) : {};
   const merged = mergeConfig(DEFAULT_CONFIG, fileConfig);
+  if (merged.logging?.level) {
+    merged.logLevel = merged.logging.level;
+  } else if (merged.logLevel) {
+    merged.logging = {
+      ...(merged.logging ?? {}),
+      level: merged.logLevel,
+    };
+  }
   return applyCliOverrides(merged, options);
 }
