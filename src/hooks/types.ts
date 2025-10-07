@@ -1,6 +1,42 @@
 import type { ChatMessage, PackedContext, StreamEvent } from "../core/types";
 import type { CliRuntimeOptions, EddieConfig } from "../config/types";
 
+export interface SessionMetadata {
+  id: string;
+  startedAt: string;
+  prompt: string;
+  provider: string;
+  model: string;
+  tracePath?: string;
+}
+
+export type SessionStatus = "success" | "error";
+
+export interface SessionStartPayload {
+  metadata: SessionMetadata;
+  config: EddieConfig;
+  options: CliRuntimeOptions;
+}
+
+export interface SessionEndPayload {
+  metadata: SessionMetadata;
+  status: SessionStatus;
+  durationMs: number;
+  result?: {
+    messageCount: number;
+    agentCount: number;
+    contextBytes: number;
+  };
+  error?: { message: string; stack?: string; cause?: unknown };
+}
+
+export interface UserPromptSubmitPayload {
+  metadata: SessionMetadata;
+  prompt: string;
+  historyLength: number;
+  options: CliRuntimeOptions;
+}
+
 export interface AgentMetadata {
   id: string;
   parentId?: string;
@@ -25,6 +61,10 @@ export interface AgentLifecyclePayload {
 export interface AgentIterationPayload extends AgentLifecyclePayload {
   iteration: number;
   messages: ChatMessage[];
+}
+
+export interface AgentTranscriptCompactionPayload extends AgentIterationPayload {
+  reason?: string;
 }
 
 export interface AgentCompletionPayload extends AgentLifecyclePayload {
@@ -60,10 +100,14 @@ export interface AgentNotificationPayload extends AgentLifecyclePayload {
 export interface HookEventMap {
   beforeContextPack: { config: EddieConfig; options: CliRuntimeOptions };
   afterContextPack: { context: PackedContext };
+  SessionStart: SessionStartPayload;
+  UserPromptSubmit: UserPromptSubmitPayload;
+  SessionEnd: SessionEndPayload;
   beforeAgentStart: AgentLifecyclePayload;
   afterAgentComplete: AgentCompletionPayload;
   onAgentError: AgentErrorPayload;
   beforeModelCall: AgentIterationPayload;
+  PreCompact: AgentTranscriptCompactionPayload;
   PreToolUse: AgentToolCallPayload;
   PostToolUse: AgentToolResultPayload;
   Notification: AgentNotificationPayload;
@@ -113,10 +157,14 @@ export type HookEventHandlers = {
 export const hookEventNames: HookEventName[] = [
   "beforeContextPack",
   "afterContextPack",
+  "SessionStart",
+  "UserPromptSubmit",
+  "SessionEnd",
   "beforeAgentStart",
   "afterAgentComplete",
   "onAgentError",
   "beforeModelCall",
+  "PreCompact",
   "PreToolUse",
   "PostToolUse",
   "Notification",
