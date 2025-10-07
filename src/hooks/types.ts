@@ -1,6 +1,27 @@
 import type { ChatMessage, PackedContext, StreamEvent } from "../core/types";
 import type { CliRuntimeOptions, EddieConfig } from "../config/types";
 
+export const HOOK_EVENTS = {
+  beforeContextPack: "beforeContextPack",
+  afterContextPack: "afterContextPack",
+  sessionStart: "sessionStart",
+  userPromptSubmit: "userPromptSubmit",
+  sessionEnd: "sessionEnd",
+  beforeAgentStart: "beforeAgentStart",
+  afterAgentComplete: "afterAgentComplete",
+  onAgentError: "onAgentError",
+  beforeModelCall: "beforeModelCall",
+  preCompact: "preCompact",
+  preToolUse: "preToolUse",
+  postToolUse: "postToolUse",
+  notification: "notification",
+  onError: "onError",
+  stop: "stop",
+  subagentStop: "subagentStop",
+} as const;
+
+export type HookEventName = (typeof HOOK_EVENTS)[keyof typeof HOOK_EVENTS];
+
 export interface SessionMetadata {
   id: string;
   startedAt: string;
@@ -97,26 +118,27 @@ export interface AgentNotificationPayload extends AgentLifecyclePayload {
   event: Extract<StreamEvent, { type: "notification" }>;
 }
 
-export interface HookEventMap {
-  beforeContextPack: { config: EddieConfig; options: CliRuntimeOptions };
-  afterContextPack: { context: PackedContext };
-  SessionStart: SessionStartPayload;
-  UserPromptSubmit: UserPromptSubmitPayload;
-  SessionEnd: SessionEndPayload;
-  beforeAgentStart: AgentLifecyclePayload;
-  afterAgentComplete: AgentCompletionPayload;
-  onAgentError: AgentErrorPayload;
-  beforeModelCall: AgentIterationPayload;
-  PreCompact: AgentTranscriptCompactionPayload;
-  PreToolUse: AgentToolCallPayload;
-  PostToolUse: AgentToolResultPayload;
-  Notification: AgentNotificationPayload;
-  onError: AgentStreamErrorPayload;
-  Stop: AgentIterationPayload;
-  SubagentStop: AgentLifecyclePayload;
-}
-
-export type HookEventName = keyof HookEventMap;
+export type HookEventMap = {
+  [HOOK_EVENTS.beforeContextPack]: {
+    config: EddieConfig;
+    options: CliRuntimeOptions;
+  };
+  [HOOK_EVENTS.afterContextPack]: { context: PackedContext };
+  [HOOK_EVENTS.sessionStart]: SessionStartPayload;
+  [HOOK_EVENTS.userPromptSubmit]: UserPromptSubmitPayload;
+  [HOOK_EVENTS.sessionEnd]: SessionEndPayload;
+  [HOOK_EVENTS.beforeAgentStart]: AgentLifecyclePayload;
+  [HOOK_EVENTS.afterAgentComplete]: AgentCompletionPayload;
+  [HOOK_EVENTS.onAgentError]: AgentErrorPayload;
+  [HOOK_EVENTS.beforeModelCall]: AgentIterationPayload;
+  [HOOK_EVENTS.preCompact]: AgentTranscriptCompactionPayload;
+  [HOOK_EVENTS.preToolUse]: AgentToolCallPayload;
+  [HOOK_EVENTS.postToolUse]: AgentToolResultPayload;
+  [HOOK_EVENTS.notification]: AgentNotificationPayload;
+  [HOOK_EVENTS.onError]: AgentStreamErrorPayload;
+  [HOOK_EVENTS.stop]: AgentIterationPayload;
+  [HOOK_EVENTS.subagentStop]: AgentLifecyclePayload;
+};
 
 export type HookListener<K extends HookEventName> = (
   payload: HookEventMap[K]
@@ -154,24 +176,7 @@ export type HookEventHandlers = {
   [K in HookEventName]?: HookListener<K>;
 };
 
-export const hookEventNames: HookEventName[] = [
-  "beforeContextPack",
-  "afterContextPack",
-  "SessionStart",
-  "UserPromptSubmit",
-  "SessionEnd",
-  "beforeAgentStart",
-  "afterAgentComplete",
-  "onAgentError",
-  "beforeModelCall",
-  "PreCompact",
-  "PreToolUse",
-  "PostToolUse",
-  "Notification",
-  "onError",
-  "Stop",
-  "SubagentStop",
-];
+export const hookEventNames = Object.values(HOOK_EVENTS) as HookEventName[];
 
 export function isHookEventName(value: string): value is HookEventName {
   return (hookEventNames as readonly string[]).includes(value);

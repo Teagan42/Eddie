@@ -7,7 +7,7 @@ import { ContextService } from "../context/context.service";
 import { ProviderFactoryService } from "../providers/provider-factory.service";
 import { builtinTools } from "../tools";
 import { ConfirmService, LoggerService } from "../../io";
-import { HooksService } from "../../hooks";
+import { HOOK_EVENTS, HooksService } from "../../hooks";
 import type {
   HookBus,
   HookDispatchResult,
@@ -89,32 +89,48 @@ export class EngineService {
         tracePath,
       };
 
-      const sessionStart = await hooks.emitAsync("SessionStart", {
+      const sessionStart = await hooks.emitAsync(HOOK_EVENTS.sessionStart, {
         metadata: session,
         config: cfg,
         options,
       });
-      this.handleHookDispatchResult("SessionStart", sessionStart, logger, {
-        allowBlock: true,
-      });
-
-      const beforeContextPack = await hooks.emitAsync("beforeContextPack", {
-        config: cfg,
-        options,
-      });
       this.handleHookDispatchResult(
-        "beforeContextPack",
+        HOOK_EVENTS.sessionStart,
+        sessionStart,
+        logger,
+        {
+          allowBlock: true,
+        }
+      );
+
+      const beforeContextPack = await hooks.emitAsync(
+        HOOK_EVENTS.beforeContextPack,
+        {
+          config: cfg,
+          options,
+        }
+      );
+      this.handleHookDispatchResult(
+        HOOK_EVENTS.beforeContextPack,
         beforeContextPack,
         logger,
         { allowBlock: true }
       );
       const context = await this.contextService.pack(cfg.context);
-      const afterContextPack = await hooks.emitAsync("afterContextPack", {
-        context,
-      });
-      this.handleHookDispatchResult("afterContextPack", afterContextPack, logger, {
-        allowBlock: true,
-      });
+      const afterContextPack = await hooks.emitAsync(
+        HOOK_EVENTS.afterContextPack,
+        {
+          context,
+        }
+      );
+      this.handleHookDispatchResult(
+        HOOK_EVENTS.afterContextPack,
+        afterContextPack,
+        logger,
+        {
+          allowBlock: true,
+        }
+      );
 
       const tokenizer = this.tokenizerService.create(
         cfg.tokenizer?.provider ?? cfg.provider.name
@@ -151,15 +167,23 @@ export class EngineService {
         traceAppend: cfg.output?.jsonlAppend ?? true,
       };
 
-      const userPromptSubmit = await hooks.emitAsync("UserPromptSubmit", {
-        metadata: session,
-        prompt,
-        historyLength: options.history?.length ?? 0,
-        options,
-      });
-      this.handleHookDispatchResult("UserPromptSubmit", userPromptSubmit, logger, {
-        allowBlock: true,
-      });
+      const userPromptSubmit = await hooks.emitAsync(
+        HOOK_EVENTS.userPromptSubmit,
+        {
+          metadata: session,
+          prompt,
+          historyLength: options.history?.length ?? 0,
+          options,
+        }
+      );
+      this.handleHookDispatchResult(
+        HOOK_EVENTS.userPromptSubmit,
+        userPromptSubmit,
+        logger,
+        {
+          allowBlock: true,
+        }
+      );
 
       const rootInvocation = await this.agentOrchestrator.runAgent(
         {
@@ -187,7 +211,7 @@ export class EngineService {
     } finally {
       if (hooks && session) {
         const status: SessionStatus = failure ? "error" : "success";
-        const sessionEnd = await hooks.emitAsync("SessionEnd", {
+        const sessionEnd = await hooks.emitAsync(HOOK_EVENTS.sessionEnd, {
           metadata: session,
           status,
           durationMs: Date.now() - runStartedAt,
@@ -200,7 +224,11 @@ export class EngineService {
             : undefined,
           error: failure ? this.serializeError(failure) : undefined,
         });
-        this.handleHookDispatchResult("SessionEnd", sessionEnd, logger);
+        this.handleHookDispatchResult(
+          HOOK_EVENTS.sessionEnd,
+          sessionEnd,
+          logger
+        );
       }
     }
   }

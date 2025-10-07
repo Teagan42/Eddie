@@ -3,6 +3,7 @@ import path from "path";
 import { pathToFileURL } from "url";
 import { HookBus } from "./hook-bus.service";
 import {
+  HOOK_EVENTS,
   type HookEventHandlers,
   isHookEventName,
   type HookEventName,
@@ -35,6 +36,18 @@ export class HooksLoaderService {
   }
 
   attachObjectHooks(bus: HookBus, module: HookEventHandlers): void {
+    const legacyEventMap: Record<string, HookEventName> = {
+      SessionStart: HOOK_EVENTS.sessionStart,
+      UserPromptSubmit: HOOK_EVENTS.userPromptSubmit,
+      SessionEnd: HOOK_EVENTS.sessionEnd,
+      PreCompact: HOOK_EVENTS.preCompact,
+      PreToolUse: HOOK_EVENTS.preToolUse,
+      PostToolUse: HOOK_EVENTS.postToolUse,
+      Notification: HOOK_EVENTS.notification,
+      Stop: HOOK_EVENTS.stop,
+      SubagentStop: HOOK_EVENTS.subagentStop,
+    };
+
     for (const [event, handler] of Object.entries(module) as [
       string,
       HookEventHandlers[HookEventName] | undefined,
@@ -50,14 +63,26 @@ export class HooksLoaderService {
         continue;
       }
 
-      if (!isHookEventName(event)) {
+      let resolvedEvent = event;
+
+      if (!isHookEventName(resolvedEvent)) {
+        const translated = legacyEventMap[resolvedEvent];
+        if (translated) {
+          this.logger.warn(
+            `Hook event "${resolvedEvent}" is deprecated; use "${translated}" instead`
+          );
+          resolvedEvent = translated;
+        }
+      }
+
+      if (!isHookEventName(resolvedEvent)) {
         this.logger.warn(
           `Skipping hook "${event}" because the event is not recognised`
         );
         continue;
       }
 
-      bus.on(event, handler);
+      bus.on(resolvedEvent, handler);
     }
   }
 }

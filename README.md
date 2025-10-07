@@ -101,6 +101,34 @@ Every payload includes the agent's prompt, context summary, history length, and
 sanitised metadata so downstream systems can observe full hierarchies without
 needing internal Eddie classes.
 
+### Hook event naming
+
+Hook identifiers are now canonicalised as camelCase strings. Import
+`HOOK_EVENTS` from the published `eddie/hooks` entrypoint (or directly from
+`src/hooks` when working inside this repository) to avoid typos and stay
+aligned with future additions:
+
+```ts
+import { HOOK_EVENTS } from "eddie/hooks";
+
+export default {
+  [HOOK_EVENTS.sessionStart]: (payload) => {
+    // session metadata + runtime config
+  },
+  [HOOK_EVENTS.userPromptSubmit]: (payload) => {
+    // prompt text and history length
+  },
+  [HOOK_EVENTS.afterAgentComplete]: (payload) => {
+    // agent transcript and iteration counts
+  },
+};
+```
+
+The existing PascalCase spellings (`SessionStart`, `PreToolUse`, `Stop`, etc.)
+are still accepted for the current release and emit a deprecation warning when
+loaded. They will be removed after the next minor release, so update custom
+hook modules to the camelCase variants soon to avoid interruptions.
+
 ## Testing
 
 ```bash
