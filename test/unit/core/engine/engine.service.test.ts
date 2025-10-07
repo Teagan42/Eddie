@@ -17,7 +17,7 @@ import { ToolRegistryFactory } from "../../../../src/core/tools";
 import type { ConfigService } from "../../../../src/config";
 import type { ContextService } from "../../../../src/core/context/context.service";
 import type { ProviderFactoryService } from "../../../../src/core/providers/provider-factory.service";
-import { HookBus } from "../../../../src/hooks";
+import { HookBus, blockHook } from "../../../../src/hooks";
 import type { HooksService } from "../../../../src/hooks";
 import type { ConfirmService } from "../../../../src/io";
 import { LoggerService } from "../../../../src/io";
@@ -63,6 +63,7 @@ interface EngineHarness {
   config: EddieConfig;
   context: PackedContext;
   fakeOrchestrator: FakeAgentOrchestrator;
+  contextPackSpy: ReturnType<typeof vi.fn>;
 }
 
 function createEngineHarness(
@@ -99,8 +100,9 @@ function createEngineHarness(
     load: vi.fn(async () => config),
   } as unknown as ConfigService;
 
+  const contextPackSpy = vi.fn(async () => context);
   const contextService = {
-    pack: vi.fn(async () => context),
+    pack: contextPackSpy,
   } as unknown as ContextService;
 
   const provider: ProviderAdapter = {
@@ -150,6 +152,7 @@ function createEngineHarness(
     config,
     context,
     fakeOrchestrator,
+    contextPackSpy,
   };
 }
 
@@ -225,5 +228,27 @@ describe("EngineService hooks", () => {
     expect(end.status).toBe("error");
     expect(end.error?.message).toBe("orchestrator failed");
     expect(end.result).toBeUndefined();
+  });
+
+  it("rejects when a hook listener fails and surfaces the hook error", async () => {
+    const harness = createEngineHarness();
+    harness.hookBus.on("SessionStart", () => {
+      throw new Error("hook boom");
+    });
+
+    await expect(harness.engine.run("hook failure"))
+      .rejects.toMatchObject({
+        message: 'Hook "SessionStart" failed: hook boom',
+        cause: expect.objectContaining({ message: "hook boom" }),
+      });
+  });
+
+  it("aborts the run when a hook blocks a critical event", async () => {
+    const harness = createEngineHarness();
+    harness.hookBus.on("beforeContextPack", () => blockHook("policy veto"));
+
+    await expect(harness.engine.run("blocked"))
+      .rejects.toThrow("policy veto");
+    expect(harness.contextPackSpy).not.toHaveBeenCalled();
   });
 });

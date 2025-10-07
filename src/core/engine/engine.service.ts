@@ -10,6 +10,8 @@ import { ConfirmService, LoggerService } from "../../io";
 import { HooksService } from "../../hooks";
 import type {
   HookBus,
+  HookDispatchResult,
+  HookEventName,
   SessionMetadata,
   SessionStatus,
 } from "../../hooks";
@@ -22,6 +24,7 @@ import {
   type AgentInvocation,
   type AgentRuntimeOptions,
 } from "../agents";
+import type { Logger } from "pino";
 
 export interface EngineOptions extends CliRuntimeOptions {
   history?: ChatMessage[];
@@ -61,6 +64,7 @@ export class EngineService {
     let session: SessionMetadata | undefined;
     let result: EngineResult | undefined;
     let failure: unknown;
+    let logger!: Logger;
 
     try {
       const cfg = await this.configService.load(options);
@@ -69,7 +73,7 @@ export class EngineService {
         destination: cfg.logging?.destination,
         enableTimestamps: cfg.logging?.enableTimestamps,
       });
-      const logger = this.loggerService.getLogger("engine");
+      logger = this.loggerService.getLogger("engine");
       hooks = await this.hooksService.load(cfg.hooks);
 
       const tracePath = cfg.output?.jsonlTrace
@@ -85,15 +89,32 @@ export class EngineService {
         tracePath,
       };
 
-      await hooks.emitAsync("SessionStart", {
+      const sessionStart = await hooks.emitAsync("SessionStart", {
         metadata: session,
         config: cfg,
         options,
       });
+      this.handleHookDispatchResult("SessionStart", sessionStart, logger, {
+        allowBlock: true,
+      });
 
-      await hooks.emitAsync("beforeContextPack", { config: cfg, options });
+      const beforeContextPack = await hooks.emitAsync("beforeContextPack", {
+        config: cfg,
+        options,
+      });
+      this.handleHookDispatchResult(
+        "beforeContextPack",
+        beforeContextPack,
+        logger,
+        { allowBlock: true }
+      );
       const context = await this.contextService.pack(cfg.context);
-      await hooks.emitAsync("afterContextPack", { context });
+      const afterContextPack = await hooks.emitAsync("afterContextPack", {
+        context,
+      });
+      this.handleHookDispatchResult("afterContextPack", afterContextPack, logger, {
+        allowBlock: true,
+      });
 
       const tokenizer = this.tokenizerService.create(
         cfg.tokenizer?.provider ?? cfg.provider.name
@@ -130,11 +151,14 @@ export class EngineService {
         traceAppend: cfg.output?.jsonlAppend ?? true,
       };
 
-      await hooks.emitAsync("UserPromptSubmit", {
+      const userPromptSubmit = await hooks.emitAsync("UserPromptSubmit", {
         metadata: session,
         prompt,
         historyLength: options.history?.length ?? 0,
         options,
+      });
+      this.handleHookDispatchResult("UserPromptSubmit", userPromptSubmit, logger, {
+        allowBlock: true,
       });
 
       const rootInvocation = await this.agentOrchestrator.runAgent(
@@ -163,7 +187,7 @@ export class EngineService {
     } finally {
       if (hooks && session) {
         const status: SessionStatus = failure ? "error" : "success";
-        await hooks.emitAsync("SessionEnd", {
+        const sessionEnd = await hooks.emitAsync("SessionEnd", {
           metadata: session,
           status,
           durationMs: Date.now() - runStartedAt,
@@ -176,6 +200,7 @@ export class EngineService {
             : undefined,
           error: failure ? this.serializeError(failure) : undefined,
         });
+        this.handleHookDispatchResult("SessionEnd", sessionEnd, logger);
       }
     }
   }
@@ -207,5 +232,35 @@ export class EngineService {
     }
 
     return { message: String(error) };
+  }
+
+  private handleHookDispatchResult<K extends HookEventName>(
+    event: K,
+    dispatch: HookDispatchResult<K>,
+    logger: Logger,
+    options: { allowBlock?: boolean } = {}
+  ): void {
+    if (dispatch.error) {
+      const cause = dispatch.error;
+      if (cause instanceof Error) {
+        logger.error({ err: cause, event }, `Hook "${event}" failed`);
+      } else {
+        logger.error({ event, error: cause }, `Hook "${event}" failed`);
+      }
+
+      const message =
+        cause instanceof Error
+          ? `Hook "${event}" failed: ${cause.message}`
+          : `Hook "${event}" failed: ${String(cause)}`;
+
+      throw new Error(message, { cause });
+    }
+
+    if (options.allowBlock && dispatch.blocked) {
+      const reason =
+        dispatch.blocked.reason ?? `Hook "${event}" blocked execution.`;
+      logger.warn({ event, reason }, `Hook "${event}" blocked execution`);
+      throw new Error(reason, { cause: dispatch.blocked });
+    }
   }
 }
