@@ -1,19 +1,32 @@
-import { Injectable } from "@nestjs/common";
-import {
-  AnthropicTokenizer,
-  OpenAITokenizer,
-  type TokenizerStrategy,
-} from "./strategies";
+import { Inject, Injectable } from "@nestjs/common";
+import type { TokenizerStrategy } from "./strategies";
+
+export const TOKENIZER_STRATEGIES = Symbol("TOKENIZER_STRATEGIES");
+
+export type TokenizerStrategyRegistry = Record<string, TokenizerStrategy>;
 
 /**
  * TokenizerService provides provider-specific token counting strategies.
  */
 @Injectable()
 export class TokenizerService {
-  create(provider: string): TokenizerStrategy {
-    if (provider === "anthropic") {
-      return new AnthropicTokenizer();
+  constructor(
+    @Inject(TOKENIZER_STRATEGIES)
+    private readonly strategies: TokenizerStrategyRegistry
+  ) {}
+
+  create(provider?: string): TokenizerStrategy {
+    const normalized = provider?.toLowerCase?.() ?? "openai";
+    const strategy = this.strategies[normalized];
+    if (strategy) {
+      return strategy;
     }
-    return new OpenAITokenizer();
+
+    const fallback = this.strategies.openai ?? Object.values(this.strategies)[0];
+    if (!fallback) {
+      throw new Error("No tokenizer strategies are registered");
+    }
+
+    return fallback;
   }
 }
