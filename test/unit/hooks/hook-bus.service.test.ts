@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { HookBus, blockHook } from "../../../src/hooks";
 import type { HookBlockResponse } from "../../../src/hooks";
 
@@ -72,5 +72,26 @@ describe("HookBus", () => {
     expect(result.results).toHaveLength(0);
     expect(result.error).toBeInstanceOf(Error);
     expect(calls).toEqual(["first"]);
+  });
+
+  it("supports more than ten listeners without warnings", async () => {
+    const bus = new HookBus();
+    const warningSpy = vi.spyOn(process, "emitWarning");
+
+    const events: number[] = [];
+    for (let i = 0; i < 11; i += 1) {
+      bus.on("beforeContextPack", () => {
+        events.push(i);
+      });
+    }
+
+    await bus.emitAsync("beforeContextPack", {
+      config: {} as any,
+      options: {} as any,
+    });
+
+    expect(events).toHaveLength(11);
+    expect(warningSpy).not.toHaveBeenCalled();
+    warningSpy.mockRestore();
   });
 });
