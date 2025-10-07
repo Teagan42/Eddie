@@ -31,7 +31,7 @@ Key flows:
 The runtime treats each provider invocation as an “agent execution”:
 
 - The `engine` maintains a message history and re-asks the provider whenever a tool call is fulfilled, mirroring the agentic loop popularised by IDE copilots.
-- Hooks (loaded via `hooks/loader.ts`) allow external agents to subscribe to lifecycle events such as `beforeModelCall`, `onToolCall`, or `onComplete`, enabling custom metrics, approvals, or policy enforcement.
+- Hooks (loaded via `hooks/hooks-loader.service.ts`) allow external agents to subscribe to lifecycle events such as `beforeModelCall`, `onToolCall`, or `onComplete`, enabling custom metrics, approvals, or policy enforcement.
 
 To add a new agent mode:
 
