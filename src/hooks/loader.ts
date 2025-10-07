@@ -1,3 +1,4 @@
+import { Injectable } from "@nestjs/common";
 import path from "path";
 import { pathToFileURL } from "url";
 import type { HooksConfig } from "../config/types";
@@ -27,26 +28,29 @@ function attachObjectHooks(bus: HookBus, module: Record<string, unknown>) {
   }
 }
 
-export async function loadHooks(config?: HooksConfig): Promise<HookBus> {
-  const bus = new HookBus();
-  if (!config?.modules?.length) {
+@Injectable()
+export class HooksService {
+  async load(config?: HooksConfig): Promise<HookBus> {
+    const bus = new HookBus();
+    if (!config?.modules?.length) {
+      return bus;
+    }
+
+    for (const entry of config.modules) {
+      try {
+        const resolved = await resolveModule(entry, config.directory);
+        const imported = await import(pathToFileURL(resolved).href);
+        const hookModule: HookModule = (imported.default ?? imported) as HookModule;
+        if (typeof hookModule === "function") {
+          await hookModule(bus);
+        } else if (hookModule && typeof hookModule === "object") {
+          attachObjectHooks(bus, hookModule as Record<string, unknown>);
+        }
+      } catch (error) {
+        console.error(`Failed to load hook module "${entry}"`, error);
+      }
+    }
+
     return bus;
   }
-
-  for (const entry of config.modules) {
-    try {
-      const resolved = await resolveModule(entry, config.directory);
-      const imported = await import(pathToFileURL(resolved).href);
-      const hookModule: HookModule = (imported.default ?? imported) as HookModule;
-      if (typeof hookModule === "function") {
-        await hookModule(bus);
-      } else if (hookModule && typeof hookModule === "object") {
-        attachObjectHooks(bus, hookModule as Record<string, unknown>);
-      }
-    } catch (error) {
-      console.error(`Failed to load hook module "${entry}"`, error);
-    }
-  }
-
-  return bus;
 }

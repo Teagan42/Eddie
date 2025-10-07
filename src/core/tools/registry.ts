@@ -1,3 +1,4 @@
+import { Injectable } from "@nestjs/common";
 import Ajv, { type ValidateFunction } from "ajv";
 import type { ToolDefinition, ToolSchema } from "../types";
 
@@ -77,5 +78,12 @@ export class ToolRegistry {
     }
 
     return tool.handler(parsedArgs, ctx);
+  }
+}
+
+@Injectable()
+export class ToolRegistryFactory {
+  create(definitions: ToolDefinition[] = []): ToolRegistry {
+    return new ToolRegistry(definitions);
   }
 }

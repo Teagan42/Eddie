@@ -1,3 +1,6 @@
+import type { INestApplicationContext } from "@nestjs/common";
+import { NestFactory } from "@nestjs/core";
+import { AppModule } from "../app.module";
 import type { CliRuntimeOptions } from "../config/types";
 import type { EngineOptions } from "../core/engine";
 
@@ -52,4 +55,8 @@ export function resolveCliOptions(
     nonInteractive,
     tools,
   };
+}
+
+export async function createCliApplicationContext(): Promise<INestApplicationContext> {
+  return NestFactory.createApplicationContext(AppModule, { logger: false });
 }

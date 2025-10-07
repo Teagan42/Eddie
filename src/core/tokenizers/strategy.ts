@@ -1,3 +1,5 @@
+import { Injectable } from "@nestjs/common";
+
 export interface TokenizerStrategy {
   countTokens(text: string): number;
 }
@@ -14,10 +16,13 @@ export class AnthropicTokenizer implements TokenizerStrategy {
   }
 }
 
-export function makeTokenizer(provider: string): TokenizerStrategy {
-  if (provider === "anthropic") {
-    return new AnthropicTokenizer();
+@Injectable()
+export class TokenizerService {
+  create(provider: string): TokenizerStrategy {
+    if (provider === "anthropic") {
+      return new AnthropicTokenizer();
+    }
+    return new OpenAITokenizer();
   }
-  return new OpenAITokenizer();
 }
 
