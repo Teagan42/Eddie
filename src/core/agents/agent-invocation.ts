@@ -1,3 +1,4 @@
+import type { TemplateDescriptor, TemplateVariables } from "../../shared/template.types";
 import type { ChatMessage, PackedContext } from "../types";
 import type { ToolRegistry } from "../tools/tool-registry.service";
 import type { ToolRegistryFactory } from "../tools";
@@ -9,6 +10,8 @@ export interface AgentInvocationOptions {
   prompt: string;
   context?: PackedContext;
   history?: ChatMessage[];
+  promptTemplate?: TemplateDescriptor;
+  variables?: TemplateVariables;
 }
 
 export type AgentSpawnHandler = (

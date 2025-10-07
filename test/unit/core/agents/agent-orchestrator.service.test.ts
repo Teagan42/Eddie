@@ -15,6 +15,7 @@ import {
 import { ToolRegistryFactory } from "../../../../src/core/tools";
 import { JsonlWriterService, StreamRendererService, LoggerService } from "../../../../src/io";
 import { HOOK_EVENTS, HookBus, blockHook } from "../../../../src/hooks";
+import { TemplateRendererService } from "../../../../src/core/templates";
 
 class RecordingStreamRendererService extends StreamRendererService {
   readonly events: StreamEvent[] = [];
@@ -76,7 +77,11 @@ describe("AgentOrchestratorService", () => {
 
   beforeEach(() => {
     const toolRegistryFactory = new ToolRegistryFactory();
-    agentInvocationFactory = new AgentInvocationFactory(toolRegistryFactory);
+    const templateRenderer = new TemplateRendererService();
+    agentInvocationFactory = new AgentInvocationFactory(
+      toolRegistryFactory,
+      templateRenderer
+    );
     renderer = new RecordingStreamRendererService();
     const traceWriter = new JsonlWriterService();
     orchestrator = new AgentOrchestratorService(

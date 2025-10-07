@@ -166,6 +166,10 @@ export class EngineService {
       const agentDefinition: AgentDefinition = {
         id: "manager",
         systemPrompt: managerPrompt,
+        systemPromptTemplate: cfg.agents?.manager?.promptTemplate,
+        userPromptTemplate:
+          cfg.agents?.manager?.defaultUserPromptTemplate,
+        variables: cfg.agents?.manager?.variables,
         tools: toolsEnabled,
       };
 

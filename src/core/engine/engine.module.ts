@@ -5,6 +5,7 @@ import { IoModule } from "../../io";
 import { HooksModule } from "../../hooks";
 import { ProvidersModule } from "../providers/providers.module";
 import { TokenizersModule } from "../tokenizers";
+import { TemplateModule } from "../templates";
 import { EngineService } from "./engine.service";
 import { ToolsModule } from "../tools";
 import { AgentInvocationFactory, AgentOrchestratorService } from "../agents";
@@ -18,6 +19,7 @@ import { MCPModule } from "../../integrations";
     HooksModule,
     ProvidersModule,
     TokenizersModule,
+    TemplateModule,
     ToolsModule,
     MCPModule,
   ],

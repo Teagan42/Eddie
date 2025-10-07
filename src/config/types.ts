@@ -1,3 +1,5 @@
+import type { TemplateDescriptor, TemplateVariables } from "../shared/template.types";
+
 export type LogLevel = "silent" | "info" | "debug";
 
 export interface ProviderConfig {
@@ -27,11 +29,41 @@ export interface ContextConfig {
   baseDir?: string;
   maxBytes?: number;
   maxFiles?: number;
+  variables?: TemplateVariables;
+  resources?: ContextResourceConfig[];
 }
+
+export interface ContextResourceBaseConfig {
+  id: string;
+  name?: string;
+  description?: string;
+}
+
+export interface ContextResourceBundleConfig extends ContextResourceBaseConfig {
+  type: "bundle";
+  include: string[];
+  exclude?: string[];
+  baseDir?: string;
+  virtualPath?: string;
+}
+
+export interface ContextResourceTemplateConfig extends ContextResourceBaseConfig {
+  type: "template";
+  template: TemplateDescriptor;
+  variables?: TemplateVariables;
+}
+
+export type ContextResourceConfig =
+  | ContextResourceBundleConfig
+  | ContextResourceTemplateConfig;
 
 export interface AgentManagerConfig {
   prompt: string;
   instructions?: string;
+  promptTemplate?: TemplateDescriptor;
+  defaultUserPromptTemplate?: TemplateDescriptor;
+  variables?: TemplateVariables;
+  resources?: ContextResourceConfig[];
   [key: string]: unknown;
 }
 
@@ -40,6 +72,10 @@ export interface AgentDefinitionConfig {
   name?: string;
   description?: string;
   prompt?: string;
+  promptTemplate?: TemplateDescriptor;
+  defaultUserPromptTemplate?: TemplateDescriptor;
+  variables?: TemplateVariables;
+  resources?: ContextResourceConfig[];
   tools?: string[];
   routingThreshold?: number;
   [key: string]: unknown;

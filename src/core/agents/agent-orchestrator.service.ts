@@ -73,7 +73,7 @@ export class AgentOrchestratorService {
     request: AgentRunRequest,
     runtime: AgentRuntimeOptions
   ): Promise<AgentInvocation> {
-    const invocation = this.agentInvocationFactory.create(
+    const invocation = await this.agentInvocationFactory.create(
       request.definition,
       {
         prompt: request.prompt,
@@ -108,7 +108,7 @@ export class AgentOrchestratorService {
       );
     }
 
-    const invocation = this.agentInvocationFactory.create(
+    const invocation = await this.agentInvocationFactory.create(
       definition,
       options,
       parent

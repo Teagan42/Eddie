@@ -96,10 +96,21 @@ export interface PackedFile {
   content: string;
 }
 
+export interface PackedResource {
+  id: string;
+  type: "bundle" | "template";
+  text: string;
+  name?: string;
+  description?: string;
+  files?: PackedFile[];
+  metadata?: Record<string, unknown>;
+}
+
 export interface PackedContext {
   files: PackedFile[];
   totalBytes: number;
   text: string;
+  resources?: PackedResource[];
 }
 
 export interface ToolExecutionContext {

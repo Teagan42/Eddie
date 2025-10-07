@@ -8,6 +8,7 @@ import type {
   AgentsConfigInput,
   CliRuntimeOptions,
   ContextConfig,
+  ContextResourceConfig,
   EddieConfig,
   EddieConfigInput,
   LoggingConfig,
@@ -108,12 +109,23 @@ export class ConfigService {
   private ensureContextShape(
     context: ContextConfig | undefined
   ): ContextConfig {
+    const include = context?.include ? [...context.include] : [];
+    const exclude = context?.exclude ? [...context.exclude] : undefined;
+    const variables = context?.variables
+      ? { ...context.variables }
+      : undefined;
+    const resources = context?.resources
+      ? context.resources.map((resource) => this.cloneResourceConfig(resource))
+      : undefined;
+
     return {
-      include: context?.include ?? [],
-      exclude: context?.exclude,
+      include,
+      exclude,
       baseDir: context?.baseDir ?? process.cwd(),
       maxBytes: context?.maxBytes,
       maxFiles: context?.maxFiles,
+      variables,
+      resources,
     };
   }
 
@@ -340,12 +352,56 @@ export class ConfigService {
       ...(agents?.manager ?? {}),
     } as AgentsConfig["manager"];
 
+    if (manager.promptTemplate) {
+      manager.promptTemplate = { ...manager.promptTemplate };
+    }
+
+    if (manager.defaultUserPromptTemplate) {
+      manager.defaultUserPromptTemplate = {
+        ...manager.defaultUserPromptTemplate,
+      };
+    }
+
+    if (manager.variables) {
+      manager.variables = { ...manager.variables };
+    }
+
+    if (manager.resources) {
+      manager.resources = manager.resources.map((resource) =>
+        this.cloneResourceConfig(resource)
+      );
+    }
+
     if (typeof manager.prompt !== "string" || manager.prompt.trim() === "") {
       manager.prompt = fallbackPrompt;
     }
 
     const subagents = agents?.subagents
-      ? agents.subagents.map((agent) => ({ ...agent }))
+      ? agents.subagents.map((agent) => {
+          const cloned = { ...agent };
+
+          if (agent.promptTemplate) {
+            cloned.promptTemplate = { ...agent.promptTemplate };
+          }
+
+          if (agent.defaultUserPromptTemplate) {
+            cloned.defaultUserPromptTemplate = {
+              ...agent.defaultUserPromptTemplate,
+            };
+          }
+
+          if (agent.variables) {
+            cloned.variables = { ...agent.variables };
+          }
+
+          if (agent.resources) {
+            cloned.resources = agent.resources.map((resource) =>
+              this.cloneResourceConfig(resource)
+            );
+          }
+
+          return cloned;
+        })
       : [];
 
     const routing =
@@ -365,8 +421,177 @@ export class ConfigService {
     };
   }
 
+  private cloneResourceConfig(
+    resource: ContextResourceConfig
+  ): ContextResourceConfig {
+    if (resource.type === "bundle") {
+      return {
+        ...resource,
+        include: [...resource.include],
+        exclude: resource.exclude ? [...resource.exclude] : undefined,
+      };
+    }
+
+    return {
+      ...resource,
+      template: { ...resource.template },
+      variables: resource.variables ? { ...resource.variables } : undefined,
+    };
+  }
+
+  private validateContextResources(
+    resources: ContextResourceConfig[] | undefined,
+    path: string
+  ): void {
+    if (typeof resources === "undefined") {
+      return;
+    }
+
+    if (!Array.isArray(resources)) {
+      throw new Error(`${path} must be an array.`);
+    }
+
+    resources.forEach((resource, index) => {
+      if (!resource || typeof resource !== "object") {
+        throw new Error(`${path}[${index}] must be an object.`);
+      }
+
+      if (typeof resource.id !== "string" || resource.id.trim() === "") {
+        throw new Error(
+          `${path}[${index}].id must be a non-empty string.`
+        );
+      }
+
+      if (
+        typeof resource.name !== "undefined" &&
+        typeof resource.name !== "string"
+      ) {
+        throw new Error(
+          `${path}[${index}].name must be a string when provided.`
+        );
+      }
+
+      if (
+        typeof resource.description !== "undefined" &&
+        typeof resource.description !== "string"
+      ) {
+        throw new Error(
+          `${path}[${index}].description must be a string when provided.`
+        );
+      }
+
+      if (resource.type === "bundle") {
+        if (
+          !Array.isArray(resource.include) ||
+          resource.include.some((pattern) => typeof pattern !== "string")
+        ) {
+          throw new Error(
+            `${path}[${index}].include must be an array of strings.`
+          );
+        }
+
+        if (
+          typeof resource.exclude !== "undefined" &&
+          (!Array.isArray(resource.exclude) ||
+            resource.exclude.some((pattern) => typeof pattern !== "string"))
+        ) {
+          throw new Error(
+            `${path}[${index}].exclude must be an array of strings when provided.`
+          );
+        }
+
+        if (
+          typeof resource.baseDir !== "undefined" &&
+          typeof resource.baseDir !== "string"
+        ) {
+          throw new Error(
+            `${path}[${index}].baseDir must be a string when provided.`
+          );
+        }
+
+        if (
+          typeof resource.virtualPath !== "undefined" &&
+          typeof resource.virtualPath !== "string"
+        ) {
+          throw new Error(
+            `${path}[${index}].virtualPath must be a string when provided.`
+          );
+        }
+      } else if (resource.type === "template") {
+        this.validateTemplateDescriptor(
+          resource.template,
+          `${path}[${index}].template`
+        );
+
+        if (
+          typeof resource.variables !== "undefined" &&
+          !this.isPlainObject(resource.variables)
+        ) {
+          throw new Error(
+            `${path}[${index}].variables must be an object when provided.`
+          );
+        }
+      } else {
+        throw new Error(
+          `${path}[${index}].type must be either "bundle" or "template".`
+        );
+      }
+    });
+  }
+
+  private validateTemplateDescriptor(descriptor: unknown, path: string): void {
+    if (!this.isPlainObject(descriptor)) {
+      throw new Error(`${path} must be an object.`);
+    }
+
+    const template = descriptor as {
+      file?: unknown;
+      baseDir?: unknown;
+      encoding?: unknown;
+      variables?: unknown;
+    };
+
+    if (typeof template.file !== "string" || template.file.trim() === "") {
+      throw new Error(`${path}.file must be a non-empty string.`);
+    }
+
+    if (
+      typeof template.baseDir !== "undefined" &&
+      typeof template.baseDir !== "string"
+    ) {
+      throw new Error(`${path}.baseDir must be a string when provided.`);
+    }
+
+    if (
+      typeof template.encoding !== "undefined" &&
+      typeof template.encoding !== "string"
+    ) {
+      throw new Error(`${path}.encoding must be a string when provided.`);
+    }
+
+    if (
+      typeof template.variables !== "undefined" &&
+      !this.isPlainObject(template.variables)
+    ) {
+      throw new Error(`${path}.variables must be an object when provided.`);
+    }
+  }
+
+  private isPlainObject(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
   private validateConfig(config: EddieConfig): void {
     this.validateToolsConfig(config.tools);
+
+    if (
+      typeof config.context?.variables !== "undefined" &&
+      !this.isPlainObject(config.context.variables)
+    ) {
+      throw new Error("context.variables must be an object when provided.");
+    }
+
+    this.validateContextResources(config.context?.resources, "context.resources");
 
     const { agents } = config;
 
@@ -387,6 +612,38 @@ export class ConfigService {
         "agents.manager.prompt must be provided as a non-empty string."
       );
     }
+
+    if (
+      typeof agents.manager.promptTemplate !== "undefined"
+    ) {
+      this.validateTemplateDescriptor(
+        agents.manager.promptTemplate,
+        "agents.manager.promptTemplate"
+      );
+    }
+
+    if (
+      typeof agents.manager.defaultUserPromptTemplate !== "undefined"
+    ) {
+      this.validateTemplateDescriptor(
+        agents.manager.defaultUserPromptTemplate,
+        "agents.manager.defaultUserPromptTemplate"
+      );
+    }
+
+    if (
+      typeof agents.manager.variables !== "undefined" &&
+      !this.isPlainObject(agents.manager.variables)
+    ) {
+      throw new Error(
+        "agents.manager.variables must be an object when provided."
+      );
+    }
+
+    this.validateContextResources(
+      agents.manager.resources,
+      "agents.manager.resources"
+    );
 
     if (typeof agents.enableSubagents !== "boolean") {
       throw new Error("agents.enableSubagents must be a boolean.");
@@ -415,6 +672,34 @@ export class ConfigService {
           `agents.subagents[${index}].prompt must be a string when provided.`
         );
       }
+
+      if (typeof subagent.promptTemplate !== "undefined") {
+        this.validateTemplateDescriptor(
+          subagent.promptTemplate,
+          `agents.subagents[${index}].promptTemplate`
+        );
+      }
+
+      if (typeof subagent.defaultUserPromptTemplate !== "undefined") {
+        this.validateTemplateDescriptor(
+          subagent.defaultUserPromptTemplate,
+          `agents.subagents[${index}].defaultUserPromptTemplate`
+        );
+      }
+
+      if (
+        typeof subagent.variables !== "undefined" &&
+        !this.isPlainObject(subagent.variables)
+      ) {
+        throw new Error(
+          `agents.subagents[${index}].variables must be an object when provided.`
+        );
+      }
+
+      this.validateContextResources(
+        subagent.resources,
+        `agents.subagents[${index}].resources`
+      );
 
       if (
         typeof subagent.name !== "undefined" &&
