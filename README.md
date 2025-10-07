@@ -67,6 +67,40 @@ CLI flags override config values: `--model`, `--provider`, `--context`, `--auto-
 - `eddie context` – Preview which files/globs will be sent as context
 - `eddie trace` – Inspect the most recent JSONL trace file
 
+## Observability & Agent Hierarchies
+
+Every provider invocation is recorded as an agent phase in the JSONL trace when
+`output.jsonlTrace` (or `--jsonl-trace`) is set. The orchestrator now writes
+structured records for `agent_start`, `model_call`, `tool_call`, `tool_result`,
+`iteration_complete`, and `agent_complete`, each tagged with metadata about the
+agent's depth, parent identifier, configured tools, prompt, and context budget.
+This makes it straightforward to reconstruct parent/child relationships or to
+surface tool output during debugging. The accompanying `eddie trace` command can
+be pointed at the file to inspect each phase interactively.
+
+Hook modules can subscribe to the new lifecycle events—`beforeAgentStart`,
+`afterAgentComplete`, and `onAgentError`—to stream the same metadata elsewhere
+for dashboards or policy enforcement. Object-based hook modules exported from
+your project can now register handlers for these events directly:
+
+```ts
+export default {
+  async beforeAgentStart(payload) {
+    console.log("agent starting", payload.metadata.id, payload.metadata.depth);
+  },
+  async afterAgentComplete(payload) {
+    console.log("agent finished", payload.metadata.id, payload.iterations);
+  },
+  onAgentError(payload) {
+    console.error("agent failed", payload.metadata.id, payload.error.message);
+  },
+};
+```
+
+Every payload includes the agent's prompt, context summary, history length, and
+sanitised metadata so downstream systems can observe full hierarchies without
+needing internal Eddie classes.
+
 ## Testing
 
 ```bash

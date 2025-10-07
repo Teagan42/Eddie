@@ -2,7 +2,11 @@ import { Injectable, Logger } from "@nestjs/common";
 import type { HooksConfig } from "../config/types";
 import { HookBus } from "./hook-bus.service";
 import { HookBusFactory } from "./hook-bus.factory";
-import { HooksLoaderService, type HookModule } from "./hooks-loader.service";
+import {
+  HooksLoaderService,
+  type HookEventHandlers,
+  type HookModule,
+} from "./hooks-loader.service";
 
 /**
  * HooksService resolves configured hook modules and wires them into the shared
@@ -39,7 +43,7 @@ export class HooksService {
         if (hookModule && typeof hookModule === "object") {
           this.hooksLoader.attachObjectHooks(
             bus,
-            hookModule as Record<string, unknown>
+            hookModule as HookEventHandlers
           );
           continue;
         }

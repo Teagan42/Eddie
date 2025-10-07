@@ -2,10 +2,17 @@ import { Injectable, Logger } from "@nestjs/common";
 import path from "path";
 import { pathToFileURL } from "url";
 import { HookBus } from "./hook-bus.service";
+import {
+  type HookEventHandlers,
+  isHookEventName,
+  type HookEventName,
+} from "./types";
+
+export type { HookEventHandlers } from "./types";
 
 export type HookModule =
   | ((bus: HookBus) => void | Promise<void>)
-  | Record<string, (...args: unknown[]) => unknown>;
+  | HookEventHandlers;
 
 @Injectable()
 export class HooksLoaderService {
@@ -27,14 +34,30 @@ export class HooksLoaderService {
     return (imported.default ?? imported) as HookModule;
   }
 
-  attachObjectHooks(bus: HookBus, module: Record<string, unknown>): void {
-    for (const [event, handler] of Object.entries(module)) {
-      if (typeof handler === "function") {
-        bus.on(event, handler as (...args: unknown[]) => void);
+  attachObjectHooks(bus: HookBus, module: HookEventHandlers): void {
+    for (const [event, handler] of Object.entries(module) as [
+      string,
+      HookEventHandlers[HookEventName] | undefined,
+    ][]) {
+      if (!handler) {
         continue;
       }
 
-      this.logger.warn(`Skipping hook "${event}" because the handler is not a function`);
+      if (typeof handler !== "function") {
+        this.logger.warn(
+          `Skipping hook "${event}" because the handler is not a function`
+        );
+        continue;
+      }
+
+      if (!isHookEventName(event)) {
+        this.logger.warn(
+          `Skipping hook "${event}" because the event is not recognised`
+        );
+        continue;
+      }
+
+      bus.on(event, handler);
     }
   }
 }

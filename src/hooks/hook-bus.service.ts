@@ -1,14 +1,16 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { EventEmitter } from "events";
-
-type HookListener = (payload?: unknown) => unknown | Promise<unknown>;
+import type { HookEventMap, HookEventName, HookListener } from "./types";
 
 @Injectable()
 export class HookBus extends EventEmitter {
   private readonly logger = new Logger(HookBus.name);
 
-  async emitAsync(event: string, payload?: unknown): Promise<void> {
-    const listeners = this.listeners(event) as HookListener[];
+  async emitAsync<K extends HookEventName>(
+    event: K,
+    payload: HookEventMap[K]
+  ): Promise<void> {
+    const listeners = this.listeners(event) as HookListener<K>[];
 
     for (const listener of listeners) {
       try {
@@ -24,5 +26,12 @@ export class HookBus extends EventEmitter {
         }
       }
     }
+  }
+
+  override on<K extends HookEventName>(
+    event: K,
+    listener: HookListener<K>
+  ): this {
+    return super.on(event, listener as (...args: unknown[]) => void);
   }
 }
