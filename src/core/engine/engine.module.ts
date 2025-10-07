@@ -8,6 +8,7 @@ import { TokenizersModule } from "../tokenizers";
 import { EngineService } from "./engine.service";
 import { ToolsModule } from "../tools";
 import { AgentInvocationFactory, AgentOrchestratorService } from "../agents";
+import { McpToolSourceService } from "../../integrations";
 
 @Module({
   imports: [
@@ -19,7 +20,12 @@ import { AgentInvocationFactory, AgentOrchestratorService } from "../agents";
     TokenizersModule,
     ToolsModule,
   ],
-  providers: [EngineService, AgentInvocationFactory, AgentOrchestratorService],
+  providers: [
+    EngineService,
+    AgentInvocationFactory,
+    AgentOrchestratorService,
+    McpToolSourceService,
+  ],
   exports: [
     EngineService,
     AgentOrchestratorService,

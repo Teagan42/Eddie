@@ -16,7 +16,7 @@ import type {
   SessionStatus,
 } from "../../hooks";
 import type { ChatMessage } from "../types";
-import type { PackedContext } from "../types";
+import type { PackedContext, ToolDefinition } from "../types";
 import { TokenizerService } from "../tokenizers";
 import {
   AgentOrchestratorService,
@@ -25,6 +25,7 @@ import {
   type AgentRuntimeOptions,
 } from "../agents";
 import type { Logger } from "pino";
+import { McpToolSourceService } from "../../integrations";
 
 export interface EngineOptions extends CliRuntimeOptions {
   history?: ChatMessage[];
@@ -54,7 +55,8 @@ export class EngineService {
     private readonly confirmService: ConfirmService,
     private readonly tokenizerService: TokenizerService,
     private readonly loggerService: LoggerService,
-    private readonly agentOrchestrator: AgentOrchestratorService
+    private readonly agentOrchestrator: AgentOrchestratorService,
+    private readonly mcpToolSourceService: McpToolSourceService
   ) {}
 
   /**
@@ -147,7 +149,11 @@ export class EngineService {
 
       const provider = this.providerFactory.create(cfg.provider);
 
+      const remoteTools = await this.mcpToolSourceService.collectTools(
+        cfg.tools?.sources
+      );
       const toolsEnabled = this.filterTools(
+        [...builtinTools, ...remoteTools],
         cfg.tools?.enabled,
         cfg.tools?.disabled
       );
@@ -240,13 +246,17 @@ export class EngineService {
     }
   }
 
-  private filterTools(enabled?: string[], disabled?: string[]) {
+  private filterTools(
+    available: ToolDefinition[],
+    enabled?: string[],
+    disabled?: string[]
+  ): ToolDefinition[] {
     const enabledSet = enabled?.length ? new Set(enabled) : undefined;
     const disabledSet = disabled?.length
       ? new Set(disabled)
       : new Set<string>();
 
-    return builtinTools.filter((tool) => {
+    return available.filter((tool) => {
       if (disabledSet.has(tool.name)) return false;
       if (enabledSet) return enabledSet.has(tool.name);
       return true;

@@ -22,6 +22,7 @@ import type { HooksService } from "../../../../src/hooks";
 import type { ConfirmService } from "../../../../src/io";
 import { LoggerService } from "../../../../src/io";
 import type { TokenizerService } from "../../../../src/core/tokenizers";
+import type { McpToolSourceService } from "../../../../src/integrations";
 
 class FakeAgentOrchestrator {
   shouldFail = false;
@@ -129,6 +130,9 @@ function createEngineHarness(
   } as unknown as TokenizerService;
 
   const loggerService = new LoggerService();
+  const mcpToolSourceService = {
+    collectTools: vi.fn(async () => []),
+  } as unknown as McpToolSourceService;
 
   const fakeOrchestrator = new FakeAgentOrchestrator();
   if (overrides?.orchestratorShouldFail) {
@@ -143,7 +147,8 @@ function createEngineHarness(
     confirmService,
     tokenizerService,
     loggerService,
-    fakeOrchestrator as unknown as AgentOrchestratorService
+    fakeOrchestrator as unknown as AgentOrchestratorService,
+    mcpToolSourceService
   );
 
   return {

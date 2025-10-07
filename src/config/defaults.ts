@@ -30,6 +30,7 @@ export const DEFAULT_CONFIG: EddieConfig = {
   tools: {
     enabled: ["bash", "file_read", "file_write"],
     autoApprove: false,
+    sources: [],
   },
   hooks: {
     modules: [],
