@@ -83,9 +83,10 @@ export class EngineService {
       ? path.resolve(cfg.output.jsonlTrace)
       : undefined;
 
+    const managerPrompt = cfg.agents?.manager?.prompt ?? cfg.systemPrompt;
     const agentDefinition: AgentDefinition = {
       id: "manager",
-      systemPrompt: cfg.systemPrompt,
+      systemPrompt: managerPrompt,
       tools: toolsEnabled,
     };
 

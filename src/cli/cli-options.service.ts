@@ -35,6 +35,12 @@ export class CliOptionsService {
     if (typeof options.logFile === "string") {
       base.logFile = options.logFile;
     }
+    if (typeof options.agentMode === "string") {
+      base.agentMode = options.agentMode;
+    }
+    if (typeof options.disableSubagents === "boolean") {
+      base.disableSubagents = options.disableSubagents;
+    }
 
     const autoApprove =
       typeof options.autoApprove === "boolean"

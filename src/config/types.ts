@@ -29,6 +29,36 @@ export interface ContextConfig {
   maxFiles?: number;
 }
 
+export interface AgentManagerConfig {
+  prompt: string;
+  instructions?: string;
+  [key: string]: unknown;
+}
+
+export interface AgentDefinitionConfig {
+  id: string;
+  name?: string;
+  description?: string;
+  prompt?: string;
+  tools?: string[];
+  routingThreshold?: number;
+  [key: string]: unknown;
+}
+
+export interface AgentRoutingConfig {
+  confidenceThreshold?: number;
+  maxDepth?: number;
+  [key: string]: unknown;
+}
+
+export interface AgentsConfig {
+  mode: string;
+  manager: AgentManagerConfig;
+  subagents: AgentDefinitionConfig[];
+  routing?: AgentRoutingConfig;
+  enableSubagents: boolean;
+}
+
 export interface EddieConfig {
   model: string;
   provider: ProviderConfig;
@@ -40,6 +70,7 @@ export interface EddieConfig {
   tools?: ToolsConfig;
   hooks?: HooksConfig;
   tokenizer?: TokenizerConfig;
+  agents: AgentsConfig;
 }
 
 export interface EddieConfigInput {
@@ -53,6 +84,15 @@ export interface EddieConfigInput {
   tools?: Partial<ToolsConfig>;
   hooks?: Partial<HooksConfig>;
   tokenizer?: Partial<TokenizerConfig>;
+  agents?: AgentsConfigInput;
+}
+
+export interface AgentsConfigInput {
+  mode?: string;
+  manager?: Partial<AgentManagerConfig>;
+  subagents?: AgentDefinitionConfig[];
+  routing?: Partial<AgentRoutingConfig>;
+  enableSubagents?: boolean;
 }
 
 export interface CliRuntimeOptions {
@@ -66,6 +106,8 @@ export interface CliRuntimeOptions {
   tools?: string[];
   logLevel?: LogLevel;
   logFile?: string;
+  agentMode?: string;
+  disableSubagents?: boolean;
 }
 
 export interface OutputConfig {

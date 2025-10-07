@@ -55,6 +55,25 @@ describe("CliParserService", () => {
     });
   });
 
+  it("parses agent-oriented flags", () => {
+    const result = parser.parse([
+      "ask",
+      "--agent-mode",
+      "router",
+      "--disable-subagents",
+      "how",
+    ]);
+
+    expect(result).toEqual({
+      command: "ask",
+      options: {
+        agentMode: "router",
+        disableSubagents: true,
+      },
+      positionals: ["how"],
+    });
+  });
+
   it("rejects unknown options", () => {
     const act = () => parser.parse(["ask", "--unknown"]);
     expect(act).toThrowError(CliParseError);

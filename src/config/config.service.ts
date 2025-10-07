@@ -4,6 +4,8 @@ import path from "path";
 import yaml from "yaml";
 import { DEFAULT_CONFIG } from "./defaults";
 import type {
+  AgentsConfig,
+  AgentsConfigInput,
   CliRuntimeOptions,
   ContextConfig,
   EddieConfig,
@@ -38,7 +40,23 @@ export class ConfigService {
         level: merged.logLevel,
       };
     }
-    return this.applyCliOverrides(merged, options);
+    merged.agents = this.ensureAgentsShape(
+      merged.agents,
+      merged.systemPrompt
+    );
+
+    const withCli = this.applyCliOverrides(merged, options);
+    const finalConfig: EddieConfig = {
+      ...withCli,
+      agents: this.ensureAgentsShape(
+        withCli.agents,
+        withCli.systemPrompt
+      ),
+    };
+
+    this.validateConfig(finalConfig);
+
+    return finalConfig;
   }
 
   private async readConfigFile(candidate: string): Promise<EddieConfigInput> {
@@ -129,10 +147,16 @@ export class ConfigService {
     const effectiveLevel = loggingLevel ?? base.logLevel;
     mergedLogging.level = effectiveLevel;
 
+    const systemPrompt = input.systemPrompt ?? base.systemPrompt;
+    const mergedAgents = this.mergeAgents(
+      base.agents,
+      input.agents,
+      systemPrompt
+    );
+
     return {
       ...base,
       ...(input.model ? { model: input.model } : {}),
-      ...(input.systemPrompt ? { systemPrompt: input.systemPrompt } : {}),
       provider: {
         ...base.provider,
         ...(input.provider ?? {}),
@@ -156,6 +180,8 @@ export class ConfigService {
       },
       logging: mergedLogging,
       logLevel: effectiveLevel,
+      systemPrompt,
+      agents: mergedAgents,
     };
   }
 
@@ -228,6 +254,231 @@ export class ConfigService {
       };
     }
 
+    const agents = this.ensureAgentsShape(
+      merged.agents,
+      merged.systemPrompt
+    );
+
+    if (options.agentMode) {
+      agents.mode = options.agentMode;
+    }
+
+    if (typeof options.disableSubagents === "boolean") {
+      agents.enableSubagents = !options.disableSubagents;
+    }
+
+    merged.agents = agents;
+
     return merged;
+  }
+
+  private mergeAgents(
+    base: AgentsConfig | undefined,
+    input: AgentsConfigInput | undefined,
+    fallbackPrompt: string
+  ): AgentsConfig {
+    const normalizedBase = this.ensureAgentsShape(base, fallbackPrompt);
+    if (!input) {
+      return normalizedBase;
+    }
+
+    const manager = {
+      ...normalizedBase.manager,
+      ...(input.manager ?? {}),
+    };
+
+    const promptProvided =
+      input?.manager !== undefined &&
+      Object.prototype.hasOwnProperty.call(input.manager, "prompt");
+
+    if (
+      !promptProvided ||
+      typeof manager.prompt !== "string" ||
+      manager.prompt.trim() === ""
+    ) {
+      manager.prompt = fallbackPrompt;
+    }
+
+    const routing =
+      input.routing || normalizedBase.routing
+        ? {
+            ...(normalizedBase.routing ?? {}),
+            ...(input.routing ?? {}),
+          }
+        : undefined;
+
+    const subagents =
+      input.subagents !== undefined
+        ? [...input.subagents]
+        : normalizedBase.subagents;
+
+    const enableSubagents =
+      typeof input.enableSubagents === "boolean"
+        ? input.enableSubagents
+        : normalizedBase.enableSubagents;
+
+    const mode = input.mode ?? normalizedBase.mode;
+
+    return this.ensureAgentsShape(
+      {
+        mode,
+        manager: manager as AgentsConfig["manager"],
+        subagents,
+        routing,
+        enableSubagents,
+      },
+      fallbackPrompt
+    );
+  }
+
+  private ensureAgentsShape(
+    agents: AgentsConfig | undefined,
+    fallbackPrompt: string
+  ): AgentsConfig {
+    const manager = {
+      ...(agents?.manager ?? {}),
+    } as AgentsConfig["manager"];
+
+    if (typeof manager.prompt !== "string" || manager.prompt.trim() === "") {
+      manager.prompt = fallbackPrompt;
+    }
+
+    const subagents = agents?.subagents
+      ? agents.subagents.map((agent) => ({ ...agent }))
+      : [];
+
+    const routing =
+      agents?.routing && Object.keys(agents.routing).length > 0
+        ? { ...agents.routing }
+        : undefined;
+
+    return {
+      mode: agents?.mode ?? "single",
+      manager,
+      subagents,
+      routing,
+      enableSubagents:
+        typeof agents?.enableSubagents === "boolean"
+          ? agents.enableSubagents
+          : true,
+    };
+  }
+
+  private validateConfig(config: EddieConfig): void {
+    const { agents } = config;
+
+    if (!agents) {
+      return;
+    }
+
+    if (typeof agents.mode !== "string" || agents.mode.trim() === "") {
+      throw new Error("agents.mode must be a non-empty string.");
+    }
+
+    if (
+      !agents.manager ||
+      typeof agents.manager.prompt !== "string" ||
+      agents.manager.prompt.trim() === ""
+    ) {
+      throw new Error(
+        "agents.manager.prompt must be provided as a non-empty string."
+      );
+    }
+
+    if (typeof agents.enableSubagents !== "boolean") {
+      throw new Error("agents.enableSubagents must be a boolean.");
+    }
+
+    if (!Array.isArray(agents.subagents)) {
+      throw new Error("agents.subagents must be an array.");
+    }
+
+    agents.subagents.forEach((subagent, index) => {
+      if (!subagent || typeof subagent !== "object") {
+        throw new Error(`agents.subagents[${index}] must be an object.`);
+      }
+
+      if (typeof subagent.id !== "string" || subagent.id.trim() === "") {
+        throw new Error(
+          `agents.subagents[${index}].id must be a non-empty string.`
+        );
+      }
+
+      if (
+        typeof subagent.prompt !== "undefined" &&
+        typeof subagent.prompt !== "string"
+      ) {
+        throw new Error(
+          `agents.subagents[${index}].prompt must be a string when provided.`
+        );
+      }
+
+      if (
+        typeof subagent.name !== "undefined" &&
+        typeof subagent.name !== "string"
+      ) {
+        throw new Error(
+          `agents.subagents[${index}].name must be a string when provided.`
+        );
+      }
+
+      if (
+        typeof subagent.description !== "undefined" &&
+        typeof subagent.description !== "string"
+      ) {
+        throw new Error(
+          `agents.subagents[${index}].description must be a string when provided.`
+        );
+      }
+
+      if (
+        typeof subagent.tools !== "undefined" &&
+        (!Array.isArray(subagent.tools) ||
+          subagent.tools.some((tool) => typeof tool !== "string"))
+      ) {
+        throw new Error(
+          `agents.subagents[${index}].tools must be an array of strings when provided.`
+        );
+      }
+
+      if (
+        typeof subagent.routingThreshold !== "undefined" &&
+        typeof subagent.routingThreshold !== "number"
+      ) {
+        throw new Error(
+          `agents.subagents[${index}].routingThreshold must be a number when provided.`
+        );
+      }
+    });
+
+    if (agents.routing) {
+      const { confidenceThreshold, maxDepth } = agents.routing;
+
+      if (typeof confidenceThreshold !== "undefined") {
+        if (
+          typeof confidenceThreshold !== "number" ||
+          Number.isNaN(confidenceThreshold) ||
+          confidenceThreshold < 0 ||
+          confidenceThreshold > 1
+        ) {
+          throw new Error(
+            "agents.routing.confidenceThreshold must be a number between 0 and 1."
+          );
+        }
+      }
+
+      if (typeof maxDepth !== "undefined") {
+        if (
+          typeof maxDepth !== "number" ||
+          Number.isNaN(maxDepth) ||
+          !Number.isInteger(maxDepth) ||
+          maxDepth < 0
+        ) {
+          throw new Error(
+            "agents.routing.maxDepth must be a non-negative integer when provided."
+          );
+        }
+      }
+    }
   }
 }
