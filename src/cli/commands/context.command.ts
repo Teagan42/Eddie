@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "../../config";
 import { ContextService } from "../../core/context";
-import { TokenizerService } from "../../core/tokenizers/strategy";
+import { TokenizerService } from "../../core/tokenizers";
 import { LoggerService } from "../../io";
 import type { CliArguments } from "../cli-arguments";
 import { CliOptionsService } from "../cli-options.service";

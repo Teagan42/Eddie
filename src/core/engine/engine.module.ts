@@ -5,12 +5,18 @@ import { IoModule } from "../../io";
 import { EngineService } from "./engine.service";
 import { ProviderFactory } from "../providers";
 import { ToolRegistryFactory } from "../tools/registry";
-import { HooksService } from "../../hooks/loader";
-import { TokenizerService } from "../tokenizers/strategy";
+import { HooksModule } from "../../hooks";
+import { TokenizersModule } from "../tokenizers";
 
 @Module({
-  imports: [ConfigModule, ContextModule, IoModule],
-  providers: [EngineService, ProviderFactory, ToolRegistryFactory, HooksService, TokenizerService],
-  exports: [EngineService, ProviderFactory, ToolRegistryFactory, HooksService, TokenizerService],
+  imports: [ConfigModule, ContextModule, IoModule, HooksModule, TokenizersModule],
+  providers: [EngineService, ProviderFactory, ToolRegistryFactory],
+  exports: [
+    EngineService,
+    ProviderFactory,
+    ToolRegistryFactory,
+    HooksModule,
+    TokenizersModule,
+  ],
 })
 export class EngineModule {}
