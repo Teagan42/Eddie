@@ -12,6 +12,8 @@ Provider-agnostic AI assistant for the command line. Eddie hydrates prompts with
 
 ## Getting Started
 
+Requires Node.js 20 or newer (Node 22 is used in development and CI). The bundled dependencies rely on modern ESM support that is not available in Node 18.
+
 1. Install dependencies and compile the Nest application. The `build` script runs `nest build`, emitting the `dist/main.js` binary that is also published as the `eddie` executable.
 
    ```bash
