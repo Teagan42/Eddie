@@ -1,7 +1,16 @@
 import "reflect-metadata";
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
-import type { StreamEvent, ProviderAdapter, PackedContext } from "../../../../src/core/types";
-import { AgentOrchestratorService, type AgentRuntimeOptions } from "../../../../src/core/agents";
+import type {
+  StreamEvent,
+  ProviderAdapter,
+  PackedContext,
+  ChatMessage,
+} from "../../../../src/core/types";
+import {
+  AgentOrchestratorService,
+  type AgentRuntimeOptions,
+  type TranscriptCompactor,
+} from "../../../../src/core/agents";
 import { ToolRegistryFactory } from "../../../../src/core/tools";
 import { JsonlWriterService, StreamRendererService, LoggerService } from "../../../../src/io";
 import { HookBus, blockHook } from "../../../../src/hooks";
@@ -91,6 +100,7 @@ describe("AgentOrchestratorService", () => {
     logger: overrides.logger ?? loggerService.getLogger("test"),
     tracePath: overrides.tracePath,
     traceAppend: overrides.traceAppend,
+    transcriptCompactor: overrides.transcriptCompactor,
   });
 
   const contextSlice = (text: string): PackedContext => ({
@@ -530,5 +540,71 @@ describe("AgentOrchestratorService", () => {
 
     expect(toolMessage?.content).toBe("policy veto");
     expect(invocation.messages.at(-1)?.content).toBe("fallback");
+  });
+
+  it("emits PreCompact before applying transcript compaction", async () => {
+    const provider = new MockProvider([
+      createStream([
+        { type: "delta", text: "compacted" },
+        { type: "end" },
+      ]),
+    ]);
+
+    const hookBus = new HookBus();
+    const preCompactEvents: Array<{ beforeLength: number; reason?: string }> = [];
+    let removedCount: number | undefined;
+    hookBus.on("PreCompact", (payload) => {
+      preCompactEvents.push({
+        beforeLength: payload.messages.length,
+        reason: payload.reason,
+      });
+    });
+
+    const compactor: TranscriptCompactor = {
+      async plan(invocation) {
+        if (invocation.messages.length <= 3) {
+          return null;
+        }
+
+        return {
+          reason: "token_budget",
+          async apply() {
+            const before = invocation.messages.length;
+            invocation.messages.splice(1, 1);
+            removedCount = before - invocation.messages.length;
+            return { removedMessages: removedCount };
+          },
+        };
+      },
+    };
+
+    const history: ChatMessage[] = [
+      { role: "user", content: "previous" },
+      { role: "assistant", content: "ack" },
+      { role: "user", content: "another" },
+    ];
+
+    const runtime = baseRuntime(provider, {
+      hooks: hookBus,
+      transcriptCompactor: compactor,
+    });
+
+    const invocation = await orchestrator.runAgent(
+      {
+        definition: {
+          id: "manager",
+          systemPrompt: "coordinate",
+        },
+        prompt: "delegate work",
+        context: contextSlice("ctx"),
+        history,
+      },
+      runtime
+    );
+
+    expect(preCompactEvents).toHaveLength(1);
+    expect(preCompactEvents[0]?.beforeLength).toBeGreaterThan(3);
+    expect(preCompactEvents[0]?.reason).toBe("token_budget");
+    expect(removedCount).toBe(1);
   });
 });

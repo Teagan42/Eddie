@@ -1,7 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import type { Logger } from "pino";
 import { JsonlWriterService, StreamRendererService } from "../../io";
-import type { AgentLifecyclePayload, AgentMetadata, HookBus } from "../../hooks";
+import type {
+  AgentLifecyclePayload,
+  AgentMetadata,
+  AgentTranscriptCompactionPayload,
+  HookBus,
+} from "../../hooks";
 import type { ProviderAdapter } from "../types";
 import { ToolRegistryFactory } from "../tools";
 import type { AgentDefinition } from "./agent-definition";
@@ -25,11 +30,29 @@ export interface AgentRuntimeOptions {
   logger: Logger;
   tracePath?: string;
   traceAppend?: boolean;
+  transcriptCompactor?: TranscriptCompactor;
 }
 
 export interface AgentRunRequest extends AgentInvocationOptions {
   definition: AgentDefinition;
   parent?: AgentInvocation;
+}
+
+export interface TranscriptCompactionResult {
+  removedMessages?: number;
+}
+
+export interface TranscriptCompactionPlan {
+  reason?: string;
+  apply(): Promise<TranscriptCompactionResult | void> | TranscriptCompactionResult | void;
+}
+
+export interface TranscriptCompactor {
+  plan(
+    invocation: AgentInvocation,
+    iteration: number
+  ): Promise<TranscriptCompactionPlan | null | undefined> |
+    TranscriptCompactionPlan | null | undefined;
 }
 
 @Injectable()
@@ -161,6 +184,13 @@ export class AgentOrchestratorService {
           iteration,
           messages: invocation.messages,
         };
+
+        await this.applyTranscriptCompactionIfNeeded(
+          runtime,
+          invocation,
+          iteration,
+          lifecycle
+        );
 
         await runtime.hooks.emitAsync("beforeModelCall", iterationPayload);
         await this.writeTrace(runtime, invocation, {
@@ -487,5 +517,42 @@ export class AgentOrchestratorService {
     }
 
     return { message: String(error) };
+  }
+
+  private async applyTranscriptCompactionIfNeeded(
+    runtime: AgentRuntimeOptions,
+    invocation: AgentInvocation,
+    iteration: number,
+    lifecycle: AgentLifecyclePayload
+  ): Promise<void> {
+    const compactor = runtime.transcriptCompactor;
+    if (!compactor) {
+      return;
+    }
+
+    const plan = await compactor.plan(invocation, iteration);
+    if (!plan) {
+      return;
+    }
+
+    const payload: AgentTranscriptCompactionPayload = {
+      ...lifecycle,
+      iteration,
+      messages: invocation.messages,
+      reason: plan.reason,
+    };
+
+    await runtime.hooks.emitAsync("PreCompact", payload);
+    const result = await plan.apply();
+    if (result && typeof result === "object") {
+      runtime.logger.debug(
+        {
+          agent: invocation.id,
+          removedMessages: result.removedMessages,
+          reason: plan.reason,
+        },
+        "Transcript compacted"
+      );
+    }
   }
 }
