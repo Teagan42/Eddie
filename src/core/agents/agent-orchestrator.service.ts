@@ -6,6 +6,9 @@ import type {
   AgentMetadata,
   AgentTranscriptCompactionPayload,
   HookBus,
+  HookDispatchResult,
+  HookEventMap,
+  HookEventName,
 } from "../../hooks";
 import type { ProviderAdapter } from "../types";
 import { ToolRegistryFactory } from "../tools";
@@ -225,11 +228,16 @@ export class AgentOrchestratorService {
             this.streamRenderer.flush();
             this.streamRenderer.render(event);
 
-            const preToolDispatch = await runtime.hooks.emitAsync("PreToolUse", {
-              ...lifecycle,
-              iteration,
-              event,
-            });
+            const preToolDispatch = await this.dispatchHookOrThrow(
+              runtime,
+              invocation,
+              "PreToolUse",
+              {
+                ...lifecycle,
+                iteration,
+                event,
+              }
+            );
             await this.writeTrace(runtime, invocation, {
               phase: "tool_call",
               data: {
@@ -287,7 +295,7 @@ export class AgentOrchestratorService {
                 content: result.content,
               });
 
-              await runtime.hooks.emitAsync("PostToolUse", {
+              await this.dispatchHookOrThrow(runtime, invocation, "PostToolUse", {
                 ...lifecycle,
                 iteration,
                 event,
@@ -319,7 +327,7 @@ export class AgentOrchestratorService {
                 content: `Tool execution failed: ${serialized.message}`,
               });
               agentFailed = true;
-              await runtime.hooks.emitAsync("onAgentError", {
+              await this.dispatchHookOrThrow(runtime, invocation, "onAgentError", {
                 ...lifecycle,
                 error: serialized,
               });
@@ -341,12 +349,12 @@ export class AgentOrchestratorService {
             this.streamRenderer.render(event);
             agentFailed = true;
 
-            await runtime.hooks.emitAsync("onError", {
+            await this.dispatchHookOrThrow(runtime, invocation, "onError", {
               ...lifecycle,
               iteration,
               error: event,
             });
-            await runtime.hooks.emitAsync("onAgentError", {
+            await this.dispatchHookOrThrow(runtime, invocation, "onAgentError", {
               ...lifecycle,
               error: {
                 message: event.message,
@@ -411,7 +419,7 @@ export class AgentOrchestratorService {
     } catch (error) {
       agentFailed = true;
       const serialized = this.serializeError(error);
-      await runtime.hooks.emitAsync("onAgentError", {
+      await this.dispatchHookOrThrow(runtime, invocation, "onAgentError", {
         ...lifecycle,
         error: serialized,
       });
@@ -469,6 +477,39 @@ export class AgentOrchestratorService {
       },
       append
     );
+  }
+
+  private async dispatchHookOrThrow<K extends HookEventName>(
+    runtime: AgentRuntimeOptions,
+    invocation: AgentInvocation,
+    event: K,
+    payload: HookEventMap[K]
+  ): Promise<HookDispatchResult<K>> {
+    const dispatch = await runtime.hooks.emitAsync(event, payload);
+
+    if (dispatch.error) {
+      const serialized = this.serializeError(dispatch.error);
+      runtime.logger.error(
+        {
+          agent: invocation.id,
+          hook: event,
+          err: serialized.message,
+        },
+        "Hook dispatch failed"
+      );
+
+      if (dispatch.error instanceof Error) {
+        throw dispatch.error;
+      }
+
+      const error = new Error(
+        `Hook "${event}" failed: ${serialized.message}`
+      );
+      (error as { cause?: unknown }).cause = dispatch.error;
+      throw error;
+    }
+
+    return dispatch;
   }
 
   private createLifecyclePayload(

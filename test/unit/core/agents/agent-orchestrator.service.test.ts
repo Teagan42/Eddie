@@ -542,6 +542,65 @@ describe("AgentOrchestratorService", () => {
     expect(invocation.messages.at(-1)?.content).toBe("fallback");
   });
 
+  it("surfaces hook failures and stops tool execution", async () => {
+    const provider = new MockProvider([
+      createStream([
+        {
+          type: "tool_call",
+          name: "echo",
+          arguments: { text: "fail" },
+          id: "call-1",
+        },
+      ]),
+    ]);
+
+    const hookBus = new HookBus();
+    const agentErrors: Array<{ message: string }> = [];
+
+    hookBus.on("PreToolUse", () => {
+      throw new Error("pre-hook failure");
+    });
+    hookBus.on("onAgentError", (payload) => {
+      agentErrors.push({ message: payload.error.message });
+    });
+
+    let toolExecuted = false;
+
+    const runtime = baseRuntime(provider, { hooks: hookBus });
+
+    await expect(
+      orchestrator.runAgent(
+        {
+          definition: {
+            id: "manager",
+            systemPrompt: "coordinate",
+            tools: [
+              {
+                name: "echo",
+                description: "echo tool",
+                jsonSchema: {
+                  type: "object",
+                  properties: { text: { type: "string" } },
+                },
+                async handler() {
+                  toolExecuted = true;
+                  return { content: "should not run" };
+                },
+              },
+            ],
+          },
+          prompt: "delegate work",
+          context: contextSlice("ctx"),
+        },
+        runtime
+      )
+    ).rejects.toThrow("pre-hook failure");
+
+    expect(toolExecuted).toBe(false);
+    expect(agentErrors).toHaveLength(1);
+    expect(agentErrors[0]?.message).toContain("pre-hook failure");
+  });
+
   it("emits PreCompact before applying transcript compaction", async () => {
     const provider = new MockProvider([
       createStream([
