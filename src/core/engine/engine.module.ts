@@ -7,6 +7,7 @@ import { ProvidersModule } from "../providers/providers.module";
 import { TokenizersModule } from "../tokenizers";
 import { EngineService } from "./engine.service";
 import { ToolsModule } from "../tools";
+import { AgentOrchestratorService } from "../agents";
 
 @Module({
   imports: [
@@ -18,9 +19,10 @@ import { ToolsModule } from "../tools";
     TokenizersModule,
     ToolsModule,
   ],
-  providers: [EngineService],
+  providers: [EngineService, AgentOrchestratorService],
   exports: [
     EngineService,
+    AgentOrchestratorService,
     HooksModule,
     ProvidersModule,
     TokenizersModule,
