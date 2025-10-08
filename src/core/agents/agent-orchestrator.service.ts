@@ -640,35 +640,49 @@ export class AgentOrchestratorService {
               continueConversation = true;
             } catch (error) {
               const serialized = this.serializeError(error);
-              runtime.logger.error(
+              const message = `Tool execution failed: ${serialized.message}`;
+              const notification: Extract<StreamEvent, { type: "notification" }> = {
+                type: "notification",
+                payload: message,
+                metadata: {
+                  tool: event.name,
+                  tool_call_id: event.id,
+                  severity: "error",
+                },
+              };
+
+              runtime.logger.warn(
                 { err: serialized.message, tool: event.name, agent: invocation.id },
                 "Tool execution failed"
               );
+
+              this.streamRenderer.render(notification);
+
               invocation.messages.push({
                 role: "tool",
                 name: event.name,
                 tool_call_id: event.id,
-                content: `Tool execution failed: ${serialized.message}`,
+                content: message,
               });
-              agentFailed = true;
-              await this.dispatchHookOrThrow(
-                runtime,
-                invocation,
-                HOOK_EVENTS.onAgentError,
-                {
-                  ...lifecycle,
-                  error: serialized,
-                }
-              );
+
+              await runtime.hooks.emitAsync(HOOK_EVENTS.notification, {
+                ...lifecycle,
+                iteration,
+                event: notification,
+              });
+
               await this.writeTrace(runtime, invocation, {
-                phase: "agent_error",
+                phase: "tool_error",
                 data: {
                   iteration,
-                  tool: event.name,
-                  ...serialized,
+                  id: event.id,
+                  name: event.name,
+                  error: serialized,
                 },
               });
-              break;
+
+              continueConversation = true;
+              continue;
             }
 
             continue;
