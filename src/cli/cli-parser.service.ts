@@ -29,6 +29,7 @@ export class CliParserService {
     ["--auto", "auto"],
     ["--non-interactive", "nonInteractive"],
     ["--disable-subagents", "disableSubagents"],
+    ["--no-context", "noContext"],
   ]);
 
   parse(argv: string[]): CliArguments {

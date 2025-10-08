@@ -45,6 +45,7 @@ describe("CliParserService", () => {
       "run",
       "--auto-approve",
       "--non-interactive",
+      "--no-context",
       "--",
       "--not-an-option",
       "file.txt",
@@ -55,6 +56,7 @@ describe("CliParserService", () => {
       options: {
         autoApprove: true,
         nonInteractive: true,
+        noContext: true,
       },
       positionals: ["--not-an-option", "file.txt"],
     });

@@ -22,4 +22,13 @@ describe("CliOptionsService", () => {
 
     expect(result.disabledTools).toEqual(["bash", "edit"]);
   });
+
+  it("marks context as disabled when requested", () => {
+    const service = new CliOptionsService();
+    const result = service.parse({
+      noContext: true,
+    });
+
+    expect(result.disableContext).toBe(true);
+  });
 });

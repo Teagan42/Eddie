@@ -41,6 +41,9 @@ export class CliOptionsService {
     if (typeof options.disableSubagents === "boolean") {
       base.disableSubagents = options.disableSubagents;
     }
+    if (options.noContext === true) {
+      base.disableContext = true;
+    }
 
     const autoApprove =
       typeof options.autoApprove === "boolean"

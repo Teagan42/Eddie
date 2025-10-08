@@ -133,6 +133,7 @@ export interface AgentsConfigInput {
 
 export interface CliRuntimeOptions {
   context?: string[];
+  disableContext?: boolean;
   config?: string;
   model?: string;
   provider?: string;
