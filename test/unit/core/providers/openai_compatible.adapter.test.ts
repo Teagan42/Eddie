@@ -16,6 +16,46 @@ describe("OpenAICompatibleAdapter", () => {
     mocks.fetchMock.mockReset();
   });
 
+  it("formats tools according to the chat/completions schema", async () => {
+    mocks.fetchMock.mockResolvedValue({
+      ok: false,
+      status: 400,
+      statusText: "Bad Request",
+    });
+
+    const adapter = new OpenAICompatibleAdapter({});
+
+    const iterator = adapter.stream({
+      model: "test-model",
+      messages: [],
+      tools: [
+        {
+          type: "function",
+          name: "echo",
+          description: "Echo a value",
+          parameters: { type: "object" },
+        },
+      ],
+    })[Symbol.asyncIterator]();
+
+    await iterator.next();
+
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+    const [, requestInit] = mocks.fetchMock.mock.calls[0] ?? [];
+    expect(requestInit).toBeDefined();
+    const body = JSON.parse((requestInit as { body: string }).body);
+    expect(body.tools).toEqual([
+      {
+        type: "function",
+        function: {
+          name: "echo",
+          description: "Echo a value",
+          parameters: { type: "object" },
+        },
+      },
+    ]);
+  });
+
   it("emits tool_call events for aggregated tool call fragments", async () => {
     const chunks = [
       {

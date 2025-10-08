@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { fetch } from "undici";
 import type { ProviderConfig } from "../../config/types";
-import type { ProviderAdapter, StreamEvent, StreamOptions } from "../types";
+import type { ProviderAdapter, StreamEvent, StreamOptions, ToolSchema } from "../types";
 import type { ProviderAdapterFactory } from "./provider.tokens";
 import { extractNotificationEvents } from "./notifications";
 
@@ -33,6 +33,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
       ...this.config.headers,
     };
 
+    const formattedTools = this.formatTools(options.tools);
     const response = await fetch(this.endpoint(), {
       method: "POST",
       headers,
@@ -40,7 +41,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
         model: options.model,
         stream: true,
         messages: options.messages,
-        tools: options.tools,
+        tools: formattedTools,
       }),
     });
 
@@ -148,6 +149,19 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
         }
       }
     }
+  }
+
+  private formatTools(tools: ToolSchema[] | undefined) {
+    if (!tools) return undefined;
+
+    return tools.map((tool) => ({
+      type: tool.type,
+      function: {
+        name: tool.name,
+        parameters: tool.parameters,
+        ...(tool.description ? { description: tool.description } : {}),
+      },
+    }));
   }
 }
 
