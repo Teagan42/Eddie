@@ -81,10 +81,21 @@ export class ApiKeyGuard implements CanActivate, OnModuleInit {
       ...contextKeys,
     ]);
 
+    const keySources = {
+      configured: Boolean(authConfig?.apiKeys),
+      environment: Boolean(
+        process.env.EDDIE_API_KEYS ?? process.env.EDDIE_API_KEY
+      ),
+      context: Boolean(
+        config.context.variables?.apiKeys ??
+          config.context.variables?.API_KEYS
+      ),
+    };
+
     this.logger.info(
       {
         enabled: this.enabled,
-        keyCount: this.apiKeys.size,
+        keySources,
       },
       "API key guard initialised"
     );
