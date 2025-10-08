@@ -58,6 +58,7 @@ To add a new agent mode:
 
 - Create feature branches using the pattern `codex/$description` to keep work isolated and reviewable.
 - Follow [Conventional Commits](https://www.conventionalcommits.org/) for every commit (for example, `feat: add foo support` or `fix: handle bar edge case`). Keep commits atomic and group related work logically across documentation, scaffolding, refactors, logic/features, bug fixes, and tests.
+- Whenever configuration keys or defaults change, audit and update every configuration example: the README "Configuration" section, `docs/examples`, `docs/mcp-servers.md`, and `docs/subagents.md`. Add fresh examples alongside new configuration features so future contributors can rely on comprehensive coverage.
 - Record all significant architectural or design decisions as ADRs stored under `adr/`, numbering each file sequentially (`0001-some-decision.md`, `0002-another-decision.md`, and so on).
 - Update or add tests for every behavioural change. Prefer fixtures that mirror real-world inputs so regressions surface quickly, and include any required `devDependencies` in `package.json` to keep the test suite runnable.
 - Ensure all TypeScript code adheres to the project's documentation standards (JSDoc/TSdoc annotations where applicable, public APIs documented, etc.).
