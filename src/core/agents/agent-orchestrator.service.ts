@@ -3,11 +3,11 @@ import type { Logger } from "pino";
 import { JsonlWriterService } from "../../io/jsonl-writer.service";
 import { StreamRendererService } from "../../io/stream-renderer.service";
 import { HOOK_EVENTS } from "../../hooks/types";
+import type { HookBus } from "../../hooks/hook-bus.service";
 import type {
   AgentLifecyclePayload,
   AgentMetadata,
   AgentTranscriptCompactionPayload,
-  HookBus,
   HookDispatchResult,
   HookEventMap,
   HookEventName,

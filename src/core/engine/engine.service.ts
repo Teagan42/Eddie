@@ -11,8 +11,8 @@ import { ConfirmService } from "../../io/confirm.service";
 import { LoggerService } from "../../io/logger.service";
 import { HooksService } from "../../hooks/hooks.service";
 import { HOOK_EVENTS } from "../../hooks/types";
+import type { HookBus } from "../../hooks/hook-bus.service";
 import type {
-  HookBus,
   HookDispatchResult,
   HookEventName,
   SessionMetadata,

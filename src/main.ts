@@ -5,9 +5,7 @@ import { AppModule } from "./app.module";
 import { CliRunnerService } from "./cli/cli-runner.service";
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.createApplicationContext(AppModule, {
-    logger: false,
-  });
+  const app = await NestFactory.createApplicationContext(AppModule);
 
   let exitCode = 0;
 

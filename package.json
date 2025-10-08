@@ -12,6 +12,7 @@
         "build": "nest build",
         "lint": "eslint 'src/**/*.ts'",
         "test": "vitest --run",
+        "start": "nest start",
         "dev": "nest start --watch"
     },
     "repository": {
