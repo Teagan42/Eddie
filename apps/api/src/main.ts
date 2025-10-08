@@ -4,12 +4,9 @@ import { IoAdapter } from "@nestjs/platform-socket.io";
 import { ApiModule } from "./api.module";
 import { initTracing } from "./telemetry/tracing";
 import { HttpLoggerMiddleware } from "./middleware/http-logger.middleware";
-import { ConfigService } from "../../cli/src/config/config.service";
-import type {
-  CliRuntimeOptions,
-  EddieConfig,
-} from "../../cli/src/config/types";
-import { LoggerService } from "../../cli/src/io/logger.service";
+import { ConfigService } from "@eddie/config";
+import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
+import { LoggerService } from "@eddie/io";
 
 async function configureLogging(
   configService: ConfigService,

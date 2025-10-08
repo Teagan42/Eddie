@@ -1,8 +1,8 @@
 import readline from "readline/promises";
 import { stdin as input, stdout as output } from "process";
 import { Injectable } from "@nestjs/common";
-import { EngineService } from "../../core/engine/engine.service";
-import type { ChatMessage } from "../../core/types";
+import { EngineService } from "@eddie/engine";
+import type { ChatMessage } from "@eddie/types";
 import type { CliArguments } from "../cli-arguments";
 import { CliOptionsService } from "../cli-options.service";
 import type { CliCommand, CliCommandMetadata } from "./cli-command";

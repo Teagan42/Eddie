@@ -8,6 +8,7 @@
     "node": ">=20.0.0"
   },
   "scripts": {
+    "prebuild": "npm run build --workspace @eddie/engine",
     "build": "nest build api",
     "lint": "eslint 'src/**/*.ts'",
     "test": "echo \"No tests yet for @eddie/api\"",
@@ -16,6 +17,10 @@
     "dev": "nest start api --watch"
   },
   "dependencies": {
+    "@eddie/config": "^0.0.0",
+    "@eddie/context": "^0.0.0",
+    "@eddie/engine": "^0.0.0",
+    "@eddie/io": "^0.0.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",

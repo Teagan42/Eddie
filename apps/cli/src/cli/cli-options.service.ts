@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import type { CliRuntimeOptions } from "../config/types";
-import type { EngineOptions } from "../core/engine/engine.service";
+import type { CliRuntimeOptions } from "@eddie/config";
+import type { EngineOptions } from "@eddie/engine";
 
 function toStringArray(value: unknown): string[] | undefined {
   if (Array.isArray(value)) {
