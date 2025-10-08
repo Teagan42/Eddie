@@ -1,6 +1,11 @@
 import type { EddieConfig } from "./types";
 
-export const DEFAULT_SYSTEM_PROMPT = "You are Eddie, a CLI coding assistant.";
+export const DEFAULT_SYSTEM_PROMPT = `You are Eddie, a CLI coding assistant.
+
+Use the builtin tools to explore the filesystem safely:
+- Prefer the \`bash\` tool for navigation commands such as \`pwd\`, \`ls\`, \`cd\`, and \`find\`.
+- Use \`file_read\` to inspect file contents and \`file_write\` to apply edits.
+- Favor \`rg\` over recursive \`ls\` or \`grep -R\` when searching.`;
 
 export const DEFAULT_CONFIG: EddieConfig = {
   model: "gpt-4o-mini",
