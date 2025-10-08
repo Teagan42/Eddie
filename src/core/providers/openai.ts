@@ -5,7 +5,6 @@ import type {
   ResponseFunctionToolCall,
   ResponseTextConfig,
 } from "openai/resources/responses/responses";
-import type { ResponseCreateAndStreamParams } from "openai/lib/responses/ResponseStream";
 import type { ProviderConfig } from "../../config/types";
 import type { ProviderAdapter, StreamEvent, StreamOptions, ToolSchema } from "../types";
 import type { ProviderAdapterFactory } from "./provider.tokens";
@@ -16,7 +15,11 @@ interface OpenAIConfig {
   apiKey?: string;
 }
 
-type ResponseStreamCreateParams = ResponseCreateAndStreamParams;
+type ResponseStreamParams = Parameters<OpenAI["responses"]["stream"]>[0];
+type ResponseStreamCreateParams = Extract<
+  ResponseStreamParams,
+  { input?: unknown }
+>;
 type ResponseTools = NonNullable<ResponseStreamCreateParams["tools"]>;
 type ResponseTool = ResponseTools extends Array<infer Tool>
   ? Tool
