@@ -545,6 +545,82 @@ describe("AgentOrchestratorService", () => {
     expect(rootStop).toBeTruthy();
   });
 
+  it("allows the agent to continue after tool execution failures", async () => {
+    const provider = new MockProvider([
+      createStream([
+        {
+          type: "tool_call",
+          name: "flaky",
+          arguments: { text: "boom" },
+          id: "call-1",
+        },
+        { type: "end" },
+      ]),
+      createStream([
+        { type: "delta", text: "recover" },
+        { type: "end" },
+      ]),
+    ]);
+
+    const hookBus = new HookBus();
+    const agentErrors: string[] = [];
+    hookBus.on(HOOK_EVENTS.onAgentError, (payload) => {
+      agentErrors.push(payload.error.message);
+    });
+
+    const runtime = baseRuntime(provider, { hooks: hookBus });
+
+    const invocation = await orchestrator.runAgent(
+      {
+        definition: {
+          id: "manager",
+          systemPrompt: "coordinate",
+          tools: [
+            {
+              name: "flaky",
+              description: "flaky tool",
+              jsonSchema: {
+                type: "object",
+                properties: { text: { type: "string" } },
+                required: ["text"],
+              },
+              outputSchema: {
+                $id: "test.tools.flaky.result",
+                type: "object",
+                properties: {
+                  text: { type: "string" },
+                },
+                required: ["text"],
+                additionalProperties: false,
+              },
+              async handler() {
+                throw new Error("boom");
+              },
+            },
+          ],
+        },
+        prompt: "delegate work",
+        context: contextSlice("ctx"),
+      },
+      runtime
+    );
+
+    expect(agentErrors).toHaveLength(1);
+    expect(agentErrors[0]).toBe("boom");
+
+    const toolMessage = invocation.messages.find(
+      (message) =>
+        message.role === "tool" && message.tool_call_id === "call-1"
+    );
+    expect(toolMessage?.content).toContain("Tool execution failed: boom");
+
+    const assistantMessages = invocation.messages.filter(
+      (message) => message.role === "assistant"
+    );
+    expect(assistantMessages.at(-1)?.content).toBe("recover");
+    expect(() => provider.stream()).toThrow("No mock stream configured");
+  });
+
   it("skips tool execution when a PreToolUse hook vetoes the call", async () => {
     const provider = new MockProvider([
       createStream([

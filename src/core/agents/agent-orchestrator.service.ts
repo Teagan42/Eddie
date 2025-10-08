@@ -293,6 +293,8 @@ export class AgentOrchestratorService {
               continue;
             }
 
+            let toolExecutionFailed = false;
+
             try {
               const result = await invocation.toolRegistry.execute(event, {
                 cwd: runtime.cwd,
@@ -351,6 +353,7 @@ export class AgentOrchestratorService {
 
               continueConversation = true;
             } catch (error) {
+              toolExecutionFailed = true;
               const serialized = this.serializeError(error);
               runtime.logger.error(
                 { err: serialized.message, tool: event.name, agent: invocation.id },
@@ -362,7 +365,6 @@ export class AgentOrchestratorService {
                 tool_call_id: event.id,
                 content: `Tool execution failed: ${serialized.message}`,
               });
-              agentFailed = true;
               await this.dispatchHookOrThrow(
                 runtime,
                 invocation,
@@ -380,7 +382,11 @@ export class AgentOrchestratorService {
                   ...serialized,
                 },
               });
-              break;
+              continueConversation = true;
+            }
+
+            if (toolExecutionFailed) {
+              continue;
             }
 
             continue;
