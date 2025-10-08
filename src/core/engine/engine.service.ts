@@ -7,7 +7,6 @@ import type {
   CliRuntimeOptions,
   EddieConfig,
   ProviderConfig,
-  ProviderProfileConfig,
 } from "../../config/types";
 import { ConfigService } from "../../config/config.service";
 import { ContextService } from "../context/context.service";
