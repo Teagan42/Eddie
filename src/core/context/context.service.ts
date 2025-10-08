@@ -16,6 +16,142 @@ import type { TemplateVariables } from "../../shared/template.types";
 
 const DEFAULT_MAX_BYTES = 250_000;
 const DEFAULT_MAX_FILES = 64;
+const DEFAULT_TEXT_EXTENSIONS = [
+  "ts",
+  "tsx",
+  "js",
+  "jsx",
+  "mjs",
+  "cjs",
+  "cts",
+  "mts",
+  "json",
+  "jsonc",
+  "json5",
+  "md",
+  "mdx",
+  "txt",
+  "csv",
+  "tsv",
+  "yml",
+  "yaml",
+  "toml",
+  "ini",
+  "xml",
+  "html",
+  "htm",
+  "css",
+  "scss",
+  "less",
+  "sass",
+  "styl",
+  "py",
+  "rb",
+  "rs",
+  "go",
+  "java",
+  "kt",
+  "kts",
+  "scala",
+  "php",
+  "cs",
+  "cpp",
+  "cxx",
+  "cc",
+  "c",
+  "h",
+  "hpp",
+  "hxx",
+  "hh",
+  "swift",
+  "sql",
+  "graphql",
+  "gql",
+  "proto",
+  "prisma",
+  "vue",
+  "svelte",
+  "astro",
+  "sh",
+  "bash",
+  "zsh",
+  "fish",
+  "ps1",
+  "psm1",
+  "psd1",
+  "bat",
+  "cmd",
+  "gradle",
+  "properties",
+  "env",
+  "dotenv",
+  "config",
+  "conf",
+  "lock",
+];
+const DEFAULT_INCLUDE_PATTERNS = [
+  `**/*.{${DEFAULT_TEXT_EXTENSIONS.join(",")}}`,
+  "**/Dockerfile",
+  "**/Makefile",
+  "**/docker-compose*.{yml,yaml}",
+  "**/.env",
+  "**/.env.*",
+  "**/.gitignore",
+  "**/.npmrc",
+  "**/.yarnrc",
+  "**/.prettierrc",
+  "**/.prettierrc.*",
+  "**/.eslintrc",
+  "**/.eslintrc.*",
+  "**/.editorconfig",
+  "**/.babelrc",
+  "**/.babelrc.*",
+  "**/tsconfig*.json",
+  "**/vitest.config.*",
+  "**/jest.config.*",
+  "**/package.json",
+  "**/package-lock.json",
+  "**/pnpm-lock.yaml",
+  "**/yarn.lock",
+  "**/bun.lockb",
+  "**/Cargo.toml",
+  "**/Cargo.lock",
+  "**/go.mod",
+  "**/go.sum",
+  "**/composer.json",
+  "**/composer.lock",
+  "**/requirements*.txt",
+  "**/pyproject.toml",
+  "**/Pipfile",
+  "**/Pipfile.lock",
+  "**/Gemfile",
+  "**/Gemfile.lock",
+  "**/.tool-versions",
+];
+
+const DEFAULT_EXCLUDE_PATTERNS = [
+  "**/node_modules/**",
+  "**/.git/**",
+  "**/.hg/**",
+  "**/.svn/**",
+  "**/.cache/**",
+  "**/.turbo/**",
+  "**/.next/**",
+  "**/.nuxt/**",
+  "**/.vercel/**",
+  "**/.expo/**",
+  "**/.yalc/**",
+  "**/.yarn/**",
+  "**/.pnpm-store/**",
+  "**/dist/**",
+  "**/build/**",
+  "**/.output/**",
+  "**/coverage/**",
+  "**/tmp/**",
+  "**/temp/**",
+  "**/logs/**",
+  "**/artifacts/**",
+];
 
 interface ResourceLoadResult {
   resource: PackedResource;
@@ -32,8 +168,12 @@ export class ContextService {
   async pack(config: ContextConfig): Promise<PackedContext> {
     const logger = this.loggerService.getLogger("context:service");
     const baseDir = config.baseDir ?? process.cwd();
-    const includePatterns = config.include?.length ? config.include : ["**/*"];
-    const excludePatterns = config.exclude ?? [];
+    const includePatterns = config.include?.length
+      ? config.include
+      : DEFAULT_INCLUDE_PATTERNS;
+    const excludePatterns = config.exclude?.length
+      ? [...DEFAULT_EXCLUDE_PATTERNS, ...config.exclude]
+      : DEFAULT_EXCLUDE_PATTERNS;
     const maxBytes = config.maxBytes ?? DEFAULT_MAX_BYTES;
     const maxFiles = config.maxFiles ?? DEFAULT_MAX_FILES;
     const baseVariables = config.variables ?? {};
@@ -175,8 +315,10 @@ export class ContextService {
     const baseDir = resource.baseDir ?? options.baseDir;
     const includePatterns = resource.include.length
       ? resource.include
-      : ["**/*"];
-    const excludePatterns = resource.exclude ?? [];
+      : DEFAULT_INCLUDE_PATTERNS;
+    const excludePatterns = resource.exclude?.length
+      ? [...DEFAULT_EXCLUDE_PATTERNS, ...resource.exclude]
+      : DEFAULT_EXCLUDE_PATTERNS;
     const globResults = await fg(includePatterns, {
       cwd: baseDir,
       dot: true,

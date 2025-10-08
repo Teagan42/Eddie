@@ -215,7 +215,15 @@ export class ConfigService {
       };
     }
 
-    if (options.context?.length) {
+    if (options.disableContext) {
+      merged.context = {
+        ...merged.context,
+        include: [],
+        resources: [],
+        maxBytes: 0,
+        maxFiles: 0,
+      };
+    } else if (options.context?.length) {
       merged.context = {
         ...merged.context,
         include: options.context,

@@ -84,6 +84,23 @@ describe("ConfigService agent configuration", () => {
     expect(applied.tools?.autoApprove).toBe(base.tools?.autoApprove);
   });
 
+  it("disables context packing when requested via CLI", () => {
+    const service = createService();
+    const base = cloneConfig(DEFAULT_CONFIG);
+    const overrides: CliRuntimeOptions = {
+      disableContext: true,
+    };
+
+    const applied = (service as unknown as {
+      applyCliOverrides(config: EddieConfig, options: CliRuntimeOptions): EddieConfig;
+    }).applyCliOverrides(base, overrides);
+
+    expect(applied.context.include).toEqual([]);
+    expect(applied.context.maxFiles).toBe(0);
+    expect(applied.context.maxBytes).toBe(0);
+    expect(applied.context.resources).toEqual([]);
+  });
+
   it("validates agent definitions", () => {
     const service = createService();
     const invalid = cloneConfig(DEFAULT_CONFIG);

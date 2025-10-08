@@ -34,10 +34,34 @@ beforeAll(async () => {
   await fs.mkdir(tmpDir, { recursive: true });
   await fs.writeFile(path.join(tmpDir, "a.txt"), "hello world", "utf-8");
   await fs.writeFile(path.join(tmpDir, "b.ts"), "export const x = 1;", "utf-8");
+  await fs.writeFile(path.join(tmpDir, "image.png"), "not really binary", "utf-8");
+  await fs.mkdir(path.join(tmpDir, "node_modules", "pkg"), { recursive: true });
+  await fs.writeFile(
+    path.join(tmpDir, "node_modules", "pkg", "index.ts"),
+    "export const ignored = true;",
+    "utf-8"
+  );
+  await fs.mkdir(path.join(tmpDir, "dist"), { recursive: true });
+  await fs.writeFile(
+    path.join(tmpDir, "dist", "out.js"),
+    "console.log('ignore');",
+    "utf-8"
+  );
   await fs.mkdir(path.join(tmpDir, "bundle"), { recursive: true });
   await fs.writeFile(
     path.join(tmpDir, "bundle", "info.md"),
     "bundle resource",
+    "utf-8"
+  );
+  await fs.writeFile(
+    path.join(tmpDir, "bundle", "diagram.png"),
+    "fake image",
+    "utf-8"
+  );
+  await fs.mkdir(path.join(tmpDir, "bundle", "node_modules"), { recursive: true });
+  await fs.writeFile(
+    path.join(tmpDir, "bundle", "node_modules", "pkg.js"),
+    "console.log('skip bundle module');",
     "utf-8"
   );
   await fs.writeFile(
@@ -110,5 +134,41 @@ describe("packContext", () => {
     const resource = packed.resources?.[0];
     expect(resource?.files?.[0].path).toBe("resources/bundle/info.md");
     expect(packed.text).toContain("Resource: Docs");
+  });
+
+  it("falls back to text-centric include patterns", async () => {
+    const packed = await contextService.pack({
+      baseDir: tmpDir,
+    });
+
+    const filePaths = packed.files.map((file) => file.path);
+    expect(filePaths).toContain("a.txt");
+    expect(filePaths).toContain("b.ts");
+    expect(filePaths).not.toContain("image.png");
+    expect(filePaths).not.toContain("node_modules/pkg/index.ts");
+    expect(filePaths).not.toContain("dist/out.js");
+  });
+
+  it("applies fallback patterns to bundle resources", async () => {
+    const packed = await contextService.pack({
+      include: ["*.ts"],
+      baseDir: tmpDir,
+      resources: [
+        {
+          type: "bundle",
+          id: "docs",
+          name: "Docs",
+          include: [],
+          baseDir: tmpDir,
+          virtualPath: "resources",
+        },
+      ],
+    });
+
+    const resource = packed.resources?.[0];
+    const resourcePaths = resource?.files?.map((file) => file.path) ?? [];
+    expect(resourcePaths).toContain("resources/bundle/info.md");
+    expect(resourcePaths).not.toContain("resources/bundle/diagram.png");
+    expect(resourcePaths).not.toContain("resources/bundle/node_modules/pkg.js");
   });
 });
