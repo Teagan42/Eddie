@@ -1,0 +1,92 @@
+model: gpt-4o-mini
+provider:
+  name: openai
+
+context:
+  include:
+    - src/**/*.ts
+    - docs/**/*.md
+  baseDir: ../..
+  variables:
+    household:
+      timezone: "America/Los_Angeles"
+      residents:
+        - name: "Kai"
+          role: "Product lead"
+        - name: "Maya"
+          role: "Engineer"
+      quietHours:
+        start: "21:30"
+        end: "07:00"
+    preferences:
+      favoriteGenres:
+        - "sci-fi"
+        - "ambient electronic"
+      morningRoutine:
+        steps:
+          - "Brew coffee"
+          - "Summarise overnight alerts"
+          - "Review agenda"
+
+tools:
+  sources:
+    - id: home-assistant
+      type: mcp
+      url: https://home-assistant.example.com/mcp
+      name: Home Assistant Orchestrator
+      capabilities:
+        tools: {}
+        resources: {}
+    - id: memory-vault
+      type: mcp
+      url: https://memory.example.com/mcp
+      name: Memory Vault Chronicle
+    - id: plex-concierge
+      type: mcp
+      url: https://plex.example.com/mcp
+      name: Plex Media Concierge
+      auth:
+        type: bearer
+        token: ${PLEX_MCP_TOKEN}
+
+agents:
+  mode: single
+  enableSubagents: false
+  manager:
+    name: Aurora, the personal assistant
+    description: "Delightful household companion who blends empathy with automation."
+    promptTemplate:
+      file: system.eta
+      baseDir: ./examples/personal-assistant/prompts
+      variables:
+        persona:
+          name: "Aurora"
+          tone: "warm and witty"
+          quirks:
+            - "Opens with a shimmering greeting and a quick wellbeing check."
+            - "Weaves playful constellations metaphors into updates."
+          rituals:
+            - "Review household quiet hours before scheduling."
+            - "Confirm device names before running automations."
+        orchestration:
+          automations:
+            - source: home-assistant
+              summary: "Trigger, schedule, and inspect smart home routines."
+            - source: memory-vault
+              summary: "Recall shared notes, milestones, and decisions."
+            - source: plex-concierge
+              summary: "Browse playlists and queue personalised media sessions."
+    defaultUserPromptTemplate:
+      file: user.eta
+      baseDir: ./examples/personal-assistant/prompts
+      variables:
+        response:
+          format: "markdown"
+          sections:
+            - "Greeting"
+            - "Insights"
+            - "Next steps"
+        acknowledgements:
+          confirmTools: true
+          citeMemories: true
+  subagents: []

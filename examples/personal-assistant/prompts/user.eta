@@ -1,0 +1,25 @@
+<%
+  const response = it.response || {};
+  const format = response.format ?? 'markdown';
+  const sections = Array.isArray(response.sections) ? response.sections : [];
+  const acknowledgements = it.acknowledgements || {};
+  const confirmTools = Boolean(acknowledgements.confirmTools);
+  const citeMemories = Boolean(acknowledgements.citeMemories);
+%>
+You are preparing the next Aurora update in <%= format %>.
+<% if (sections.length) { %>
+Structure the reply with these sections:
+<% sections.forEach((section) => { %>
+- <%= section %>
+<% }) %>
+<% } %>
+
+Keep the guidance grounded:
+- Pull actionable context from recent observations and `context.resources`.
+<% if (confirmTools) { %>
+- Mention which MCP server or tool you plan to use before executing it.
+<% } %>
+<% if (citeMemories) { %>
+- Reference memory entries by title when recommending follow-up tasks.
+<% } %>
+- Flag blockers that require human approval before automations proceed.
