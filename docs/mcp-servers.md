@@ -97,3 +97,55 @@ them quickly.【F:src/integrations/mcp/mcp-tool-source.service.ts†L130-L233】
 Once the server is registered you can orchestrate it like any other tool source:
 configure subagents to call its tools, wrap the outputs in interceptors, and
 propagate the enriched context through your prompts.
+
+## 5. Structure prompts to exploit MCP resources
+
+MCP servers often expose curated documents, indices, or dynamic data feeds as
+`resources`. Eddie appends these to the packed context so prompts can reason
+about them just like local bundles. A good prompt flow treats MCP resources as
+first-class knowledge modules rather than ad-hoc strings. A typical workflow
+looks like this:
+
+1. **Audit resource metadata** – Start a dry run (for example `eddie ask --trace`)
+   and inspect the `context.resources` block in the emitted trace. Note resource
+   IDs, display names, and any `virtualPath` segments that should be surfaced to
+   the model.
+2. **Design resource-aware templates** – Update your system and user prompt
+   templates to acknowledge the remote materials. Eta templates can iterate over
+   resources so you can spell out where the data originated and how the agent
+   should use it. For instance:
+
+   ```eta
+   <% context.resources.forEach(resource => { %>
+   Resource: <%= resource.name || resource.id %>
+   Location: <%= resource.virtualPath || "remote" %>
+   Summary: <%= resource.text?.slice(0, 400) %>
+   <% }) %>
+   ```
+
+   Pair these sections with guardrails that remind the model which tools map to
+   the same MCP server (for example "Use `docs_search` before answering").
+3. **Fan out with subagents** – When a remote server exposes multiple
+   specialised tools, declare dedicated subagents whose prompts focus on those
+   capabilities. Each subagent can inherit the shared context while overlaying
+   a tighter instruction set ("You are the research summariser; cite documents
+   from `docs-service`").
+4. **Capture responses for auditing** – Wrap the MCP-backed agents with
+   interceptors or logging middleware so traces include which MCP tools fired
+   and how the prompt contextualised them. This is especially useful when
+   multiple teams share the same MCP catalogue.
+
+By structuring prompts around the remote resources—and keeping the instructions
+in sync with the tools surfaced by the MCP server—you get consistent, auditable
+responses that respect the knowledge boundaries defined by the remote service.
+
+## 6. What about MCP prompt components?
+
+Some MCP servers expose prebuilt prompt snippets through the `prompts/list`
+and `prompts/get` endpoints. Eddie currently focuses on `tools/list` and
+`resources/list`, so prompt components are not pulled into the context
+automatically.【F:src/integrations/mcp/mcp-tool-source.service.ts†L61-L105】 If
+you need those snippets today, register a lightweight MCP tool that proxies the
+prompt content, or mirror the snippets as MCP resources so they flow into
+`context.resources`. Both approaches keep everything within the existing
+discovery pipeline while you wait for native prompt-component support.
