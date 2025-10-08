@@ -1,6 +1,7 @@
 {
   "files": [],
   "references": [
-    { "path": "./apps/cli" }
+    { "path": "./apps/cli" },
+    { "path": "./apps/api" }
   ]
 }
