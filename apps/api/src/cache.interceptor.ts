@@ -25,6 +25,7 @@ export class ApiCacheInterceptor implements NestInterceptor, OnModuleInit {
   private ttlMs = 0;
   private maxItems = 0;
   private contextFingerprint = "";
+  private authEnabled = false;
   private initPromise: Promise<void> | null = null;
   private readonly logger = this.loggerService.getLogger("api:cache");
 
@@ -47,6 +48,7 @@ export class ApiCacheInterceptor implements NestInterceptor, OnModuleInit {
     this.enabled = cacheConfig.enabled ?? true;
     this.ttlMs = Math.max(0, (cacheConfig.ttlSeconds ?? 5) * 1000);
     this.maxItems = Math.max(0, cacheConfig.maxItems ?? 128);
+    this.authEnabled = config.api?.auth?.enabled ?? false;
 
     try {
       const packed = await this.contextService.pack(config.context);
@@ -97,6 +99,25 @@ export class ApiCacheInterceptor implements NestInterceptor, OnModuleInit {
     }
   }
 
+  private extractApiKey(request: Request): string | null {
+    const headerKey = request.get("x-api-key") ?? request.get("api-key");
+    if (headerKey?.trim()) {
+      return headerKey.trim();
+    }
+
+    const authHeader = request.get("authorization");
+    if (authHeader?.toLowerCase().startsWith("bearer ")) {
+      return authHeader.slice(7).trim() || null;
+    }
+
+    const queryKey = request.query?.apiKey ?? request.query?.api_key;
+    if (typeof queryKey === "string" && queryKey.trim()) {
+      return queryKey.trim();
+    }
+
+    return null;
+  }
+
   private createCacheKey(request: Request): string {
     const hash = createHash("sha1");
     hash.update(request.method.toUpperCase());
@@ -115,6 +136,17 @@ export class ApiCacheInterceptor implements NestInterceptor, OnModuleInit {
 
     hash.update("::ctx=");
     hash.update(this.contextFingerprint);
+
+    if (this.authEnabled) {
+      const apiKey = this.extractApiKey(request);
+      hash.update("::key=");
+
+      if (apiKey) {
+        hash.update(createHash("sha1").update(apiKey).digest("hex"));
+      } else {
+        hash.update("anon");
+      }
+    }
 
     return hash.digest("hex");
   }
