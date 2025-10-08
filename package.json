@@ -14,8 +14,10 @@
     "build": "npm run build --workspaces",
     "lint": "npm run lint --workspaces",
     "test": "npm run test --workspaces",
-    "start": "npm run start --workspaces",
-    "dev": "npm run dev --workspaces"
+    "start:cli": "npm run start --workspace @eddie/cli --if-present",
+    "start:api": "npm run start --workspace @eddie/api --if-present",
+    "dev:cli": "npm run dev --workspace @eddie/cli --if-present",
+    "dev:api": "npm run dev --workspace @eddie/api --if-present"
   },
   "repository": {
     "type": "git",

@@ -8,14 +8,14 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "prebuild": "npm run build --workspace @eddie/engine",
+    "prebuild": "tsc -b tsconfig.build.json",
     "build": "nest build api",
     "lint": "eslint 'src/**/*.ts'",
     "test": "echo \"No tests yet for @eddie/api\"",
-    "prestart": "npm run prebuild && nest build api",
-    "start": "node dist/api/src/main.js",
-    "predev": "npm run prebuild",
-    "dev": "nest start api --watch"
+    "prestart": "npm run build",
+    "start": "node dist/main.js",
+    "build:watch": "tsc -b tsconfig.build.json --watch",
+    "dev": "bash -c 'npm run build:watch -- --preserveWatchOutput & BUILD_PID=$!; trap \"kill $BUILD_PID\" EXIT; nest start api --watch'"
   },
   "dependencies": {
     "@eddie/config": "^0.0.0",
