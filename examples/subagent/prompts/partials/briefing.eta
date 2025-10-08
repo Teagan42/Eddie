@@ -1,0 +1,16 @@
+<% const briefing = it.briefing || {}; %>
+<% if (Object.keys(briefing).length) { %>
+## Briefing
+<% if (Array.isArray(briefing.guardrails) && briefing.guardrails.length) { %>
+- **Guardrails:**
+<% briefing.guardrails.forEach((item) => { %>
+  - <%= item %>
+<% }) %>
+<% } %>
+<% if (Array.isArray(briefing.availableSubagents) && briefing.availableSubagents.length) { %>
+- **Available subagents:** <%= briefing.availableSubagents.join(', ') %>
+<% } %>
+<% if (briefing.theme || it.context?.backlogTheme) { %>
+- **Backlog theme:** <%= briefing.theme ?? it.context?.backlogTheme %>
+<% } %>
+<% } %>

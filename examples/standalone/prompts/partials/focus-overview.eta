@@ -1,0 +1,16 @@
+<% const focus = it.focus || {}; %>
+<% if (Object.keys(focus).length) { %>
+## Focus
+<% if (focus.domain) { %>
+- **Domain:** <%= focus.domain %>
+<% } %>
+<% if (Array.isArray(focus.priorities) && focus.priorities.length) { %>
+- **Priorities:**
+<% focus.priorities.forEach((item) => { %>
+  - <%= item %>
+<% }) %>
+<% } %>
+<% if (it.context && it.context.moduleHint) { %>
+- **Module hint:** <%= it.context.moduleHint %>
+<% } %>
+<% } %>

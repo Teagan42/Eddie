@@ -1,0 +1,32 @@
+<%
+  const layout = it.layout || {};
+  const title = layout.title ?? 'Eddie orchestrator prompt';
+  const audience = layout.audience ?? 'agent';
+  const instructions = Array.isArray(layout.instructions) ? layout.instructions : [];
+  const footer = Array.isArray(layout.footer) ? layout.footer : [];
+%>
+# <%= title %>
+_Target audience: <%= audience %>_
+
+<% if (instructions.length) { %>
+## Execution principles
+<% instructions.forEach((item) => { %>
+- <%= item %>
+<% }) %>
+<% } %>
+
+<%~ include('../partials/briefing', it) %>
+<%~ include('../partials/run-state', it) %>
+
+<% if (it.body) { %>
+<%~ it.body %>
+<% } else { %>
+<!-- Child template should provide content -->
+<% } %>
+
+<% if (footer.length) { %>
+---
+<% footer.forEach((line) => { %>
+- <%= line %>
+<% }) %>
+<% } %>

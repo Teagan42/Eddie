@@ -1,0 +1,17 @@
+<% layout('./layouts/orchestrator') %>
+<%
+  const cadence = it.cadence ?? 'Summarise progress';
+  const checkpoints = Array.isArray(it.checkpoints) ? it.checkpoints : [];
+%>
+Provide an update that matches the cadence: <%= cadence %>.
+
+<% if (checkpoints.length) { %>
+Touch on the following checkpoints:
+<% checkpoints.forEach((item) => { %>
+- <%= item %>
+<% }) %>
+<% } else { %>
+- Share what you accomplished.
+- Identify blockers or DI concerns.
+- Note next steps that should return to the manager.
+<% } %>
