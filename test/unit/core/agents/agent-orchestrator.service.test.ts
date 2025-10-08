@@ -611,6 +611,90 @@ describe("AgentOrchestratorService", () => {
     expect(rootStop).toBeTruthy();
   });
 
+  it("surfaces tool failures as notifications and continues the conversation", async () => {
+    const provider = new MockProvider([
+      createStream([
+        { type: "tool_call", name: "fail_tool", arguments: {}, id: "call-1" },
+        { type: "end" },
+      ]),
+      createStream([
+        { type: "delta", text: "Recovered" },
+        { type: "end" },
+      ]),
+    ]);
+
+    const notifications: StreamEvent[] = [];
+    const agentErrors: Array<{ message: string }> = [];
+    const hookBus = new HookBus();
+    hookBus.on(HOOK_EVENTS.notification, (payload) => {
+      notifications.push(payload.event);
+    });
+    hookBus.on(HOOK_EVENTS.onAgentError, (payload) => {
+      agentErrors.push({ message: payload.error.message });
+    });
+
+    const runtime = baseRuntime(provider, { hooks: hookBus });
+
+    const invocation = await orchestrator.runAgent(
+      {
+        definition: {
+          id: "manager",
+          systemPrompt: "coordinate",
+          tools: [
+            {
+              name: "fail_tool",
+              description: "always fails",
+              jsonSchema: {
+                type: "object",
+                additionalProperties: false,
+              },
+              outputSchema: {
+                $id: "test.tools.fail.result",
+                type: "object",
+                additionalProperties: false,
+              },
+              async handler() {
+                throw new Error("boom");
+              },
+            },
+          ],
+        },
+        prompt: "delegate work",
+        context: contextSlice("ctx"),
+      },
+      runtime
+    );
+
+    expect(agentErrors).toHaveLength(0);
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0]).toMatchObject({
+      type: "notification",
+      payload: expect.stringContaining("Tool execution failed: boom"),
+      metadata: {
+        tool: "fail_tool",
+        tool_call_id: "call-1",
+        severity: "error",
+      },
+    });
+
+    const toolMessage = invocation.messages.find(
+      (message) =>
+        message.role === "tool" && message.tool_call_id === "call-1"
+    );
+    expect(toolMessage?.content).toContain("Tool execution failed: boom");
+
+    const finalMessage = invocation.messages.at(-1);
+    expect(finalMessage).toMatchObject({
+      role: "assistant",
+      content: "Recovered",
+    });
+
+    const renderedNotification = renderer.events.find(
+      (event) => event.type === "notification"
+    );
+    expect(renderedNotification).toEqual(notifications[0]);
+  });
+
   it("skips tool execution when a PreToolUse hook vetoes the call", async () => {
     const provider = new MockProvider([
       createStream([
