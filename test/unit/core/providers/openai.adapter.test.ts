@@ -43,7 +43,7 @@ describe("OpenAIAdapter", () => {
     streamMock.mockClear();
   });
 
-  it("formats tools according to the chat/completions schema", async () => {
+  it("formats tools according to the Responses API schema", async () => {
     const adapter = new OpenAIAdapter({});
 
     const iterator = adapter.stream({
@@ -67,11 +67,10 @@ describe("OpenAIAdapter", () => {
     expect((requestBody as { tools?: unknown }).tools).toEqual([
       {
         type: "function",
-        function: {
-          name: "echo",
-          description: "Echo a value",
-          parameters: { type: "object" },
-        },
+        name: "echo",
+        description: "Echo a value",
+        parameters: { type: "object" },
+        strict: true,
       },
     ]);
   });
