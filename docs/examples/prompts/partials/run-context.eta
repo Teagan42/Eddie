@@ -1,0 +1,22 @@
+<% if (it.run) { %>
+## Run context
+
+<% if (it.run.goal) { %>
+- **Goal:** <%= it.run.goal %>
+<% } %>
+<% if (it.run.step) { %>
+- **Current step:** <%= it.run.step %>
+<% } %>
+<% if (Array.isArray(it.run.constraints) && it.run.constraints.length) { %>
+- **Constraints:**
+<% it.run.constraints.forEach((constraint) => { %>
+  - <%= constraint %>
+<% }) %>
+<% } %>
+<% if (it.run.files && it.run.files.length) { %>
+- **Files available:**
+<% it.run.files.forEach((file) => { %>
+  - <%= file.path %> (<%= file.purpose || 'context' %>)
+<% }) %>
+<% } %>
+<% } %>

@@ -4,6 +4,7 @@ import path from "path";
 import yaml from "yaml";
 import { DEFAULT_CONFIG } from "./defaults";
 import type {
+  AgentProviderConfig,
   AgentsConfig,
   AgentsConfigInput,
   CliRuntimeOptions,
@@ -12,6 +13,8 @@ import type {
   EddieConfig,
   EddieConfigInput,
   LoggingConfig,
+  ProviderConfig,
+  ProviderProfileConfig,
   ToolsConfig,
 } from "./types";
 
@@ -167,13 +170,17 @@ export class ConfigService {
       systemPrompt
     );
 
+    const providers = this.mergeProviders(base.providers, input.providers);
+    const provider = this.mergeProviderConfig(
+      base.provider,
+      input.provider
+    );
+
     return {
       ...base,
       ...(input.model ? { model: input.model } : {}),
-      provider: {
-        ...base.provider,
-        ...(input.provider ?? {}),
-      },
+      provider,
+      providers,
       context: mergedContext,
       output: {
         ...base.output,
@@ -202,17 +209,28 @@ export class ConfigService {
     config: EddieConfig,
     options: CliRuntimeOptions
   ): EddieConfig {
-    const merged = { ...config };
+    const merged: EddieConfig = {
+      ...config,
+      provider: this.cloneProviderConfig(config.provider),
+      providers: this.mergeProviders(undefined, config.providers),
+    };
+
+    if (options.provider) {
+      const profile = merged.providers?.[options.provider];
+      if (profile) {
+        merged.provider = this.cloneProviderConfig(profile.provider);
+        if (profile.model) {
+          merged.model = profile.model;
+        }
+      } else {
+        merged.provider = this.mergeProviderConfig(merged.provider, {
+          name: options.provider,
+        });
+      }
+    }
 
     if (options.model) {
       merged.model = options.model;
-    }
-
-    if (options.provider) {
-      merged.provider = {
-        ...merged.provider,
-        name: options.provider,
-      };
     }
 
     if (options.disableContext) {
@@ -387,6 +405,14 @@ export class ConfigService {
       );
     }
 
+    if (
+      manager.provider &&
+      typeof manager.provider === "object" &&
+      !Array.isArray(manager.provider)
+    ) {
+      manager.provider = { ...manager.provider };
+    }
+
     if (typeof manager.prompt !== "string" || manager.prompt.trim() === "") {
       manager.prompt = fallbackPrompt;
     }
@@ -415,6 +441,14 @@ export class ConfigService {
             );
           }
 
+          if (
+            agent.provider &&
+            typeof agent.provider === "object" &&
+            !Array.isArray(agent.provider)
+          ) {
+            cloned.provider = { ...agent.provider };
+          }
+
           return cloned;
         })
       : [];
@@ -434,6 +468,60 @@ export class ConfigService {
           ? agents.enableSubagents
           : true,
     };
+  }
+
+  private cloneProviderConfig(config: ProviderConfig): ProviderConfig {
+    return JSON.parse(JSON.stringify(config)) as ProviderConfig;
+  }
+
+  private cloneProviderProfile(
+    profile: ProviderProfileConfig
+  ): ProviderProfileConfig {
+    return {
+      provider: this.cloneProviderConfig(profile.provider),
+      model: profile.model,
+    };
+  }
+
+  private mergeProviderConfig(
+    base: ProviderConfig,
+    overrides?: Partial<ProviderConfig>
+  ): ProviderConfig {
+    const merged = {
+      ...this.cloneProviderConfig(base),
+      ...(overrides ?? {}),
+    } as ProviderConfig;
+
+    if (typeof merged.name !== "string" || merged.name.trim() === "") {
+      throw new Error("provider.name must be a non-empty string.");
+    }
+
+    return merged;
+  }
+
+  private mergeProviders(
+    base: Record<string, ProviderProfileConfig> | undefined,
+    input: Record<string, ProviderProfileConfig> | undefined
+  ): Record<string, ProviderProfileConfig> | undefined {
+    if (!base && !input) {
+      return undefined;
+    }
+
+    const merged: Record<string, ProviderProfileConfig> = {};
+
+    if (base) {
+      for (const [key, profile] of Object.entries(base)) {
+        merged[key] = this.cloneProviderProfile(profile);
+      }
+    }
+
+    if (input) {
+      for (const [key, profile] of Object.entries(input)) {
+        merged[key] = this.cloneProviderProfile(profile);
+      }
+    }
+
+    return merged;
   }
 
   private cloneResourceConfig(
@@ -554,6 +642,81 @@ export class ConfigService {
     });
   }
 
+  private validateProviderProfiles(
+    profiles: Record<string, ProviderProfileConfig> | undefined
+  ): void {
+    if (typeof profiles === "undefined") {
+      return;
+    }
+
+    if (!this.isPlainObject(profiles)) {
+      throw new Error("providers must be an object with named profiles.");
+    }
+
+    for (const [key, profile] of Object.entries(profiles)) {
+      if (!this.isPlainObject(profile)) {
+        throw new Error(`providers.${key} must be an object.`);
+      }
+
+      const providerDescriptor = (profile as ProviderProfileConfig).provider;
+      if (!this.isPlainObject(providerDescriptor)) {
+        throw new Error(
+          `providers.${key}.provider must be an object with provider settings.`
+        );
+      }
+
+      const providerName = (providerDescriptor as ProviderConfig).name;
+      if (typeof providerName !== "string" || providerName.trim() === "") {
+        throw new Error(
+          `providers.${key}.provider.name must be a non-empty string.`
+        );
+      }
+
+      const profileModel = (profile as ProviderProfileConfig).model;
+      if (
+        typeof profileModel !== "undefined" &&
+        (typeof profileModel !== "string" || profileModel.trim() === "")
+      ) {
+        throw new Error(
+          `providers.${key}.model must be a non-empty string when provided.`
+        );
+      }
+    }
+  }
+
+  private validateAgentProviderConfig(
+    value: AgentProviderConfig | undefined,
+    path: string,
+    profiles: Record<string, ProviderProfileConfig> | undefined
+  ): void {
+    if (typeof value === "undefined") {
+      return;
+    }
+
+    if (typeof value === "string") {
+      if (value.trim() === "") {
+        throw new Error(`${path} must be a non-empty string when provided.`);
+      }
+
+      if (profiles && value in profiles) {
+        return;
+      }
+
+      return;
+    }
+
+    if (!this.isPlainObject(value)) {
+      throw new Error(`${path} must be a string or object when provided.`);
+    }
+
+    if (
+      typeof value.name !== "undefined" &&
+      (typeof value.name !== "string" || value.name.trim() === "")
+    ) {
+      throw new Error(`${path}.name must be a non-empty string when provided.`);
+    }
+  }
+
   private validateTemplateDescriptor(descriptor: unknown, path: string): void {
     if (!this.isPlainObject(descriptor)) {
       throw new Error(`${path} must be an object.`);
@@ -607,6 +770,7 @@ export class ConfigService {
     }
 
     this.validateContextResources(config.context?.resources, "context.resources");
+    this.validateProviderProfiles(config.providers);
 
     const { agents } = config;
 
@@ -654,6 +818,12 @@ export class ConfigService {
         "agents.manager.variables must be an object when provided."
       );
     }
+
+    this.validateAgentProviderConfig(
+      agents.manager.provider,
+      "agents.manager.provider",
+      config.providers
+    );
 
     this.validateContextResources(
       agents.manager.resources,
@@ -752,6 +922,12 @@ export class ConfigService {
           `agents.subagents[${index}].routingThreshold must be a number when provided.`
         );
       }
+
+      this.validateAgentProviderConfig(
+        subagent.provider,
+        `agents.subagents[${index}].provider`,
+        config.providers
+      );
     });
 
     if (agents.routing) {

@@ -12,6 +12,7 @@ import {
   type AgentRuntimeOptions,
   type TranscriptCompactor,
 } from "../../../../src/core/agents/agent-orchestrator.service";
+import type { AgentRuntimeCatalog, AgentRuntimeDescriptor } from "../../../../src/core/agents/agent-runtime.types";
 import { ToolRegistryFactory } from "../../../../src/core/tools/tool-registry.service";
 import { JsonlWriterService } from "../../../../src/io/jsonl-writer.service";
 import { StreamRendererService } from "../../../../src/io/stream-renderer.service";
@@ -100,12 +101,77 @@ describe("AgentOrchestratorService", () => {
     loggerService.reset();
   });
 
+  type RuntimeOverrides = Partial<AgentRuntimeOptions> & {
+    catalogDescriptors?: Record<string, AgentRuntimeDescriptor>;
+    catalogEnableSubagents?: boolean;
+    model?: string;
+  };
+
+  const createCatalog = (
+    provider: ProviderAdapter,
+    options: {
+      model?: string;
+      enableSubagents?: boolean;
+      descriptors?: Record<string, AgentRuntimeDescriptor>;
+    } = {}
+  ): AgentRuntimeCatalog => {
+    const descriptors = new Map<string, AgentRuntimeDescriptor>();
+    const baseModel = options.model ?? "test-model";
+
+    if (options.descriptors) {
+      for (const [id, descriptor] of Object.entries(options.descriptors)) {
+        descriptors.set(id, descriptor);
+      }
+    }
+
+    if (!descriptors.has("manager")) {
+      descriptors.set("manager", {
+        id: "manager",
+        definition: { id: "manager", systemPrompt: "coordinate" },
+        provider,
+        model: baseModel,
+      });
+    }
+
+    const getOrCreate = (id: string): AgentRuntimeDescriptor => {
+      const existing = descriptors.get(id);
+      if (existing) {
+        return existing;
+      }
+
+      const descriptor: AgentRuntimeDescriptor = {
+        id,
+        definition: { id, systemPrompt: `definition:${id}` },
+        provider,
+        model: baseModel,
+      };
+      descriptors.set(id, descriptor);
+      return descriptor;
+    };
+
+    return {
+      enableSubagents: options.enableSubagents ?? true,
+      getManager: () => getOrCreate("manager"),
+      getAgent: (id: string) => getOrCreate(id),
+      getSubagent: (id: string) => (id === "manager" ? undefined : getOrCreate(id)),
+      listSubagents: () =>
+        Array.from(descriptors.entries())
+          .filter(([key]) => key !== "manager")
+          .map(([, descriptor]) => descriptor),
+    };
+  };
+
   const baseRuntime = (
     provider: ProviderAdapter,
-    overrides: Partial<AgentRuntimeOptions> = {}
+    overrides: RuntimeOverrides = {}
   ): AgentRuntimeOptions => ({
-    provider,
-    model: overrides.model ?? "test-model",
+    catalog:
+      overrides.catalog ??
+      createCatalog(provider, {
+        model: overrides.model,
+        enableSubagents: overrides.catalogEnableSubagents,
+        descriptors: overrides.catalogDescriptors,
+      }),
     hooks: overrides.hooks ?? new HookBus(),
     confirm: overrides.confirm ?? (async () => true),
     cwd: overrides.cwd ?? process.cwd(),

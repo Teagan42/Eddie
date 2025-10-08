@@ -10,6 +10,13 @@ export interface ProviderConfig {
   [key: string]: unknown;
 }
 
+export interface ProviderProfileConfig {
+  provider: ProviderConfig;
+  model?: string;
+}
+
+export type AgentProviderConfig = string | Partial<ProviderConfig>;
+
 export interface LoggingDestination {
   type: "stdout" | "stderr" | "file";
   path?: string;
@@ -64,6 +71,8 @@ export interface AgentManagerConfig {
   defaultUserPromptTemplate?: TemplateDescriptor;
   variables?: TemplateVariables;
   resources?: ContextResourceConfig[];
+  model?: string;
+  provider?: AgentProviderConfig;
   [key: string]: unknown;
 }
 
@@ -78,6 +87,8 @@ export interface AgentDefinitionConfig {
   resources?: ContextResourceConfig[];
   tools?: string[];
   routingThreshold?: number;
+  model?: string;
+  provider?: AgentProviderConfig;
   [key: string]: unknown;
 }
 
@@ -98,6 +109,7 @@ export interface AgentsConfig {
 export interface EddieConfig {
   model: string;
   provider: ProviderConfig;
+  providers?: Record<string, ProviderProfileConfig>;
   context: ContextConfig;
   systemPrompt: string;
   logLevel: LogLevel;
@@ -112,6 +124,7 @@ export interface EddieConfig {
 export interface EddieConfigInput {
   model?: string;
   provider?: Partial<ProviderConfig>;
+  providers?: Record<string, ProviderProfileConfig>;
   context?: Partial<ContextConfig>;
   systemPrompt?: string;
   logLevel?: LogLevel;

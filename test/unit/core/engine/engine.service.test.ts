@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { describe, it, expect, vi } from "vitest";
-import type { EddieConfig } from "../../../../src/config/types";
+import type { EddieConfig, ProviderConfig } from "../../../../src/config/types";
 import { EngineService } from "../../../../src/core/engine/engine.service";
 import type {
   ChatMessage,
@@ -14,6 +14,7 @@ import type {
   AgentRuntimeOptions,
   AgentOrchestratorService,
 } from "../../../../src/core/agents/agent-orchestrator.service";
+import type { AgentRuntimeCatalog, AgentRuntimeDescriptor } from "../../../../src/core/agents/agent-runtime.types";
 import { ToolRegistryFactory } from "../../../../src/core/tools/tool-registry.service";
 import type { ConfigService } from "../../../../src/config/config.service";
 import type { ContextService } from "../../../../src/core/context/context.service";
@@ -108,13 +109,11 @@ function createEngineHarness(
     pack: contextPackSpy,
   } as unknown as ContextService;
 
-  const provider: ProviderAdapter = {
-    name: "stub",
-    stream: vi.fn(),
-  };
-
   const providerFactory = {
-    create: vi.fn(() => provider),
+    create: vi.fn((config: ProviderConfig): ProviderAdapter => ({
+      name: config.name,
+      stream: vi.fn(),
+    })),
   } as unknown as ProviderFactoryService;
 
   const hooksService = {
@@ -301,5 +300,61 @@ describe("EngineService tool filtering", () => {
     const filtered = invokeFilter(engine, available, ["bash", "write"], ["write"]);
 
     expect(filtered.map((entry) => entry.name)).toEqual(["bash"]);
+  });
+});
+
+describe("EngineService agent catalog", () => {
+  it("selects manager provider profiles when configured", async () => {
+    const harness = createEngineHarness();
+    harness.config.providers = {
+      alt: {
+        provider: { name: "alt" },
+        model: "alt-model",
+      },
+    };
+    harness.config.agents.manager.provider = "alt";
+
+    const events: SessionMetadata[] = [];
+    harness.hookBus.on(HOOK_EVENTS.sessionStart, (payload) => {
+      events.push(payload.metadata);
+    });
+
+    await harness.engine.run("Profiled run");
+
+    expect(events[0]?.provider).toBe("alt");
+    expect(events[0]?.model).toBe("alt-model");
+
+    const runtime = harness.fakeOrchestrator.lastRuntime;
+    expect(runtime?.catalog.getManager().provider.name).toBe("alt");
+    expect(runtime?.catalog.getManager().model).toBe("alt-model");
+  });
+
+  it("builds catalog entries for configured subagents", async () => {
+    const harness = createEngineHarness();
+    harness.config.agents.enableSubagents = true;
+    harness.config.agents.subagents = [
+      {
+        id: "reviewer",
+        prompt: "Review the output",
+        provider: { name: "review-provider" },
+        model: "review-model",
+        name: "Reviewer",
+        description: "Review responses for accuracy",
+      },
+    ];
+
+    await harness.engine.run("Delegation run");
+
+    const runtime = harness.fakeOrchestrator.lastRuntime;
+    const subagents = runtime?.catalog.listSubagents() ?? [];
+    expect(subagents.map((entry) => entry.id)).toEqual(["reviewer"]);
+
+    const descriptor = subagents[0];
+    expect(descriptor.provider.name).toBe("review-provider");
+    expect(descriptor.model).toBe("review-model");
+    expect(descriptor.metadata?.name).toBe("Reviewer");
+    expect(descriptor.metadata?.description).toBe(
+      "Review responses for accuracy"
+    );
   });
 });

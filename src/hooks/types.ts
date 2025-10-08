@@ -112,6 +112,8 @@ export interface AgentMetadata {
   isRoot: boolean;
   systemPrompt: string;
   tools: string[];
+  model?: string;
+  provider?: string;
 }
 
 export interface AgentContextSummary {
