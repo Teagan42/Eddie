@@ -1,8 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import OpenAI from "openai";
 import type {
+  FunctionTool,
   Response as OpenAIResponse,
   ResponseFunctionToolCall,
+  ResponseInput,
   ResponseTextConfig,
 } from "openai/resources/responses/responses";
 import type { ProviderConfig } from "../../config/types";
@@ -20,13 +22,8 @@ type ResponseStreamCreateParams = Extract<
   ResponseStreamParams,
   { input?: unknown }
 >;
-type ResponseTools = NonNullable<ResponseStreamCreateParams["tools"]>;
-type ResponseTool = ResponseTools extends Array<infer Tool>
-  ? Tool
-  : never;
-type ResponseFunctionTool = Extract<ResponseTool, { type: "function" }>;
-type ResponseInput = NonNullable<ResponseStreamCreateParams["input"]>;
-type ResponseMetadata = ResponseStreamCreateParams["metadata"];
+type ResponseFunctionTool = FunctionTool;
+type ResponseMetadata = ResponseStreamCreateParams["metadata"] | undefined;
 type ResponseFormat = ResponseTextConfig["format"];
 
 interface ToolAccumulator {
@@ -50,16 +47,18 @@ export class OpenAIAdapter implements ProviderAdapter {
     const emittedToolCallIds = new Set<string>();
     let stream: ReturnType<OpenAI["responses"]["stream"]>;
 
+    const streamParams = {
+      model: options.model,
+      input: this.formatMessages(options.messages),
+      tools: this.formatTools(options.tools),
+      metadata: this.formatMetadata(options.metadata),
+      ...(options.responseFormat
+        ? { text: this.formatResponseTextConfig(options.responseFormat) }
+        : {}),
+    } satisfies ResponseStreamCreateParams;
+
     try {
-      stream = await this.client.responses.stream({
-        model: options.model,
-        input: this.formatMessages(options.messages),
-        tools: this.formatTools(options.tools),
-        metadata: this.formatMetadata(options.metadata),
-        ...(options.responseFormat
-          ? { text: this.formatResponseTextConfig(options.responseFormat) }
-          : {}),
-      } satisfies ResponseStreamCreateParams);
+      stream = await this.client.responses.stream(streamParams);
     } catch (error) {
       yield {
         type: "error",
@@ -211,7 +210,7 @@ export class OpenAIAdapter implements ProviderAdapter {
   }
 
   private formatMessages(messages: StreamOptions["messages"]): ResponseInput {
-    return messages.map((message) => {
+    return messages.map<ResponseInput[number]>((message) => {
       if (message.role === "tool") {
         return {
           type: "function_call_output",
@@ -227,32 +226,46 @@ export class OpenAIAdapter implements ProviderAdapter {
         content: [{ type: "input_text", text: message.content }],
         type: "message",
       } satisfies ResponseInput[number];
-    }) as ResponseInput;
+    });
   }
 
-  private formatTools(tools: ToolSchema[] | undefined): ResponseTool[] | undefined {
-    if (!tools) return undefined;
+  private formatTools(
+    tools: ToolSchema[] | undefined,
+  ): ResponseFunctionTool[] | undefined {
+    if (!tools?.length) return undefined;
 
     return tools.map<ResponseFunctionTool>((tool) => ({
       type: "function",
       name: tool.name,
       description: tool.description ?? null,
-      parameters: (tool.parameters ?? null) as ResponseFunctionTool["parameters"],
+      parameters: tool.parameters ?? null,
       strict: true,
-    })) as ResponseTool[];
+    }));
   }
 
-  private formatMetadata(metadata: StreamOptions["metadata"]): ResponseMetadata {
+  private formatMetadata(
+    metadata: StreamOptions["metadata"],
+  ): ResponseMetadata {
     if (!metadata) {
       return undefined;
     }
 
-    return metadata as ResponseMetadata;
+    const normalized: Record<string, string> = {};
+
+    for (const [key, value] of Object.entries(metadata)) {
+      if (value === undefined || value === null) {
+        continue;
+      }
+
+      normalized[key] = typeof value === "string" ? value : JSON.stringify(value);
+    }
+
+    return Object.keys(normalized).length > 0 ? normalized : undefined;
   }
 
   private formatResponseTextConfig(
     format: StreamOptions["responseFormat"],
-  ): ResponseTextConfig {
+  ): ResponseStreamCreateParams["text"] {
     return {
       format: format as ResponseFormat,
     } satisfies ResponseTextConfig;
