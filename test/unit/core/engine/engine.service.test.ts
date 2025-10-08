@@ -132,7 +132,7 @@ function createEngineHarness(
 
   const loggerService = new LoggerService();
   const mcpToolSourceService = {
-    collectTools: vi.fn(async () => ({ tools: [], resources: [] })),
+    collectTools: vi.fn(async () => ({ tools: [], resources: [], prompts: [] })),
   } as unknown as McpToolSourceService;
 
   const fakeOrchestrator = new FakeAgentOrchestrator();

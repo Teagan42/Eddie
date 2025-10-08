@@ -35,6 +35,25 @@ describe("MCP tool source integration", () => {
     },
     required: ["items"],
   };
+  const promptArguments = [
+    {
+      name: "topic",
+      description: "Topic to explore",
+      required: true,
+      schema: { type: "string" },
+    },
+  ];
+  const promptMessages = [
+    {
+      role: "system",
+      content: [
+        {
+          type: "text",
+          text: "You are a helpful assistant for mock data.",
+        },
+      ],
+    },
+  ];
 
   let server: http.Server;
   let baseUrl: string;
@@ -119,6 +138,35 @@ describe("MCP tool source integration", () => {
             },
           };
           break;
+        case "prompts/list":
+          responsePayload = {
+            jsonrpc: "2.0",
+            id: message.id,
+            result: {
+              prompts: [
+                {
+                  name: "mock_prompt",
+                  description: "Provides a mock prompt",
+                  arguments: promptArguments,
+                },
+              ],
+            },
+          };
+          break;
+        case "prompts/get":
+          responsePayload = {
+            jsonrpc: "2.0",
+            id: message.id,
+            result: {
+              prompt: {
+                name: message.params?.name ?? "mock_prompt",
+                description: "Provides a mock prompt",
+                arguments: promptArguments,
+                messages: promptMessages,
+              },
+            },
+          };
+          break;
         case "tools/call":
           responsePayload = {
             jsonrpc: "2.0",
@@ -188,15 +236,28 @@ describe("MCP tool source integration", () => {
         metadata: { version: "1.0.0" },
       },
     ]);
+    expect(discovery.prompts).toEqual([
+      {
+        name: "mock_prompt",
+        description: "Provides a mock prompt",
+        arguments: promptArguments,
+        messages: promptMessages,
+      },
+    ]);
 
     expect(requests.map((req) => req.method)).toEqual([
       "initialize",
       "tools/list",
       "resources/list",
+      "prompts/list",
+      "prompts/get",
     ]);
     expect(requests[0].headers.authorization).toBe(`Bearer ${expectedToken}`);
     expect(requests[1].params?.sessionId).toBe("mock-session");
     expect(requests[2].params?.sessionId).toBe("mock-session");
+    expect(requests[3].params?.sessionId).toBe("mock-session");
+    expect(requests[4].params?.sessionId).toBe("mock-session");
+    expect(requests[4].params?.name).toBe("mock_prompt");
 
     const registry = new ToolRegistryFactory().create(discovery.tools);
     const result = await registry.execute(
@@ -212,10 +273,12 @@ describe("MCP tool source integration", () => {
       "initialize",
       "tools/list",
       "resources/list",
+      "prompts/list",
+      "prompts/get",
       "tools/call",
     ]);
-    expect(requests[3].params?.sessionId).toBe("mock-session");
-    expect(requests[3].params?.arguments).toEqual({ query: "beta" });
+    expect(requests[5].params?.sessionId).toBe("mock-session");
+    expect(requests[5].params?.arguments).toEqual({ query: "beta" });
 
     expect(result).toEqual({
       schema: outputSchema.$id,

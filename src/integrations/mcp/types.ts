@@ -55,12 +55,47 @@ export interface McpResourcesListResult {
   resources?: McpResourceDescription[];
 }
 
+export interface McpPromptArgument {
+  name: string;
+  description?: string;
+  required?: boolean;
+  schema?: Record<string, unknown>;
+}
+
+export interface McpPromptDescription {
+  name: string;
+  description?: string;
+  arguments?: McpPromptArgument[];
+}
+
+export interface McpPromptMessage {
+  role: string;
+  content: unknown[];
+}
+
+export interface McpPromptDefinition extends McpPromptDescription {
+  messages: McpPromptMessage[];
+}
+
+export interface McpPromptsListResult {
+  prompts?: McpPromptDescription[];
+}
+
+export interface McpPromptGetResult {
+  prompt: McpPromptDefinition;
+}
+
 export interface McpToolSourceDiscovery {
   sourceId: string;
   tools: ToolDefinition[];
   resources: McpResourceDescription[];
+  prompts: McpPromptDefinition[];
 }
 
 export interface DiscoveredMcpResource extends McpResourceDescription {
+  sourceId: string;
+}
+
+export interface DiscoveredMcpPrompt extends McpPromptDefinition {
   sourceId: string;
 }
