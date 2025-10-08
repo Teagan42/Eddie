@@ -9,11 +9,91 @@ on:
       - "*"
 
 jobs:
-  lint-and-test:
+  lint:
+    name: Lint (${{ matrix.workspace.name }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [20.x, 22.x]
+        node-version: [20.x]
+        workspace: &workspaces
+          - name: "@eddie/api"
+            path: apps/api
+            coverage: apps/api/coverage
+            dist: apps/api/dist
+            tsbuildinfo: apps/api/tsconfig.build.tsbuildinfo
+            tsconfig: apps/api/tsconfig.build.json
+          - name: "@eddie/cli"
+            path: apps/cli
+            coverage: apps/cli/coverage
+            dist: apps/cli/dist
+            tsbuildinfo: apps/cli/tsconfig.build.tsbuildinfo
+            tsconfig: apps/cli/tsconfig.build.json
+          - name: "@eddie/config"
+            path: packages/config
+            coverage: coverage/config
+            dist: packages/config/dist
+            tsbuildinfo: packages/config/tsconfig.build.tsbuildinfo
+            tsconfig: packages/config/tsconfig.build.json
+          - name: "@eddie/context"
+            path: packages/context
+            coverage: coverage/context
+            dist: packages/context/dist
+            tsbuildinfo: packages/context/tsconfig.build.tsbuildinfo
+            tsconfig: packages/context/tsconfig.build.json
+          - name: "@eddie/engine"
+            path: packages/engine
+            coverage: coverage/engine
+            dist: packages/engine/dist
+            tsbuildinfo: packages/engine/tsconfig.build.tsbuildinfo
+            tsconfig: packages/engine/tsconfig.build.json
+          - name: "@eddie/hooks"
+            path: packages/hooks
+            coverage: coverage/hooks
+            dist: packages/hooks/dist
+            tsbuildinfo: packages/hooks/tsconfig.build.tsbuildinfo
+            tsconfig: packages/hooks/tsconfig.build.json
+          - name: "@eddie/io"
+            path: packages/io
+            coverage: coverage/io
+            dist: packages/io/dist
+            tsbuildinfo: packages/io/tsconfig.build.tsbuildinfo
+            tsconfig: packages/io/tsconfig.build.json
+          - name: "@eddie/mcp"
+            path: packages/mcp
+            coverage: coverage/mcp
+            dist: packages/mcp/dist
+            tsbuildinfo: packages/mcp/tsconfig.build.tsbuildinfo
+            tsconfig: packages/mcp/tsconfig.build.json
+          - name: "@eddie/providers"
+            path: packages/providers
+            coverage: coverage/providers
+            dist: packages/providers/dist
+            tsbuildinfo: packages/providers/tsconfig.build.tsbuildinfo
+            tsconfig: packages/providers/tsconfig.build.json
+          - name: "@eddie/templates"
+            path: packages/templates
+            coverage: coverage/templates
+            dist: packages/templates/dist
+            tsbuildinfo: packages/templates/tsconfig.build.tsbuildinfo
+            tsconfig: packages/templates/tsconfig.build.json
+          - name: "@eddie/tokenizers"
+            path: packages/tokenizers
+            coverage: coverage/tokenizers
+            dist: packages/tokenizers/dist
+            tsbuildinfo: packages/tokenizers/tsconfig.build.tsbuildinfo
+            tsconfig: packages/tokenizers/tsconfig.build.json
+          - name: "@eddie/tools"
+            path: packages/tools
+            coverage: coverage/tools
+            dist: packages/tools/dist
+            tsbuildinfo: packages/tools/tsconfig.build.tsbuildinfo
+            tsconfig: packages/tools/tsconfig.build.json
+          - name: "@eddie/types"
+            path: packages/types
+            coverage: coverage/types
+            dist: packages/types/dist
+            tsbuildinfo: packages/types/tsconfig.build.tsbuildinfo
+            tsconfig: packages/types/tsconfig.build.json
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,13 +102,90 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: npm
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install dependencies
-        run: npm ci
+        run: ./scripts/install.sh
 
-      - name: Lint
-        run: npm run lint
+      - name: Run lint
+        run: npm run lint --workspace ${{ matrix.workspace.name }}
 
-      - name: Test
-        run: npm run test
+  build:
+    name: Build (${{ matrix.workspace.name }})
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      matrix:
+        node-version: [20.x]
+        workspace: *workspaces
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        run: ./scripts/install.sh
+
+      - name: Restore build cache
+        id: restore-build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ matrix.workspace.dist }}
+            ${{ matrix.workspace.tsbuildinfo }}
+          key: ${{ runner.os }}-build-${{ matrix.workspace.name }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles(matrix.workspace.tsconfig) }}
+
+      - name: Run build
+        run: npm run build --workspace ${{ matrix.workspace.name }}
+
+  test:
+    name: Test (${{ matrix.workspace.name }} @ Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      matrix:
+        node-version: [20.x, 22.x]
+        workspace: *workspaces
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        run: ./scripts/install.sh
+
+      - name: Run tests
+        run: npm run test --workspace ${{ matrix.workspace.name }} -- --coverage
+
+      - name: Upload coverage
+        if: always() && matrix.node-version == '20.x'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.workspace.name }}
+          path: ${{ matrix.workspace.coverage }}
+          if-no-files-found: error
