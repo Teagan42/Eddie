@@ -138,9 +138,15 @@ npm test
 
 Vitest covers utilities such as secret redaction, provider wiring, and CLI behaviours, while ESLint enforces the shared Nest coding standards.
 
-## Migration Notes
+## Documentation
 
-If you are upgrading from the legacy Commander-based CLI, review [the Nest CLI migration guide](docs/migration/cli-nest-refactor.md) for details on environment variables, configuration file lookup, and build steps.
+- [Subagents guide](docs/subagents.md)
+- [Prompt and context templates](docs/templates.md)
+- [Nest CLI migration guide](docs/migration/cli-nest-refactor.md)
+
+If you are upgrading from the legacy Commander-based CLI, review the migration
+guide above for details on environment variables, configuration file lookup,
+and build steps.
 
 ## License
 

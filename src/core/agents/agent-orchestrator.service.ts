@@ -12,7 +12,7 @@ import type {
   HookEventMap,
   HookEventName,
 } from "../../hooks/types";
-import type { ProviderAdapter } from "../types";
+import type { StreamEvent, ToolResult, ToolSchema } from "../types";
 import type { AgentDefinition } from "./agent-definition";
 import {
   AgentInvocation,
@@ -20,15 +20,26 @@ import {
   type AgentSpawnHandler,
 } from "./agent-invocation";
 import { AgentInvocationFactory } from "./agent-invocation.factory";
+import type { AgentRuntimeCatalog, AgentRuntimeDescriptor } from "./agent-runtime.types";
+import type { TemplateVariables } from "../../shared/template.types";
 
 interface AgentTraceEvent {
   phase: string;
   data?: Record<string, unknown>;
 }
 
+const SPAWN_TOOL_NAME = "spawn_subagent";
+const SPAWN_TOOL_RESULT_SCHEMA = "eddie.tool.spawn_subagent.result.v1";
+
+interface SpawnToolArguments {
+  agent: string;
+  prompt: string;
+  variables?: TemplateVariables;
+  metadata?: Record<string, unknown>;
+}
+
 export interface AgentRuntimeOptions {
-  provider: ProviderAdapter;
-  model: string;
+  catalog: AgentRuntimeCatalog;
   hooks: HookBus;
   confirm: (message: string) => Promise<boolean>;
   cwd: string;
@@ -63,6 +74,10 @@ export interface TranscriptCompactor {
 @Injectable()
 export class AgentOrchestratorService {
   private readonly runtimeMap = new WeakMap<AgentInvocation, AgentRuntimeOptions>();
+  private readonly descriptorMap = new WeakMap<
+    AgentInvocation,
+    AgentRuntimeDescriptor
+  >();
 
   constructor(
     private readonly agentInvocationFactory: AgentInvocationFactory,
@@ -93,6 +108,7 @@ export class AgentOrchestratorService {
     }
 
     this.runtimeMap.set(invocation, runtime);
+    this.registerInvocation(invocation, runtime);
     await this.executeInvocation(invocation);
     return invocation;
   }
@@ -121,6 +137,7 @@ export class AgentOrchestratorService {
 
     parent.addChild(invocation);
     this.runtimeMap.set(invocation, runtime);
+    this.registerInvocation(invocation, runtime);
     await this.executeInvocation(invocation);
     return invocation;
   }
@@ -138,6 +155,266 @@ export class AgentOrchestratorService {
     return result;
   }
 
+  private registerInvocation(
+    invocation: AgentInvocation,
+    runtime: AgentRuntimeOptions
+  ): AgentRuntimeDescriptor {
+    const descriptor = runtime.catalog.getAgent(invocation.definition.id);
+    if (!descriptor) {
+      throw new Error(
+        `No runtime descriptor registered for agent ${invocation.definition.id}`
+      );
+    }
+
+    this.descriptorMap.set(invocation, descriptor);
+    return descriptor;
+  }
+
+  private getInvocationDescriptor(
+    invocation: AgentInvocation
+  ): AgentRuntimeDescriptor {
+    const descriptor = this.descriptorMap.get(invocation);
+    if (!descriptor) {
+      throw new Error(
+        `No runtime descriptor registered for agent ${invocation.definition.id}`
+      );
+    }
+
+    return descriptor;
+  }
+
+  private composeToolSchemas(
+    invocation: AgentInvocation,
+    runtime: AgentRuntimeOptions
+  ): ToolSchema[] | undefined {
+    const schemas = invocation.toolRegistry.schemas();
+    const additional: ToolSchema[] = [];
+
+    const spawnSchema = this.createSpawnToolSchema(runtime);
+    if (spawnSchema) {
+      additional.push(spawnSchema);
+    }
+
+    if (schemas.length === 0 && additional.length === 0) {
+      return undefined;
+    }
+
+    return [...schemas, ...additional];
+  }
+
+  private createSpawnToolSchema(
+    runtime: AgentRuntimeOptions
+  ): ToolSchema | undefined {
+    if (!runtime.catalog.enableSubagents) {
+      return undefined;
+    }
+
+    const subagents = runtime.catalog.listSubagents();
+    if (subagents.length === 0) {
+      return undefined;
+    }
+
+    const lines = subagents.map((agent) => {
+      const nameLabel =
+        agent.metadata?.name && agent.metadata.name !== agent.id
+          ? `${agent.id} (${agent.metadata.name})`
+          : agent.id;
+      const description = agent.metadata?.description
+        ? ` – ${agent.metadata.description}`
+        : "";
+      return `- ${nameLabel}${description}`;
+    });
+
+    const description = [
+      "Spawn a configured subagent to handle part of the request.",
+      lines.length ? `Available subagents:\n${lines.join("\n")}` : undefined,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    return {
+      type: "function",
+      name: SPAWN_TOOL_NAME,
+      description,
+      parameters: {
+        type: "object",
+        required: ["agent", "prompt"],
+        additionalProperties: false,
+        properties: {
+          agent: {
+            type: "string",
+            description: "Identifier of the configured subagent to launch.",
+          },
+          prompt: {
+            type: "string",
+            description: "Instructions to send to the delegated subagent.",
+          },
+          variables: {
+            type: "object",
+            description:
+              "Optional template variables merged into the subagent's prompt context.",
+            additionalProperties: true,
+          },
+          metadata: {
+            type: "object",
+            description:
+              "Optional metadata describing the delegation request for auditing.",
+            additionalProperties: true,
+          },
+        },
+      },
+    };
+  }
+
+  private coerceToolArguments(raw: unknown): Record<string, unknown> {
+    if (typeof raw === "string") {
+      try {
+        const parsed = JSON.parse(raw);
+        if (this.isPlainObject(parsed)) {
+          return parsed;
+        }
+      } catch {
+        return { input: raw };
+      }
+    }
+
+    if (this.isPlainObject(raw)) {
+      return raw;
+    }
+
+    return {};
+  }
+
+  private parseSpawnArguments(raw: unknown): SpawnToolArguments {
+    const value = this.coerceToolArguments(raw);
+    const agentValue =
+      value.agent ?? value.agentId ?? value.id ?? value.target ?? undefined;
+    if (typeof agentValue !== "string" || agentValue.trim() === "") {
+      throw new Error(
+        `${SPAWN_TOOL_NAME} requires an "agent" property identifying the subagent to spawn.`
+      );
+    }
+
+    const promptValue =
+      value.prompt ?? value.message ?? value.input ?? value.instructions;
+    if (typeof promptValue !== "string" || promptValue.trim() === "") {
+      throw new Error(
+        `${SPAWN_TOOL_NAME} requires a non-empty "prompt" string describing the task.`
+      );
+    }
+
+    let variables: TemplateVariables | undefined;
+    if (this.isPlainObject(value.variables)) {
+      variables = value.variables as TemplateVariables;
+    }
+
+    let metadata: Record<string, unknown> | undefined;
+    if (this.isPlainObject(value.metadata)) {
+      metadata = value.metadata as Record<string, unknown>;
+    }
+
+    return {
+      agent: agentValue.trim(),
+      prompt: promptValue,
+      variables,
+      metadata,
+    };
+  }
+
+  private async executeSpawnTool(
+    invocation: AgentInvocation,
+    runtime: AgentRuntimeOptions,
+    event: Extract<StreamEvent, { type: "tool_call" }>,
+    parentDescriptor: AgentRuntimeDescriptor
+  ): Promise<ToolResult> {
+    if (!runtime.catalog.enableSubagents) {
+      throw new Error("Subagent delegation is disabled for this run.");
+    }
+
+    const args = this.parseSpawnArguments(event.arguments);
+    const descriptor = runtime.catalog.getSubagent(args.agent);
+    if (!descriptor) {
+      const available = runtime
+        .catalog
+        .listSubagents()
+        .map((agent) => agent.id)
+        .join(", ");
+      throw new Error(
+        available
+          ? `Unknown subagent "${args.agent}". Available agents: ${available}.`
+          : `Unknown subagent "${args.agent}".`
+      );
+    }
+
+    runtime.logger.debug(
+      {
+        agent: invocation.id,
+        delegatedTo: descriptor.id,
+        toolCallId: event.id,
+      },
+      "Spawning configured subagent"
+    );
+
+    const child = await invocation.spawn(descriptor.definition, {
+      prompt: args.prompt,
+      variables: args.variables,
+    });
+
+    const finalMessage = child.messages.at(-1);
+    const content =
+      finalMessage && finalMessage.content.trim().length > 0
+        ? finalMessage.content
+        : `Subagent ${descriptor.id} completed without a final response.`;
+
+    const metadata: Record<string, unknown> = {
+      agentId: descriptor.id,
+      model: descriptor.model,
+      provider: descriptor.provider.name,
+      parentAgentId: parentDescriptor.id,
+    };
+
+    if (descriptor.metadata?.profileId) {
+      metadata.profileId = descriptor.metadata.profileId;
+    }
+    if (descriptor.metadata?.routingThreshold !== undefined) {
+      metadata.routingThreshold = descriptor.metadata.routingThreshold;
+    }
+    if (descriptor.metadata?.name) {
+      metadata.name = descriptor.metadata.name;
+    }
+    if (descriptor.metadata?.description) {
+      metadata.description = descriptor.metadata.description;
+    }
+    if (args.metadata && Object.keys(args.metadata).length > 0) {
+      metadata.request = args.metadata;
+    }
+
+    const data: Record<string, unknown> = {
+      agentId: descriptor.id,
+      messageCount: child.messages.length,
+      prompt: args.prompt,
+    };
+
+    if (finalMessage?.content) {
+      data.finalMessage = finalMessage.content;
+    }
+
+    if (args.variables && Object.keys(args.variables).length > 0) {
+      data.variables = args.variables;
+    }
+
+    return {
+      schema: SPAWN_TOOL_RESULT_SCHEMA,
+      content,
+      data,
+      metadata,
+    };
+  }
+
+  private isPlainObject(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
   /**
    * Drives a single agent invocation through its lifecycle, emitting
    * `beforeAgentStart` once, then for each iteration optionally `preCompact`,
@@ -152,6 +429,8 @@ export class AgentOrchestratorService {
     if (!runtime) {
       throw new Error(`No runtime registered for agent ${invocation.id}`);
     }
+
+    const descriptor = this.getInvocationDescriptor(invocation);
 
     if (!invocation.isRoot) {
       this.streamRenderer.flush();
@@ -168,6 +447,8 @@ export class AgentOrchestratorService {
         data: {
           prompt: invocation.prompt,
           systemPrompt: invocation.definition.systemPrompt,
+          model: descriptor.model,
+          provider: descriptor.provider.name,
         },
       },
       invocation.isRoot ? runtime.traceAppend : true
@@ -213,16 +494,15 @@ export class AgentOrchestratorService {
           data: {
             iteration,
             messageCount: invocation.messages.length,
+            model: descriptor.model,
+            provider: descriptor.provider.name,
           },
         });
 
-        const toolSchemas =
-          invocation.toolRegistry.list().length > 0
-            ? invocation.toolRegistry.schemas()
-            : undefined;
+        const toolSchemas = this.composeToolSchemas(invocation, runtime);
 
-        const stream = runtime.provider.stream({
-          model: runtime.model,
+        const stream = descriptor.provider.stream({
+          model: descriptor.model,
           messages: invocation.messages,
           tools: toolSchemas,
         });
@@ -294,11 +574,19 @@ export class AgentOrchestratorService {
             }
 
             try {
-              const result = await invocation.toolRegistry.execute(event, {
-                cwd: runtime.cwd,
-                confirm: runtime.confirm,
-                env: process.env,
-              });
+              const result =
+                event.name === SPAWN_TOOL_NAME
+                  ? await this.executeSpawnTool(
+                      invocation,
+                      runtime,
+                      event,
+                      descriptor
+                    )
+                  : await invocation.toolRegistry.execute(event, {
+                      cwd: runtime.cwd,
+                      confirm: runtime.confirm,
+                      env: process.env,
+                    });
 
               this.streamRenderer.render({
                 type: "tool_result",
@@ -585,7 +873,7 @@ export class AgentOrchestratorService {
       current = current.parent;
     }
 
-    return {
+    const metadata: AgentMetadata = {
       id: invocation.id,
       parentId: invocation.parent?.id,
       depth,
@@ -593,6 +881,14 @@ export class AgentOrchestratorService {
       systemPrompt: invocation.definition.systemPrompt,
       tools: (invocation.definition.tools ?? []).map((tool) => tool.name),
     };
+
+    const descriptor = this.descriptorMap.get(invocation);
+    if (descriptor) {
+      metadata.model = descriptor.model;
+      metadata.provider = descriptor.provider.name;
+    }
+
+    return metadata;
   }
 
   private serializeError(error: unknown): {

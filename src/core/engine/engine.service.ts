@@ -2,7 +2,13 @@ import { Injectable } from "@nestjs/common";
 import { Buffer } from "buffer";
 import { randomUUID } from "crypto";
 import path from "path";
-import type { CliRuntimeOptions } from "../../config/types";
+import type {
+  AgentProviderConfig,
+  CliRuntimeOptions,
+  EddieConfig,
+  ProviderConfig,
+  ProviderProfileConfig,
+} from "../../config/types";
 import { ConfigService } from "../../config/config.service";
 import { ContextService } from "../context/context.service";
 import { ProviderFactoryService } from "../providers/provider-factory.service";
@@ -19,12 +25,18 @@ import type {
   SessionStatus,
 } from "../../hooks/types";
 import type { ChatMessage } from "../types";
-import type { PackedContext, PackedResource, ToolDefinition } from "../types";
+import type {
+  PackedContext,
+  PackedResource,
+  ProviderAdapter,
+  ToolDefinition,
+} from "../types";
 import { TokenizerService } from "../tokenizers/tokenizer.service";
 import { AgentOrchestratorService } from "../agents/agent-orchestrator.service";
 import type { AgentDefinition } from "../agents/agent-definition";
 import type { AgentInvocation } from "../agents/agent-invocation";
 import type { AgentRuntimeOptions } from "../agents/agent-orchestrator.service";
+import type { AgentRuntimeCatalog, AgentRuntimeDescriptor } from "../agents/agent-runtime.types";
 import type { Logger } from "pino";
 import { McpToolSourceService } from "../../integrations/mcp/mcp-tool-source.service";
 import type { DiscoveredMcpResource } from "../../integrations/mcp/types";
@@ -79,6 +91,11 @@ export class EngineService {
 
     try {
       const cfg = await this.configService.load(options);
+      const managerRuntimeConfig = this.resolveAgentProviderConfig(
+        cfg,
+        cfg.agents?.manager?.provider,
+        cfg.agents?.manager?.model
+      );
       this.loggerService.configure({
         level: cfg.logging?.level ?? cfg.logLevel,
         destination: cfg.logging?.destination,
@@ -95,8 +112,8 @@ export class EngineService {
         id: sessionId,
         startedAt: new Date(runStartedAt).toISOString(),
         prompt,
-        provider: cfg.provider.name,
-        model: cfg.model,
+        provider: managerRuntimeConfig.providerConfig.name,
+        model: managerRuntimeConfig.model,
         tracePath,
       };
 
@@ -158,31 +175,20 @@ export class EngineService {
       const contextTokens = tokenizer.countTokens(context.text);
       logger.debug({ contextTokens }, "Packed context");
 
-      const provider = this.providerFactory.create(cfg.provider);
       const toolsEnabled = this.filterTools(
         [...builtinTools, ...remoteTools],
         cfg.tools?.enabled,
         cfg.tools?.disabled
       );
+      const catalog = this.buildAgentCatalog(cfg, toolsEnabled, context);
+      const managerDescriptor = catalog.getManager();
       const confirm = this.confirmService.create({
         autoApprove: options.autoApprove ?? cfg.tools?.autoApprove,
         nonInteractive: options.nonInteractive ?? false,
       });
 
-      const managerPrompt = cfg.agents?.manager?.prompt ?? cfg.systemPrompt;
-      const agentDefinition: AgentDefinition = {
-        id: "manager",
-        systemPrompt: managerPrompt,
-        systemPromptTemplate: cfg.agents?.manager?.promptTemplate,
-        userPromptTemplate:
-          cfg.agents?.manager?.defaultUserPromptTemplate,
-        variables: cfg.agents?.manager?.variables,
-        tools: toolsEnabled,
-      };
-
       const runtime: AgentRuntimeOptions = {
-        provider,
-        model: cfg.model,
+        catalog,
         hooks,
         confirm,
         cwd: cfg.context.baseDir ?? process.cwd(),
@@ -211,7 +217,7 @@ export class EngineService {
 
       const rootInvocation = await this.agentOrchestrator.runAgent(
         {
-          definition: agentDefinition,
+          definition: managerDescriptor.definition,
           prompt,
           context,
           history: options.history,
@@ -342,6 +348,157 @@ export class EngineService {
     return lines.join("\n");
   }
 
+  private buildAgentCatalog(
+    cfg: EddieConfig,
+    tools: ToolDefinition[],
+    context: PackedContext
+  ): AgentRuntimeCatalog {
+    const adapterCache = new Map<string, ProviderAdapter>();
+    const getAdapter = (config: ProviderConfig): ProviderAdapter => {
+      const key = JSON.stringify(config);
+      const cached = adapterCache.get(key);
+      if (cached) {
+        return cached;
+      }
+
+      const adapter = this.providerFactory.create(config);
+      adapterCache.set(key, adapter);
+      return adapter;
+    };
+
+    const managerInfo = this.resolveAgentProviderConfig(
+      cfg,
+      cfg.agents?.manager?.provider,
+      cfg.agents?.manager?.model
+    );
+    const managerAdapter = getAdapter(managerInfo.providerConfig);
+
+    const managerDefinition: AgentDefinition = {
+      id: "manager",
+      systemPrompt: cfg.agents?.manager?.prompt ?? cfg.systemPrompt,
+      systemPromptTemplate: cfg.agents?.manager?.promptTemplate,
+      userPromptTemplate: cfg.agents?.manager?.defaultUserPromptTemplate,
+      variables: cfg.agents?.manager?.variables,
+      tools,
+      context,
+    };
+
+    const managerMetadata = managerInfo.profileId
+      ? { profileId: managerInfo.profileId }
+      : undefined;
+
+    const managerDescriptor: AgentRuntimeDescriptor = {
+      id: "manager",
+      definition: managerDefinition,
+      model: managerInfo.model,
+      provider: managerAdapter,
+      metadata: managerMetadata,
+    };
+
+    const subagentMap = new Map<string, AgentRuntimeDescriptor>();
+
+    for (const subagent of cfg.agents.subagents) {
+      const runtimeInfo = this.resolveAgentProviderConfig(
+        cfg,
+        subagent.provider,
+        subagent.model
+      );
+      const adapter = getAdapter(runtimeInfo.providerConfig);
+
+      const allowedTools =
+        subagent.tools && subagent.tools.length > 0
+          ? this.filterTools(tools, subagent.tools, undefined)
+          : tools;
+
+      const definition: AgentDefinition = {
+        id: subagent.id,
+        systemPrompt: subagent.prompt ?? cfg.systemPrompt,
+        systemPromptTemplate: subagent.promptTemplate,
+        userPromptTemplate: subagent.defaultUserPromptTemplate,
+        variables: subagent.variables,
+        tools: allowedTools,
+        context,
+      };
+
+      const metadataEntries: Record<string, unknown> = {};
+      if (subagent.name) {
+        metadataEntries.name = subagent.name;
+      }
+      if (subagent.description) {
+        metadataEntries.description = subagent.description;
+      }
+      if (typeof subagent.routingThreshold === "number") {
+        metadataEntries.routingThreshold = subagent.routingThreshold;
+      }
+      if (runtimeInfo.profileId) {
+        metadataEntries.profileId = runtimeInfo.profileId;
+      }
+
+      const descriptor: AgentRuntimeDescriptor = {
+        id: subagent.id,
+        definition,
+        model: runtimeInfo.model,
+        provider: adapter,
+        metadata:
+          Object.keys(metadataEntries).length > 0
+            ? (metadataEntries as AgentRuntimeDescriptor["metadata"])
+            : undefined,
+      };
+
+      subagentMap.set(subagent.id, descriptor);
+    }
+
+    return new DefaultAgentRuntimeCatalog(
+      managerDescriptor,
+      subagentMap,
+      cfg.agents.enableSubagents
+    );
+  }
+
+  private resolveAgentProviderConfig(
+    cfg: EddieConfig,
+    spec: AgentProviderConfig | undefined,
+    modelOverride?: string
+  ): { providerConfig: ProviderConfig; model: string; profileId?: string } {
+    let providerConfig = this.cloneProviderConfig(cfg.provider);
+    let profileModel: string | undefined;
+    let profileId: string | undefined;
+
+    if (typeof spec === "string") {
+      const profile = cfg.providers?.[spec];
+      if (profile) {
+        providerConfig = this.cloneProviderConfig(profile.provider);
+        profileModel = profile.model;
+        profileId = spec;
+      } else {
+        providerConfig = {
+          ...providerConfig,
+          name: spec,
+        };
+      }
+    } else if (spec && typeof spec === "object") {
+      providerConfig = {
+        ...providerConfig,
+        ...spec,
+      } as ProviderConfig;
+    }
+
+    if (
+      typeof providerConfig.name !== "string" ||
+      providerConfig.name.trim() === ""
+    ) {
+      providerConfig.name = cfg.provider.name;
+    }
+
+    const model = modelOverride ?? profileModel ?? cfg.model;
+
+    return { providerConfig, model, profileId };
+  }
+
+  private cloneProviderConfig(config: ProviderConfig): ProviderConfig {
+    return JSON.parse(JSON.stringify(config)) as ProviderConfig;
+  }
+
   private filterTools(
     available: ToolDefinition[],
     enabled?: string[],
@@ -403,5 +560,33 @@ export class EngineService {
       logger.warn({ event, reason }, `Hook "${event}" blocked execution`);
       throw new Error(reason, { cause: dispatch.blocked });
     }
+  }
+}
+
+class DefaultAgentRuntimeCatalog implements AgentRuntimeCatalog {
+  constructor(
+    private readonly manager: AgentRuntimeDescriptor,
+    private readonly subagents: Map<string, AgentRuntimeDescriptor>,
+    readonly enableSubagents: boolean
+  ) {}
+
+  getManager(): AgentRuntimeDescriptor {
+    return this.manager;
+  }
+
+  getAgent(id: string): AgentRuntimeDescriptor | undefined {
+    if (id === this.manager.id) {
+      return this.manager;
+    }
+
+    return this.subagents.get(id);
+  }
+
+  getSubagent(id: string): AgentRuntimeDescriptor | undefined {
+    return this.subagents.get(id);
+  }
+
+  listSubagents(): AgentRuntimeDescriptor[] {
+    return Array.from(this.subagents.values());
   }
 }

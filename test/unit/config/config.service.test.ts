@@ -66,6 +66,28 @@ describe("ConfigService agent configuration", () => {
     expect(applied.agents.enableSubagents).toBe(false);
   });
 
+  it("applies provider profiles when selected via CLI", () => {
+    const service = createService();
+    const base = cloneConfig(DEFAULT_CONFIG);
+    base.providers = {
+      claude: {
+        provider: { name: "anthropic" },
+        model: "claude-3",
+      },
+    };
+
+    const overrides: CliRuntimeOptions = { provider: "claude" };
+    const applied = (service as unknown as {
+      applyCliOverrides(
+        config: EddieConfig,
+        options: CliRuntimeOptions
+      ): EddieConfig;
+    }).applyCliOverrides(base, overrides);
+
+    expect(applied.provider.name).toBe("anthropic");
+    expect(applied.model).toBe("claude-3");
+  });
+
   it("applies CLI tool enable/disable overrides", () => {
     const service = createService();
     const base = cloneConfig(DEFAULT_CONFIG);
