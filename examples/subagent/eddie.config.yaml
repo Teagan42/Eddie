@@ -1,0 +1,106 @@
+model: gpt-4o-mini
+provider:
+  name: openai
+context:
+  include:
+    - src/**/*.ts
+    - docs/**/*.md
+  baseDir: ../..
+  variables:
+    releaseWindow: "Q3"
+    backlogTheme: "observability"
+agents:
+  mode: router
+  enableSubagents: true
+  routing:
+    confidenceThreshold: 0.55
+    maxDepth: 2
+  manager:
+    name: Platform triage lead
+    description: "Coordinates specialised NestJS reviewers before delegating work."
+    promptTemplate:
+      file: manager.eta
+      baseDir: ./examples/subagent/prompts
+      variables:
+        layout:
+          title: "Manager: NestJS triage coordinator"
+          audience: "Manager agent"
+          instructions:
+            - "Build a plan before delegating to subagents."
+            - "Decide whether to engage planner or qa based on needs."
+          footer:
+            - "Escalate blocking auth or caching gaps back to the human operator."
+        briefing:
+          guardrails:
+            - "Respect repository coding conventions and DI boundaries."
+            - "Avoid destructive commands; prefer read-only exploration first."
+          availableSubagents:
+            - "planner"
+            - "qa"
+    defaultUserPromptTemplate:
+      file: user.eta
+      baseDir: ./examples/subagent/prompts
+      variables:
+        layout:
+          title: "Manager follow-up"
+          audience: "Coordinator"
+        cadence: "Summarise the delegated work and next baton pass."
+  subagents:
+    - id: planner
+      name: Roadmap planner
+      description: "Produces milestone-driven implementation steps."
+      tools: ["file_read", "bash"]
+      promptTemplate:
+        file: subagents/planner.eta
+        baseDir: ./examples/subagent/prompts
+        variables:
+          layout:
+            title: "Subagent: Delivery planner"
+            audience: "Implementation strategist"
+            instructions:
+              - "Draft dependency-aware milestones."
+              - "Recommend DI-friendly abstractions."
+          swimlane: "planner"
+          briefing:
+            guardrails:
+              - "Coordinate with module owners before reshaping providers."
+              - "Surface logging and caching implications early."
+            theme: "Implementation roadmap"
+      defaultUserPromptTemplate:
+        file: user.eta
+        baseDir: ./examples/subagent/prompts
+        variables:
+          layout:
+            title: "Planner update"
+            audience: "Delivery planner"
+          cadence: "Outline milestones and dependencies."
+      routingThreshold: 0.35
+    - id: qa
+      name: Test and quality analyst
+      description: "Focuses on validation, guards, and defensive coding."
+      tools: ["file_read"]
+      promptTemplate:
+        file: subagents/qa.eta
+        baseDir: ./examples/subagent/prompts
+        variables:
+          layout:
+            title: "Subagent: QA strategist"
+            audience: "Quality specialist"
+            instructions:
+              - "Review guards, interceptors, and filters for gaps."
+              - "Suggest Jest scenarios and contract tests."
+          swimlane: "qa"
+          briefing:
+            guardrails:
+              - "Treat security regressions as ship blockers."
+              - "Prefer validation via pipes over ad-hoc checks."
+            theme: "Reliability & quality"
+      defaultUserPromptTemplate:
+        file: user.eta
+        baseDir: ./examples/subagent/prompts
+        variables:
+          layout:
+            title: "QA update"
+            audience: "Quality specialist"
+          cadence: "List risks, missing coverage, and recommended tooling."
+      routingThreshold: 0.4

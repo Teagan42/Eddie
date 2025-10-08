@@ -1,0 +1,10 @@
+<% const available = it.briefing?.availableSubagents || []; %>
+<% if (available.length) { %>
+### Delegation options
+You can hand work to:
+<% available.forEach((agentId) => { %>
+- **<%= agentId %>** — match tasks aligned with the agent's swimlane.
+<% }) %>
+<% } else { %>
+<!-- No subagents registered -->
+<% } %>

@@ -1,0 +1,50 @@
+model: gpt-4o-mini
+provider:
+  name: openai
+context:
+  include:
+    - src/**/*.ts
+    - docs/**/*.md
+  baseDir: ../..
+  variables:
+    auditFocus: standalone
+    product: Eddie CLI
+agents:
+  mode: single
+  enableSubagents: false
+  manager:
+    name: Standalone NestJS architect
+    description: "Solo reviewer that audits NestJS structure and patterns."
+    promptTemplate:
+      file: system.eta
+      baseDir: ./examples/standalone/prompts
+      variables:
+        managerName: "Standalone Architect"
+        layout:
+          title: "Standalone NestJS architecture audit"
+          audience: "Lead Investigator"
+          instructions:
+            - "Use Eddie tools conservatively; prefer context over editing."
+            - "Highlight Dependency Injection, modules, and middleware decisions."
+        focus:
+          domain: "NestJS service design"
+          priorities:
+            - "Dependency graphs"
+            - "Guard, interceptor, and pipe coverage"
+            - "Testing strategies"
+    defaultUserPromptTemplate:
+      file: user.eta
+      baseDir: ./examples/standalone/prompts
+      variables:
+        layout:
+          title: "Execution request"
+          audience: "Primary agent"
+          instructions:
+            - "Confirm assumptions before suggesting sweeping refactors."
+        response:
+          format: "markdown"
+          sections:
+            - "Summary"
+            - "Findings"
+            - "Recommended next actions"
+  subagents: []

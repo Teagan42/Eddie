@@ -1,0 +1,7 @@
+<% const questions = Array.isArray(it.questions) ? it.questions : []; %>
+<% if (questions.length) { %>
+## Clarifying questions
+<% questions.forEach((question) => { %>
+- <%= question %>
+<% }) %>
+<% } %>
