@@ -42,6 +42,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
         stream: true,
         messages: options.messages,
         tools: formattedTools,
+        tool_choice: formattedTools ? "auto" : undefined,
       }),
     });
 
