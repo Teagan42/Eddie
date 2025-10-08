@@ -11,6 +11,16 @@
         "tsConfigPath": "apps/cli/tsconfig.build.json",
         "deleteOutDir": true
       }
+    },
+    "api": {
+      "type": "application",
+      "root": "apps/api",
+      "entryFile": "main",
+      "sourceRoot": "apps/api/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/api/tsconfig.build.json",
+        "deleteOutDir": true
+      }
     }
   }
 }
