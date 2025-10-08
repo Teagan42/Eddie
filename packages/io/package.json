@@ -11,7 +11,9 @@
     }
   },
   "scripts": {
-    "build": "tsc -b tsconfig.build.json"
+    "build": "tsc -b tsconfig.build.json",
+    "lint": "eslint 'src/**/*.ts'",
+    "test": "echo \"No tests yet for @eddie/io\""
   },
   "dependencies": {
     "@eddie/config": "^0.0.0",

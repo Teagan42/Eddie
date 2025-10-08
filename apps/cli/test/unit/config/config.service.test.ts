@@ -1,8 +1,13 @@
 import "reflect-metadata";
 import { describe, it, expect } from "vitest";
-import { ConfigService } from "../../../src/config/config.service";
-import { DEFAULT_CONFIG, DEFAULT_SYSTEM_PROMPT } from "../../../src/config/defaults";
-import type { CliRuntimeOptions, EddieConfig, EddieConfigInput } from "../../../src/config/types";
+import {
+  ConfigService,
+  DEFAULT_CONFIG,
+  DEFAULT_SYSTEM_PROMPT,
+  type CliRuntimeOptions,
+  type EddieConfig,
+  type EddieConfigInput,
+} from "@eddie/config";
 
 describe("ConfigService agent configuration", () => {
   const createService = () => new ConfigService();

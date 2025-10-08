@@ -2,9 +2,9 @@ import "reflect-metadata";
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import * as http from "http";
 import type { IncomingMessage, ServerResponse } from "http";
-import { McpToolSourceService } from "../../src/integrations/mcp/mcp-tool-source.service";
-import type { MCPToolSourceConfig } from "../../src/config/types";
-import { ToolRegistryFactory } from "../../src/core/tools/tool-registry.service";
+import { McpToolSourceService } from "@eddie/mcp";
+import { ToolRegistryFactory } from "@eddie/tools";
+import type { MCPToolSourceConfig } from "@eddie/config";
 
 interface RecordedRequest {
   method: string;

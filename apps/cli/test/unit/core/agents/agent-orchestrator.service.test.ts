@@ -1,25 +1,27 @@
 import "reflect-metadata";
 import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
 import type {
-  StreamEvent,
-  ProviderAdapter,
-  PackedContext,
   ChatMessage,
-} from "../../../../src/core/types";
-import { AgentInvocationFactory } from "../../../../src/core/agents/agent-invocation.factory";
+  PackedContext,
+  ProviderAdapter,
+  StreamEvent,
+} from "@eddie/types";
 import {
+  AgentInvocationFactory,
   AgentOrchestratorService,
+  type AgentRuntimeCatalog,
+  type AgentRuntimeDescriptor,
   type AgentRuntimeOptions,
   type TranscriptCompactor,
-} from "../../../../src/core/agents/agent-orchestrator.service";
-import type { AgentRuntimeCatalog, AgentRuntimeDescriptor } from "../../../../src/core/agents/agent-runtime.types";
-import { ToolRegistryFactory } from "../../../../src/core/tools/tool-registry.service";
-import { JsonlWriterService } from "../../../../src/io/jsonl-writer.service";
-import { StreamRendererService } from "../../../../src/io/stream-renderer.service";
-import { LoggerService } from "../../../../src/io/logger.service";
-import { HOOK_EVENTS, blockHook } from "../../../../src/hooks/types";
-import { HookBus } from "../../../../src/hooks/hook-bus.service";
-import { TemplateRendererService } from "../../../../src/core/templates/template-renderer.service";
+} from "@eddie/engine";
+import { ToolRegistryFactory } from "@eddie/tools";
+import {
+  JsonlWriterService,
+  LoggerService,
+  StreamRendererService,
+} from "@eddie/io";
+import { HookBus, HOOK_EVENTS, blockHook } from "@eddie/hooks";
+import { TemplateRendererService } from "@eddie/templates";
 
 class RecordingStreamRendererService extends StreamRendererService {
   readonly events: StreamEvent[] = [];

@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, beforeAll, afterAll } from "vitest";
 import { Test, type TestingModule } from "@nestjs/testing";
 import fs from "fs/promises";
 import path from "path";
-import { LoggerService } from "../../src/io/logger.service";
+import { LoggerService } from "@eddie/io";
 
 let moduleRef: TestingModule;
 let loggerService: LoggerService;

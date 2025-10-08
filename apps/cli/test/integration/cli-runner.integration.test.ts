@@ -10,15 +10,15 @@ import { RunCommand } from "../../src/cli/commands/run.command";
 import { ContextCommand } from "../../src/cli/commands/context.command";
 import { ChatCommand } from "../../src/cli/commands/chat.command";
 import { TraceCommand } from "../../src/cli/commands/trace.command";
-import { EngineService } from "../../src/core/engine/engine.service";
-import { ConfigService } from "../../src/config/config.service";
-import { ContextService } from "../../src/core/context/context.service";
-import { TokenizerService } from "../../src/core/tokenizers/tokenizer.service";
-import { LoggerService } from "../../src/io/logger.service";
+import { EngineService } from "@eddie/engine";
+import { ConfigService } from "@eddie/config";
+import { ContextService } from "@eddie/context";
+import { TokenizerService } from "@eddie/tokenizers";
+import { LoggerService } from "@eddie/io";
 import type { CliCommand } from "../../src/cli/commands/cli-command";
 import type { CliArguments } from "../../src/cli/cli-arguments";
-import type { EddieConfig } from "../../src/config/types";
-import type { PackedContext } from "../../src/core/types";
+import type { EddieConfig } from "@eddie/config";
+import type { PackedContext } from "@eddie/types";
 
 interface StubCommand extends CliCommand {
   execute: ReturnType<typeof vi.fn<[CliArguments], Promise<void>>>;

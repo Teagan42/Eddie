@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import os from "os";
 import path from "path";
 
-import { fileReadTool } from "../../../../src/core/tools/builtin/file_read";
+import { fileReadTool } from "@eddie/tools";
 
 const tempDirs: string[] = [];
 
