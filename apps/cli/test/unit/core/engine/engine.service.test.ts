@@ -1,31 +1,40 @@
 import "reflect-metadata";
 import { describe, it, expect, vi } from "vitest";
-import type { EddieConfig, ProviderConfig } from "../../../../src/config/types";
-import { EngineService } from "../../../../src/core/engine/engine.service";
+import {
+  AgentInvocation,
+  EngineService,
+  type AgentOrchestratorService,
+  type AgentRunRequest,
+  type AgentRuntimeCatalog,
+  type AgentRuntimeDescriptor,
+  type AgentRuntimeOptions,
+} from "@eddie/engine";
+import {
+  ConfigService,
+  type EddieConfig,
+  type ProviderConfig,
+} from "@eddie/config";
+import type { ContextService } from "@eddie/context";
+import type { ProviderFactoryService } from "@eddie/providers";
+import {
+  HookBus,
+  HOOK_EVENTS,
+  blockHook,
+  type HooksService,
+} from "@eddie/hooks";
+import {
+  LoggerService,
+  type ConfirmService,
+} from "@eddie/io";
+import { ToolRegistryFactory } from "@eddie/tools";
+import type { TokenizerService } from "@eddie/tokenizers";
+import type { McpToolSourceService } from "@eddie/mcp";
 import type {
   ChatMessage,
   PackedContext,
   ProviderAdapter,
   ToolDefinition,
-} from "../../../../src/core/types";
-import { AgentInvocation } from "../../../../src/core/agents/agent-invocation";
-import type {
-  AgentRunRequest,
-  AgentRuntimeOptions,
-  AgentOrchestratorService,
-} from "../../../../src/core/agents/agent-orchestrator.service";
-import type { AgentRuntimeCatalog, AgentRuntimeDescriptor } from "../../../../src/core/agents/agent-runtime.types";
-import { ToolRegistryFactory } from "../../../../src/core/tools/tool-registry.service";
-import type { ConfigService } from "../../../../src/config/config.service";
-import type { ContextService } from "../../../../src/core/context/context.service";
-import type { ProviderFactoryService } from "../../../../src/core/providers/provider-factory.service";
-import { HOOK_EVENTS, blockHook } from "../../../../src/hooks/types";
-import { HookBus } from "../../../../src/hooks/hook-bus.service";
-import type { HooksService } from "../../../../src/hooks/hooks.service";
-import type { ConfirmService } from "../../../../src/io/confirm.service";
-import { LoggerService } from "../../../../src/io/logger.service";
-import type { TokenizerService } from "../../../../src/core/tokenizers/tokenizer.service";
-import type { McpToolSourceService } from "../../../../src/integrations/mcp/mcp-tool-source.service";
+} from "@eddie/types";
 
 class FakeAgentOrchestrator {
   shouldFail = false;

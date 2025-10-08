@@ -1,9 +1,9 @@
 import { Module, type Provider } from "@nestjs/common";
-import { ConfigModule } from "../config/config.module";
-import { ContextModule } from "../core/context/context.module";
-import { EngineModule } from "../core/engine/engine.module";
-import { IoModule } from "../io/io.module";
-import { TokenizersModule } from "../core/tokenizers/tokenizers.module";
+import { ConfigModule } from "@eddie/config";
+import { ContextModule } from "@eddie/context";
+import { EngineModule } from "@eddie/engine";
+import { IoModule } from "@eddie/io";
+import { TokenizersModule } from "@eddie/tokenizers";
 import { CliOptionsService } from "./cli-options.service";
 import { CliParserService } from "./cli-parser.service";
 import { CliRunnerService } from "./cli-runner.service";

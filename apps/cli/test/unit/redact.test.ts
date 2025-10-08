@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { redactSecrets } from "../../src/io/redact";
+import { redactSecrets } from "@eddie/io";
 
 describe("redactSecrets", () => {
   it("replaces matching patterns with [REDACTED]", () => {

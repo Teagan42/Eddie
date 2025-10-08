@@ -3,8 +3,8 @@ import fs from "fs/promises";
 import path from "path";
 import { describe, it, expect } from "vitest";
 
-import { ConfigService } from "../../src/config/config.service";
-import type { TemplateDescriptor } from "../../src/shared/template.types";
+import { ConfigService } from "@eddie/config";
+import type { TemplateDescriptor } from "@eddie/templates";
 
 const projectRoot = path.resolve(__dirname, "../../../../");
 

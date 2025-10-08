@@ -1,22 +1,25 @@
 import "reflect-metadata";
 import { Buffer } from "buffer";
 import { describe, it, expect, vi } from "vitest";
-import { EngineService } from "../../src/core/engine/engine.service";
-import type { EddieConfig, MCPToolSourceConfig } from "../../src/config/types";
-import type { ConfigService } from "../../src/config/config.service";
-import type { ContextService } from "../../src/core/context/context.service";
-import type { ProviderFactoryService } from "../../src/core/providers/provider-factory.service";
-import type { HooksService } from "../../src/hooks/hooks.service";
-import { HookBus } from "../../src/hooks/hook-bus.service";
-import type { ConfirmService } from "../../src/io/confirm.service";
-import type { LoggerService as LoggerServiceType } from "../../src/io/logger.service";
-import type { TokenizerService } from "../../src/core/tokenizers/tokenizer.service";
-import type { McpToolSourceService } from "../../src/integrations/mcp/mcp-tool-source.service";
-import type { PackedContext } from "../../src/core/types";
-import { TemplateRendererService } from "../../src/core/templates/template-renderer.service";
-import { AgentInvocationFactory } from "../../src/core/agents/agent-invocation.factory";
-import type { AgentOrchestratorService } from "../../src/core/agents/agent-orchestrator.service";
-import { ToolRegistryFactory } from "../../src/core/tools/tool-registry.service";
+import { EngineService, AgentInvocationFactory } from "@eddie/engine";
+import {
+  ConfigService,
+  type EddieConfig,
+  type MCPToolSourceConfig,
+} from "@eddie/config";
+import type { ContextService } from "@eddie/context";
+import type { ProviderFactoryService } from "@eddie/providers";
+import { HookBus, type HooksService } from "@eddie/hooks";
+import {
+  type ConfirmService,
+  type LoggerService as LoggerServiceType,
+} from "@eddie/io";
+import type { TokenizerService } from "@eddie/tokenizers";
+import type { McpToolSourceService } from "@eddie/mcp";
+import { TemplateRendererService } from "@eddie/templates";
+import { ToolRegistryFactory } from "@eddie/tools";
+import type { AgentOrchestratorService } from "@eddie/engine";
+import type { PackedContext } from "@eddie/types";
 import type { Logger } from "pino";
 
 describe("EngineService MCP resource integration", () => {

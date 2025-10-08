@@ -10,13 +10,21 @@
     "node": ">=20.0.0"
   },
   "scripts": {
+    "prebuild": "npm run build --workspace @eddie/engine",
     "build": "nest build cli",
     "lint": "eslint 'src/**/*.ts'",
     "test": "vitest --run --config vitest.config.ts",
+    "prestart": "npm run prebuild",
     "start": "nest start cli",
+    "predev": "npm run prebuild",
     "dev": "nest start cli --watch"
   },
   "dependencies": {
+    "@eddie/config": "^0.0.0",
+    "@eddie/context": "^0.0.0",
+    "@eddie/engine": "^0.0.0",
+    "@eddie/io": "^0.0.0",
+    "@eddie/tokenizers": "^0.0.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@opentelemetry/api": "^1.9.0",

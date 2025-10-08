@@ -1,0 +1,22 @@
+{
+  "name": "@eddie/templates",
+  "version": "0.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "lint": "eslint 'src/**/*.ts'",
+    "test": "echo \"No tests yet for @eddie/templates\""
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "eta": "^3.5.0"
+  }
+}

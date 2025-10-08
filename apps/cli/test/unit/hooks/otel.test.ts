@@ -1,7 +1,7 @@
 import { trace, type Tracer } from "@opentelemetry/api";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { startSpan } from "../../../src/hooks/otel";
+import { startSpan } from "@eddie/hooks";
 
 describe("otel hook", () => {
   afterEach(() => {

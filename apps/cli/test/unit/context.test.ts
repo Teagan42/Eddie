@@ -3,9 +3,9 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Test, type TestingModule } from "@nestjs/testing";
 import fs from "fs/promises";
 import path from "path";
-import { ContextService } from "../../src/core/context/context.service";
-import { LoggerService } from "../../src/io/logger.service";
-import { TemplateRendererService } from "../../src/core/templates/template-renderer.service";
+import { ContextService } from "@eddie/context";
+import { LoggerService } from "@eddie/io";
+import { TemplateRendererService } from "@eddie/templates";
 
 const tmpDir = path.join(process.cwd(), "test-temp");
 let moduleRef: TestingModule;

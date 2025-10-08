@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { OpenAICompatibleAdapter } from "../../../../src/core/providers/openai_compatible";
+import { OpenAICompatibleAdapter } from "@eddie/providers";
 
 const encoder = new TextEncoder();
 const mocks = vi.hoisted(() => ({

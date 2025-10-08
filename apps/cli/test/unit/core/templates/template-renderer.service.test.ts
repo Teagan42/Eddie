@@ -2,7 +2,7 @@ import "reflect-metadata";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import fs from "fs/promises";
 import path from "path";
-import { TemplateRendererService } from "../../../../src/core/templates/template-renderer.service";
+import { TemplateRendererService } from "@eddie/templates";
 
 const tmpDir = path.join(process.cwd(), "test-temp", "templates");
 let service: TemplateRendererService;

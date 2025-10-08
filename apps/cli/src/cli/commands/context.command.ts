@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
-import { ConfigService } from "../../config/config.service";
-import { ContextService } from "../../core/context/context.service";
-import { TokenizerService } from "../../core/tokenizers/tokenizer.service";
-import { LoggerService } from "../../io/logger.service";
+import { ConfigService } from "@eddie/config";
+import { ContextService } from "@eddie/context";
+import { TokenizerService } from "@eddie/tokenizers";
+import { LoggerService } from "@eddie/io";
 import type { CliArguments } from "../cli-arguments";
 import { CliOptionsService } from "../cli-options.service";
 import type { CliCommand, CliCommandMetadata } from "./cli-command";

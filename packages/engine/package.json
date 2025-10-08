@@ -1,0 +1,32 @@
+{
+  "name": "@eddie/engine",
+  "version": "0.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "lint": "eslint 'src/**/*.ts'",
+    "test": "echo \"No tests yet for @eddie/engine\""
+  },
+  "dependencies": {
+    "@eddie/config": "^0.0.0",
+    "@eddie/context": "^0.0.0",
+    "@eddie/hooks": "^0.0.0",
+    "@eddie/io": "^0.0.0",
+    "@eddie/mcp": "^0.0.0",
+    "@eddie/providers": "^0.0.0",
+    "@eddie/templates": "^0.0.0",
+    "@eddie/tokenizers": "^0.0.0",
+    "@eddie/tools": "^0.0.0",
+    "@eddie/types": "^0.0.0",
+    "@nestjs/common": "^11.0.0",
+    "pino": "^10.0.0"
+  }
+}

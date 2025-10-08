@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { OpenAIAdapter } from "../../../../src/core/providers/openai";
+import { OpenAIAdapter } from "@eddie/providers";
 
 const streamMock = vi.hoisted(() => vi.fn());
 

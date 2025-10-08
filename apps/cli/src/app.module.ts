@@ -1,8 +1,8 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule } from "./config/config.module";
-import { ContextModule } from "./core/context/context.module";
-import { EngineModule } from "./core/engine/engine.module";
-import { IoModule } from "./io/io.module";
+import { ConfigModule } from "@eddie/config";
+import { ContextModule } from "@eddie/context";
+import { EngineModule } from "@eddie/engine";
+import { IoModule } from "@eddie/io";
 import { CliModule } from "./cli/cli.module";
 
 @Module({
