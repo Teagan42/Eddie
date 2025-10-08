@@ -14,7 +14,9 @@
     "build": "nest build cli",
     "lint": "eslint 'src/**/*.ts'",
     "test": "vitest --run --config vitest.config.ts",
+    "prestart": "npm run prebuild",
     "start": "nest start cli",
+    "predev": "npm run prebuild",
     "dev": "nest start cli --watch"
   },
   "dependencies": {
