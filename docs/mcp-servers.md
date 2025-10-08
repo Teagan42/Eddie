@@ -139,13 +139,21 @@ By structuring prompts around the remote resources—and keeping the instruction
 in sync with the tools surfaced by the MCP server—you get consistent, auditable
 responses that respect the knowledge boundaries defined by the remote service.
 
-## 6. What about MCP prompt components?
+## 6. Work with MCP prompt components
 
-Some MCP servers expose prebuilt prompt snippets through the `prompts/list`
-and `prompts/get` endpoints. Eddie currently focuses on `tools/list` and
-`resources/list`, so prompt components are not pulled into the context
-automatically.【F:src/integrations/mcp/mcp-tool-source.service.ts†L61-L105】 If
-you need those snippets today, register a lightweight MCP tool that proxies the
-prompt content, or mirror the snippets as MCP resources so they flow into
-`context.resources`. Both approaches keep everything within the existing
-discovery pipeline while you wait for native prompt-component support.
+When an MCP server advertises prompt support, Eddie now queries both
+`prompts/list` and `prompts/get` during discovery. Each prompt definition is
+cloned and tagged with the originating `sourceId`, so you receive stable
+metadata, argument schemas, and message sequences alongside the tools and
+resources reported by the server.【F:src/integrations/mcp/mcp-tool-source.service.ts†L29-L209】
+
+The engine fetches these prompt definitions together with other MCP assets,
+making them available for custom orchestration even though the default CLI does
+not yet inject them into the packed context.【F:src/core/engine/engine.service.ts†L147-L156】
+You can wire the discovered prompts into your own Eta templates, persist them in
+hooks, or mirror them into local prompt catalogs to keep subagents aligned with
+remote guidance.
+
+If a server omits the prompt endpoints, Eddie ignores the `Method not found`
+error and continues with the rest of the discovery flow, so older MCP servers
+remain compatible.【F:src/integrations/mcp/mcp-tool-source.service.ts†L153-L206】【F:src/integrations/mcp/mcp-tool-source.service.ts†L353-L371】
