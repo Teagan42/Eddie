@@ -9,6 +9,8 @@
   },
   "scripts": {
     "build": "nest build api",
+    "lint": "eslint 'src/**/*.ts'",
+    "test": "echo \"No tests yet for @eddie/api\"",
     "prestart": "nest build api",
     "start": "node dist/api/src/main.js",
     "dev": "nest start api --watch"
