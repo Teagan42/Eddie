@@ -143,6 +143,7 @@ Vitest covers utilities such as secret redaction, provider wiring, and CLI behav
 - [Adding MCP servers](docs/mcp-servers.md)
 - [Subagents guide](docs/subagents.md)
 - [Prompt and context templates](docs/templates.md)
+- [CLI options reference](docs/cli-reference.md)
 - [Nest CLI migration guide](docs/migration/cli-nest-refactor.md)
 
 If you are upgrading from the legacy Commander-based CLI, review the migration
