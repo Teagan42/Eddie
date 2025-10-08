@@ -22,13 +22,219 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: npm
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-${{ matrix.node-version }}-
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --workspaces --include-workspace-root
 
       - name: Lint
-        run: npm run lint
+        run: npm run lint --workspaces --if-present
 
-      - name: Test
-        run: npm run test
+      - name: Build
+        run: npm run build --workspaces
+
+      - name: Test CLI
+        id: test_cli
+        continue-on-error: true
+        run: npm run test --workspace @eddie/cli -- --coverage
+
+      - name: Upload CLI coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-cli-${{ matrix.node-version }}
+          path: apps/cli/coverage
+          if-no-files-found: ignore
+
+      - name: Test API
+        id: test_api
+        continue-on-error: true
+        run: npm run test --workspace @eddie/api -- --coverage
+
+      - name: Upload API coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-api-${{ matrix.node-version }}
+          path: apps/api/coverage
+          if-no-files-found: ignore
+
+      - name: Test Config package
+        id: test_config
+        continue-on-error: true
+        run: npm run test --workspace @eddie/config -- --coverage
+
+      - name: Upload Config coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-config-${{ matrix.node-version }}
+          path: packages/config/coverage
+          if-no-files-found: ignore
+
+      - name: Test Context package
+        id: test_context
+        continue-on-error: true
+        run: npm run test --workspace @eddie/context -- --coverage
+
+      - name: Upload Context coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-context-${{ matrix.node-version }}
+          path: packages/context/coverage
+          if-no-files-found: ignore
+
+      - name: Test Engine package
+        id: test_engine
+        continue-on-error: true
+        run: npm run test --workspace @eddie/engine -- --coverage
+
+      - name: Upload Engine coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-engine-${{ matrix.node-version }}
+          path: packages/engine/coverage
+          if-no-files-found: ignore
+
+      - name: Test Hooks package
+        id: test_hooks
+        continue-on-error: true
+        run: npm run test --workspace @eddie/hooks -- --coverage
+
+      - name: Upload Hooks coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-hooks-${{ matrix.node-version }}
+          path: packages/hooks/coverage
+          if-no-files-found: ignore
+
+      - name: Test IO package
+        id: test_io
+        continue-on-error: true
+        run: npm run test --workspace @eddie/io -- --coverage
+
+      - name: Upload IO coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-io-${{ matrix.node-version }}
+          path: packages/io/coverage
+          if-no-files-found: ignore
+
+      - name: Test MCP package
+        id: test_mcp
+        continue-on-error: true
+        run: npm run test --workspace @eddie/mcp -- --coverage
+
+      - name: Upload MCP coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-mcp-${{ matrix.node-version }}
+          path: packages/mcp/coverage
+          if-no-files-found: ignore
+
+      - name: Test Providers package
+        id: test_providers
+        continue-on-error: true
+        run: npm run test --workspace @eddie/providers -- --coverage
+
+      - name: Upload Providers coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-providers-${{ matrix.node-version }}
+          path: packages/providers/coverage
+          if-no-files-found: ignore
+
+      - name: Test Templates package
+        id: test_templates
+        continue-on-error: true
+        run: npm run test --workspace @eddie/templates -- --coverage
+
+      - name: Upload Templates coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-templates-${{ matrix.node-version }}
+          path: packages/templates/coverage
+          if-no-files-found: ignore
+
+      - name: Test Tokenizers package
+        id: test_tokenizers
+        continue-on-error: true
+        run: npm run test --workspace @eddie/tokenizers -- --coverage
+
+      - name: Upload Tokenizers coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-tokenizers-${{ matrix.node-version }}
+          path: packages/tokenizers/coverage
+          if-no-files-found: ignore
+
+      - name: Test Tools package
+        id: test_tools
+        continue-on-error: true
+        run: npm run test --workspace @eddie/tools -- --coverage
+
+      - name: Upload Tools coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-tools-${{ matrix.node-version }}
+          path: packages/tools/coverage
+          if-no-files-found: ignore
+
+      - name: Test Types package
+        id: test_types
+        continue-on-error: true
+        run: npm run test --workspace @eddie/types -- --coverage
+
+      - name: Upload Types coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-types-${{ matrix.node-version }}
+          path: packages/types/coverage
+          if-no-files-found: ignore
+
+      - name: Evaluate test results
+        if: always()
+        run: |
+          declare -A outcomes=(
+            [cli]="${{ steps.test_cli.outcome }}"
+            [api]="${{ steps.test_api.outcome }}"
+            [config]="${{ steps.test_config.outcome }}"
+            [context]="${{ steps.test_context.outcome }}"
+            [engine]="${{ steps.test_engine.outcome }}"
+            [hooks]="${{ steps.test_hooks.outcome }}"
+            [io]="${{ steps.test_io.outcome }}"
+            [mcp]="${{ steps.test_mcp.outcome }}"
+            [providers]="${{ steps.test_providers.outcome }}"
+            [templates]="${{ steps.test_templates.outcome }}"
+            [tokenizers]="${{ steps.test_tokenizers.outcome }}"
+            [tools]="${{ steps.test_tools.outcome }}"
+            [types]="${{ steps.test_types.outcome }}"
+          )
+
+          status=0
+          for name in "${!outcomes[@]}"; do
+            outcome="${outcomes[$name]}"
+            if [[ "$outcome" != "success" ]]; then
+              echo "::error::${name} tests ${outcome}"
+              status=1
+            fi
+          done
+
+          exit "$status"
