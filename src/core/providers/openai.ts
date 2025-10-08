@@ -3,7 +3,9 @@ import OpenAI from "openai";
 import type {
   Response as OpenAIResponse,
   ResponseFunctionToolCall,
+  ResponseTextConfig,
 } from "openai/resources/responses/responses";
+import type { ResponseCreateAndStreamParams } from "openai/lib/responses/ResponseStream";
 import type { ProviderConfig } from "../../config/types";
 import type { ProviderAdapter, StreamEvent, StreamOptions, ToolSchema } from "../types";
 import type { ProviderAdapterFactory } from "./provider.tokens";
@@ -14,9 +16,15 @@ interface OpenAIConfig {
   apiKey?: string;
 }
 
-type ResponseStreamParams = Parameters<OpenAI["responses"]["stream"]>[0];
-type ResponseTool = NonNullable<ResponseStreamParams["tools"]>[number];
-type ResponseInput = NonNullable<ResponseStreamParams["input"]>;
+type ResponseStreamCreateParams = ResponseCreateAndStreamParams;
+type ResponseTools = NonNullable<ResponseStreamCreateParams["tools"]>;
+type ResponseTool = ResponseTools extends Array<infer Tool>
+  ? Tool
+  : never;
+type ResponseFunctionTool = Extract<ResponseTool, { type: "function" }>;
+type ResponseInput = NonNullable<ResponseStreamCreateParams["input"]>;
+type ResponseMetadata = ResponseStreamCreateParams["metadata"];
+type ResponseFormat = ResponseTextConfig["format"];
 
 interface ToolAccumulator {
   arguments: string;
@@ -44,9 +52,11 @@ export class OpenAIAdapter implements ProviderAdapter {
         model: options.model,
         input: this.formatMessages(options.messages),
         tools: this.formatTools(options.tools),
-        response_format: options.responseFormat as ResponseStreamParams["response_format"],
-        metadata: options.metadata as ResponseStreamParams["metadata"],
-      });
+        metadata: this.formatMetadata(options.metadata),
+        ...(options.responseFormat
+          ? { text: this.formatResponseTextConfig(options.responseFormat) }
+          : {}),
+      } satisfies ResponseStreamCreateParams);
     } catch (error) {
       yield {
         type: "error",
@@ -142,9 +152,12 @@ export class OpenAIAdapter implements ProviderAdapter {
       return;
     }
 
-    const finalResponse = await stream
-      .finalResponse()
-      .catch<OpenAIResponse | undefined>(() => undefined);
+    let finalResponse: OpenAIResponse | undefined;
+    try {
+      finalResponse = await stream.finalResponse();
+    } catch {
+      finalResponse = undefined;
+    }
 
     if (finalResponse) {
       for (const notification of extractNotificationEvents(finalResponse)) {
@@ -208,7 +221,7 @@ export class OpenAIAdapter implements ProviderAdapter {
         role: message.role === "system" || message.role === "user" || message.role === "assistant"
           ? message.role
           : "user",
-        content: [{ type: "text", text: message.content }],
+        content: [{ type: "input_text", text: message.content }],
         type: "message",
       } satisfies ResponseInput[number];
     }) as ResponseInput;
@@ -217,14 +230,29 @@ export class OpenAIAdapter implements ProviderAdapter {
   private formatTools(tools: ToolSchema[] | undefined): ResponseTool[] | undefined {
     if (!tools) return undefined;
 
-    return tools.map<ResponseTool>((tool) => ({
-      type: tool.type,
-      function: {
-        name: tool.name,
-        parameters: tool.parameters,
-        ...(tool.description ? { description: tool.description } : {}),
-      },
-    }));
+    return tools.map<ResponseFunctionTool>((tool) => ({
+      type: "function",
+      name: tool.name,
+      description: tool.description ?? null,
+      parameters: (tool.parameters ?? null) as ResponseFunctionTool["parameters"],
+      strict: true,
+    })) as ResponseTool[];
+  }
+
+  private formatMetadata(metadata: StreamOptions["metadata"]): ResponseMetadata {
+    if (!metadata) {
+      return undefined;
+    }
+
+    return metadata as ResponseMetadata;
+  }
+
+  private formatResponseTextConfig(
+    format: StreamOptions["responseFormat"],
+  ): ResponseTextConfig {
+    return {
+      format: format as ResponseFormat,
+    } satisfies ResponseTextConfig;
   }
 
   private normalizeUsage(usage?: unknown): Record<string, unknown> | undefined {
