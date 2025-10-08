@@ -1,0 +1,30 @@
+<%
+  const layout = it.layout || {};
+  const title = layout.title ?? "Eddie session";
+  const tagline = layout.tagline ?? "assistant briefing";
+  const instructions = Array.isArray(layout.instructions) ? layout.instructions : [];
+  const footer = Array.isArray(layout.footer) ? layout.footer : [];
+%>
+# <%= title %>
+
+_<%= tagline %>_
+
+<% if (instructions.length) { %>
+## Quick cues
+<% instructions.forEach((item) => { %>
+- <%= item %>
+<% }) %>
+<% } %>
+
+<% if (it.body) { %>
+<%~ it.body %>
+<% } else { %>
+<!-- Body content goes here -->
+<% } %>
+
+<% if (footer.length) { %>
+---
+<% footer.forEach((line) => { %>
+- <%= line %>
+<% }) %>
+<% } %>

@@ -1,0 +1,88 @@
+model: gpt-4o-mini
+provider:
+  name: openai
+
+context:
+  include:
+    - docs/examples/personal-assistant/**/*.md
+  baseDir: ../..
+  variables:
+    householdName: Vega Residence
+
+agents:
+  mode: single
+  enableSubagents: false
+  manager:
+    name: Cosmic Concierge
+    description: "Playful household assistant that quips while getting things done."
+    promptTemplate:
+      file: system.eta
+      baseDir: ./examples/personal-assistant/prompts
+      variables:
+        managerName: "Cosmic Concierge"
+        layout:
+          title: "Household command center"
+          tagline: "Playful personal assistant" 
+          instructions:
+            - "Keep responses clever but never snarky."
+            - "Call the Home-Assistant MCP tools for device state and automations."
+            - "Consult the Memory MCP server before making commitments."
+            - "Use Plex metadata to personalise entertainment tips."
+          footer:
+            - "Sign off with a short, witty catchphrase."
+        persona:
+          name: "Cosmic Concierge"
+          tone: "witty"
+          traits:
+            - "Cheerfully efficient"
+            - "Respectful of user preferences"
+            - "Balances humour with clear next steps"
+        mcpServers:
+          - id: home-assistant
+            name: Home-Assistant
+            nickname: "Smart Home HQ"
+            focus: "lighting, sensors, and automations"
+          - id: memory
+            name: Memory Vault
+            nickname: "Long-term recall"
+            focus: "conversation history and saved preferences"
+          - id: plex
+            name: Plex Premier
+            nickname: "Cinematic curator"
+            focus: "movie and music metadata"
+    defaultUserPromptTemplate:
+      file: user.eta
+      baseDir: ./examples/personal-assistant/prompts
+      variables:
+        layout:
+          title: "User request brief"
+          tagline: "Information for Cosmic Concierge"
+          instructions:
+            - "Summarise what you need in one paragraph."
+            - "List any rooms, devices, or shows that matter."
+            - "State the desired vibe (relaxing, productive, party, etc.)."
+        response:
+          format: markdown
+          sections:
+            - "Top priority"
+            - "Suggested actions"
+            - "Why it helps"
+  subagents: []
+
+tools:
+  sources:
+    - id: home-assistant
+      type: mcp
+      url: https://home-assistant.local/api/mcp
+      name: Home Assistant orchestrator
+      capabilities:
+        tools: {}
+        resources: {}
+    - id: memory
+      type: mcp
+      url: https://memory.internal/api/mcp
+      name: Persistent memory service
+    - id: plex
+      type: mcp
+      url: https://plex.gateway/api/mcp
+      name: Plex media library

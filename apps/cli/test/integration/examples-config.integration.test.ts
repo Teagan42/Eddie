@@ -85,4 +85,32 @@ describe("documentation examples", () => {
     expect(defaultUser?.file).toBe("user.eta");
     await ensureTemplateAssets(defaultUser!);
   });
+
+  it("loads and validates the witty personal assistant example", async () => {
+    const config = await service.load({
+      config: resolveFromRepo("examples/personal-assistant/eddie.config.yaml"),
+    });
+
+    expect(config.agents.mode).toBe("single");
+    expect(config.agents.subagents).toHaveLength(0);
+
+    const managerTemplate = config.agents.manager.promptTemplate;
+    expect(managerTemplate?.baseDir).toBe(
+      "./examples/personal-assistant/prompts"
+    );
+    await ensureTemplateAssets(managerTemplate!);
+
+    const userTemplate = config.agents.manager.defaultUserPromptTemplate;
+    expect(userTemplate?.baseDir).toBe("./examples/personal-assistant/prompts");
+    await ensureTemplateAssets(userTemplate!);
+
+    const sources = config.tools?.sources ?? [];
+    expect(sources).toHaveLength(3);
+    expect(sources.map((source) => source.id)).toEqual([
+      "home-assistant",
+      "memory",
+      "plex",
+    ]);
+    expect(sources.every((source) => source.type === "mcp")).toBe(true);
+  });
 });
