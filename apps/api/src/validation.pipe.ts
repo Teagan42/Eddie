@@ -4,10 +4,10 @@ import {
   Injectable,
   OnModuleInit,
   PipeTransform,
+  ValidationError,
   ValidationPipe,
   type ValidationPipeOptions,
 } from "@nestjs/common";
-import type { ValidationError } from "class-validator";
 import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
 import { ConfigService } from "@eddie/config";
 import { LoggerService } from "@eddie/io";
