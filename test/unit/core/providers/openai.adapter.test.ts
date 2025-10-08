@@ -70,7 +70,7 @@ describe("OpenAIAdapter", () => {
         name: "echo",
         description: "Echo a value",
         parameters: { type: "object" },
-        strict: true,
+        strict: false,
       },
     ]);
   });
