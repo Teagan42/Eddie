@@ -2,6 +2,43 @@ import type { TemplateDescriptor, TemplateVariables } from "@eddie/templates";
 
 export type LogLevel = "silent" | "info" | "debug";
 
+export interface ApiTelemetryConfig {
+  enabled?: boolean;
+  consoleExporter?: boolean;
+  /**
+   * When `true`, stack traces from unexpected exceptions are included in HTTP
+   * responses. The default behaviour only logs stack traces when debugging.
+   */
+  exposeErrorStack?: boolean;
+}
+
+export interface ApiValidationConfig {
+  whitelist?: boolean;
+  forbidNonWhitelisted?: boolean;
+  transform?: boolean;
+  enableImplicitConversion?: boolean;
+}
+
+export interface ApiCacheConfig {
+  enabled?: boolean;
+  ttlSeconds?: number;
+  maxItems?: number;
+}
+
+export interface ApiAuthConfig {
+  enabled?: boolean;
+  apiKeys?: string[];
+}
+
+export interface ApiConfig {
+  host?: string;
+  port?: number;
+  telemetry?: ApiTelemetryConfig;
+  validation?: ApiValidationConfig;
+  cache?: ApiCacheConfig;
+  auth?: ApiAuthConfig;
+}
+
 export interface ProviderConfig {
   name: string;
   baseUrl?: string;
@@ -111,6 +148,7 @@ export interface EddieConfig {
   provider: ProviderConfig;
   providers?: Record<string, ProviderProfileConfig>;
   context: ContextConfig;
+  api?: ApiConfig;
   systemPrompt: string;
   logLevel: LogLevel;
   logging?: LoggingConfig;
@@ -126,6 +164,7 @@ export interface EddieConfigInput {
   provider?: Partial<ProviderConfig>;
   providers?: Record<string, ProviderProfileConfig>;
   context?: Partial<ContextConfig>;
+  api?: Partial<ApiConfig>;
   systemPrompt?: string;
   logLevel?: LogLevel;
   logging?: Partial<LoggingConfig>;

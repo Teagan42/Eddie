@@ -7,6 +7,7 @@ import type {
   AgentProviderConfig,
   AgentsConfig,
   AgentsConfigInput,
+  ApiConfig,
   CliRuntimeOptions,
   ContextConfig,
   ContextResourceConfig,
@@ -175,6 +176,7 @@ export class ConfigService {
       base.provider,
       input.provider
     );
+    const mergedApi = this.mergeApiConfig(base.api, input.api);
 
     return {
       ...base,
@@ -182,6 +184,7 @@ export class ConfigService {
       provider,
       providers,
       context: mergedContext,
+      api: mergedApi,
       output: {
         ...base.output,
         ...(input.output ?? {}),
@@ -497,6 +500,82 @@ export class ConfigService {
     }
 
     return merged;
+  }
+
+  private mergeApiConfig(
+    base: ApiConfig | undefined,
+    input: Partial<ApiConfig> | undefined
+  ): ApiConfig | undefined {
+    if (!base && !input) {
+      return undefined;
+    }
+
+    const normalizedBase: ApiConfig = base
+      ? {
+          ...base,
+          telemetry: base.telemetry ? { ...base.telemetry } : undefined,
+          validation: base.validation ? { ...base.validation } : undefined,
+          cache: base.cache ? { ...base.cache } : undefined,
+          auth: base.auth
+            ? {
+                ...base.auth,
+                apiKeys: base.auth.apiKeys
+                  ? [...base.auth.apiKeys]
+                  : base.auth.apiKeys,
+              }
+            : undefined,
+        }
+      : {};
+
+    if (!input) {
+      return normalizedBase;
+    }
+
+    const telemetry =
+      normalizedBase.telemetry || input.telemetry
+        ? {
+            ...(normalizedBase.telemetry ?? {}),
+            ...(input.telemetry ?? {}),
+          }
+        : input.telemetry;
+
+    const validation =
+      normalizedBase.validation || input.validation
+        ? {
+            ...(normalizedBase.validation ?? {}),
+            ...(input.validation ?? {}),
+          }
+        : input.validation;
+
+    const cache =
+      normalizedBase.cache || input.cache
+        ? {
+            ...(normalizedBase.cache ?? {}),
+            ...(input.cache ?? {}),
+          }
+        : input.cache;
+
+    const auth =
+      normalizedBase.auth || input.auth
+        ? {
+            ...(normalizedBase.auth ?? {}),
+            ...(input.auth ?? {}),
+            apiKeys: input.auth?.apiKeys
+              ? [...input.auth.apiKeys]
+              : normalizedBase.auth?.apiKeys
+                ? [...normalizedBase.auth.apiKeys]
+                : input.auth?.apiKeys,
+          }
+        : input.auth;
+
+    return {
+      ...normalizedBase,
+      ...input,
+      telemetry,
+      validation,
+      cache,
+      auth,
+    };
   }
 
   private mergeProviders(
