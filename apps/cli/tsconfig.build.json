@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "./dist",
+    "outDir": "dist/",
     "rootDir": "./src",
     "declaration": true,
     "declarationMap": true,
@@ -9,18 +9,45 @@
     "experimentalDecorators": true,
     "sourceMap": true
   },
-  "exclude": ["node_modules", "test", "dist", "**/*.spec.ts"],
+  "exclude": [
+    "node_modules",
+    "test",
+    "dist",
+    "**/*.spec.ts"
+  ],
   "references": [
-    { "path": "../../packages/types" },
-    { "path": "../../packages/templates" },
-    { "path": "../../packages/config" },
-    { "path": "../../packages/io" },
-    { "path": "../../packages/context" },
-    { "path": "../../packages/providers" },
-    { "path": "../../packages/hooks" },
-    { "path": "../../packages/tools" },
-    { "path": "../../packages/tokenizers" },
-    { "path": "../../packages/mcp" },
-    { "path": "../../packages/engine" }
+    {
+      "path": "../../packages/types"
+    },
+    {
+      "path": "../../packages/templates"
+    },
+    {
+      "path": "../../packages/config"
+    },
+    {
+      "path": "../../packages/io"
+    },
+    {
+      "path": "../../packages/context"
+    },
+    {
+      "path": "../../packages/providers"
+    },
+    {
+      "path": "../../packages/hooks"
+    },
+    {
+      "path": "../../packages/tools"
+    },
+    {
+      "path": "../../packages/tokenizers"
+    },
+    {
+      "path": "../../packages/mcp"
+    },
+    {
+      "path": "../../packages/engine"
+    }
   ]
 }
