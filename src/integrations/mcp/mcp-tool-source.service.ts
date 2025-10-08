@@ -6,7 +6,12 @@ import type {
 } from "../../config/types";
 import type {
   DiscoveredMcpResource,
+  DiscoveredMcpPrompt,
   McpInitializeResult,
+  McpPromptDefinition,
+  McpPromptDescription,
+  McpPromptGetResult,
+  McpPromptsListResult,
   McpResourceDescription,
   McpResourcesListResult,
   McpToolDescription,
@@ -26,6 +31,7 @@ export class McpToolSourceService {
   ): Promise<{
     tools: ToolDefinition[];
     resources: DiscoveredMcpResource[];
+    prompts: DiscoveredMcpPrompt[];
   }> {
     const discoveries = await this.discoverSources(sources);
     const tools = discoveries.flatMap((entry) => entry.tools);
@@ -35,8 +41,14 @@ export class McpToolSourceService {
         sourceId: entry.sourceId,
       }))
     );
+    const prompts = discoveries.flatMap((entry) =>
+      entry.prompts.map((prompt) => ({
+        ...prompt,
+        sourceId: entry.sourceId,
+      }))
+    );
 
-    return { tools, resources };
+    return { tools, resources, prompts };
   }
 
   async discoverSources(
@@ -53,6 +65,7 @@ export class McpToolSourceService {
         sourceId: source.id,
         tools: discovery.tools,
         resources: discovery.resources,
+        prompts: discovery.prompts,
       });
     }
 
@@ -62,16 +75,23 @@ export class McpToolSourceService {
   private async discoverSource(source: MCPToolSourceConfig): Promise<{
     tools: ToolDefinition[];
     resources: McpResourceDescription[];
+    prompts: McpPromptDefinition[];
   }> {
     const sessionId = await this.initialize(source);
     const tools = await this.listTools(source, sessionId);
     const resources = await this.listResources(source, sessionId);
+    const prompts = await this.listPrompts(source, sessionId);
+    const promptDefinitions = await Promise.all(
+      prompts.map((descriptor) =>
+        this.getPrompt(source, sessionId, descriptor.name)
+      )
+    );
 
     const toolDefinitions = tools.map((tool) =>
       this.toToolDefinition(source, sessionId, tool)
     );
 
-    return { tools: toolDefinitions, resources };
+    return { tools: toolDefinitions, resources, prompts: promptDefinitions };
   }
 
   private async initialize(source: MCPToolSourceConfig): Promise<string | undefined> {
@@ -120,6 +140,53 @@ export class McpToolSourceService {
       ...resource,
       metadata: resource.metadata ? structuredClone(resource.metadata) : undefined,
     }));
+  }
+
+  private async listPrompts(
+    source: MCPToolSourceConfig,
+    sessionId?: string
+  ): Promise<McpPromptDescription[]> {
+    const params = sessionId ? { sessionId } : undefined;
+    const result = await this.sendJsonRpc<McpPromptsListResult>(
+      source,
+      "prompts/list",
+      params
+    );
+    return result.prompts ?? [];
+  }
+
+  private async getPrompt(
+    source: MCPToolSourceConfig,
+    sessionId: string | undefined,
+    name: string
+  ): Promise<McpPromptDefinition> {
+    const params: Record<string, unknown> = { name };
+    if (sessionId) {
+      params.sessionId = sessionId;
+    }
+
+    const result = await this.sendJsonRpc<McpPromptGetResult>(
+      source,
+      "prompts/get",
+      params
+    );
+
+    const prompt = result.prompt;
+    return {
+      name: prompt.name,
+      description: prompt.description,
+      arguments: prompt.arguments?.map((argument) => ({
+        ...argument,
+        schema:
+          argument.schema !== undefined
+            ? structuredClone(argument.schema)
+            : undefined,
+      })),
+      messages: (prompt.messages ?? []).map((message) => ({
+        ...message,
+        content: structuredClone(message.content ?? []),
+      })),
+    };
   }
 
   private toToolDefinition(

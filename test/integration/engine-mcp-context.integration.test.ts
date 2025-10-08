@@ -123,7 +123,11 @@ describe("EngineService MCP resource integration", () => {
     };
 
     const mcpToolSourceService = {
-      collectTools: vi.fn(async () => ({ tools: [], resources: [discoveredResource] })),
+      collectTools: vi.fn(async () => ({
+        tools: [],
+        resources: [discoveredResource],
+        prompts: [],
+      })),
     } as unknown as McpToolSourceService;
 
     const engine = new EngineService(

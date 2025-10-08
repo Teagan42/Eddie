@@ -147,7 +147,10 @@ export class EngineService {
       const {
         tools: remoteTools,
         resources: discoveredResources,
+        prompts: discoveredPrompts,
       } = await this.mcpToolSourceService.collectTools(cfg.tools?.sources);
+
+      void discoveredPrompts;
 
       if (discoveredResources.length > 0) {
         this.applyMcpResourcesToContext(context, discoveredResources);
