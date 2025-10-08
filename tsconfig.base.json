@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@eddie/config": ["packages/config/src"],
+      "@eddie/config/*": ["packages/config/src/*"],
+      "@eddie/context": ["packages/context/src"],
+      "@eddie/context/*": ["packages/context/src/*"],
+      "@eddie/engine": ["packages/engine/src"],
+      "@eddie/engine/*": ["packages/engine/src/*"],
+      "@eddie/hooks": ["packages/hooks/src"],
+      "@eddie/hooks/*": ["packages/hooks/src/*"],
+      "@eddie/io": ["packages/io/src"],
+      "@eddie/io/*": ["packages/io/src/*"],
+      "@eddie/mcp": ["packages/mcp/src"],
+      "@eddie/mcp/*": ["packages/mcp/src/*"],
+      "@eddie/providers": ["packages/providers/src"],
+      "@eddie/providers/*": ["packages/providers/src/*"],
+      "@eddie/templates": ["packages/templates/src"],
+      "@eddie/templates/*": ["packages/templates/src/*"],
+      "@eddie/tokenizers": ["packages/tokenizers/src"],
+      "@eddie/tokenizers/*": ["packages/tokenizers/src/*"],
+      "@eddie/tools": ["packages/tools/src"],
+      "@eddie/tools/*": ["packages/tools/src/*"],
+      "@eddie/types": ["packages/types/src"],
+      "@eddie/types/*": ["packages/types/src/*"]
+    }
+  }
+}
