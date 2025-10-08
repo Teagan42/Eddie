@@ -8,17 +8,23 @@ import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions"
 let sdk: NodeSDK | null = null;
 let initializing: Promise<void> | null = null;
 
-function createSdk(): NodeSDK {
+export interface TracingOptions {
+  consoleExporter?: boolean;
+}
+
+function createSdk(options: TracingOptions = {}): NodeSDK {
   return new NodeSDK({
     resource: new Resource({
       [SemanticResourceAttributes.SERVICE_NAME]: "eddie-api",
     }),
-    traceExporter: new ConsoleSpanExporter(),
+    ...(options.consoleExporter === false
+      ? {}
+      : { traceExporter: new ConsoleSpanExporter() }),
     instrumentations: [getNodeAutoInstrumentations()],
   });
 }
 
-export async function initTracing(): Promise<void> {
+export async function initTracing(options: TracingOptions = {}): Promise<void> {
   if (sdk) {
     return;
   }
@@ -28,7 +34,7 @@ export async function initTracing(): Promise<void> {
 
   diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.ERROR);
 
-  const instance = createSdk();
+  const instance = createSdk(options);
   sdk = instance;
   const startPromise = Promise.resolve(instance.start()).catch((error: unknown) => {
     sdk = null;

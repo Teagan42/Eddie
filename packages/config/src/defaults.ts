@@ -16,6 +16,30 @@ export const DEFAULT_CONFIG: EddieConfig = {
     include: ["src/**/*"],
     baseDir: process.cwd(),
   },
+  api: {
+    host: "0.0.0.0",
+    port: 3000,
+    telemetry: {
+      enabled: false,
+      consoleExporter: true,
+      exposeErrorStack: false,
+    },
+    validation: {
+      whitelist: true,
+      forbidNonWhitelisted: false,
+      transform: true,
+      enableImplicitConversion: true,
+    },
+    cache: {
+      enabled: true,
+      ttlSeconds: 5,
+      maxItems: 128,
+    },
+    auth: {
+      enabled: false,
+      apiKeys: [],
+    },
+  },
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
   logLevel: "info",
   logging: {
