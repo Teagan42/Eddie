@@ -27,13 +27,15 @@ export class ApiCacheInterceptor implements NestInterceptor, OnModuleInit {
   private contextFingerprint = "";
   private authEnabled = false;
   private initPromise: Promise<void> | null = null;
-  private readonly logger = this.loggerService.getLogger("api:cache");
+  private readonly logger: ReturnType<LoggerService["getLogger"]>;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly contextService: ContextService,
     private readonly loggerService: LoggerService
-  ) {}
+  ) {
+    this.logger = this.loggerService.getLogger("api:cache");
+  }
 
   async onModuleInit(): Promise<void> {
     this.initPromise = this.initialize();

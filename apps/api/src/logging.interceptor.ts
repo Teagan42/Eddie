@@ -17,12 +17,14 @@ export class RequestLoggingInterceptor
 {
   private logBodies = false;
   private initPromise: Promise<void> | null = null;
-  private readonly logger = this.loggerService.getLogger("api:requests");
+  private readonly logger: ReturnType<LoggerService["getLogger"]>;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly loggerService: LoggerService
-  ) {}
+  ) {
+    this.logger = this.loggerService.getLogger("api:requests");
+  }
 
   async onModuleInit(): Promise<void> {
     this.initPromise = this.initialize();

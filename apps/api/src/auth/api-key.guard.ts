@@ -24,14 +24,16 @@ export class ApiKeyGuard implements CanActivate, OnModuleInit {
   private apiKeys = new Set<string>();
   private initPromise: Promise<void> | null = null;
   private contextSummary: ContextSummary | null = null;
-  private readonly logger = this.loggerService.getLogger("api:auth");
+  private readonly logger: ReturnType<LoggerService["getLogger"]>;
 
   constructor(
     private readonly reflector: Reflector,
     private readonly configService: ConfigService,
     private readonly contextService: ContextService,
     private readonly loggerService: LoggerService
-  ) {}
+  ) {
+    this.logger = this.loggerService.getLogger("api:auth");
+  }
 
   async onModuleInit(): Promise<void> {
     this.initPromise = this.initialize();
