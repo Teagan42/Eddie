@@ -6,13 +6,15 @@ import { describe, it, expect } from "vitest";
 import { ConfigService } from "../../src/config/config.service";
 import type { TemplateDescriptor } from "../../src/shared/template.types";
 
+const projectRoot = path.resolve(__dirname, "../../../../");
+
 const resolveFromRepo = (relative: string) =>
-  path.resolve(__dirname, "../../", relative);
+  path.resolve(projectRoot, relative);
 
 const ensureTemplateAssets = async (descriptor: TemplateDescriptor) => {
   const baseDir = descriptor.baseDir
-    ? path.resolve(process.cwd(), descriptor.baseDir)
-    : process.cwd();
+    ? path.resolve(projectRoot, descriptor.baseDir)
+    : projectRoot;
   const absolutePath = path.resolve(baseDir, descriptor.file);
 
   await fs.access(absolutePath);

@@ -15,7 +15,7 @@ Provider-agnostic AI assistant for the command line. Eddie hydrates prompts with
 
 Requires Node.js 20 or newer (Node 22 is used in development and CI). The bundled dependencies rely on modern ESM support that is not available in Node 18.
 
-1. Install dependencies and compile the Nest application. The `build` script runs `nest build`, emitting the `dist/main.js` binary that is also published as the `eddie` executable.
+1. Install dependencies and compile the Nest application. The `build` script runs `nest build`, emitting the `apps/cli/dist/main.js` binary that is also published as the `eddie` executable.
 
    ```bash
    npm install
@@ -25,7 +25,7 @@ Requires Node.js 20 or newer (Node 22 is used in development and CI). The bundle
 2. Execute commands through the compiled binary (or via `npm exec eddie`):
 
    ```bash
-   node dist/main.js ask "Summarize src/core/engine/engine.service.ts"
+   node apps/cli/dist/main.js ask "Summarize apps/cli/src/core/engine/engine.service.ts"
    # or
    npm exec -- eddie context --context "src/**/*.ts"
    ```
@@ -33,13 +33,13 @@ Requires Node.js 20 or newer (Node 22 is used in development and CI). The bundle
 3. For local development with hot-reload, start the Nest CLI wrapper:
 
    ```bash
-   npm run dev -- ask "Summarize src/core/engine/engine.service.ts"
+   npm run dev -- ask "Summarize apps/cli/src/core/engine/engine.service.ts"
    ```
 
 ## Configuration
 
 Eddie loads configuration from `eddie.config.(json|yaml)` in your project root
-and merges it with the defaults defined in `src/config/defaults.ts`. CLI flags
+and merges it with the defaults defined in `apps/cli/src/config/defaults.ts`. CLI flags
 still win for per-run overrides (for example `--model`, `--provider`,
 `--context`, `--auto-approve`, `--jsonl-trace`).
 
@@ -72,7 +72,7 @@ Every top-level key in `EddieConfig` serves a specific subsystem:
 - Adding MCP tool servers is covered in [docs/mcp-servers.md](docs/mcp-servers.md).
 - Prompt/context templating is documented in [docs/templates.md](docs/templates.md).
 
-Whenever you add a new configuration key in `src/config/types.ts`, update this
+Whenever you add a new configuration key in `apps/cli/src/config/types.ts`, update this
 section, `DEFAULT_CONFIG`, and any impacted guides so the documentation stays in
 sync with the runtime expectations.
 
@@ -223,7 +223,7 @@ needing internal Eddie classes.
 
 Hook identifiers are now canonicalised as camelCase strings. Import
 `HOOK_EVENTS` from the published `eddie/hooks` entrypoint (or directly from
-`src/hooks` when working inside this repository) to avoid typos and stay
+`apps/cli/src/hooks` when working inside this repository) to avoid typos and stay
 aligned with future additions:
 
 ```ts

@@ -40,7 +40,7 @@ agents:
 
 The `mode` flag selects the orchestration strategy (for example `single` for a
 stand-alone agent or `router` for multi-agent fan-out) and can also be provided
-via `--agent-mode` at the CLI.【F:src/config/config.service.ts†L336-L360】【F:src/cli/cli-parser.service.ts†L20-L44】
+via `--agent-mode` at the CLI.【F:apps/cli/src/config/config.service.ts†L336-L360】【F:apps/cli/src/cli/cli-parser.service.ts†L20-L44】
 
 ### Provider profiles
 
@@ -48,7 +48,7 @@ Agents may bind to different model providers by declaring a `providers` catalog
 at the top level of the Eddie config. Each profile bundles a provider adapter
 configuration (name, base URL, API key, etc.) with an optional default model
 string. The manager and each subagent can then reference a profile by ID or
-inline override their provider settings.【F:src/config/types.ts†L5-L102】
+inline override their provider settings.【F:apps/cli/src/config/types.ts†L5-L102】
 
 ```yaml
 provider:
@@ -72,7 +72,7 @@ When resolving runtime settings the engine clones the base provider, merges in
 CLI overrides (for example `--provider anthropic-us` or `--provider
 custom-name`), and applies any per-agent selections. Referencing a known profile
 copies its adapter options and default model, while custom strings fall back to
-the base provider name so ad-hoc endpoints remain reachable.【F:src/config/config.service.ts†L173-L238】【F:src/core/engine/engine.service.ts†L355-L460】
+the base provider name so ad-hoc endpoints remain reachable.【F:apps/cli/src/config/config.service.ts†L173-L238】【F:apps/cli/src/core/engine/engine.service.ts†L355-L460】
 
 Subagents may set `provider: <profile>` or supply an inline object:
 
@@ -93,7 +93,7 @@ agents:
 
 The engine builds a runtime catalog that materialises each agent with its own
 provider adapter, model, and metadata (such as the selected profile ID), so
-delegated calls are routed through the intended backend.【F:src/core/engine/engine.service.ts†L355-L524】【F:src/core/agents/agent-runtime.types.ts†L1-L24】
+delegated calls are routed through the intended backend.【F:apps/cli/src/core/engine/engine.service.ts†L355-L524】【F:apps/cli/src/core/agents/agent-runtime.types.ts†L1-L24】
 
 ### Manager vs. subagent definitions
 
@@ -101,13 +101,13 @@ Managers and subagents share the same shape: they support inline prompts or Eta
 templates, default user prompt templates, template variables, and resource
 attachments. These are validated through the configuration service, ensuring
 each agent receives clean copies of prompt descriptors, variables, and context
-resource definitions.【F:src/config/types.ts†L61-L100】【F:src/config/config.service.ts†L312-L387】
+resource definitions.【F:apps/cli/src/config/types.ts†L61-L100】【F:apps/cli/src/config/config.service.ts†L312-L387】
 
 Subagents extend this with optional `tools` (a whitelist applied before
 invocation) and a `routingThreshold` that downstream router implementations can
-use to gate automatic delegation.【F:src/config/types.ts†L77-L100】 The list of
+use to gate automatic delegation.【F:apps/cli/src/config/types.ts†L77-L100】 The list of
 subagents is cloned during config resolution so each invocation starts with a
-fresh definition.【F:src/config/config.service.ts†L338-L387】
+fresh definition.【F:apps/cli/src/config/config.service.ts†L338-L387】
 
 ### Prompt template examples
 
@@ -228,22 +228,22 @@ _Target audience: <%= audience %>_
 Global routing metadata lives under `agents.routing` and supports a
 `confidenceThreshold` (0–1) and `maxDepth` (nested levels allowed). Both fields
 are validated during config merge to guard against invalid values, ensuring the
-orchestrator does not recurse unexpectedly.【F:src/config/config.service.ts†L420-L475】【F:src/config/config.service.ts†L756-L783】
+orchestrator does not recurse unexpectedly.【F:apps/cli/src/config/config.service.ts†L420-L475】【F:apps/cli/src/config/config.service.ts†L756-L783】
 
 Individual subagents may also supply `routingThreshold` hints so a router can
 pick the most relevant candidate when confidence scores are available (for
 example when using semantic routing or classification). This is optional but can
-help prevent low-signal branches.【F:src/config/types.ts†L77-L82】
+help prevent low-signal branches.【F:apps/cli/src/config/types.ts†L77-L82】
 
 ### Runtime controls
 
 At execution time the CLI exposes several toggles:
 
 - `--agent-mode <id>` switches the orchestrator profile without editing config
-  files.【F:src/cli/cli-parser.service.ts†L20-L44】
+  files.【F:apps/cli/src/cli/cli-parser.service.ts†L20-L44】
 - `--disable-subagents` flips `agents.enableSubagents` to `false` for the
   current run, forcing the manager to operate alone even if definitions are
-  present.【F:src/cli/cli-parser.service.ts†L27-L44】【F:src/config/config.service.ts†L288-L307】
+  present.【F:apps/cli/src/cli/cli-parser.service.ts†L27-L44】【F:apps/cli/src/config/config.service.ts†L288-L307】
 
 ### Delegating with `spawn_subagent`
 
@@ -265,11 +265,11 @@ If the model calls this tool the orchestrator validates the request, spawns the
 referenced subagent, and returns the child transcript summary as a structured
 tool result (including profile metadata when present). Downstream hooks and
 traces receive the delegation details so observers can audit which provider and
-model handled each child run.【F:src/core/agents/agent-orchestrator.service.ts†L23-L213】【F:src/core/agents/agent-orchestrator.service.ts†L420-L760】
+model handled each child run.【F:apps/cli/src/core/agents/agent-orchestrator.service.ts†L23-L213】【F:apps/cli/src/core/agents/agent-orchestrator.service.ts†L420-L760】
 
 LLMs can also "suggest" delegation conversationally, but only an explicit
 `spawn_subagent` call triggers execution—no separate CLI tool registration is
-required since the orchestrator injects the schema at runtime.【F:src/core/agents/agent-orchestrator.service.ts†L213-L340】【F:src/core/agents/agent-orchestrator.service.ts†L500-L624】
+required since the orchestrator injects the schema at runtime.【F:apps/cli/src/core/agents/agent-orchestrator.service.ts†L213-L340】【F:apps/cli/src/core/agents/agent-orchestrator.service.ts†L500-L624】
 
 ### Lifecycle hooks
 
@@ -277,7 +277,7 @@ Subagent invocations raise the same hook events as root agents. When a nested
 agent finishes, the orchestrator emits the `subagentStop` event with metadata
 about the agent ID, depth, prompt, and context summary. Custom hook modules can
 listen for this signal to capture transcripts, approvals, or metrics per
-subagent.【F:src/hooks/types.ts†L1-L102】
+subagent.【F:apps/cli/src/hooks/types.ts†L1-L102】
 
 ## Best practices
 
