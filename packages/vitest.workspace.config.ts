@@ -1,0 +1,53 @@
+import path from "path";
+import { fileURLToPath } from "url";
+import { defineConfig } from "vitest/config";
+
+const workspaceRoot = path.resolve(
+  fileURLToPath(new URL(".", import.meta.url)),
+  ".."
+);
+
+const packageNames = [
+  "config",
+  "context",
+  "engine",
+  "hooks",
+  "io",
+  "mcp",
+  "providers",
+  "templates",
+  "tokenizers",
+  "tools",
+  "types",
+];
+
+const packageAliases = packageNames.flatMap((name) => {
+  const basePath = path.resolve(workspaceRoot, "packages", name, "src");
+  return [
+    { find: `@eddie/${name}`, replacement: basePath },
+    { find: `@eddie/${name}/`, replacement: `${basePath}/` },
+  ];
+});
+
+export const createPackageVitestConfig = (packageName: string) =>
+  defineConfig({
+    resolve: {
+      alias: packageAliases,
+    },
+    test: {
+      globals: true,
+      include: ["test/**/*.test.ts"],
+      environment: "node",
+      passWithNoTests: true,
+      coverage: {
+        reporter: ["text", "html"],
+        reportsDirectory: path.resolve(
+          workspaceRoot,
+          "coverage",
+          packageName
+        ),
+      },
+    },
+  });
+
+export default createPackageVitestConfig;
