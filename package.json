@@ -1,57 +1,32 @@
 {
-    "name": "eddie",
-    "version": "1.0.6",
-    "main": "dist/main.js",
-    "bin": {
-        "eddie": "dist/main.js"
-    },
-    "engines": {
-        "node": ">=20.0.0"
-    },
-    "scripts": {
-        "build": "nest build",
-        "lint": "eslint 'src/**/*.ts'",
-        "test": "vitest --run",
-        "start": "nest start",
-        "dev": "nest start --watch"
-    },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/Teagan42/Eddie.git"
-    },
-    "keywords": [],
-    "author": "",
-    "license": "MIT",
-    "bugs": {
-        "url": "https://github.com/Teagan42/Eddie/issues"
-    },
-    "homepage": "https://github.com/Teagan42/Eddie#readme",
-    "description": "",
-    "dependencies": {
-        "@nestjs/common": "^11.0.0",
-        "@nestjs/core": "^11.0.0",
-        "@opentelemetry/api": "^1.9.0",
-        "ajv": "^8.17.1",
-        "chalk": "^5.6.2",
-        "eta": "^3.5.0",
-        "fast-glob": "^3.3.3",
-        "ignore": "^7.0.5",
-        "openai": "^6.2.0",
-        "pino": "^10.0.0",
-        "reflect-metadata": "^0.2.2",
-        "tiktoken-node": "^0.0.7",
-        "undici": "^7.16.0",
-        "yaml": "^2.6.0"
-    },
-    "devDependencies": {
-        "@nestjs/cli": "^11.0.0",
-        "@nestjs/testing": "^11.1.6",
-        "@types/node": "^24.7.0",
-        "@typescript-eslint/eslint-plugin": "^8.46.0",
-        "@typescript-eslint/parser": "^8.46.0",
-        "eslint": "^9.37.0",
-        "pino-pretty": "^11.2.2",
-        "typescript": "^5.9.3",
-        "vitest": "^3.2.4"
-    }
+  "name": "eddie",
+  "version": "1.0.6",
+  "private": true,
+  "main": "apps/cli/dist/main.js",
+  "bin": {
+    "eddie": "apps/cli/dist/main.js"
+  },
+  "workspaces": ["apps/*", "packages/*"],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces",
+    "test": "npm run test --workspaces",
+    "start": "npm run start --workspaces",
+    "dev": "npm run dev --workspaces"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Teagan42/Eddie.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Teagan42/Eddie/issues"
+  },
+  "homepage": "https://github.com/Teagan42/Eddie#readme",
+  "description": ""
 }

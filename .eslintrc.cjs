@@ -10,7 +10,7 @@ module.exports = {
     node: true,
     es2022: true,
   },
-  ignorePatterns: ["dist", "node_modules"],
+  ignorePatterns: ["dist", "apps/**/dist", "node_modules"],
   rules: {
     "@typescript-eslint/no-explicit-any": "off",
   },

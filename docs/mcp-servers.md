@@ -4,7 +4,7 @@ Eddie can discover remote tools and supplemental resources from any server that
 talks the [Model Context Protocol](https://modelcontextprotocol.io/). Once a
 server is registered the CLI automatically invokes `initialize`, `tools/list`,
 and `resources/list`, exposes the returned tools to agents, and stitches the
-returned resources into the packed context that prompts receive.【F:src/integrations/mcp/mcp-tool-source.service.ts†L24-L162】【F:src/core/engine/engine.service.ts†L144-L199】
+returned resources into the packed context that prompts receive.【F:apps/cli/src/integrations/mcp/mcp-tool-source.service.ts†L24-L162】【F:apps/cli/src/core/engine/engine.service.ts†L144-L199】
 
 ## 1. Declare the MCP source in your config
 
@@ -12,7 +12,7 @@ MCP servers are configured in the `tools.sources` array inside
 `eddie.config.(json|yaml)`. Each entry must provide a unique `id`, the literal
 `type: "mcp"`, and the JSON-RPC endpoint `url`. Optional fields let you set a
 human readable `name`, inject HTTP `headers`, and advertise protocol
-`capabilities` to the server during the handshake.【F:src/config/types.ts†L194-L210】【F:src/config/config.service.ts†L948-L1016】
+`capabilities` to the server during the handshake.【F:apps/cli/src/config/types.ts†L194-L210】【F:apps/cli/src/config/config.service.ts†L948-L1016】
 
 ```yaml
 model: gpt-4o-mini
@@ -38,7 +38,7 @@ When Eddie starts a session it will call this endpoint, register every reported
 tool alongside the built-in catalog (`bash`, `file_read`, `file_write`), and
 assign any discovered MCP resources to the current context so prompts and
 subagents can reference them via the usual `context.resources` data.
-【F:src/core/engine/engine.service.ts†L144-L199】
+【F:apps/cli/src/core/engine/engine.service.ts†L144-L199】
 
 ## 2. Provide authentication (optional)
 
@@ -46,7 +46,7 @@ If your MCP server requires authentication, declare the scheme under the
 `auth` block. Basic credentials are converted to `Authorization: Basic` headers
 and bearer tokens map to `Authorization: Bearer` automatically. You can also set
 `type: "none"` to force Eddie to skip header injection when the server relies on
-other mechanisms (for example IP allow lists).【F:src/config/types.ts†L200-L210】【F:src/config/config.service.ts†L1018-L1052】【F:src/integrations/mcp/mcp-tool-source.service.ts†L204-L268】
+other mechanisms (for example IP allow lists).【F:apps/cli/src/config/types.ts†L200-L210】【F:apps/cli/src/config/config.service.ts†L1018-L1052】【F:apps/cli/src/integrations/mcp/mcp-tool-source.service.ts†L204-L268】
 
 ```yaml
 tools:
@@ -62,7 +62,7 @@ tools:
 Set `headers` when you need to forward additional metadata (such as tenant IDs
 or custom API keys). Eddie merges these with the required JSON content headers
 and omits duplicate Authorization values so you stay in control of the final
-request payload.【F:src/integrations/mcp/mcp-tool-source.service.ts†L199-L233】
+request payload.【F:apps/cli/src/integrations/mcp/mcp-tool-source.service.ts†L199-L233】
 
 ## 3. Allow or disable tools per session
 
@@ -70,7 +70,7 @@ Discovered MCP tools obey the same `tools.enabled` and `tools.disabled`
 allowlists as the built-ins. Declare the exact tool names (as returned by the
 MCP server) to opt in or opt out on a per-run basis, or leave the lists unset to
 make every discovered tool available. Subagents can still apply their own tool
-filters on top of the global configuration.【F:src/core/engine/engine.service.ts†L168-L214】【F:src/core/engine/engine.service.ts†L409-L416】【F:src/core/engine/engine.service.ts†L501-L514】
+filters on top of the global configuration.【F:apps/cli/src/core/engine/engine.service.ts†L168-L214】【F:apps/cli/src/core/engine/engine.service.ts†L409-L416】【F:apps/cli/src/core/engine/engine.service.ts†L501-L514】
 
 ```yaml
 tools:
@@ -92,7 +92,7 @@ the MCP server responds successfully you will see its tools invoked in traces
 and hook payloads, and any resource entries will be appended to the packed
 context. Connection issues and protocol errors bubble up as descriptive
 exceptions that include the HTTP status or JSON-RPC error payload so you can fix
-them quickly.【F:src/integrations/mcp/mcp-tool-source.service.ts†L130-L233】
+them quickly.【F:apps/cli/src/integrations/mcp/mcp-tool-source.service.ts†L130-L233】
 
 Once the server is registered you can orchestrate it like any other tool source:
 configure subagents to call its tools, wrap the outputs in interceptors, and
@@ -145,15 +145,15 @@ When an MCP server advertises prompt support, Eddie now queries both
 `prompts/list` and `prompts/get` during discovery. Each prompt definition is
 cloned and tagged with the originating `sourceId`, so you receive stable
 metadata, argument schemas, and message sequences alongside the tools and
-resources reported by the server.【F:src/integrations/mcp/mcp-tool-source.service.ts†L29-L209】
+resources reported by the server.【F:apps/cli/src/integrations/mcp/mcp-tool-source.service.ts†L29-L209】
 
 The engine fetches these prompt definitions together with other MCP assets,
 making them available for custom orchestration even though the default CLI does
-not yet inject them into the packed context.【F:src/core/engine/engine.service.ts†L147-L156】
+not yet inject them into the packed context.【F:apps/cli/src/core/engine/engine.service.ts†L147-L156】
 You can wire the discovered prompts into your own Eta templates, persist them in
 hooks, or mirror them into local prompt catalogs to keep subagents aligned with
 remote guidance.
 
 If a server omits the prompt endpoints, Eddie ignores the `Method not found`
 error and continues with the rest of the discovery flow, so older MCP servers
-remain compatible.【F:src/integrations/mcp/mcp-tool-source.service.ts†L153-L206】【F:src/integrations/mcp/mcp-tool-source.service.ts†L353-L371】
+remain compatible.【F:apps/cli/src/integrations/mcp/mcp-tool-source.service.ts†L153-L206】【F:apps/cli/src/integrations/mcp/mcp-tool-source.service.ts†L353-L371】
