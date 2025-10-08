@@ -239,7 +239,7 @@ export class OpenAIAdapter implements ProviderAdapter {
       name: tool.name,
       description: tool.description ?? null,
       parameters: tool.parameters ?? null,
-      strict: true,
+      strict: false,
     }));
   }
 
