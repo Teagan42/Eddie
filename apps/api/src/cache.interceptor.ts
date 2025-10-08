@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import type { Request } from "express";
 import { Observable, of, tap } from "rxjs";
-import { createHash } from "node:crypto";
+import { createHash, pbkdf2Sync } from "node:crypto";
 import { ConfigService } from "@eddie/config";
 import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
@@ -142,7 +142,7 @@ export class ApiCacheInterceptor implements NestInterceptor, OnModuleInit {
       hash.update("::key=");
 
       if (apiKey) {
-        hash.update(createHash("sha1").update(apiKey).digest("hex"));
+        hash.update(pbkdf2Sync(apiKey, "eddie-api-cache", 100000, 32, "sha256").toString("hex"));
       } else {
         hash.update("anon");
       }
