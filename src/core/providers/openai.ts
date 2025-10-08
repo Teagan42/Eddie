@@ -28,6 +28,9 @@ type ResponseFormat = ResponseTextConfig["format"];
 
 interface ToolAccumulator {
   arguments: string;
+  ids: Set<string>;
+  callId?: string;
+  name?: string;
 }
 
 export class OpenAIAdapter implements ProviderAdapter {
@@ -46,6 +49,52 @@ export class OpenAIAdapter implements ProviderAdapter {
     const toolBuffer = new Map<string, ToolAccumulator>();
     const emittedToolCallIds = new Set<string>();
     let stream: ReturnType<OpenAI["responses"]["stream"]>;
+
+    const createAccumulator = (): ToolAccumulator => ({
+      arguments: "",
+      ids: new Set<string>(),
+      callId: undefined,
+      name: undefined,
+    });
+
+    const attachAccumulator = (
+      identifier: string | undefined,
+      accumulator: ToolAccumulator,
+    ): void => {
+      if (!identifier) {
+        return;
+      }
+
+      if (!accumulator.ids.has(identifier)) {
+        accumulator.ids.add(identifier);
+      }
+
+      toolBuffer.set(identifier, accumulator);
+    };
+
+    const ensureAccumulator = (
+      identifier: string | undefined,
+    ): ToolAccumulator => {
+      if (identifier) {
+        const existing = toolBuffer.get(identifier);
+        if (existing) {
+          return existing;
+        }
+      }
+
+      const accumulator = createAccumulator();
+      if (identifier) {
+        attachAccumulator(identifier, accumulator);
+      }
+      return accumulator;
+    };
+
+    const clearAccumulator = (accumulator: ToolAccumulator): void => {
+      for (const identifier of accumulator.ids) {
+        toolBuffer.delete(identifier);
+      }
+      accumulator.ids.clear();
+    };
 
     const streamParams = {
       model: options.model,
@@ -78,18 +127,52 @@ export class OpenAIAdapter implements ProviderAdapter {
         }
 
         switch (event.type) {
+          case "response.output_item.added": {
+            const item = event.item as
+              | { id?: string; call_id?: string; type?: string; name?: string }
+              | undefined;
+            if (!item || item.type !== "function_call") {
+              break;
+            }
+
+            const accumulator = ensureAccumulator(item.id ?? item.call_id);
+            attachAccumulator(item.id, accumulator);
+            attachAccumulator(item.call_id, accumulator);
+            if (item.call_id) {
+              accumulator.callId = item.call_id;
+            }
+            if (typeof item.name === "string") {
+              accumulator.name = item.name;
+            }
+            break;
+          }
           case "response.output_text.delta": {
             yield { type: "delta", text: event.delta };
             break;
           }
           case "response.function_call_arguments.delta": {
-            const existing = toolBuffer.get(event.item_id) ?? { arguments: "" };
-            existing.arguments += event.delta;
-            toolBuffer.set(event.item_id, existing);
+            const callId = (event as { call_id?: string }).call_id;
+            const eventName = (event as { name?: string }).name;
+            const accumulator = ensureAccumulator(event.item_id ?? callId);
+            accumulator.arguments += event.delta;
+            attachAccumulator(event.item_id, accumulator);
+            attachAccumulator(callId, accumulator);
+            if (typeof eventName === "string") {
+              accumulator.name = eventName;
+            }
             break;
           }
           case "response.function_call_arguments.done": {
-            const buffered = toolBuffer.get(event.item_id)?.arguments ?? "";
+            const callId = (event as { call_id?: string }).call_id;
+            const eventName = (event as { name?: string }).name;
+            const accumulator = ensureAccumulator(event.item_id ?? callId);
+            attachAccumulator(event.item_id, accumulator);
+            attachAccumulator(callId, accumulator);
+            if (typeof eventName === "string") {
+              accumulator.name = eventName;
+            }
+
+            const buffered = accumulator.arguments;
             const raw = event.arguments ?? buffered;
             let parsed: unknown = raw;
             try {
@@ -97,18 +180,25 @@ export class OpenAIAdapter implements ProviderAdapter {
             } catch {
               // Keep the raw string when JSON parsing fails.
             }
+            const identifier =
+              accumulator.callId ?? callId ?? event.item_id ?? undefined;
             yield {
               type: "tool_call",
-              id: event.item_id,
-              name: event.name ?? "unknown_tool",
+              id: identifier,
+              name: eventName ?? accumulator.name ?? "unknown_tool",
               arguments:
                 typeof parsed === "object" && parsed !== null
                   ? (parsed as Record<string, unknown>)
                   : { input: parsed },
               raw,
             };
-            toolBuffer.delete(event.item_id);
-            emittedToolCallIds.add(event.item_id);
+            for (const accId of accumulator.ids) {
+              emittedToolCallIds.add(accId);
+            }
+            if (identifier) {
+              emittedToolCallIds.add(identifier);
+            }
+            clearAccumulator(accumulator);
             break;
           }
           case "response.completed": {
@@ -176,7 +266,8 @@ export class OpenAIAdapter implements ProviderAdapter {
           continue;
         }
 
-        const buffered = identifier ? toolBuffer.get(identifier)?.arguments ?? "" : "";
+        const accumulator = identifier ? toolBuffer.get(identifier) : undefined;
+        const buffered = accumulator?.arguments ?? "";
         const raw = call.arguments ?? buffered;
         let parsed: unknown = raw;
         try {
@@ -188,7 +279,7 @@ export class OpenAIAdapter implements ProviderAdapter {
         yield {
           type: "tool_call",
           id: identifier,
-          name: call.name ?? "unknown_tool",
+          name: accumulator?.name ?? call.name ?? "unknown_tool",
           arguments:
             typeof parsed === "object" && parsed !== null
               ? (parsed as Record<string, unknown>)
@@ -198,7 +289,11 @@ export class OpenAIAdapter implements ProviderAdapter {
 
         if (identifier) {
           emittedToolCallIds.add(identifier);
-          toolBuffer.delete(identifier);
+          if (accumulator) {
+            clearAccumulator(accumulator);
+          } else {
+            toolBuffer.delete(identifier);
+          }
         }
       }
 
