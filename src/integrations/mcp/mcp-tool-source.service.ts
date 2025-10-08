@@ -80,12 +80,7 @@ export class McpToolSourceService {
     const sessionId = await this.initialize(source);
     const tools = await this.listTools(source, sessionId);
     const resources = await this.listResources(source, sessionId);
-    const prompts = await this.listPrompts(source, sessionId);
-    const promptDefinitions = await Promise.all(
-      prompts.map((descriptor) =>
-        this.getPrompt(source, sessionId, descriptor.name)
-      )
-    );
+    const promptDefinitions = await this.discoverPrompts(source, sessionId);
 
     const toolDefinitions = tools.map((tool) =>
       this.toToolDefinition(source, sessionId, tool)
@@ -153,6 +148,30 @@ export class McpToolSourceService {
       params
     );
     return result.prompts ?? [];
+  }
+
+  private async discoverPrompts(
+    source: MCPToolSourceConfig,
+    sessionId: string | undefined
+  ): Promise<McpPromptDefinition[]> {
+    try {
+      const descriptors = await this.listPrompts(source, sessionId);
+      if (!descriptors.length) {
+        return [];
+      }
+
+      return Promise.all(
+        descriptors.map((descriptor) =>
+          this.getPrompt(source, sessionId, descriptor.name)
+        )
+      );
+    } catch (error) {
+      if (this.isPromptsNotSupportedError(error)) {
+        return [];
+      }
+
+      throw error;
+    }
   }
 
   private async getPrompt(
@@ -329,5 +348,26 @@ export class McpToolSourceService {
       default:
         return "";
     }
+  }
+
+  private isPromptsNotSupportedError(error: unknown): boolean {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    const message = error.message.toLowerCase();
+    if (message.includes("method not found")) {
+      return true;
+    }
+
+    const cause = (error as { cause?: unknown }).cause;
+    if (cause && typeof cause === "object" && "code" in cause) {
+      const code = (cause as { code?: unknown }).code;
+      if (typeof code === "number" && code === -32601) {
+        return true;
+      }
+    }
+
+    return false;
   }
 }
