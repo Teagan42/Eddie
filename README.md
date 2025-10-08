@@ -38,7 +38,94 @@ Requires Node.js 20 or newer (Node 22 is used in development and CI). The bundle
 
 ## Configuration
 
-Eddie looks for `eddie.config.(json|yaml)` in the project root. Example:
+Eddie loads configuration from `eddie.config.(json|yaml)` in your project root
+and merges it with the defaults defined in `src/config/defaults.ts`. CLI flags
+still win for per-run overrides (for example `--model`, `--provider`,
+`--context`, `--auto-approve`, `--jsonl-trace`).
+
+Every top-level key in `EddieConfig` serves a specific subsystem:
+
+- **`model` / `provider`** – Default model name and provider credentials used
+  when no agent overrides are supplied.
+- **`providers`** – Named provider profiles (`Record<string, ProviderProfileConfig>`) for
+  multi-provider routing; each profile can declare its own API key, base URL, or
+  model version.
+- **`context`** – Globs, limits, and reusable bundles that determine what files
+  flow into prompts.
+- **`systemPrompt`** – The base prompt injected into the primary agent.
+- **`logLevel`** – Baseline verbosity for all loggers.
+- **`logging`** – Destination (`stdout`, `stderr`, or `file` with optional path),
+  pretty-print, color, and timestamp settings for the structured logger.
+- **`output`** – JSONL trace location, append mode, pretty stream toggle, and
+  optional working directory for artifacts.
+- **`tools`** – Lists of enabled or disabled tool identifiers, auto-approve
+  behaviour, and `sources` for external providers (including MCP servers).
+- **`hooks`** – Module list and optional directory scanned for lifecycle hook
+  implementations.
+- **`tokenizer`** – Provider used when computing token budgets.
+- **`agents`** – The agent manager prompt, subagent definitions, routing knobs,
+  and an enable/disable switch for hierarchical execution.
+
+### Cross-references & maintenance
+
+- Deep dives on subagents live in [docs/subagents.md](docs/subagents.md).
+- Adding MCP tool servers is covered in [docs/mcp-servers.md](docs/mcp-servers.md).
+- Prompt/context templating is documented in [docs/templates.md](docs/templates.md).
+
+Whenever you add a new configuration key in `src/config/types.ts`, update this
+section, `DEFAULT_CONFIG`, and any impacted guides so the documentation stays in
+sync with the runtime expectations.
+
+### Example: multi-provider project with file logging
+
+```yaml
+model: gpt-4o-mini
+provider:
+  name: openai
+providers:
+  anthropic-prod:
+    provider:
+      name: anthropic
+      apiKey: ${ANTHROPIC_API_KEY}
+    model: claude-3-5-sonnet-latest
+context:
+  include:
+    - "src/**/*.ts"
+  exclude:
+    - "dist/**"
+  maxBytes: 200000
+systemPrompt: "You are Eddie, a CLI coding assistant."
+logLevel: info
+logging:
+  level: debug
+  destination:
+    type: file
+    path: .eddie/logs/run.log
+    pretty: false
+  enableTimestamps: true
+output:
+  jsonlTrace: .eddie/trace.jsonl
+  jsonlAppend: true
+tools:
+  enabled: ["file_read", "file_write"]
+  disabled: ["bash"] # temporarily disable bash during CI runs
+hooks:
+  modules:
+    - "./dist/hooks/audit.js"
+  directory: "./hooks"
+tokenizer:
+  provider: openai
+agents:
+  mode: single
+  manager:
+    prompt: "Review the diff and suggest improvements."
+  subagents: []
+  routing:
+    confidenceThreshold: 0.6
+  enableSubagents: false
+```
+
+### Example: MCP-powered tooling with agent routing
 
 ```yaml
 model: gpt-4o-mini
@@ -47,17 +134,48 @@ provider:
 context:
   include:
     - "src/**/*.ts"
-  exclude:
-    - "dist/**"
-  maxBytes: 200000
+  variables:
+    repoName: eddie
 tools:
-  enabled: ["bash", "file_read", "file_write"]
-  autoApprove: false
+  enabled: ["bash", "file_read", "file_write", "mcp:filesystem"]
+  sources:
+    - id: local-fs
+      type: mcp
+      url: http://localhost:3001
+      name: Local Filesystem
+      headers:
+        Authorization: Bearer ${MCP_TOKEN}
+      capabilities:
+        tools:
+          file_search:
+            maxResults: 50
+hooks:
+  directory: "./hooks"
+tokenizer:
+  provider: tiktoken
+agents:
+  mode: router
+  manager:
+    prompt: "Coordinate subagents to implement requested features."
+    provider:
+      name: openai-compatible
+      baseUrl: https://custom-proxy.example.com/v1
+      apiKey: ${CUSTOM_KEY}
+  subagents:
+    - id: planner
+      description: "Break work into steps"
+      tools: ["mcp:filesystem"]
+      routingThreshold: 0.4
+    - id: implementer
+      description: "Apply filesystem changes"
+      tools: ["bash", "file_read", "file_write"]
+  routing:
+    confidenceThreshold: 0.55
+    maxDepth: 3
+  enableSubagents: true
 output:
-  jsonlTrace: .eddie/trace.jsonl
+  prettyStream: true
 ```
-
-CLI flags override config values: `--model`, `--provider`, `--context`, `--auto-approve`, `--jsonl-trace`, etc.
 
 ## Commands
 
