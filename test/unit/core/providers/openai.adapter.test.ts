@@ -1,26 +1,49 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OpenAIAdapter } from "../../../../src/core/providers/openai";
 
-const mocks = vi.hoisted(() => ({
-  fetchMock: vi.fn(),
-}));
+const streamMock = vi.hoisted(() => vi.fn());
 
-vi.mock("undici", () => ({
-  fetch: mocks.fetchMock,
-}));
+vi.mock("openai", () => {
+  class FakeStream implements AsyncIterable<unknown> {
+    constructor(
+      private readonly events: unknown[] = [],
+      private readonly finalPayload: unknown = {
+        output: [],
+        usage: undefined,
+        status: "completed",
+      },
+    ) {}
+
+    async *[Symbol.asyncIterator](): AsyncIterator<unknown> {
+      for (const event of this.events) {
+        yield event;
+      }
+    }
+
+    async finalResponse(): Promise<unknown> {
+      return this.finalPayload;
+    }
+  }
+
+  class FakeOpenAI {
+    responses = {
+      stream: streamMock,
+    };
+
+    constructor(_: unknown) {}
+  }
+
+  streamMock.mockImplementation(async () => new FakeStream());
+
+  return { default: FakeOpenAI };
+});
 
 describe("OpenAIAdapter", () => {
   beforeEach(() => {
-    mocks.fetchMock.mockReset();
+    streamMock.mockClear();
   });
 
   it("formats tools according to the chat/completions schema", async () => {
-    mocks.fetchMock.mockResolvedValue({
-      ok: false,
-      status: 400,
-      statusText: "Bad Request",
-    });
-
     const adapter = new OpenAIAdapter({});
 
     const iterator = adapter.stream({
@@ -38,11 +61,10 @@ describe("OpenAIAdapter", () => {
 
     await iterator.next();
 
-    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
-    const [, requestInit] = mocks.fetchMock.mock.calls[0] ?? [];
-    expect(requestInit).toBeDefined();
-    const body = JSON.parse((requestInit as { body: string }).body);
-    expect(body.tools).toEqual([
+    expect(streamMock).toHaveBeenCalledTimes(1);
+    const [requestBody] = streamMock.mock.calls[0] ?? [];
+    expect(requestBody).toBeDefined();
+    expect((requestBody as { tools?: unknown }).tools).toEqual([
       {
         type: "function",
         function: {

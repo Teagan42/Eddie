@@ -1,5 +1,9 @@
 import { Injectable } from "@nestjs/common";
-import { fetch } from "undici";
+import OpenAI from "openai";
+import type {
+  Response as OpenAIResponse,
+  ResponseFunctionToolCall,
+} from "openai/resources/responses/responses";
 import type { ProviderConfig } from "../../config/types";
 import type { ProviderAdapter, StreamEvent, StreamOptions, ToolSchema } from "../types";
 import type { ProviderAdapterFactory } from "./provider.tokens";
@@ -10,147 +14,210 @@ interface OpenAIConfig {
   apiKey?: string;
 }
 
+type ResponseStreamParams = Parameters<OpenAI["responses"]["stream"]>[0];
+type ResponseTool = NonNullable<ResponseStreamParams["tools"]>[number];
+type ResponseInput = NonNullable<ResponseStreamParams["input"]>;
+
 interface ToolAccumulator {
-  id?: string;
-  name?: string;
-  args: string;
+  arguments: string;
 }
 
 export class OpenAIAdapter implements ProviderAdapter {
   readonly name = "openai";
 
-  constructor(private readonly config: OpenAIConfig) {}
+  private readonly client: OpenAI;
 
-  private buildUrl(): string {
-    return `${this.config.baseUrl ?? "https://api.openai.com/v1"}/chat/completions`;
+  constructor(private readonly config: OpenAIConfig) {
+    this.client = new OpenAI({
+      apiKey: this.config.apiKey || process.env.OPENAI_API_KEY || undefined,
+      baseURL: this.config.baseUrl,
+    });
   }
 
   async *stream(options: StreamOptions): AsyncIterable<StreamEvent> {
-    const formattedTools = this.formatTools(options.tools);
-    const response = await fetch(this.buildUrl(), {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.config.apiKey ?? process.env.OPENAI_API_KEY ?? ""}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: options.model,
-        messages: options.messages,
-        stream: true,
-        tools: formattedTools,
-        response_format: options.responseFormat,
-      }),
-    });
+    const toolBuffer = new Map<string, ToolAccumulator>();
+    const emittedToolCallIds = new Set<string>();
+    let stream: ReturnType<OpenAI["responses"]["stream"]>;
 
-    if (!response.ok || !response.body) {
-      const message = `OpenAI request failed: ${response.status} ${response.statusText}`;
-      yield { type: "error", message };
+    try {
+      stream = await this.client.responses.stream({
+        model: options.model,
+        input: this.formatMessages(options.messages),
+        tools: this.formatTools(options.tools),
+        response_format: options.responseFormat as ResponseStreamParams["response_format"],
+        metadata: options.metadata as ResponseStreamParams["metadata"],
+      });
+    } catch (error) {
+      yield {
+        type: "error",
+        message: "Failed to start OpenAI response stream",
+        cause: error,
+      };
       return;
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    const toolBuffer = new Map<number, ToolAccumulator>();
+    let endReason: string | undefined;
+    let usage: Record<string, unknown> | undefined;
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-
-      const segments = buffer.split("\n\n");
-      buffer = segments.pop() ?? "";
-
-      for (const segment of segments) {
-        const trimmed = segment.trim();
-        if (!trimmed || !trimmed.startsWith("data:")) continue;
-        const payload = trimmed.slice(5).trim();
-        if (!payload || payload === "[DONE]") {
-          yield { type: "end" };
-          return;
+    try {
+      for await (const event of stream) {
+        for (const notification of extractNotificationEvents(event)) {
+          yield notification;
         }
 
-        try {
-          const json = JSON.parse(payload);
-
-          for (const notification of extractNotificationEvents(json)) {
-            yield notification;
+        switch (event.type) {
+          case "response.output_text.delta": {
+            yield { type: "delta", text: event.delta };
+            break;
           }
-
-          const choice = json.choices?.[0];
-          if (!choice) continue;
-
-          const deltaContent = choice.delta?.content;
-          if (typeof deltaContent === "string") {
-            yield { type: "delta", text: deltaContent };
-          } else if (Array.isArray(deltaContent)) {
-            for (const item of deltaContent) {
-              if (
-                item &&
-                typeof item === "object" &&
-                typeof (item as { text?: string }).text === "string"
-              ) {
-                yield { type: "delta", text: (item as { text: string }).text };
-              }
+          case "response.function_call_arguments.delta": {
+            const existing = toolBuffer.get(event.item_id) ?? { arguments: "" };
+            existing.arguments += event.delta;
+            toolBuffer.set(event.item_id, existing);
+            break;
+          }
+          case "response.function_call_arguments.done": {
+            const buffered = toolBuffer.get(event.item_id)?.arguments ?? "";
+            const raw = event.arguments ?? buffered;
+            let parsed: unknown = raw;
+            try {
+              parsed = JSON.parse(raw || "{}");
+            } catch {
+              // Keep the raw string when JSON parsing fails.
             }
+            yield {
+              type: "tool_call",
+              id: event.item_id,
+              name: event.name ?? "unknown_tool",
+              arguments:
+                typeof parsed === "object" && parsed !== null
+                  ? (parsed as Record<string, unknown>)
+                  : { input: parsed },
+              raw,
+            };
+            toolBuffer.delete(event.item_id);
+            emittedToolCallIds.add(event.item_id);
+            break;
           }
-
-          if (Array.isArray(choice.delta?.tool_calls)) {
-            for (const call of choice.delta.tool_calls) {
-              const index = call.index ?? 0;
-              const accumulator =
-                toolBuffer.get(index) ?? { id: call.id, name: undefined, args: "" };
-              if (call.id) accumulator.id = call.id;
-              if (call.function?.name) accumulator.name = call.function.name;
-              if (call.function?.arguments) {
-                accumulator.args += call.function.arguments;
-              }
-              toolBuffer.set(index, accumulator);
-            }
+          case "response.completed": {
+            usage = this.normalizeUsage(event.response?.usage);
+            endReason = event.response?.status ?? "completed";
+            break;
           }
-
-          if (choice.finish_reason === "tool_calls") {
-            for (const accumulator of toolBuffer.values()) {
-              let parsed: unknown = accumulator.args;
-              try {
-                parsed = JSON.parse(accumulator.args || "{}");
-              } catch {
-                // keep raw string if parsing fails
-              }
-              yield {
-                type: "tool_call",
-                id: accumulator.id,
-                name: accumulator.name ?? "unknown_tool",
-                arguments:
-                  typeof parsed === "object" && parsed !== null
-                    ? (parsed as Record<string, unknown>)
-                    : { input: parsed },
-                raw: accumulator.args,
-              };
-            }
-            toolBuffer.clear();
-            return;
+          case "response.failed": {
+            usage = this.normalizeUsage(event.response?.usage);
+            endReason = event.response?.status ?? "failed";
+            yield {
+              type: "error",
+              message: event.response?.error?.message ?? "OpenAI response failed",
+              cause: event.response,
+            };
+            break;
           }
-
-          if (choice.finish_reason === "stop") {
-            yield { type: "end", reason: "stop", usage: json.usage };
-            return;
+          case "response.incomplete": {
+            usage = this.normalizeUsage(event.response?.usage);
+            endReason = event.response?.status ?? "incomplete";
+            break;
           }
-        } catch (error) {
-          yield {
-            type: "error",
-            message: "Failed to parse OpenAI stream payload",
-            cause: error,
-          };
+          case "error": {
+            yield {
+              type: "error",
+              message: event.message,
+              cause: { code: event.code, param: event.param },
+            };
+            break;
+          }
+          default: {
+            // Ignore other event types for now.
+            break;
+          }
         }
       }
+    } catch (error) {
+      yield {
+        type: "error",
+        message: "OpenAI stream failed",
+        cause: error,
+      };
+      return;
     }
+
+    const finalResponse = await stream
+      .finalResponse()
+      .catch<OpenAIResponse | undefined>(() => undefined);
+
+    if (finalResponse) {
+      for (const notification of extractNotificationEvents(finalResponse)) {
+        yield notification;
+      }
+      for (const item of finalResponse.output ?? []) {
+        if ((item as { type?: string }).type !== "function_call") {
+          continue;
+        }
+
+        const call = item as ResponseFunctionToolCall;
+        const identifier = call.id ?? call.call_id;
+        if (identifier && emittedToolCallIds.has(identifier)) {
+          continue;
+        }
+
+        const buffered = identifier ? toolBuffer.get(identifier)?.arguments ?? "" : "";
+        const raw = call.arguments ?? buffered;
+        let parsed: unknown = raw;
+        try {
+          parsed = JSON.parse(raw || "{}");
+        } catch {
+          // Keep raw text fallback when parsing fails.
+        }
+
+        yield {
+          type: "tool_call",
+          id: identifier,
+          name: call.name ?? "unknown_tool",
+          arguments:
+            typeof parsed === "object" && parsed !== null
+              ? (parsed as Record<string, unknown>)
+              : { input: parsed },
+          raw,
+        };
+
+        if (identifier) {
+          emittedToolCallIds.add(identifier);
+          toolBuffer.delete(identifier);
+        }
+      }
+
+      usage = usage ?? this.normalizeUsage(finalResponse.usage);
+      endReason = endReason ?? finalResponse.status ?? undefined;
+    }
+
+    yield { type: "end", reason: endReason, usage };
   }
 
-  private formatTools(tools: ToolSchema[] | undefined) {
+  private formatMessages(messages: StreamOptions["messages"]): ResponseInput {
+    return messages.map((message) => {
+      if (message.role === "tool") {
+        return {
+          type: "function_call_output",
+          call_id: message.tool_call_id ?? message.name ?? "tool",
+          output: message.content,
+        } satisfies ResponseInput[number];
+      }
+
+      return {
+        role: message.role === "system" || message.role === "user" || message.role === "assistant"
+          ? message.role
+          : "user",
+        content: [{ type: "text", text: message.content }],
+        type: "message",
+      } satisfies ResponseInput[number];
+    }) as ResponseInput;
+  }
+
+  private formatTools(tools: ToolSchema[] | undefined): ResponseTool[] | undefined {
     if (!tools) return undefined;
 
-    return tools.map((tool) => ({
+    return tools.map<ResponseTool>((tool) => ({
       type: tool.type,
       function: {
         name: tool.name,
@@ -158,6 +225,13 @@ export class OpenAIAdapter implements ProviderAdapter {
         ...(tool.description ? { description: tool.description } : {}),
       },
     }));
+  }
+
+  private normalizeUsage(usage?: unknown): Record<string, unknown> | undefined {
+    if (!usage || typeof usage !== "object") {
+      return undefined;
+    }
+    return usage as Record<string, unknown>;
   }
 }
 
