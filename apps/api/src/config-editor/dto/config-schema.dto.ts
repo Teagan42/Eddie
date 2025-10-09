@@ -11,12 +11,14 @@ export class ConfigSchemaDto {
   @ApiProperty({
     description: "JSON Schema describing the resolved Eddie configuration.",
     type: "object",
+    additionalProperties: true,
   })
   schema!: JSONSchema7;
 
   @ApiProperty({
     description: "JSON Schema describing the configuration file input.",
     type: "object",
+    additionalProperties: true,
   })
   inputSchema!: JSONSchema7;
 }

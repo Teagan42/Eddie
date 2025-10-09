@@ -21,9 +21,17 @@ export class ConfigSourceDto {
   @ApiProperty({ description: "Raw configuration source." })
   content!: string;
 
-  @ApiProperty({ description: "Parsed configuration input object.", type: "object" })
+  @ApiProperty({
+    description: "Parsed configuration input object.",
+    type: "object",
+    additionalProperties: true,
+  })
   input!: EddieConfigInput;
 
-  @ApiProperty({ description: "Resolved Eddie configuration.", type: "object" })
+  @ApiProperty({
+    description: "Resolved Eddie configuration.",
+    type: "object",
+    additionalProperties: true,
+  })
   config!: EddieConfig;
 }
