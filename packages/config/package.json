@@ -19,5 +19,8 @@
     "@eddie/templates": "^0.0.0",
     "@nestjs/common": "^11.0.0",
     "yaml": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/json-schema": "^7.0.15"
   }
 }

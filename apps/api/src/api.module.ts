@@ -22,6 +22,7 @@ import { LogsModule } from "./logs/logs.module";
 import { RuntimeConfigModule } from "./runtime-config/runtime-config.module";
 import { UserPreferencesModule } from "./user-preferences/user-preferences.module";
 import { OrchestratorModule } from "./orchestrator/orchestrator.module";
+import { ConfigEditorModule } from "./config-editor/config-editor.module";
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { OrchestratorModule } from "./orchestrator/orchestrator.module";
     TracesModule,
     LogsModule,
     RuntimeConfigModule,
+    ConfigEditorModule,
     UserPreferencesModule,
     OrchestratorModule,
   ],

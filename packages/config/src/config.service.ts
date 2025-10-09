@@ -19,6 +19,16 @@ import type {
   ToolsConfig,
 } from "./types";
 
+export type ConfigFileFormat = "yaml" | "json";
+
+export interface ConfigFileSnapshot {
+  path: string | null;
+  format: ConfigFileFormat;
+  content: string;
+  input: EddieConfigInput;
+  config: EddieConfig;
+}
+
 const CONFIG_FILENAMES = [
   "eddie.config.json",
   "eddie.config.yaml",
@@ -37,7 +47,14 @@ export class ConfigService {
   async load(options: CliRuntimeOptions): Promise<EddieConfig> {
     const configPath = await this.resolveConfigPath(options);
     const fileConfig = configPath ? await this.readConfigFile(configPath) : {};
-    const merged = this.mergeConfig(DEFAULT_CONFIG, fileConfig);
+    return this.compose(fileConfig, options);
+  }
+
+  async compose(
+    input: EddieConfigInput,
+    options: CliRuntimeOptions = {}
+  ): Promise<EddieConfig> {
+    const merged = this.mergeConfig(DEFAULT_CONFIG, input);
     if (merged.logging?.level) {
       merged.logLevel = merged.logging.level;
     } else if (merged.logLevel) {
@@ -63,6 +80,66 @@ export class ConfigService {
     this.validateConfig(finalConfig);
 
     return finalConfig;
+  }
+
+  async readSnapshot(
+    options: CliRuntimeOptions = {}
+  ): Promise<ConfigFileSnapshot> {
+    const configPath = await this.resolveConfigPath(options);
+    const format = configPath ? this.detectFormat(configPath) : "yaml";
+
+    let content: string;
+    let input: EddieConfigInput;
+
+    if (configPath) {
+      content = await fs.readFile(configPath, "utf-8");
+      input = await this.readConfigFile(configPath);
+    } else {
+      content = yaml.stringify(DEFAULT_CONFIG);
+      input = this.parseSource(content, "yaml");
+    }
+
+    const config = await this.compose(input, options);
+
+    return {
+      path: configPath,
+      format,
+      content,
+      input,
+      config,
+    };
+  }
+
+  async writeSource(
+    source: string,
+    format: ConfigFileFormat,
+    options: CliRuntimeOptions = {},
+    targetPath?: string | null
+  ): Promise<ConfigFileSnapshot> {
+    const resolvedTarget = targetPath
+      ? path.resolve(targetPath)
+      : await this.resolveConfigPath(options);
+
+    const destination =
+      resolvedTarget ??
+      path.resolve(
+        format === "json" ? "eddie.config.json" : "eddie.config.yaml"
+      );
+
+    const input = this.parseSource(source, format);
+    const config = await this.compose(input, options);
+    const serialized = this.serializeInput(input, format);
+
+    await fs.mkdir(path.dirname(destination), { recursive: true });
+    await fs.writeFile(destination, serialized, "utf-8");
+
+    return {
+      path: destination,
+      format,
+      content: serialized,
+      input,
+      config,
+    };
   }
 
   private async readConfigFile(candidate: string): Promise<EddieConfigInput> {
@@ -108,6 +185,46 @@ export class ConfigService {
     }
 
     return null;
+  }
+
+  parseSource(source: string, format: ConfigFileFormat): EddieConfigInput {
+    const content = source.trim();
+    if (!content) {
+      return {};
+    }
+
+    if (format === "json") {
+      const parsed = JSON.parse(source) as unknown;
+      if (!this.isPlainObject(parsed)) {
+        throw new Error("Configuration JSON must represent an object.");
+      }
+      return parsed as EddieConfigInput;
+    }
+
+    const parsed = yaml.parse(source) ?? {};
+    if (!this.isPlainObject(parsed)) {
+      throw new Error("Configuration YAML must represent an object.");
+    }
+    return parsed as EddieConfigInput;
+  }
+
+  serializeInput(
+    input: EddieConfigInput,
+    format: ConfigFileFormat
+  ): string {
+    const normalized = this.isPlainObject(input) ? input : {};
+    if (format === "json") {
+      return `${JSON.stringify(normalized, null, 2)}\n`;
+    }
+    return yaml.stringify(normalized);
+  }
+
+  private detectFormat(candidate: string): ConfigFileFormat {
+    const lower = candidate.toLowerCase();
+    if (lower.endsWith(".json") || lower.endsWith(".rc")) {
+      return "json";
+    }
+    return "yaml";
   }
 
   private ensureContextShape(
