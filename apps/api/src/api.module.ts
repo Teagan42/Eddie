@@ -8,7 +8,7 @@ import {
 import { ConfigModule } from "@eddie/config";
 import { ContextModule } from "@eddie/context";
 import { EngineModule } from "@eddie/engine";
-import { IoModule } from "@eddie/io";
+import { IoModule, createLoggerProviders } from "@eddie/io";
 import { HealthController } from "./controllers/health.controller";
 import { HttpLoggerMiddleware } from "./middleware/http-logger.middleware";
 import { ApiValidationPipe } from "./validation.pipe";
@@ -27,6 +27,7 @@ import { ApiCacheInterceptor } from "./cache.interceptor";
     ApiKeyGuard,
     RequestLoggingInterceptor,
     ApiCacheInterceptor,
+    ...createLoggerProviders(),
     {
       provide: APP_PIPE,
       useExisting: ApiValidationPipe,

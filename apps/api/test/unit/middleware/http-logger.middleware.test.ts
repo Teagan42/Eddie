@@ -8,7 +8,7 @@ vi.mock("on-finished", () => ({
 }));
 
 import { HttpLoggerMiddleware } from "../../../src/middleware/http-logger.middleware";
-import { LoggerService } from "@eddie/io";
+import type { Logger } from "pino";
 
 describe("HttpLoggerMiddleware", () => {
   const originalHrtime = process.hrtime.bigint;
@@ -22,17 +22,14 @@ describe("HttpLoggerMiddleware", () => {
   });
 
   it("logs request metadata once the response finishes", () => {
-    const logger = { info: vi.fn() } as const;
-    const loggerService = {
-      getLogger: vi.fn(() => logger),
-    } as unknown as LoggerService;
+    const logger = { info: vi.fn() };
 
     (process.hrtime as unknown as { bigint: () => bigint }).bigint = vi
       .fn()
       .mockReturnValueOnce(0n)
       .mockReturnValueOnce(5_000_000n);
 
-    const middleware = new HttpLoggerMiddleware(loggerService);
+    const middleware = new HttpLoggerMiddleware(logger as unknown as Logger);
     const req = {
       method: "GET",
       originalUrl: "/health",
@@ -47,7 +44,6 @@ describe("HttpLoggerMiddleware", () => {
     middleware.use(req, res, next);
 
     expect(next).toHaveBeenCalledTimes(1);
-    expect(loggerService.getLogger).toHaveBeenCalledWith("http");
     expect(logger.info).toHaveBeenCalledWith(
       {
         method: "GET",

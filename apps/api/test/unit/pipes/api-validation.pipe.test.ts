@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Type } from "class-transformer";
 import { IsInt } from "class-validator";
 import type { ConfigService, EddieConfig } from "@eddie/config";
-import { LoggerService } from "@eddie/io";
+import type { Logger } from "pino";
 import { ApiValidationPipe } from "../../../src/validation.pipe";
 
 describe("ApiValidationPipe", () => {
@@ -40,14 +40,14 @@ describe("ApiValidationPipe", () => {
     }
 
     const logger = { warn: vi.fn() };
-    const loggerService = {
-      getLogger: vi.fn(() => logger),
-    } as unknown as LoggerService;
     const config = createConfig();
     const configService = {
       load: vi.fn().mockResolvedValue(config),
     } as unknown as ConfigService;
-    const pipe = new ApiValidationPipe(configService, loggerService);
+    const pipe = new ApiValidationPipe(
+      configService,
+      logger as unknown as Logger
+    );
 
     await pipe.onModuleInit();
 
@@ -58,7 +58,6 @@ describe("ApiValidationPipe", () => {
 
     expect(result).toEqual({ count: 4 });
     expect(configService.load).toHaveBeenCalled();
-    expect(loggerService.getLogger).toHaveBeenCalledWith("api:validation");
     expect(logger.warn).not.toHaveBeenCalled();
   });
 
@@ -70,14 +69,14 @@ describe("ApiValidationPipe", () => {
     }
 
     const logger = { warn: vi.fn() };
-    const loggerService = {
-      getLogger: vi.fn(() => logger),
-    } as unknown as LoggerService;
     const config = createConfig();
     const configService = {
       load: vi.fn().mockResolvedValue(config),
     } as unknown as ConfigService;
-    const pipe = new ApiValidationPipe(configService, loggerService);
+    const pipe = new ApiValidationPipe(
+      configService,
+      logger as unknown as Logger
+    );
 
     await pipe.onModuleInit();
 

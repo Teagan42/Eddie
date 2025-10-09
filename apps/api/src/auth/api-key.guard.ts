@@ -10,7 +10,8 @@ import { Reflector } from "@nestjs/core";
 import { ConfigService } from "@eddie/config";
 import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
-import { LoggerService } from "@eddie/io";
+import { InjectLogger } from "@eddie/io";
+import type { Logger } from "pino";
 import { IS_PUBLIC_KEY } from "./public.decorator";
 
 interface ContextSummary {
@@ -24,16 +25,13 @@ export class ApiKeyGuard implements CanActivate, OnModuleInit {
   private apiKeys = new Set<string>();
   private initPromise: Promise<void> | null = null;
   private contextSummary: ContextSummary | null = null;
-  private readonly logger: ReturnType<LoggerService["getLogger"]>;
 
   constructor(
     private readonly reflector: Reflector,
     private readonly configService: ConfigService,
     private readonly contextService: ContextService,
-    private readonly loggerService: LoggerService
-  ) {
-    this.logger = this.loggerService.getLogger("api:auth");
-  }
+    @InjectLogger("api:auth") private readonly logger: Logger
+  ) {}
 
   async onModuleInit(): Promise<void> {
     this.initPromise = this.initialize();

@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { firstValueFrom, of, throwError } from "rxjs";
 import type { ConfigService, EddieConfig } from "@eddie/config";
-import { LoggerService } from "@eddie/io";
+import type { Logger } from "pino";
 import { RequestLoggingInterceptor } from "../../../src/logging.interceptor";
 
 const createExecutionContext = (
@@ -43,15 +43,12 @@ describe("RequestLoggingInterceptor", () => {
 
   it("logs successful requests without bodies by default", async () => {
     const logger = { debug: vi.fn(), info: vi.fn(), error: vi.fn() };
-    const loggerService = {
-      getLogger: vi.fn(() => logger),
-    } as unknown as LoggerService;
     const configService = {
       load: vi.fn().mockResolvedValue(createConfig("info")),
     } as unknown as ConfigService;
     const interceptor = new RequestLoggingInterceptor(
       configService,
-      loggerService
+      logger as unknown as Logger
     );
     await interceptor.onModuleInit();
 
@@ -77,7 +74,6 @@ describe("RequestLoggingInterceptor", () => {
     );
 
     expect(result).toEqual({ status: "ok" });
-    expect(loggerService.getLogger).toHaveBeenCalledWith("api:requests");
     expect(logger.debug).toHaveBeenCalledWith(
       {
         method: "GET",
@@ -99,15 +95,12 @@ describe("RequestLoggingInterceptor", () => {
 
   it("logs request pipeline errors", async () => {
     const logger = { debug: vi.fn(), info: vi.fn(), error: vi.fn() };
-    const loggerService = {
-      getLogger: vi.fn(() => logger),
-    } as unknown as LoggerService;
     const configService = {
       load: vi.fn().mockResolvedValue(createConfig("debug")),
     } as unknown as ConfigService;
     const interceptor = new RequestLoggingInterceptor(
       configService,
-      loggerService
+      logger as unknown as Logger
     );
     await interceptor.onModuleInit();
 
