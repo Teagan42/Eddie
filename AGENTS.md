@@ -1,66 +1,19 @@
-# Eddie Agents Overview
+# Eddie Contribution Overview
 
-Eddie acts as a command-line facilitator for agentic AI workflows. This document explains the moving pieces so future features or new agents can be added confidently.
+Eddie is a multi-surface agent platform comprising a Node.js CLI, a NestJS API, and supporting web tooling. Use this document as a map to deeper guides before making changes.
 
-## High-Level Architecture
+## Architecture at a Glance
 
-```
-CLI (CliRunnerService → CliParserService)
-  ├─ ask/run/chat/context/trace commands
-  └─ CliOptionsService.parse → Engine
-Engine (src/core/engine)
-  ├─ loadConfig → config/config.service.ts (merges defaults + file + CLI flags)
-  ├─ ContextService → core/context/context.service.ts (glob, ignore, budgets)
-  ├─ makeProvider → core/providers/* (adapter pattern)
-  ├─ ToolRegistry → core/tools/* (AJV validated tool calls)
-  ├─ stream loop → handles deltas, tool calls, traces, hooks
-  └─ LoggerService.configure → io/logger.service.ts (per-run structured logging)
-```
+- **CLI** – Launches agent workflows and streams tool interactions. See [`apps/cli/AGENTS.md`](apps/cli/AGENTS.md) for detailed architecture and testing notes.
+- **API** – Provides hosted agent capabilities using NestJS modules, providers, and guards. Start with [`docs/api.md`](docs/api.md) for module layout, DI strategy, and testing guidelines.
+- **Web & Companion Tools** – Front-end and supporting packages live under `apps/web`, `packages/`, and `examples/`. Check local `AGENTS.md` files or package READMEs when present.
 
-Key flows:
+## Shared Practices
 
-1. **Command Entry** – Commands collect flags, pass them through `CliOptionsService.parse`, and call the engine.
-2. **Configuration Layering** – `loadConfig` merges defaults (`DEFAULT_CONFIG`), optional YAML/JSON configs, and CLI overrides, yielding a typed `EddieConfig` used everywhere.
-3. **Context Packing** – `packContext` resolves globs relative to `context.baseDir`, enforces `maxFiles/maxBytes`, and produces both file metadata and a stitched text payload. It logs budget decisions with a scoped logger.
-4. **Provider Abstraction** – `core/providers` exposes OpenAI, Anthropic, and generic OpenAI-compatible adapters, each yielding `StreamEvent`s with deltas, tool calls, and errors.
-5. **Tool Loop** – Tool calls stream from providers, are validated via AJV schemas in `ToolRegistry`, and dispatched to built-ins (`bash`, `file_read`, `file_write`). Confirmation prompts are mediated through `io/confirm.service` and respect `--auto-approve`/`--non-interactive` flags.
-6. **Observability** – `io/logger.service` centralises logging configuration (stdout/stderr/file with optional pretty transport). The engine writes JSONL traces, while hooks can emit additional telemetry.
+- **Branching & Commits** – Create feature branches with the pattern `codex/<description>` and write [Conventional Commits](https://www.conventionalcommits.org/) for every change.
+- **Architecture Decisions** – Record significant design choices as ADRs under `docs/adr/`, numbering them sequentially (`0001-*.md`, `0002-*.md`, ...).
+- **Documentation Updates** – Whenever behaviour or configuration changes, update all relevant references: the README, `docs/examples`, `docs/mcp-servers.md`, `docs/subagents.md`, and any surface-specific guides.
+- **Testing Discipline** – Add or update tests alongside behavioural changes. Prefer realistic fixtures and keep required dev dependencies declared so the full suite runs cleanly.
+- **Public Interfaces** – Maintain JSDoc/TSdoc coverage for exported APIs and keep generated or human-authored docs in sync with code.
 
-## Agents & Hooks
-
-The runtime treats each provider invocation as an “agent execution”:
-
-- The `engine` maintains a message history and re-asks the provider whenever a tool call is fulfilled, mirroring the agentic loop popularised by IDE copilots.
-- Hooks (loaded via `hooks/hooks-loader.service.ts`) allow external agents to subscribe to lifecycle events such as `beforeModelCall`, `onToolCall`, or `onComplete`, enabling custom metrics, approvals, or policy enforcement.
-
-To add a new agent mode:
-
-1. Define a new CLI command (or extend `chat/run`) that prepares specialised history/flags.
-2. Provide an adapter implementing the `ProviderAdapter` interface if the agent talks to a new API.
-3. Optionally register additional tools via `ToolRegistry.register` or through hook modules.
-
-## Patterns and Considerations
-
-- **Adapter Pattern** – Providers conform to `ProviderAdapter`, isolating API quirks (stream formats, tool-call semantics).
-- **Dependency Injection via Config** – Configuration objects flow from CLI → engine → subsystems, avoiding global state besides the logger singleton.
-- **Functional Core / Imperative Shell** – Pure data transforms (context packing, config merge) feed into side-effecting loops (streaming, file IO), simplifying tests.
-- **Structured Logging** – `LoggerService.configure` must be called once per command; scoped loggers (`getLogger("engine")`) tag events for later filtering.
-- **Extensibility Hooks** – Hook bus uses Node’s `EventEmitter`; modules can export an installer function or an event map, making composition dead-simple.
-
-## Implementation Notes
-
-- Tests live under `test/unit` and `test/integration`, both powered by Vitest. Add isolated logic specs to `test/unit`, and cover multi-service flows or CLI wiring in `test/integration` with realistic fixtures mirroring scenarios such as `test/integration/cli-runner.integration.test.ts`.
-- When writing new adapters, follow the existing ones: parse streaming payloads incrementally and normalise into `StreamEvent` objects.
-- Tool authors should return concise payloads; heavy binary outputs should be redirected to files and referenced in the tool result string.
-- Write tests alongside every code change, preferring realistic data that mirrors production usage (e.g., representative file contents, plausible API payloads).
-
-## Contribution Best Practices
-
-- Create feature branches using the pattern `codex/$description` to keep work isolated and reviewable.
-- Follow [Conventional Commits](https://www.conventionalcommits.org/) for every commit (for example, `feat: add foo support` or `fix: handle bar edge case`). Keep commits atomic and group related work logically across documentation, scaffolding, refactors, logic/features, bug fixes, and tests.
-- Whenever configuration keys or defaults change, audit and update every configuration example: the README "Configuration" section, `docs/examples`, `docs/mcp-servers.md`, and `docs/subagents.md`. Add fresh examples alongside new configuration features so future contributors can rely on comprehensive coverage.
-- Record all significant architectural or design decisions as ADRs stored under `adr/`, numbering each file sequentially (`0001-some-decision.md`, `0002-another-decision.md`, and so on).
-- Update or add tests for every behavioural change. Prefer fixtures that mirror real-world inputs so regressions surface quickly, and include any required `devDependencies` in `package.json` to keep the test suite runnable.
-- Ensure all TypeScript code adheres to the project's documentation standards (JSDoc/TSdoc annotations where applicable, public APIs documented, etc.).
-
-Adhering to these practices keeps Eddie maintainable while acting as a flexible agent host for future LLM integrations.
+Following these shared expectations keeps each surface consistent while allowing specialised guides—such as the CLI and API references—to dive into implementation details.
