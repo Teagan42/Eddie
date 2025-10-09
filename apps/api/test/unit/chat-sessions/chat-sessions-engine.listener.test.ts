@@ -4,6 +4,9 @@ import { ChatSessionsEngineListener } from "../../../src/chat-sessions/chat-sess
 import { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
 import { ChatMessageRole } from "../../../src/chat-sessions/dto/create-chat-message.dto";
 import type { ChatMessageDto } from "../../../src/chat-sessions/dto/chat-session.dto";
+import type { LogsService } from "../../../src/logs/logs.service";
+import type { TraceDto } from "../../../src/traces/dto/trace.dto";
+import type { TracesService } from "../../../src/traces/traces.service";
 
 const createChatMessage = (
   overrides: Partial<ChatMessageDto> = {}
@@ -21,6 +24,9 @@ describe("ChatSessionsEngineListener", () => {
   const listMessages = vi.fn();
   const addMessage = vi.fn();
   let engineRun: ReturnType<typeof vi.fn>;
+  let tracesCreate: ReturnType<typeof vi.fn>;
+  let tracesUpdateStatus: ReturnType<typeof vi.fn>;
+  let logsAppend: ReturnType<typeof vi.fn>;
   let chatSessions: ChatSessionsService;
   let listener: ChatSessionsEngineListener;
 
@@ -40,7 +46,32 @@ describe("ChatSessionsEngineListener", () => {
       run: engineRun,
     } as unknown as EngineService;
 
-    listener = new ChatSessionsEngineListener(chatSessions, engine);
+    tracesCreate = vi.fn();
+    tracesUpdateStatus = vi.fn();
+    const traces = {
+      create: tracesCreate,
+      updateStatus: tracesUpdateStatus,
+    } as unknown as TracesService;
+    const defaultTrace: TraceDto = {
+      id: "trace-default",
+      name: "engine.run",
+      status: "running",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    tracesCreate.mockReturnValue(defaultTrace);
+
+    logsAppend = vi.fn();
+    const logs = {
+      append: logsAppend,
+    } as unknown as LogsService;
+
+    listener = new ChatSessionsEngineListener(
+      chatSessions,
+      engine,
+      traces,
+      logs
+    );
   });
 
   it("registers and unregisters with the chat sessions service", () => {
@@ -72,6 +103,15 @@ describe("ChatSessionsEngineListener", () => {
     const newMessage = createChatMessage({ id: "m-3" });
 
     listMessages.mockReturnValue([...historyMessages, newMessage]);
+
+    const trace: TraceDto = {
+      id: "trace-success",
+      name: "engine.run",
+      status: "running",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    tracesCreate.mockReturnValue(trace);
 
     const engineResult: EngineResult = {
       messages: [
@@ -106,12 +146,53 @@ describe("ChatSessionsEngineListener", () => {
       role: ChatMessageRole.Assistant,
       content: "Next steps",
     });
+
+    expect(tracesCreate).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      name: "engine.run",
+      status: "running",
+      metadata: { messageId: "m-3" },
+    });
+
+    expect(tracesUpdateStatus).toHaveBeenCalledWith(
+      "trace-success",
+      "completed",
+      expect.any(Number),
+      expect.objectContaining({
+        responseCount: 1,
+      })
+    );
+
+    expect(logsAppend).toHaveBeenCalledWith(
+      "info",
+      "Engine run started",
+      expect.objectContaining({ sessionId: "session-1", messageId: "m-3" })
+    );
+
+    expect(logsAppend).toHaveBeenCalledWith(
+      "info",
+      "Engine run completed",
+      expect.objectContaining({
+        sessionId: "session-1",
+        messageId: "m-3",
+        responseCount: 1,
+      })
+    );
   });
 
   it("appends a failure message when the engine rejects", async () => {
     const message = createChatMessage();
     listMessages.mockReturnValue([message]);
     engineRun.mockRejectedValue(new Error("boom"));
+
+    const trace: TraceDto = {
+      id: "trace-1",
+      name: "engine.run",
+      status: "running",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    tracesCreate.mockReturnValue(trace);
 
     listener.onModuleInit();
     listener.onMessageCreated(message);
@@ -122,6 +203,29 @@ describe("ChatSessionsEngineListener", () => {
       role: ChatMessageRole.Assistant,
       content: "Engine failed to respond. Check server logs for details.",
     });
+
+    expect(tracesUpdateStatus).toHaveBeenCalledWith(
+      "trace-1",
+      "failed",
+      undefined,
+      expect.objectContaining({ error: "boom" })
+    );
+
+    expect(logsAppend).toHaveBeenCalledWith(
+      "info",
+      "Engine run started",
+      expect.objectContaining({ sessionId: "session-1", messageId: "message-1" })
+    );
+
+    expect(logsAppend).toHaveBeenCalledWith(
+      "error",
+      "Engine run failed",
+      expect.objectContaining({
+        sessionId: "session-1",
+        messageId: "message-1",
+        error: "boom",
+      })
+    );
   });
 
 });

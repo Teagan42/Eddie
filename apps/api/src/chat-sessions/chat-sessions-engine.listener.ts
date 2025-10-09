@@ -7,6 +7,10 @@ import {
 } from "./chat-sessions.service";
 import { ChatMessageDto } from "./dto/chat-session.dto";
 import { ChatMessageRole, CreateChatMessageDto } from "./dto/create-chat-message.dto";
+import { TracesService } from "../traces/traces.service";
+import type { TraceDto } from "../traces/dto/trace.dto";
+import { LogsService } from "../logs/logs.service";
+import type { LogEntryDto } from "../logs/dto/log-entry.dto";
 
 const DEFAULT_ENGINE_FAILURE_MESSAGE =
   "Engine failed to respond. Check server logs for details.";
@@ -20,7 +24,9 @@ export class ChatSessionsEngineListener
 
   constructor(
     private readonly chatSessions: ChatSessionsService,
-    private readonly engine: EngineService
+    private readonly engine: EngineService,
+    private readonly traces: TracesService,
+    private readonly logs: LogsService
   ) {}
 
   onModuleInit(): void {
@@ -57,6 +63,13 @@ export class ChatSessionsEngineListener
 
   private async executeEngine(message: ChatMessageDto): Promise<void> {
     const history = this.createHistory(message);
+    const trace = this.createTrace(message);
+    const startedAt = Date.now();
+
+    this.appendLog("info", "Engine run started", {
+      sessionId: message.sessionId,
+      messageId: message.id,
+    });
 
     try {
       const result = await this.engine.run(message.content, {
@@ -68,6 +81,7 @@ export class ChatSessionsEngineListener
       const baseline = history.length + 2;
       const novelMessages = result.messages.slice(baseline);
 
+      let responseCount = 0;
       for (const entry of novelMessages) {
         if (entry.role !== "assistant") {
           continue;
@@ -79,7 +93,19 @@ export class ChatSessionsEngineListener
         }
 
         this.appendAssistantMessage(message.sessionId, content);
+        responseCount += 1;
       }
+
+      const duration = Date.now() - startedAt;
+      this.updateTrace(trace, "completed", duration, {
+        responseCount,
+      });
+      this.appendLog("info", "Engine run completed", {
+        sessionId: message.sessionId,
+        messageId: message.id,
+        responseCount,
+        durationMs: duration,
+      });
     } catch (error) {
       const reason =
         error instanceof Error ? error.message : DEFAULT_ENGINE_FAILURE_MESSAGE;
@@ -89,7 +115,91 @@ export class ChatSessionsEngineListener
         error instanceof Error ? error.stack : undefined
       );
 
-      this.appendAssistantMessage(message.sessionId, DEFAULT_ENGINE_FAILURE_MESSAGE);
+      this.updateTrace(trace, "failed", undefined, {
+        error: reason,
+      });
+      this.appendLog("error", "Engine run failed", {
+        sessionId: message.sessionId,
+        messageId: message.id,
+        error: reason,
+      });
+
+      this.appendAssistantMessage(
+        message.sessionId,
+        DEFAULT_ENGINE_FAILURE_MESSAGE
+      );
+    }
+  }
+
+  private createTrace(message: ChatMessageDto): TraceDto | null {
+    try {
+      return this.traces.create({
+        sessionId: message.sessionId,
+        name: "engine.run",
+        status: "running",
+        metadata: {
+          messageId: message.id,
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        {
+          sessionId: message.sessionId,
+          messageId: message.id,
+          error,
+        },
+        "Failed to create engine trace"
+      );
+      return null;
+    }
+  }
+
+  private updateTrace(
+    trace: TraceDto | null,
+    status: TraceDto["status"],
+    durationMs: number | undefined,
+    metadata: Record<string, unknown>
+  ): void {
+    if (!trace) {
+      return;
+    }
+
+    try {
+      this.traces.updateStatus(trace.id, status, durationMs, {
+        ...(trace.metadata ?? {}),
+        ...metadata,
+      });
+    } catch (error) {
+      this.logger.warn(
+        {
+          traceId: trace.id,
+          status,
+          durationMs,
+          metadata,
+          error,
+        },
+        "Failed to update engine trace"
+      );
+    }
+  }
+
+  private appendLog(
+    level: LogEntryDto["level"],
+    message: string,
+    context: Record<string, unknown>
+  ): void {
+    try {
+      this.logs.append(level, message, context);
+    } catch (error) {
+      this.logger.warn(
+        {
+          level,
+          message,
+          context,
+          error,
+        },
+        "Failed to append engine log entry"
+      );
     }
   }
 
