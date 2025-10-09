@@ -1,11 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  OnModuleDestroy,
-  OnModuleInit,
-  Optional,
-} from "@nestjs/common";
-import { ModuleRef } from "@nestjs/core";
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { EngineService } from "@eddie/engine";
 import type { ChatMessage } from "@eddie/types";
 import {
@@ -24,37 +17,19 @@ export class ChatSessionsEngineListener
 {
   private readonly logger = new Logger(ChatSessionsEngineListener.name);
   private unregister: (() => void) | null = null;
-  private chatSessions: ChatSessionsService | null;
 
   constructor(
-    @Optional() chatSessions: ChatSessionsService | null,
-    private readonly moduleRef: ModuleRef,
+    private readonly chatSessions: ChatSessionsService,
     private readonly engine: EngineService
-  ) {
-    this.chatSessions = chatSessions ?? null;
-  }
+  ) {}
 
   onModuleInit(): void {
-    if (!this.chatSessions && this.moduleRef) {
-      this.chatSessions = this.moduleRef.get(ChatSessionsService, {
-        strict: false,
-      });
-    }
-
-    if (!this.chatSessions) {
-      this.logger.warn(
-        "ChatSessionsService unavailable; engine listener disabled."
-      );
-      return;
-    }
-
     this.unregister = this.chatSessions.registerListener(this);
   }
 
   onModuleDestroy(): void {
     this.unregister?.();
     this.unregister = null;
-    this.chatSessions = null;
   }
 
   onSessionCreated(): void {
@@ -81,13 +56,6 @@ export class ChatSessionsEngineListener
   }
 
   private async executeEngine(message: ChatMessageDto): Promise<void> {
-    if (!this.chatSessions) {
-      this.logger.warn(
-        "ChatSessionsService unavailable; skipping engine execution."
-      );
-      return;
-    }
-
     const history = this.createHistory(message);
 
     try {
@@ -126,10 +94,6 @@ export class ChatSessionsEngineListener
   }
 
   private createHistory(message: ChatMessageDto): ChatMessage[] {
-    if (!this.chatSessions) {
-      return [];
-    }
-
     return this.chatSessions
       .listMessages(message.sessionId)
       .filter((entry) => entry.id !== message.id)
@@ -140,10 +104,6 @@ export class ChatSessionsEngineListener
   }
 
   private appendAssistantMessage(sessionId: string, content: string): void {
-    if (!this.chatSessions) {
-      return;
-    }
-
     const payload: CreateChatMessageDto = {
       role: ChatMessageRole.Assistant,
       content,

@@ -4,7 +4,6 @@ import { ChatSessionsEngineListener } from "../../../src/chat-sessions/chat-sess
 import { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
 import { ChatMessageRole } from "../../../src/chat-sessions/dto/create-chat-message.dto";
 import type { ChatMessageDto } from "../../../src/chat-sessions/dto/chat-session.dto";
-import type { ModuleRef } from "@nestjs/core";
 
 const createChatMessage = (
   overrides: Partial<ChatMessageDto> = {}
@@ -22,8 +21,6 @@ describe("ChatSessionsEngineListener", () => {
   const listMessages = vi.fn();
   const addMessage = vi.fn();
   let engineRun: ReturnType<typeof vi.fn>;
-  let moduleRefGet: ReturnType<typeof vi.fn>;
-  let moduleRef: ModuleRef;
   let chatSessions: ChatSessionsService;
   let listener: ChatSessionsEngineListener;
 
@@ -43,12 +40,7 @@ describe("ChatSessionsEngineListener", () => {
       run: engineRun,
     } as unknown as EngineService;
 
-    moduleRefGet = vi.fn(() => chatSessions);
-    moduleRef = {
-      get: moduleRefGet,
-    } as unknown as ModuleRef;
-
-    listener = new ChatSessionsEngineListener(chatSessions, moduleRef, engine);
+    listener = new ChatSessionsEngineListener(chatSessions, engine);
   });
 
   it("registers and unregisters with the chat sessions service", () => {
@@ -61,7 +53,6 @@ describe("ChatSessionsEngineListener", () => {
 
     listener.onModuleDestroy();
     expect(unregister).toHaveBeenCalled();
-    expect(moduleRefGet).not.toHaveBeenCalled();
   });
 
   it("ignores assistant messages", () => {
@@ -133,17 +124,4 @@ describe("ChatSessionsEngineListener", () => {
     });
   });
 
-  it("resolves the chat sessions service via ModuleRef when not injected", () => {
-    const fallbackListener = new ChatSessionsEngineListener(
-      null,
-      moduleRef,
-      { run: engineRun } as unknown as EngineService
-    );
-
-    fallbackListener.onModuleInit();
-
-    expect(moduleRefGet).toHaveBeenCalledWith(ChatSessionsService, {
-      strict: false,
-    });
-  });
 });
