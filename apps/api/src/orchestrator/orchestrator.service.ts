@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { ChatSessionsService } from "../chat-sessions/chat-sessions.service";
+import { ChatMessageRole } from "../chat-sessions/dto/create-chat-message.dto";
 import {
   ContextBundleDto,
   OrchestratorMetadataDto,
@@ -62,7 +63,11 @@ export class OrchestratorMetadataService {
     messages: ReturnType<ChatSessionsService["listMessages"]>
   ): ToolCallNodeDto[] {
     const toolMessages = messages
-      .filter((message) => message.role === "system")
+      .filter(
+        (message) =>
+          message.role === ChatMessageRole.Tool ||
+          message.role === ChatMessageRole.System
+      )
       .map((message) => ({ ...message, content: message.content.trim() }))
       .filter((message) => message.content.length > 0);
 

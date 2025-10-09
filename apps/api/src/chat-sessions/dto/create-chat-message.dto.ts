@@ -5,6 +5,7 @@ export enum ChatMessageRole {
   User = "user",
   Assistant = "assistant",
   System = "system",
+  Tool = "tool",
 }
 
 export class CreateChatMessageDto {
