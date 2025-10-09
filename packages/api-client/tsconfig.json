@@ -10,6 +10,6 @@
     "module": "ES2022",
     "moduleResolution": "Bundler"
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts"],
+  "include": ["src/**/*.ts"],
   "references": []
 }
