@@ -23,6 +23,13 @@ jobs:
             dist: apps/api/dist
             tsbuildinfo: apps/api/tsconfig.build.tsbuildinfo
             tsconfig: apps/api/tsconfig.build.json
+          - name: "@eddie/web"
+            path: apps/web
+            coverage: apps/web/coverage
+            coverage_artifact: coverage-eddie-web
+            dist: apps/web/dist
+            tsbuildinfo: apps/web/tsconfig.tsbuildinfo
+            tsconfig: apps/web/tsconfig.json
           - name: "@eddie/cli"
             path: apps/cli
             coverage: apps/cli/coverage
@@ -107,6 +114,13 @@ jobs:
             dist: packages/types/dist
             tsbuildinfo: packages/types/tsconfig.build.tsbuildinfo
             tsconfig: packages/types/tsconfig.build.json
+          - name: "@eddie/api-client"
+            path: packages/api-client
+            coverage: packages/api-client/coverage
+            coverage_artifact: coverage-eddie-api-client
+            dist: packages/api-client/dist
+            tsbuildinfo: packages/api-client/dist/tsconfig.tsbuildinfo
+            tsconfig: packages/api-client/tsconfig.build.json
     steps:
       - name: Checkout
         uses: actions/checkout@v4

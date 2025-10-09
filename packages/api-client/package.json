@@ -1,0 +1,27 @@
+{
+  "name": "@eddie/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "lint": "eslint 'src/**/*.ts'",
+    "test": "vitest --run --config vitest.config.ts",
+    "generate": "openapi --input ./openapi.json --output ./src/generated --client fetch"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.66.0",
+    "socket.io-client": "^4.7.5"
+  },
+  "devDependencies": {
+    "openapi-typescript-codegen": "^0.27.0"
+  }
+}

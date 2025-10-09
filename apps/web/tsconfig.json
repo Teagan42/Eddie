@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "baseUrl": "./src",
+    "paths": {
+      "@/components/*": ["components/*"],
+      "@/config": ["config/env.ts"],
+      "@/auth/*": ["auth/*"],
+      "@/api/*": ["api/*"]
+    },
+    "types": ["vite/client", "vitest"],
+    "noEmit": true
+  },
+  "include": ["src", "vitest.config.ts", "playwright.config.ts", "tailwind.config.ts"],
+  "references": []
+}

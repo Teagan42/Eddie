@@ -20,7 +20,10 @@
     "start:cli": "npm run start --workspace @eddie/cli --if-present",
     "start:api": "npm run start --workspace @eddie/api --if-present",
     "dev:cli": "npm run dev --workspace @eddie/cli --if-present",
-    "dev:api": "npm run dev --workspace @eddie/api --if-present"
+    "dev:api": "npm run dev --workspace @eddie/api --if-present",
+    "web:dev": "npm run dev --workspace @eddie/web --if-present",
+    "web:build": "npm run build --workspace @eddie/web --if-present",
+    "web:test": "npm run test --workspace @eddie/web --if-present"
   },
   "repository": {
     "type": "git",
