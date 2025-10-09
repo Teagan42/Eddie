@@ -436,69 +436,69 @@ export function ConfigPage(): JSX.Element {
       )}
     >
       <Flex direction="column" gap="7">
-      <Card className={`${GLASS_CARD_CLASS} p-6`}>
-        <Flex
-          direction={{ initial: "column", md: "row" }}
-          align={{ initial: "start", md: "center" }}
-          justify="between"
-          gap="6"
-        >
-          <Box className="space-y-2">
-            <Heading size="7" className="tracking-tight text-white">
-              Configuration studio
-            </Heading>
-            <Text size="3" color="gray" className="max-w-xl text-slate-200/80">
-              Compose runtime settings with live previews, schema validation,
-              and guardrails tailored for Eddie orchestrations.
-            </Text>
-          </Box>
-          <div className="grid w-full max-w-xl gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-[0_25px_55px_-45px_rgba(16,185,129,0.7)] backdrop-blur">
-              <Text
-                size="1"
-                color="gray"
-                className="font-medium uppercase tracking-[0.18em]"
-              >
-                Active format
+        <Card className={`${GLASS_CARD_CLASS} p-6`}>
+          <Flex
+            direction={{ initial: "column", md: "row" }}
+            align={{ initial: "start", md: "center" }}
+            justify="between"
+            gap="6"
+          >
+            <Box className="space-y-2">
+              <Heading size="7" className="tracking-tight text-white">
+                Configuration studio
+              </Heading>
+              <Text size="3" color="gray" className="max-w-xl text-slate-200/80">
+                Compose runtime settings with live previews, schema validation,
+                and guardrails tailored for Eddie orchestrations.
               </Text>
-              <Text size="4" className="font-semibold text-emerald-200">
-                {formatLabel}
-              </Text>
+            </Box>
+            <div className="grid w-full max-w-xl gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-[0_25px_55px_-45px_rgba(16,185,129,0.7)] backdrop-blur">
+                <Text
+                  size="1"
+                  color="gray"
+                  className="font-medium uppercase tracking-[0.18em]"
+                >
+                  Active format
+                </Text>
+                <Text size="4" className="font-semibold text-emerald-200">
+                  {formatLabel}
+                </Text>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-[0_25px_55px_-45px_rgba(56,189,248,0.65)] backdrop-blur">
+                <Text
+                  size="1"
+                  color="gray"
+                  className="font-medium uppercase tracking-[0.18em]"
+                >
+                  Approx size
+                </Text>
+                <Text size="4" className="font-semibold text-sky-200">
+                  {sizeLabel}
+                </Text>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-[0_25px_55px_-45px_rgba(250,204,21,0.6)] backdrop-blur sm:col-span-3">
+                <Text
+                  size="1"
+                  color="gray"
+                  className="font-medium uppercase tracking-[0.18em]"
+                >
+                  Source path
+                </Text>
+                <Text
+                  size="3"
+                  className="truncate font-semibold text-amber-200"
+                  title={locationLabel}
+                >
+                  {locationLabel}
+                </Text>
+                <Text size="1" color="gray">
+                  {approxLinesLabel} lines tracked
+                </Text>
+              </div>
             </div>
-            <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-[0_25px_55px_-45px_rgba(56,189,248,0.65)] backdrop-blur">
-              <Text
-                size="1"
-                color="gray"
-                className="font-medium uppercase tracking-[0.18em]"
-              >
-                Approx size
-              </Text>
-              <Text size="4" className="font-semibold text-sky-200">
-                {sizeLabel}
-              </Text>
-            </div>
-            <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-[0_25px_55px_-45px_rgba(250,204,21,0.6)] backdrop-blur sm:col-span-3">
-              <Text
-                size="1"
-                color="gray"
-                className="font-medium uppercase tracking-[0.18em]"
-              >
-                Source path
-              </Text>
-              <Text
-                size="3"
-                className="truncate font-semibold text-amber-200"
-                title={locationLabel}
-              >
-                {locationLabel}
-              </Text>
-              <Text size="1" color="gray">
-                {approxLinesLabel} lines tracked
-              </Text>
-            </div>
-          </div>
-        </Flex>
-      </Card>
+          </Flex>
+        </Card>
 
       {statusMessage ? (
         <Callout.Root
@@ -1014,6 +1014,7 @@ export function ConfigPage(): JSX.Element {
           </Card>
         </Flex>
       </Flex>
-    </div>
+    </Flex>
+  </div>
   );
 }

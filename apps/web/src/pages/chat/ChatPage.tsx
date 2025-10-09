@@ -686,14 +686,14 @@ export function ChatPage(): JSX.Element {
           </div>
           <Box className="space-y-1">
             <Heading size="6" className="text-white">
-            Chat orchestrator
-          </Heading>
-          <Text size="2" color="gray" className="text-slate-200/85">
-            Orchestrate sessions across providers and watch context and tools
-            light up in real time.
-          </Text>
-        </Box>
-      </Flex>
+              Chat orchestrator
+            </Heading>
+            <Text size="2" color="gray" className="text-slate-200/85">
+              Orchestrate sessions across providers and watch context and tools
+              light up in real time.
+            </Text>
+          </Box>
+        </Flex>
 
         <Card className={`${GLASS_CARD_CLASS} space-y-4 p-6`}>
           <Flex align="center" justify="between" gap="3" wrap="wrap">
@@ -701,263 +701,264 @@ export function ChatPage(): JSX.Element {
               <Heading as="h2" size="4">
                 Sessions
               </Heading>
-            {sessions.length === 0 ? (
-              <Text size="2" color="gray">
-                Create a session to begin orchestrating conversations.
-              </Text>
-            ) : null}
-          </Flex>
-          <Button
-            onClick={handleCreateSession}
-            size="2"
-            variant="solid"
-            color="jade"
-            disabled={createSessionMutation.isPending}
-          >
-            <PlusIcon /> New session
-          </Button>
-        </Flex>
-        <ScrollArea type="always" className="mt-4 max-h-40">
-          <Flex gap="2" wrap="wrap">
-            {sessions.length === 0 ? (
-              <Text size="2" color="gray">
-                No sessions yet.
-              </Text>
-            ) : (
-              sessions.map((session) => (
-                <Button
-                  key={session.id}
-                  size="2"
-                  variant={
-                    session.id === selectedSessionId ? "solid" : "soft"
-                  }
-                  color={session.id === selectedSessionId ? "jade" : "gray"}
-                  onClick={() => handleSelectSession(session.id)}
-                >
-                  <Flex align="center" gap="2">
-                    <span>{session.title}</span>
-                    {session.status === "archived" ? (
-                      <Badge color="gray" variant="soft">
-                        Archived
-                      </Badge>
-                    ) : null}
-                  </Flex>
-                </Button>
-              ))
-            )}
-          </Flex>
-        </ScrollArea>
-      </Card>
-
-        <div className="flex flex-col gap-6 lg:flex-row">
-          <Card className={`${GLASS_CARD_CLASS} flex-1 space-y-5 p-6`}>
-          <Flex align="center" justify="between" wrap="wrap" gap="3">
-            <Heading as="h3" size="4">
-              {sessions.find((session) => session.id === selectedSessionId)?.title ??
-                "Select a session"}
-            </Heading>
-            <Flex align="center" gap="3" wrap="wrap">
-              <Select.Root
-                value={selectedProvider}
-                onValueChange={handleProviderChange}
-                disabled={!selectedSessionId}
-              >
-                <Select.Trigger placeholder="Provider" />
-                <Select.Content>
-                  {PROVIDER_OPTIONS.map((option) => (
-                    <Select.Item key={option.value} value={option.value}>
-                      {option.label}
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Root>
-              <Select.Root
-                value={selectedModel}
-                onValueChange={handleModelChange}
-                disabled={!selectedSessionId}
-              >
-                <Select.Trigger placeholder="Model" />
-                <Select.Content>
-                  {availableModels.map((model) => (
-                    <Select.Item key={model} value={model}>
-                      {model}
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Root>
-              <Select.Root
-                value={templateSelection}
-                onValueChange={handleTemplateSelection}
-                disabled={Object.keys(templates).length === 0}
-              >
-                <Select.Trigger placeholder="Load template" />
-                <Select.Content>
-                  {Object.values(templates).map((template) => (
-                    <Select.Item key={template.id} value={template.id}>
-                      {template.name}
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Root>
-              <Button
-                variant="soft"
-                size="2"
-                onClick={handleSaveTemplate}
-                disabled={!composerValue.trim()}
-              >
-                <RocketIcon /> Save template
-              </Button>
-            </Flex>
-          </Flex>
-
-          <ScrollArea type="always" className="h-96 rounded-xl border border-muted/40 bg-muted/10 p-4">
-            <Flex direction="column" gap="4">
-              {messages.length === 0 ? (
+              {sessions.length === 0 ? (
                 <Text size="2" color="gray">
-                  No messages yet. Use the composer below to send your first
-                  command.
+                  Create a session to begin orchestrating conversations.
+                </Text>
+              ) : null}
+            </Flex>
+            <Button
+              onClick={handleCreateSession}
+              size="2"
+              variant="solid"
+              color="jade"
+              disabled={createSessionMutation.isPending}
+            >
+              <PlusIcon /> New session
+            </Button>
+          </Flex>
+          <ScrollArea type="always" className="mt-4 max-h-40">
+            <Flex gap="2" wrap="wrap">
+              {sessions.length === 0 ? (
+                <Text size="2" color="gray">
+                  No sessions yet.
                 </Text>
               ) : (
-                messages.map((message) => {
-                  const roleStyle = MESSAGE_ROLE_STYLES[message.role];
-                  const timestamp = formatTime(message.createdAt);
-                  const Icon = roleStyle.icon;
-                  const alignmentClass =
-                    roleStyle.align === "end"
-                      ? "ml-auto w-full max-w-2xl"
-                      : "mr-auto w-full max-w-2xl";
-
-                  return (
-                    <Box key={message.id} className={alignmentClass}>
-                      <Card
-                        variant="surface"
-                        className={`space-y-3 ${roleStyle.cardClassName}`}
-                      >
-                        <Flex align="start" justify="between" gap="3">
-                          <Flex align="center" gap="2">
-                            <Box className="rounded-full bg-white/15 p-2 shadow-inner">
-                              <Icon
-                                className={`h-4 w-4 ${roleStyle.iconClassName}`}
-                              />
-                            </Box>
-                            <Badge color={roleStyle.badgeColor} variant="soft">
-                              {roleStyle.label}
-                            </Badge>
-                            {timestamp ? (
-                              <Text size="1" color="gray">
-                                {timestamp}
-                              </Text>
-                            ) : null}
-                          </Flex>
-                          {message.role !== "assistant" ? (
-                            <Tooltip content="Re-issue command">
-                              <IconButton
-                                size="2"
-                                variant="soft"
-                                onClick={() => handleReissueCommand(message)}
-                                aria-label="Re-issue command"
-                              >
-                                <ReloadIcon />
-                              </IconButton>
-                            </Tooltip>
-                          ) : null}
-                        </Flex>
-                        <Box
-                          className={`text-sm text-slate-100 ${
-                            roleStyle.contentClassName ?? ""
-                          }`}
-                        >
-                          {message.content}
-                        </Box>
-                      </Card>
-                    </Box>
-                  );
-                })
+                sessions.map((session) => (
+                  <Button
+                    key={session.id}
+                    size="2"
+                    variant={
+                      session.id === selectedSessionId ? "solid" : "soft"
+                    }
+                    color={session.id === selectedSessionId ? "jade" : "gray"}
+                    onClick={() => handleSelectSession(session.id)}
+                  >
+                    <Flex align="center" gap="2">
+                      <span>{session.title}</span>
+                      {session.status === "archived" ? (
+                        <Badge color="gray" variant="soft">
+                          Archived
+                        </Badge>
+                      ) : null}
+                    </Flex>
+                  </Button>
+                ))
               )}
             </Flex>
           </ScrollArea>
-
-          <Flex direction="column" gap="3">
-            <SegmentedControl.Root
-              value={composerRole}
-              onValueChange={(value) =>
-                setComposerRole(value as ComposerRole)
-              }
-            >
-              <SegmentedControl.Item value="user">Ask</SegmentedControl.Item>
-              <SegmentedControl.Item value="system">Run</SegmentedControl.Item>
-            </SegmentedControl.Root>
-            <TextArea
-              value={composerValue}
-              onChange={(event) => setComposerValue(event.target.value)}
-              placeholder="Send a message to the orchestrator"
-              rows={4}
-              disabled={!selectedSessionId || sendMessageMutation.isPending}
-            />
-            <Flex justify="end" gap="2">
-              <Button
-                onClick={handleSendMessage}
-                disabled={!selectedSessionId || !composerValue.trim()}
-              >
-                <PaperPlaneIcon /> Send
-              </Button>
-            </Flex>
-          </Flex>
         </Card>
 
-        <div className="flex w-full flex-col gap-4 lg:w-80">
-          <CollapsiblePanel
-            id={PANEL_IDS.context}
-            title="Context bundles"
-            description="Datasets staged for the next invocation"
-            collapsed={Boolean(collapsedPanels[PANEL_IDS.context])}
-            onToggle={handleTogglePanel}
-          >
-            {orchestratorMetadata?.contextBundles?.length ? (
-              <ul className="space-y-2">
-                {orchestratorMetadata.contextBundles.map((bundle) => (
-                  <li
-                    key={bundle.id}
-                    className="rounded-lg border border-muted/40 p-3"
-                  >
-                    <Text weight="medium">{bundle.label}</Text>
-                    {bundle.summary ? (
-                      <Text size="2" color="gray">
-                        {bundle.summary}
+        <div className="flex flex-col gap-6 lg:flex-row">
+          <Card className={`${GLASS_CARD_CLASS} flex-1 space-y-5 p-6`}>
+            <Flex align="center" justify="between" wrap="wrap" gap="3">
+              <Heading as="h3" size="4">
+                {sessions.find((session) => session.id === selectedSessionId)?.title ??
+                  "Select a session"}
+              </Heading>
+              <Flex align="center" gap="3" wrap="wrap">
+                <Select.Root
+                  value={selectedProvider}
+                  onValueChange={handleProviderChange}
+                  disabled={!selectedSessionId}
+                >
+                  <Select.Trigger placeholder="Provider" />
+                  <Select.Content>
+                    {PROVIDER_OPTIONS.map((option) => (
+                      <Select.Item key={option.value} value={option.value}>
+                        {option.label}
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Root>
+                <Select.Root
+                  value={selectedModel}
+                  onValueChange={handleModelChange}
+                  disabled={!selectedSessionId}
+                >
+                  <Select.Trigger placeholder="Model" />
+                  <Select.Content>
+                    {availableModels.map((model) => (
+                      <Select.Item key={model} value={model}>
+                        {model}
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Root>
+                <Select.Root
+                  value={templateSelection}
+                  onValueChange={handleTemplateSelection}
+                  disabled={Object.keys(templates).length === 0}
+                >
+                  <Select.Trigger placeholder="Load template" />
+                  <Select.Content>
+                    {Object.values(templates).map((template) => (
+                      <Select.Item key={template.id} value={template.id}>
+                        {template.name}
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Root>
+                <Button
+                  variant="soft"
+                  size="2"
+                  onClick={handleSaveTemplate}
+                  disabled={!composerValue.trim()}
+                >
+                  <RocketIcon /> Save template
+                </Button>
+              </Flex>
+            </Flex>
+
+            <ScrollArea type="always" className="h-96 rounded-xl border border-muted/40 bg-muted/10 p-4">
+              <Flex direction="column" gap="4">
+                {messages.length === 0 ? (
+                  <Text size="2" color="gray">
+                    No messages yet. Use the composer below to send your first
+                    command.
+                  </Text>
+                ) : (
+                  messages.map((message) => {
+                    const roleStyle = MESSAGE_ROLE_STYLES[message.role];
+                    const timestamp = formatTime(message.createdAt);
+                    const Icon = roleStyle.icon;
+                    const alignmentClass =
+                      roleStyle.align === "end"
+                        ? "ml-auto w-full max-w-2xl"
+                        : "mr-auto w-full max-w-2xl";
+
+                    return (
+                      <Box key={message.id} className={alignmentClass}>
+                        <Card
+                          variant="surface"
+                          className={`space-y-3 ${roleStyle.cardClassName}`}
+                        >
+                          <Flex align="start" justify="between" gap="3">
+                            <Flex align="center" gap="2">
+                              <Box className="rounded-full bg-white/15 p-2 shadow-inner">
+                                <Icon
+                                  className={`h-4 w-4 ${roleStyle.iconClassName}`}
+                                />
+                              </Box>
+                              <Badge color={roleStyle.badgeColor} variant="soft">
+                                {roleStyle.label}
+                              </Badge>
+                              {timestamp ? (
+                                <Text size="1" color="gray">
+                                  {timestamp}
+                                </Text>
+                              ) : null}
+                            </Flex>
+                            {message.role !== "assistant" ? (
+                              <Tooltip content="Re-issue command">
+                                <IconButton
+                                  size="2"
+                                  variant="soft"
+                                  onClick={() => handleReissueCommand(message)}
+                                  aria-label="Re-issue command"
+                                >
+                                  <ReloadIcon />
+                                </IconButton>
+                              </Tooltip>
+                            ) : null}
+                          </Flex>
+                          <Box
+                            className={`text-sm text-slate-100 ${
+                              roleStyle.contentClassName ?? ""
+                            }`}
+                          >
+                            {message.content}
+                          </Box>
+                        </Card>
+                      </Box>
+                    );
+                  })
+                )}
+              </Flex>
+            </ScrollArea>
+
+            <Flex direction="column" gap="3">
+              <SegmentedControl.Root
+                value={composerRole}
+                onValueChange={(value) =>
+                  setComposerRole(value as ComposerRole)
+                }
+              >
+                <SegmentedControl.Item value="user">Ask</SegmentedControl.Item>
+                <SegmentedControl.Item value="system">Run</SegmentedControl.Item>
+              </SegmentedControl.Root>
+              <TextArea
+                value={composerValue}
+                onChange={(event) => setComposerValue(event.target.value)}
+                placeholder="Send a message to the orchestrator"
+                rows={4}
+                disabled={!selectedSessionId || sendMessageMutation.isPending}
+              />
+              <Flex justify="end" gap="2">
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!selectedSessionId || !composerValue.trim()}
+                >
+                  <PaperPlaneIcon /> Send
+                </Button>
+              </Flex>
+            </Flex>
+          </Card>
+
+          <div className="flex w-full flex-col gap-4 lg:w-80">
+            <CollapsiblePanel
+              id={PANEL_IDS.context}
+              title="Context bundles"
+              description="Datasets staged for the next invocation"
+              collapsed={Boolean(collapsedPanels[PANEL_IDS.context])}
+              onToggle={handleTogglePanel}
+            >
+              {orchestratorMetadata?.contextBundles?.length ? (
+                <ul className="space-y-2">
+                  {orchestratorMetadata.contextBundles.map((bundle) => (
+                    <li
+                      key={bundle.id}
+                      className="rounded-lg border border-muted/40 p-3"
+                    >
+                      <Text weight="medium">{bundle.label}</Text>
+                      {bundle.summary ? (
+                        <Text size="2" color="gray">
+                          {bundle.summary}
+                        </Text>
+                      ) : null}
+                      <Text size="1" color="gray">
+                        {bundle.fileCount} files • {bundle.sizeBytes.toLocaleString()} bytes
                       </Text>
-                    ) : null}
-                    <Text size="1" color="gray">
-                      {bundle.fileCount} files • {bundle.sizeBytes.toLocaleString()} bytes
-                    </Text>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <Text size="2" color="gray">
-                No context bundles associated yet.
-              </Text>
-            )}
-          </CollapsiblePanel>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Text size="2" color="gray">
+                  No context bundles associated yet.
+                </Text>
+              )}
+            </CollapsiblePanel>
 
-          <CollapsiblePanel
-            id={PANEL_IDS.tools}
-            title="Tool call tree"
-            description="Live execution lineage"
-            collapsed={Boolean(collapsedPanels[PANEL_IDS.tools])}
-            onToggle={handleTogglePanel}
-          >
-            <ToolTree nodes={orchestratorMetadata?.toolInvocations ?? []} />
-          </CollapsiblePanel>
+            <CollapsiblePanel
+              id={PANEL_IDS.tools}
+              title="Tool call tree"
+              description="Live execution lineage"
+              collapsed={Boolean(collapsedPanels[PANEL_IDS.tools])}
+              onToggle={handleTogglePanel}
+            >
+              <ToolTree nodes={orchestratorMetadata?.toolInvocations ?? []} />
+            </CollapsiblePanel>
 
-          <CollapsiblePanel
-            id={PANEL_IDS.agents}
-            title="Agent hierarchy"
-            description="Active delegations"
-            collapsed={Boolean(collapsedPanels[PANEL_IDS.agents])}
-            onToggle={handleTogglePanel}
-          >
-            <AgentTree nodes={orchestratorMetadata?.agentHierarchy ?? []} />
-          </CollapsiblePanel>
+            <CollapsiblePanel
+              id={PANEL_IDS.agents}
+              title="Agent hierarchy"
+              description="Active delegations"
+              collapsed={Boolean(collapsedPanels[PANEL_IDS.agents])}
+              onToggle={handleTogglePanel}
+            >
+              <AgentTree nodes={orchestratorMetadata?.agentHierarchy ?? []} />
+            </CollapsiblePanel>
+          </div>
         </div>
       </Flex>
     </div>
