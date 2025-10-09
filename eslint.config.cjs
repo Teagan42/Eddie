@@ -5,7 +5,7 @@ const globals = require("globals");
 
 module.exports = [
   {
-    ignores: ["dist/**", "apps/**/dist/**", "node_modules/**"],
+    ignores: ["dist/**", "apps/**/dist/**", "node_modules/**", "tailwind.config.ts"],
   },
   {
     files: ["**/*.ts"],
