@@ -6,14 +6,16 @@ const jsxA11yPlugin = require("eslint-plugin-jsx-a11y");
 const globals = require("globals");
 
 module.exports = [
-  ...baseConfig,
   {
-    files: ["**/*.{ts,tsx}"],
     ignores: [
       "src/components/components/**/*",
       "src/components/hooks/**/*",
       "src/components/hooks/*",
     ],
+  },
+  ...baseConfig,
+  {
+    files: ["**/*.{ts,tsx}"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
