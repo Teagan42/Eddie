@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import fs from "fs/promises";
 import path from "path";
 
-const CONFIG_ROOT = path.resolve(process.cwd(), "config");
+const DEFAULT_CONFIG_ROOT = path.resolve(process.cwd(), "config");
 import yaml from "yaml";
 import { DEFAULT_CONFIG } from "./defaults";
 import type {
@@ -129,6 +129,7 @@ export class ConfigService {
     options: CliRuntimeOptions = {},
     targetPath?: string | null
   ): Promise<ConfigFileSnapshot> {
+    const configRoot = this.getConfigRoot();
     let resolvedTarget: string | null | undefined;
     if (targetPath) {
       if (path.isAbsolute(targetPath)) {
@@ -144,10 +145,10 @@ export class ConfigService {
         throw new Error("Invalid target path: outside of config directory.");
       }
 
-      const candidate = path.join(CONFIG_ROOT, normalisedTarget);
+      const candidate = path.join(configRoot, normalisedTarget);
       if (
-        candidate !== CONFIG_ROOT &&
-        !candidate.startsWith(CONFIG_ROOT + path.sep)
+        candidate !== configRoot &&
+        !candidate.startsWith(configRoot + path.sep)
       ) {
         throw new Error("Invalid target path: outside of config directory.");
       }
@@ -160,7 +161,7 @@ export class ConfigService {
     const destination =
       resolvedTarget ??
       path.resolve(
-        CONFIG_ROOT,
+        configRoot,
         format === "json" ? "eddie.config.json" : "eddie.config.yaml"
       );
 
@@ -212,17 +213,35 @@ export class ConfigService {
       }
     }
 
-    for (const name of CONFIG_FILENAMES) {
-      const candidate = path.resolve(name);
-      try {
-        await fs.access(candidate);
-        return candidate;
-      } catch {
-        // keep searching
+    const searchRoots = this.collectConfigRoots();
+    for (const rootDir of searchRoots) {
+      for (const name of CONFIG_FILENAMES) {
+        const candidate = path.resolve(rootDir, name);
+        try {
+          await fs.access(candidate);
+          return candidate;
+        } catch {
+          // keep searching
+        }
       }
     }
 
     return null;
+  }
+
+  private getConfigRoot(): string {
+    const override = process.env.CONFIG_ROOT;
+    if (override && override.trim().length > 0) {
+      return path.resolve(process.cwd(), override);
+    }
+    return DEFAULT_CONFIG_ROOT;
+  }
+
+  private collectConfigRoots(): string[] {
+    const roots = new Set<string>();
+    roots.add(this.getConfigRoot());
+    roots.add(process.cwd());
+    return Array.from(roots);
   }
 
   parseSource(source: string, format: ConfigFileFormat): EddieConfigInput {
