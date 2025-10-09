@@ -3,6 +3,7 @@ import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from "react
 import { Avatar, Badge, Button, Flex, Heading, IconButton, Separator, Text } from "@radix-ui/themes";
 import { ChatPage } from "./chat/ChatPage";
 import { OverviewPage } from "./OverviewPage";
+import { ConfigPage } from "./config/ConfigPage";
 import { useAuth } from "@/auth/auth-context";
 import { ExitIcon } from "@radix-ui/react-icons";
 import { AuroraBackground } from "@/components/aurora-background";
@@ -67,6 +68,7 @@ function AppShell({ children }: { children: ReactNode }): JSX.Element {
               <Flex align="center" gap="2" className="hidden md:flex">
                 <NavigationLink to="/" label="Overview" />
                 <NavigationLink to="/chat" label="Chat" />
+                <NavigationLink to="/config" label="Config" />
               </Flex>
             </Flex>
             <Flex align="center" gap="4">
@@ -117,6 +119,7 @@ function AppShell({ children }: { children: ReactNode }): JSX.Element {
                 <Flex align="center" gap="2">
                   <NavigationLink to="/" label="Overview" />
                   <NavigationLink to="/chat" label="Chat" />
+                  <NavigationLink to="/config" label="Config" />
                 </Flex>
               </Flex>
               {children}
@@ -135,6 +138,7 @@ export function App(): JSX.Element {
         <Routes>
           <Route path="/" element={<OverviewPage />} />
           <Route path="/chat" element={<ChatPage />} />
+          <Route path="/config" element={<ConfigPage />} />
           <Route path="*" element={<Navigate to="/chat" replace />} />
         </Routes>
       </AppShell>

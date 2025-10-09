@@ -1,6 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import fs from "fs/promises";
 import path from "path";
+
+const CONFIG_ROOT = path.resolve(process.cwd(), "config");
 import yaml from "yaml";
 import { DEFAULT_CONFIG } from "./defaults";
 import type {
@@ -18,6 +20,17 @@ import type {
   ProviderProfileConfig,
   ToolsConfig,
 } from "./types";
+
+export type ConfigFileFormat = "yaml" | "json";
+
+export interface ConfigFileSnapshot {
+  path: string | null;
+  format: ConfigFileFormat;
+  content: string;
+  input: EddieConfigInput;
+  config?: EddieConfig;
+  error?: string;
+}
 
 const CONFIG_FILENAMES = [
   "eddie.config.json",
@@ -37,7 +50,14 @@ export class ConfigService {
   async load(options: CliRuntimeOptions): Promise<EddieConfig> {
     const configPath = await this.resolveConfigPath(options);
     const fileConfig = configPath ? await this.readConfigFile(configPath) : {};
-    const merged = this.mergeConfig(DEFAULT_CONFIG, fileConfig);
+    return this.compose(fileConfig, options);
+  }
+
+  async compose(
+    input: EddieConfigInput,
+    options: CliRuntimeOptions = {}
+  ): Promise<EddieConfig> {
+    const merged = this.mergeConfig(DEFAULT_CONFIG, input);
     if (merged.logging?.level) {
       merged.logLevel = merged.logging.level;
     } else if (merged.logLevel) {
@@ -63,6 +83,101 @@ export class ConfigService {
     this.validateConfig(finalConfig);
 
     return finalConfig;
+  }
+
+  async readSnapshot(
+    options: CliRuntimeOptions = {}
+  ): Promise<ConfigFileSnapshot> {
+    const configPath = await this.resolveConfigPath(options);
+    const format = configPath ? this.detectFormat(configPath) : "yaml";
+
+    let content: string;
+    let input: EddieConfigInput;
+
+    if (configPath) {
+      content = await fs.readFile(configPath, "utf-8");
+      input = await this.readConfigFile(configPath);
+    } else {
+      content = yaml.stringify(DEFAULT_CONFIG);
+      input = this.parseSource(content, "yaml");
+    }
+
+    let config: EddieConfig | undefined;
+    let error: string | undefined;
+
+    try {
+      config = await this.compose(input, options);
+    } catch (composeError) {
+      error = composeError instanceof Error
+        ? composeError.message
+        : "Unable to compose configuration.";
+    }
+
+    return {
+      path: configPath,
+      format,
+      content,
+      input,
+      config,
+      error,
+    };
+  }
+
+  async writeSource(
+    source: string,
+    format: ConfigFileFormat,
+    options: CliRuntimeOptions = {},
+    targetPath?: string | null
+  ): Promise<ConfigFileSnapshot> {
+    let resolvedTarget: string | null | undefined;
+    if (targetPath) {
+      if (path.isAbsolute(targetPath)) {
+        throw new Error("Invalid target path: must be relative to config directory.");
+      }
+
+      const normalisedTarget = path.normalize(targetPath);
+      if (
+        normalisedTarget.startsWith("..") ||
+        normalisedTarget.includes(`${path.sep}..`) ||
+        normalisedTarget === ".."
+      ) {
+        throw new Error("Invalid target path: outside of config directory.");
+      }
+
+      const candidate = path.join(CONFIG_ROOT, normalisedTarget);
+      if (
+        candidate !== CONFIG_ROOT &&
+        !candidate.startsWith(CONFIG_ROOT + path.sep)
+      ) {
+        throw new Error("Invalid target path: outside of config directory.");
+      }
+
+      resolvedTarget = candidate;
+    } else {
+      resolvedTarget = await this.resolveConfigPath(options);
+    }
+
+    const destination =
+      resolvedTarget ??
+      path.resolve(
+        CONFIG_ROOT,
+        format === "json" ? "eddie.config.json" : "eddie.config.yaml"
+      );
+
+    const input = this.parseSource(source, format);
+    const config = await this.compose(input, options);
+    const serialized = this.serializeInput(input, format);
+
+    await fs.mkdir(path.dirname(destination), { recursive: true });
+    await fs.writeFile(destination, serialized, "utf-8");
+
+    return {
+      path: destination,
+      format,
+      content: serialized,
+      input,
+      config,
+    };
   }
 
   private async readConfigFile(candidate: string): Promise<EddieConfigInput> {
@@ -108,6 +223,46 @@ export class ConfigService {
     }
 
     return null;
+  }
+
+  parseSource(source: string, format: ConfigFileFormat): EddieConfigInput {
+    const content = source.trim();
+    if (!content) {
+      return {};
+    }
+
+    if (format === "json") {
+      const parsed = JSON.parse(source) as unknown;
+      if (!this.isPlainObject(parsed)) {
+        throw new Error("Configuration JSON must represent an object.");
+      }
+      return parsed as EddieConfigInput;
+    }
+
+    const parsed = yaml.parse(source) ?? {};
+    if (!this.isPlainObject(parsed)) {
+      throw new Error("Configuration YAML must represent an object.");
+    }
+    return parsed as EddieConfigInput;
+  }
+
+  serializeInput(
+    input: EddieConfigInput,
+    format: ConfigFileFormat
+  ): string {
+    const normalized = this.isPlainObject(input) ? input : {};
+    if (format === "json") {
+      return `${JSON.stringify(normalized, null, 2)}\n`;
+    }
+    return yaml.stringify(normalized);
+  }
+
+  private detectFormat(candidate: string): ConfigFileFormat {
+    const lower = candidate.toLowerCase();
+    if (lower.endsWith(".json") || lower.endsWith(".rc")) {
+      return "json";
+    }
+    return "yaml";
   }
 
   private ensureContextShape(

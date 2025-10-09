@@ -24,6 +24,75 @@ export type {
   UpdateRuntimeConfigDto,
 };
 
+export type ConfigFileFormat = "yaml" | "json";
+
+export interface EddieProviderConfigDto {
+  name?: string;
+  baseUrl?: string;
+  apiKey?: string;
+  version?: string;
+}
+
+export interface EddieContextConfigDto {
+  baseDir?: string;
+  include?: string[];
+  exclude?: string[];
+}
+
+export interface EddieToolsConfigDto {
+  enabled?: string[];
+  autoApprove?: boolean;
+}
+
+export interface EddieAgentsManagerDto {
+  prompt?: string;
+}
+
+export interface EddieAgentsConfigDto {
+  mode?: string;
+  manager?: EddieAgentsManagerDto;
+  enableSubagents?: boolean;
+}
+
+export interface EddieConfigDto {
+  model?: string;
+  provider?: EddieProviderConfigDto;
+  context?: EddieContextConfigDto;
+  systemPrompt?: string;
+  tools?: EddieToolsConfigDto;
+  agents?: EddieAgentsConfigDto;
+  logging?: { level?: string };
+}
+
+export type EddieConfigInputDto = EddieConfigDto;
+
+export interface EddieConfigSchemaDto {
+  id: string;
+  version: string;
+  schema: Record<string, unknown>;
+  inputSchema: Record<string, unknown>;
+}
+
+export interface EddieConfigPreviewDto {
+  input: EddieConfigInputDto;
+  config: EddieConfigDto;
+}
+
+export interface EddieConfigSourceDto {
+  path: string | null;
+  format: ConfigFileFormat;
+  content: string;
+  input: EddieConfigInputDto;
+  config?: EddieConfigDto | null;
+  error?: string | null;
+}
+
+export interface UpdateEddieConfigPayload {
+  content: string;
+  format: ConfigFileFormat;
+  path?: string | null;
+}
+
 export interface ChatSessionTemplateDto {
   id: string;
   name: string;
@@ -143,6 +212,14 @@ export interface ApiClient {
     config: {
       get(): Promise<RuntimeConfigDto>;
       update(input: UpdateRuntimeConfigDto): Promise<RuntimeConfigDto>;
+      getSchema(): Promise<EddieConfigSchemaDto>;
+      loadEddieConfig(): Promise<EddieConfigSourceDto>;
+      previewEddieConfig(
+        payload: UpdateEddieConfigPayload
+      ): Promise<EddieConfigPreviewDto>;
+      saveEddieConfig(
+        payload: UpdateEddieConfigPayload
+      ): Promise<EddieConfigSourceDto>;
     };
     preferences: {
       getLayout(): Promise<LayoutPreferencesDto>;
@@ -336,6 +413,20 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       config: {
         get: () => ConfigService.runtimeConfigControllerGet(),
         update: (input) => ConfigService.runtimeConfigControllerUpdate(input),
+        getSchema: () =>
+          performRequest<EddieConfigSchemaDto>("/config/schema"),
+        loadEddieConfig: () =>
+          performRequest<EddieConfigSourceDto>("/config/editor"),
+        previewEddieConfig: (payload) =>
+          performRequest<EddieConfigPreviewDto>("/config/editor/preview", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          }),
+        saveEddieConfig: (payload) =>
+          performRequest<EddieConfigSourceDto>("/config/editor", {
+            method: "PUT",
+            body: JSON.stringify(payload),
+          }),
       },
       preferences: {
         async getLayout() {
