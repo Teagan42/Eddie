@@ -24,7 +24,7 @@ function NavigationLink({ to, label }: NavigationLinkProps): JSX.Element {
         "group relative overflow-hidden rounded-full px-4 py-2 text-sm font-medium transition-all",
         isActive
           ? "bg-emerald-500/90 text-emerald-50 shadow-[0_18px_45px_-20px_rgba(16,185,129,0.8)]"
-          : "text-foreground/70 hover:-translate-y-0.5 hover:bg-emerald-500/15 hover:text-foreground"
+          : "text-white/80 hover:-translate-y-0.5 hover:bg-emerald-500/15 hover:text-white"
       )}
     >
       <span className="relative z-10 flex items-center gap-2">
@@ -43,7 +43,7 @@ function NavigationLink({ to, label }: NavigationLinkProps): JSX.Element {
 function AppShell({ children }: { children: ReactNode }): JSX.Element {
   const { apiKey, setApiKey } = useAuth();
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-900 text-foreground">
+    <div className="relative min-h-screen overflow-hidden bg-slate-900 text-slate-100">
       <AuroraBackground className="mix-blend-soft-light" />
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.2),transparent_60%)]" />
       <Flex direction="column" className="relative z-10 min-h-screen">

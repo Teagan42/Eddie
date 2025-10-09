@@ -230,11 +230,11 @@ export function OverviewPage(): JSX.Element {
                   <span className="h-2 w-2 rounded-full bg-emerald-400" />
                   {message.role}
                 </span>
-                <span className="text-[0.7rem] text-foreground/60">
+                <span className="text-[0.7rem] text-white/70">
                   {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </span>
               </Flex>
-              <Text size="2" className="text-foreground/95">
+              <Text size="2" className="text-white/90">
                 {message.content}
               </Text>
               <span className="pointer-events-none absolute -left-3 top-1/2 hidden h-12 w-12 -translate-y-1/2 rounded-full bg-emerald-500/10 blur-2xl md:block" aria-hidden />
@@ -261,7 +261,7 @@ export function OverviewPage(): JSX.Element {
             <Heading size="8" className="text-balance text-white drop-shadow-lg">
               Operate your agentic fleet with cinematic clarity.
             </Heading>
-            <Text size="3" className="text-foreground/80">
+            <Text size="3" className="text-white/80">
               Observe sessions, traces, and logs at a glance while keeping configuration and API credentials at your fingertips.
             </Text>
             <Flex gap="3" wrap="wrap">
@@ -426,7 +426,7 @@ export function OverviewPage(): JSX.Element {
                         "rounded-2xl border border-white/10 px-4 py-3 text-left transition-all",
                         session.id === selectedSessionId
                           ? "bg-emerald-500/25 text-white shadow-[0_18px_45px_-28px_rgba(16,185,129,0.8)]"
-                          : "bg-white/10 text-foreground hover:-translate-y-0.5 hover:border-emerald-500/40 hover:bg-emerald-500/15"
+                          : "bg-white/10 text-white/80 hover:-translate-y-0.5 hover:border-emerald-500/40 hover:bg-emerald-500/20 hover:text-white"
                       )}
                     >
                       <Heading as="h3" size="3" weight="medium">
