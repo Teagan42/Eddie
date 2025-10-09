@@ -457,32 +457,40 @@ export function ConfigPage(): JSX.Element {
                   {sizeLabel}
                 </Text>
               </Flex>
-              <Flex
-                direction="column"
-                gap="1"
-                className="flex-[2] min-w-[16rem] rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-[0_25px_55px_-45px_rgba(250,204,21,0.6)] backdrop-blur"
-              >
-                <Text
-                  size="1"
-                  color="gray"
-                  className="font-medium uppercase tracking-[0.18em]"
-                >
-                  Source path
-                </Text>
-                <Text
-                  size="3"
-                  className="truncate font-semibold text-amber-200"
-                  title={locationLabel}
-                >
-                  {locationLabel}
-                </Text>
-                <Text size="1" color="gray">
-                  {approxLinesLabel} lines tracked
-                </Text>
-              </Flex>
             </Flex>
           }
-        />
+        >
+          <Flex
+            direction={{ initial: "column", md: "row" }}
+            wrap="wrap"
+            gap="3"
+            className="w-full"
+          >
+            <Flex
+              direction="column"
+              gap="1"
+              className="flex-1 min-w-[16rem] rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-[0_25px_55px_-45px_rgba(250,204,21,0.6)] backdrop-blur"
+            >
+              <Text
+                size="1"
+                color="gray"
+                className="font-medium uppercase tracking-[0.18em]"
+              >
+                Source path
+              </Text>
+              <Text
+                size="3"
+                className="truncate font-semibold text-amber-200"
+                title={locationLabel}
+              >
+                {locationLabel}
+              </Text>
+              <Text size="1" color="gray">
+                {approxLinesLabel} lines tracked
+              </Text>
+            </Flex>
+          </Flex>
+        </Panel>
 
       {statusMessage ? (
         <Callout.Root
