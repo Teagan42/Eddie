@@ -4,6 +4,7 @@ import { OpenAPI } from "./generated/core/OpenAPI";
 
 class MockSocket {
   public io = { opts: { extraHeaders: {} as Record<string, string> } };
+  public auth: Record<string, unknown> = {};
   public connected = false;
   public on = vi.fn();
   public off = vi.fn();
@@ -40,7 +41,20 @@ describe("createApiClient", () => {
     });
 
     expect(OpenAPI.BASE).toBe("https://example.test/api");
-    expect(ioMock!).toHaveBeenCalledWith("ws://example.test/ws/chat-sessions", expect.any(Object));
+    expect(ioMock!).toHaveBeenCalledWith(
+      "ws://example.test/ws/chat-sessions",
+      expect.objectContaining({
+        transports: ["websocket"],
+        autoConnect: false,
+        withCredentials: true,
+      })
+    );
+
+    ioMock!.mock.results.forEach((result) => {
+      const socket = result.value as MockSocket;
+      expect(socket.connect).toHaveBeenCalledTimes(1);
+      expect(socket.auth).toEqual({});
+    });
 
     client.updateAuth("secret");
 
@@ -51,11 +65,18 @@ describe("createApiClient", () => {
         : {};
     expect(headers).toHaveProperty("x-api-key", "secret");
 
+    ioMock!.mock.results.forEach((result) => {
+      const socket = result.value as MockSocket;
+      expect(socket.disconnect).toHaveBeenCalledTimes(1);
+      expect(socket.connect).toHaveBeenCalledTimes(2);
+      expect(socket.auth).toEqual({ apiKey: "secret" });
+    });
+
     client.dispose();
     expect(ioMock!).toHaveBeenCalledTimes(4);
     ioMock!.mock.results.forEach((result) => {
       const socket = result.value as MockSocket;
-      expect(socket.disconnect).toHaveBeenCalled();
+      expect(socket.disconnect).toHaveBeenCalledTimes(2);
     });
   });
 });

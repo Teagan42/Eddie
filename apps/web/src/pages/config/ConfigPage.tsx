@@ -40,6 +40,11 @@ import { useApi } from "@/api/api-provider";
 
 const YAML_OPTIONS = { lineWidth: 120, noRefs: true } as const;
 
+const GLASS_CARD_CLASS =
+  "relative overflow-hidden border border-white/10 bg-gradient-to-br from-emerald-500/12 via-slate-900/70 to-slate-900/35 shadow-[0_40px_70px_-45px_rgba(16,185,129,0.55)] backdrop-blur-xl";
+const ACCENT_CARD_CLASS =
+  "relative overflow-hidden border border-white/10 bg-gradient-to-br from-sky-500/12 via-slate-900/70 to-slate-900/40 shadow-[0_40px_70px_-45px_rgba(56,189,248,0.5)] backdrop-blur-xl";
+
 function cloneInput(input?: EddieConfigInputDto): EddieConfigInputDto {
   return JSON.parse(JSON.stringify(input ?? {}));
 }
@@ -101,7 +106,7 @@ function Section({
   children: ReactNode;
 }): JSX.Element {
   return (
-    <Card className="space-y-4">
+    <Card className={`${GLASS_CARD_CLASS} space-y-4 p-6`}>
       <Box>
         <Heading as="h3" size="4">
           {title}
@@ -400,18 +405,95 @@ export function ConfigPage(): JSX.Element {
 
   const editorPath = mode === "json" ? "eddie.config.json" : "eddie.config.yaml";
 
+  const sourceSnapshot = sourceQuery.data;
+  const locationLabel =
+    sourceSnapshot?.path && sourceSnapshot.path.trim().length > 0
+      ? sourceSnapshot.path
+      : "In-memory workspace";
+  const sourceSizeBytes = sourceSnapshot?.content?.length ?? 0;
+  const sizeLabel =
+    sourceSizeBytes > 0
+      ? `${(sourceSizeBytes / 1024).toFixed(1)} KB`
+      : "0 KB";
+  const approxLines =
+    sourceSnapshot?.content !== undefined
+      ? sourceSnapshot.content.split(/\n/u).length
+      : 0;
+  const formatLabel = mode.toUpperCase();
+  const approxLinesLabel =
+    approxLines > 0 ? approxLines.toLocaleString() : "0";
+
   return (
     <Flex direction="column" gap="7">
-      <Box>
-        <Heading size="7">Configuration</Heading>
-        <Text color="gray">
-          Manage Eddie orchestrator settings with schema-backed validation or a
-          guided form.
-        </Text>
-      </Box>
+      <Card className={`${GLASS_CARD_CLASS} p-6`}>
+        <Flex
+          direction={{ initial: "column", md: "row" }}
+          align={{ initial: "start", md: "center" }}
+          justify="between"
+          gap="6"
+        >
+          <Box className="space-y-2">
+            <Heading size="7" className="tracking-tight text-white">
+              Configuration studio
+            </Heading>
+            <Text size="3" color="gray" className="max-w-xl text-slate-200/80">
+              Compose runtime settings with live previews, schema validation,
+              and guardrails tailored for Eddie orchestrations.
+            </Text>
+          </Box>
+          <div className="grid w-full max-w-xl gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-[0_25px_55px_-45px_rgba(16,185,129,0.7)] backdrop-blur">
+              <Text
+                size="1"
+                color="gray"
+                className="font-medium uppercase tracking-[0.18em]"
+              >
+                Active format
+              </Text>
+              <Text size="4" className="font-semibold text-emerald-200">
+                {formatLabel}
+              </Text>
+            </div>
+            <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-[0_25px_55px_-45px_rgba(56,189,248,0.65)] backdrop-blur">
+              <Text
+                size="1"
+                color="gray"
+                className="font-medium uppercase tracking-[0.18em]"
+              >
+                Approx size
+              </Text>
+              <Text size="4" className="font-semibold text-sky-200">
+                {sizeLabel}
+              </Text>
+            </div>
+            <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-[0_25px_55px_-45px_rgba(250,204,21,0.6)] backdrop-blur sm:col-span-3">
+              <Text
+                size="1"
+                color="gray"
+                className="font-medium uppercase tracking-[0.18em]"
+              >
+                Source path
+              </Text>
+              <Text
+                size="3"
+                className="truncate font-semibold text-amber-200"
+                title={locationLabel}
+              >
+                {locationLabel}
+              </Text>
+              <Text size="1" color="gray">
+                {approxLinesLabel} lines tracked
+              </Text>
+            </div>
+          </div>
+        </Flex>
+      </Card>
 
       {statusMessage ? (
-        <Callout.Root color={statusVariant === "error" ? "red" : "jade"}>
+        <Callout.Root
+          color={statusVariant === "error" ? "red" : "jade"}
+          className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
+        >
           <Callout.Icon>
             <CheckIcon />
           </Callout.Icon>
@@ -420,7 +502,10 @@ export function ConfigPage(): JSX.Element {
       ) : null}
 
       {parseError ? (
-        <Callout.Root color="red">
+        <Callout.Root
+          color="red"
+          className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
+        >
           <Callout.Icon>
             <MixerHorizontalIcon />
           </Callout.Icon>
@@ -429,7 +514,10 @@ export function ConfigPage(): JSX.Element {
       ) : null}
 
       {previewError ? (
-        <Callout.Root color="amber">
+        <Callout.Root
+          color="amber"
+          className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
+        >
           <Callout.Icon>
             <MixerHorizontalIcon />
           </Callout.Icon>
@@ -438,7 +526,10 @@ export function ConfigPage(): JSX.Element {
       ) : null}
 
       {guardrailWarnings.length > 0 && !parseError ? (
-        <Callout.Root color="amber">
+        <Callout.Root
+          color="amber"
+          className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
+        >
           <Callout.Icon>
             <EyeOpenIcon />
           </Callout.Icon>
@@ -727,7 +818,7 @@ export function ConfigPage(): JSX.Element {
         </Flex>
 
         <Flex direction="column" gap="5" className="w-full lg:w-1/2">
-          <Card className="space-y-4">
+          <Card className={`${ACCENT_CARD_CLASS} space-y-4 p-6`}>
             <Flex align="center" justify="between">
               <Heading as="h3" size="4">
                 Source editor

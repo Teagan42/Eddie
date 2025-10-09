@@ -70,6 +70,11 @@ const TOOL_STATUS_COLORS: Record<ToolCallStatusDto, BadgeColor> = {
   failed: "red",
 };
 
+const GLASS_CARD_CLASS =
+  "relative overflow-hidden border border-white/10 bg-gradient-to-br from-emerald-500/12 via-slate-900/70 to-slate-900/35 shadow-[0_35px_65px_-45px_rgba(16,185,129,0.6)] backdrop-blur-xl";
+const SKY_CARD_CLASS =
+  "relative overflow-hidden border border-white/10 bg-gradient-to-br from-sky-500/12 via-slate-900/70 to-slate-900/40 shadow-[0_35px_65px_-45px_rgba(56,189,248,0.55)] backdrop-blur-xl";
+
 type MessageRole = ChatMessageDto["role"];
 
 interface MessageRoleStyle {
@@ -88,29 +93,30 @@ const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
     badgeColor: "blue",
     align: "end",
     cardClassName:
-      "border border-primary/30 bg-primary/10 text-primary-foreground shadow-sm",
+      "border border-emerald-400/30 bg-gradient-to-br from-emerald-500/25 via-emerald-500/10 to-slate-900/60 text-emerald-50 shadow-[0_30px_60px_-35px_rgba(16,185,129,0.7)]",
     icon: PersonIcon,
-    iconClassName: "text-blue-500",
-    contentClassName: "whitespace-pre-wrap leading-relaxed",
+    iconClassName: "text-emerald-200",
+    contentClassName: "whitespace-pre-wrap leading-relaxed text-emerald-50",
   },
   assistant: {
     label: "Assistant",
     badgeColor: "green",
     align: "start",
-    cardClassName: "border border-muted/50 bg-card shadow-sm",
+    cardClassName:
+      "border border-sky-400/30 bg-gradient-to-br from-sky-500/20 via-sky-500/10 to-slate-900/60 text-sky-50 shadow-[0_30px_60px_-35px_rgba(56,189,248,0.6)]",
     icon: MagicWandIcon,
-    iconClassName: "text-emerald-500",
-    contentClassName: "whitespace-pre-wrap leading-relaxed",
+    iconClassName: "text-sky-200",
+    contentClassName: "whitespace-pre-wrap leading-relaxed text-sky-50",
   },
   system: {
     label: "Command",
     badgeColor: "purple",
     align: "start",
     cardClassName:
-      "border border-accent/40 bg-accent/10 text-accent-foreground shadow-sm",
+      "border border-amber-400/30 bg-gradient-to-br from-amber-500/20 via-amber-500/10 to-slate-900/60 text-amber-50 shadow-[0_30px_60px_-35px_rgba(250,204,21,0.55)]",
     icon: GearIcon,
-    iconClassName: "text-purple-500",
-    contentClassName: "whitespace-pre-wrap text-sm font-mono",
+    iconClassName: "text-amber-200",
+    contentClassName: "whitespace-pre-wrap text-sm font-mono text-amber-100",
   },
 };
 
@@ -176,7 +182,7 @@ function CollapsiblePanel({
   children,
 }: CollapsiblePanelProps): JSX.Element {
   return (
-    <Card className="flex flex-col gap-3">
+    <Card className={`${SKY_CARD_CLASS} flex flex-col gap-3 p-5`}>
       <Flex align="center" justify="between" gap="3">
         <Box>
           <Heading as="h3" size="3">
@@ -663,12 +669,22 @@ export function ChatPage(): JSX.Element {
 
   return (
     <Flex direction="column" className="mx-auto w-full max-w-7xl gap-6 px-6 py-8">
-      <Flex align="center" gap="3">
-        <ChatBubbleIcon className="text-3xl" />
-        <Heading size="6">Chat orchestrator</Heading>
+      <Flex align="center" gap="4">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/70 to-sky-500/70 shadow-[0_25px_55px_-35px_rgba(56,189,248,0.7)]">
+          <ChatBubbleIcon className="h-5 w-5 text-white" />
+        </div>
+        <Box className="space-y-1">
+          <Heading size="6" className="text-white">
+            Chat orchestrator
+          </Heading>
+          <Text size="2" color="gray" className="text-slate-200/85">
+            Orchestrate sessions across providers and watch context and tools
+            light up in real time.
+          </Text>
+        </Box>
       </Flex>
 
-      <Card>
+      <Card className={`${GLASS_CARD_CLASS} space-y-4 p-6`}>
         <Flex align="center" justify="between" gap="3" wrap="wrap">
           <Flex align="center" gap="3" wrap="wrap">
             <Heading as="h2" size="4">
@@ -723,7 +739,7 @@ export function ChatPage(): JSX.Element {
       </Card>
 
       <div className="flex flex-col gap-6 lg:flex-row">
-        <Card className="flex-1 space-y-5">
+        <Card className={`${GLASS_CARD_CLASS} flex-1 space-y-5 p-6`}>
           <Flex align="center" justify="between" wrap="wrap" gap="3">
             <Heading as="h3" size="4">
               {sessions.find((session) => session.id === selectedSessionId)?.title ??
@@ -808,7 +824,7 @@ export function ChatPage(): JSX.Element {
                       >
                         <Flex align="start" justify="between" gap="3">
                           <Flex align="center" gap="2">
-                            <Box className="rounded-full bg-background/80 p-2">
+                            <Box className="rounded-full bg-white/15 p-2 shadow-inner">
                               <Icon
                                 className={`h-4 w-4 ${roleStyle.iconClassName}`}
                               />
@@ -836,7 +852,7 @@ export function ChatPage(): JSX.Element {
                           ) : null}
                         </Flex>
                         <Box
-                          className={`text-sm text-foreground/90 ${
+                          className={`text-sm text-slate-100 ${
                             roleStyle.contentClassName ?? ""
                           }`}
                         >
