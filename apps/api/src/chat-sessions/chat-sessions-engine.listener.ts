@@ -100,6 +100,8 @@ export class ChatSessionsEngineListener
       .map<ChatMessage>((entry) => ({
         role: entry.role,
         content: entry.content,
+        ...(entry.name ? { name: entry.name } : {}),
+        ...(entry.toolCallId ? { tool_call_id: entry.toolCallId } : {}),
       }));
   }
 

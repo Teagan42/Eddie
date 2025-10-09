@@ -46,4 +46,41 @@ describe("OrchestratorMetadataService", () => {
     expect(metadata.toolInvocations).toHaveLength(1);
     expect(metadata.toolInvocations[0]?.name).toBe("formatter");
   });
+
+  it("uses the recorded tool call id for metadata nodes", () => {
+    const session: ChatSessionDto = {
+      id: "session-2",
+      title: "Tool invocation tracking",
+      status: "active",
+      createdAt: new Date("2024-01-01T00:00:00.000Z").toISOString(),
+      updatedAt: new Date("2024-01-01T00:00:00.000Z").toISOString(),
+    };
+
+    const messages: ChatMessageDto[] = [
+      {
+        id: "message-tool",
+        sessionId: session.id,
+        role: ChatMessageRole.Tool,
+        content: "{}",
+        createdAt: new Date("2024-01-01T00:06:00.000Z").toISOString(),
+      },
+    ];
+
+    const enrichedMessages = messages.map((message) => ({
+      ...message,
+      toolCallId: "call-123",
+    }));
+
+    const chatSessions = {
+      getSession: () => session,
+      listMessages: () => enrichedMessages,
+    } as unknown as ChatSessionsService;
+
+    const service = new OrchestratorMetadataService(chatSessions);
+
+    const metadata = service.getMetadata(session.id);
+
+    expect(metadata.toolInvocations).toHaveLength(1);
+    expect(metadata.toolInvocations[0]?.id).toBe("call-123");
+  });
 });

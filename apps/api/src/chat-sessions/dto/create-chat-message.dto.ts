@@ -1,5 +1,11 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsEnum, IsNotEmpty, IsString, MaxLength } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from "class-validator";
 
 export enum ChatMessageRole {
   User = "user",
@@ -18,4 +24,16 @@ export class CreateChatMessageDto {
   @IsNotEmpty()
   @MaxLength(4000)
   content!: string;
+
+  @ApiPropertyOptional({
+    description: "Identifier of the originating tool call",
+  })
+  @IsString()
+  @IsOptional()
+  toolCallId?: string;
+
+  @ApiPropertyOptional({ description: "Originating tool name" })
+  @IsString()
+  @IsOptional()
+  name?: string;
 }

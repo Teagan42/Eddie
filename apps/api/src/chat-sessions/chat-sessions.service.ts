@@ -24,6 +24,8 @@ interface ChatMessageEntity {
   role: ChatMessageRole;
   content: string;
   createdAt: Date;
+  toolCallId?: string;
+  name?: string;
 }
 
 export interface ChatSessionsListener {
@@ -61,6 +63,8 @@ export class ChatSessionsService {
       role: entity.role,
       content: entity.content,
       createdAt: entity.createdAt.toISOString(),
+      ...(entity.toolCallId ? { toolCallId: entity.toolCallId } : {}),
+      ...(entity.name ? { name: entity.name } : {}),
     };
   }
 
@@ -149,6 +153,8 @@ export class ChatSessionsService {
       role: dto.role,
       content: dto.content,
       createdAt: new Date(),
+      toolCallId: dto.toolCallId,
+      name: dto.name,
     };
 
     const collection = this.messages.get(sessionId);
