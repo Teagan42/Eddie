@@ -28,7 +28,8 @@ export interface ConfigFileSnapshot {
   format: ConfigFileFormat;
   content: string;
   input: EddieConfigInput;
-  config: EddieConfig;
+  config?: EddieConfig;
+  error?: string;
 }
 
 const CONFIG_FILENAMES = [
@@ -101,7 +102,16 @@ export class ConfigService {
       input = this.parseSource(content, "yaml");
     }
 
-    const config = await this.compose(input, options);
+    let config: EddieConfig | undefined;
+    let error: string | undefined;
+
+    try {
+      config = await this.compose(input, options);
+    } catch (composeError) {
+      error = composeError instanceof Error
+        ? composeError.message
+        : "Unable to compose configuration.";
+    }
 
     return {
       path: configPath,
@@ -109,6 +119,7 @@ export class ConfigService {
       content,
       input,
       config,
+      error,
     };
   }
 
@@ -118,14 +129,30 @@ export class ConfigService {
     options: CliRuntimeOptions = {},
     targetPath?: string | null
   ): Promise<ConfigFileSnapshot> {
-    let resolvedTarget: string | undefined;
+    let resolvedTarget: string | null | undefined;
     if (targetPath) {
-      // resolve user input against config root - prevents directory traversal
-      resolvedTarget = path.resolve(CONFIG_ROOT, targetPath);
-      // Validate that final path is within CONFIG_ROOT
-      if (!resolvedTarget.startsWith(CONFIG_ROOT + path.sep)) {
+      if (path.isAbsolute(targetPath)) {
+        throw new Error("Invalid target path: must be relative to config directory.");
+      }
+
+      const normalisedTarget = path.normalize(targetPath);
+      if (
+        normalisedTarget.startsWith("..") ||
+        normalisedTarget.includes(`${path.sep}..`) ||
+        normalisedTarget === ".."
+      ) {
         throw new Error("Invalid target path: outside of config directory.");
       }
+
+      const candidate = path.join(CONFIG_ROOT, normalisedTarget);
+      if (
+        candidate !== CONFIG_ROOT &&
+        !candidate.startsWith(CONFIG_ROOT + path.sep)
+      ) {
+        throw new Error("Invalid target path: outside of config directory.");
+      }
+
+      resolvedTarget = candidate;
     } else {
       resolvedTarget = await this.resolveConfigPath(options);
     }

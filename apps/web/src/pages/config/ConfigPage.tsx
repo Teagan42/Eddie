@@ -178,9 +178,13 @@ export function ConfigPage(): JSX.Element {
       setOriginalValue(snapshot.content);
       setEditorValue(snapshot.content);
       setParsedInput(cloneInput(snapshot.input));
-      setPreviewData({ input: snapshot.input, config: snapshot.config });
+      setPreviewData(
+        snapshot.config
+          ? { input: snapshot.input, config: snapshot.config }
+          : null
+      );
       setParseError(null);
-      setPreviewError(null);
+      setPreviewError(snapshot.error ?? null);
       setStatusMessage(
         `Configuration saved at ${new Date().toLocaleTimeString()}`
       );
@@ -248,9 +252,11 @@ export function ConfigPage(): JSX.Element {
     setOriginalValue(snapshot.content);
     setEditorValue(snapshot.content);
     setParsedInput(cloneInput(snapshot.input));
-    setPreviewData({ input: snapshot.input, config: snapshot.config });
+    setPreviewData(
+      snapshot.config ? { input: snapshot.input, config: snapshot.config } : null
+    );
     setParseError(null);
-    setPreviewError(null);
+    setPreviewError(snapshot.error ?? null);
     setStatusMessage(null);
     setStatusVariant(null);
   }, [sourceQuery.data]);

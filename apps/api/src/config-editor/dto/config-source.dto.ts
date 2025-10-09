@@ -1,4 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import type {
   ConfigFileFormat,
   EddieConfig,
@@ -28,10 +28,18 @@ export class ConfigSourceDto {
   })
   input!: EddieConfigInput;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: "Resolved Eddie configuration.",
     type: "object",
     additionalProperties: true,
+    nullable: true,
   })
-  config!: EddieConfig;
+  config?: EddieConfig | null;
+
+  @ApiPropertyOptional({
+    description:
+      "Configuration validation error when the source cannot be composed.",
+    nullable: true,
+  })
+  error?: string | null;
 }
