@@ -167,6 +167,7 @@ export class ApiKeyGuard implements CanActivate, OnModuleInit {
     const apiKey = this.extractApiKey(request);
 
     if (apiKey && this.apiKeys.has(apiKey)) {
+      (request as Request & { apiKey?: string }).apiKey = apiKey;
       return true;
     }
 
