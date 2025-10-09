@@ -1,0 +1,120 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { EngineService, EngineResult } from "@eddie/engine";
+import { ChatSessionsEngineListener } from "../../../src/chat-sessions/chat-sessions-engine.listener";
+import type { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
+import { ChatMessageRole } from "../../../src/chat-sessions/dto/create-chat-message.dto";
+import type { ChatMessageDto } from "../../../src/chat-sessions/dto/chat-session.dto";
+
+const createChatMessage = (
+  overrides: Partial<ChatMessageDto> = {}
+): ChatMessageDto => ({
+  id: "message-1",
+  sessionId: "session-1",
+  role: ChatMessageRole.User,
+  content: "Execute plan",
+  createdAt: new Date().toISOString(),
+  ...overrides,
+});
+
+describe("ChatSessionsEngineListener", () => {
+  const registerListener = vi.fn();
+  const listMessages = vi.fn();
+  const addMessage = vi.fn();
+  let engineRun: ReturnType<typeof vi.fn>;
+  let listener: ChatSessionsEngineListener;
+
+  beforeEach(() => {
+    registerListener.mockReset();
+    listMessages.mockReset();
+    addMessage.mockReset();
+
+    const chatSessions = {
+      registerListener,
+      listMessages,
+      addMessage,
+    } as unknown as ChatSessionsService;
+
+    engineRun = vi.fn();
+    const engine = {
+      run: engineRun,
+    } as unknown as EngineService;
+
+    listener = new ChatSessionsEngineListener(chatSessions, engine);
+  });
+
+  it("registers and unregisters with the chat sessions service", () => {
+    const unregister = vi.fn();
+    registerListener.mockReturnValue(unregister);
+
+    listener.onModuleInit();
+    expect(registerListener).toHaveBeenCalledWith(listener);
+
+    listener.onModuleDestroy();
+    expect(unregister).toHaveBeenCalled();
+  });
+
+  it("ignores assistant messages", () => {
+    const message = createChatMessage({ role: ChatMessageRole.Assistant });
+
+    listener.onMessageCreated(message);
+
+    expect(engineRun).not.toHaveBeenCalled();
+  });
+
+  it("invokes the engine with prior history and appends responses", async () => {
+    const historyMessages = [
+      createChatMessage({ id: "m-1", role: ChatMessageRole.User, content: "Earlier" }),
+      createChatMessage({ id: "m-2", role: ChatMessageRole.Assistant, content: "Previous reply" }),
+    ];
+    const newMessage = createChatMessage({ id: "m-3" });
+
+    listMessages.mockReturnValue([...historyMessages, newMessage]);
+
+    const engineResult: EngineResult = {
+      messages: [
+        { role: "system", content: "system prompt" },
+        { role: "user", content: "Earlier" },
+        { role: "assistant", content: "Previous reply" },
+        { role: "user", content: "Execute plan" },
+        { role: "assistant", content: "Next steps" },
+      ],
+      context: { files: [], totalBytes: 0, text: "" },
+      agents: [],
+    };
+
+    engineRun.mockResolvedValue(engineResult);
+
+    listener.onMessageCreated(newMessage);
+
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(engineRun).toHaveBeenCalledWith("Execute plan", {
+      history: [
+        { role: ChatMessageRole.User, content: "Earlier" },
+        { role: ChatMessageRole.Assistant, content: "Previous reply" },
+      ],
+      autoApprove: true,
+      nonInteractive: true,
+    });
+
+    expect(addMessage).toHaveBeenCalledWith("session-1", {
+      role: ChatMessageRole.Assistant,
+      content: "Next steps",
+    });
+  });
+
+  it("appends a failure message when the engine rejects", async () => {
+    const message = createChatMessage();
+    listMessages.mockReturnValue([message]);
+    engineRun.mockRejectedValue(new Error("boom"));
+
+    listener.onMessageCreated(message);
+
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(addMessage).toHaveBeenCalledWith("session-1", {
+      role: ChatMessageRole.Assistant,
+      content: "Engine failed to respond. Check server logs for details.",
+    });
+  });
+});
