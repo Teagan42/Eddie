@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EngineService, EngineResult } from "@eddie/engine";
 import { ChatSessionsEngineListener } from "../../../src/chat-sessions/chat-sessions-engine.listener";
-import type { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
+import { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
 import { ChatMessageRole } from "../../../src/chat-sessions/dto/create-chat-message.dto";
 import type { ChatMessageDto } from "../../../src/chat-sessions/dto/chat-session.dto";
+import type { ModuleRef } from "@nestjs/core";
 
 const createChatMessage = (
   overrides: Partial<ChatMessageDto> = {}
@@ -21,6 +22,9 @@ describe("ChatSessionsEngineListener", () => {
   const listMessages = vi.fn();
   const addMessage = vi.fn();
   let engineRun: ReturnType<typeof vi.fn>;
+  let moduleRefGet: ReturnType<typeof vi.fn>;
+  let moduleRef: ModuleRef;
+  let chatSessions: ChatSessionsService;
   let listener: ChatSessionsEngineListener;
 
   beforeEach(() => {
@@ -28,7 +32,7 @@ describe("ChatSessionsEngineListener", () => {
     listMessages.mockReset();
     addMessage.mockReset();
 
-    const chatSessions = {
+    chatSessions = {
       registerListener,
       listMessages,
       addMessage,
@@ -39,7 +43,12 @@ describe("ChatSessionsEngineListener", () => {
       run: engineRun,
     } as unknown as EngineService;
 
-    listener = new ChatSessionsEngineListener(chatSessions, engine);
+    moduleRefGet = vi.fn(() => chatSessions);
+    moduleRef = {
+      get: moduleRefGet,
+    } as unknown as ModuleRef;
+
+    listener = new ChatSessionsEngineListener(chatSessions, moduleRef, engine);
   });
 
   it("registers and unregisters with the chat sessions service", () => {
@@ -47,15 +56,18 @@ describe("ChatSessionsEngineListener", () => {
     registerListener.mockReturnValue(unregister);
 
     listener.onModuleInit();
+
     expect(registerListener).toHaveBeenCalledWith(listener);
 
     listener.onModuleDestroy();
     expect(unregister).toHaveBeenCalled();
+    expect(moduleRefGet).not.toHaveBeenCalled();
   });
 
   it("ignores assistant messages", () => {
     const message = createChatMessage({ role: ChatMessageRole.Assistant });
 
+    listener.onModuleInit();
     listener.onMessageCreated(message);
 
     expect(engineRun).not.toHaveBeenCalled();
@@ -84,6 +96,8 @@ describe("ChatSessionsEngineListener", () => {
 
     engineRun.mockResolvedValue(engineResult);
 
+    listener.onModuleInit();
+
     listener.onMessageCreated(newMessage);
 
     await new Promise((resolve) => setImmediate(resolve));
@@ -108,6 +122,7 @@ describe("ChatSessionsEngineListener", () => {
     listMessages.mockReturnValue([message]);
     engineRun.mockRejectedValue(new Error("boom"));
 
+    listener.onModuleInit();
     listener.onMessageCreated(message);
 
     await new Promise((resolve) => setImmediate(resolve));
@@ -115,6 +130,20 @@ describe("ChatSessionsEngineListener", () => {
     expect(addMessage).toHaveBeenCalledWith("session-1", {
       role: ChatMessageRole.Assistant,
       content: "Engine failed to respond. Check server logs for details.",
+    });
+  });
+
+  it("resolves the chat sessions service via ModuleRef when not injected", () => {
+    const fallbackListener = new ChatSessionsEngineListener(
+      null,
+      moduleRef,
+      { run: engineRun } as unknown as EngineService
+    );
+
+    fallbackListener.onModuleInit();
+
+    expect(moduleRefGet).toHaveBeenCalledWith(ChatSessionsService, {
+      strict: false,
     });
   });
 });

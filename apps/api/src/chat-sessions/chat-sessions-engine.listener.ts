@@ -5,6 +5,7 @@ import {
   OnModuleInit,
   Optional,
 } from "@nestjs/common";
+import { ModuleRef } from "@nestjs/core";
 import { EngineService } from "@eddie/engine";
 import type { ChatMessage } from "@eddie/types";
 import {
@@ -23,19 +24,27 @@ export class ChatSessionsEngineListener
 {
   private readonly logger = new Logger(ChatSessionsEngineListener.name);
   private unregister: (() => void) | null = null;
-  private readonly chatSessions: ChatSessionsService | null;
+  private chatSessions: ChatSessionsService | null;
 
   constructor(
     @Optional() chatSessions: ChatSessionsService | null,
+    private readonly moduleRef: ModuleRef,
     private readonly engine: EngineService
   ) {
     this.chatSessions = chatSessions ?? null;
   }
 
   onModuleInit(): void {
-    if (!this.chatSessions ||
-      typeof this.chatSessions.registerListener !== "function") {
-      this.logger.warn("ChatSessionsService unavailable; engine listener disabled.");
+    if (!this.chatSessions && this.moduleRef) {
+      this.chatSessions = this.moduleRef.get(ChatSessionsService, {
+        strict: false,
+      });
+    }
+
+    if (!this.chatSessions) {
+      this.logger.warn(
+        "ChatSessionsService unavailable; engine listener disabled."
+      );
       return;
     }
 
@@ -45,6 +54,7 @@ export class ChatSessionsEngineListener
   onModuleDestroy(): void {
     this.unregister?.();
     this.unregister = null;
+    this.chatSessions = null;
   }
 
   onSessionCreated(): void {
@@ -71,13 +81,9 @@ export class ChatSessionsEngineListener
   }
 
   private async executeEngine(message: ChatMessageDto): Promise<void> {
-    if (
-      !this.chatSessions ||
-      typeof this.chatSessions.listMessages !== "function" ||
-      typeof this.chatSessions.addMessage !== "function"
-    ) {
+    if (!this.chatSessions) {
       this.logger.warn(
-        "ChatSessionsService missing required methods; skipping engine execution."
+        "ChatSessionsService unavailable; skipping engine execution."
       );
       return;
     }
@@ -120,8 +126,7 @@ export class ChatSessionsEngineListener
   }
 
   private createHistory(message: ChatMessageDto): ChatMessage[] {
-    if (!this.chatSessions ||
-      typeof this.chatSessions.listMessages !== "function") {
+    if (!this.chatSessions) {
       return [];
     }
 
@@ -135,8 +140,7 @@ export class ChatSessionsEngineListener
   }
 
   private appendAssistantMessage(sessionId: string, content: string): void {
-    if (!this.chatSessions ||
-      typeof this.chatSessions.addMessage !== "function") {
+    if (!this.chatSessions) {
       return;
     }
 
