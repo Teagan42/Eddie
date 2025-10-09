@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
 
 const loadEnvMock = vi.fn();
+
+const workspaceRoot = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(workspaceRoot, "..", "..");
 
 vi.mock("vite", () => ({
   loadEnv: loadEnvMock,
@@ -19,10 +24,10 @@ describe("loadWorkspaceEnv", () => {
 
     const { loadWorkspaceEnv } = await import("./vite-env");
 
-    const result = loadWorkspaceEnv("development", "/workspace/Eddie/apps/web");
+    const result = loadWorkspaceEnv("development", workspaceRoot);
 
-    expect(loadEnvMock).toHaveBeenNthCalledWith(1, "development", "/workspace/Eddie", "");
-    expect(loadEnvMock).toHaveBeenNthCalledWith(2, "development", "/workspace/Eddie/apps/web", "");
+    expect(loadEnvMock).toHaveBeenNthCalledWith(1, "development", repoRoot, "");
+    expect(loadEnvMock).toHaveBeenNthCalledWith(2, "development", workspaceRoot, "");
     expect(result).toEqual({
       VITE_API_URL: "http://workspace",
       VITE_WEBSOCKET_URL: "ws://root",
@@ -36,10 +41,10 @@ describe("loadWorkspaceEnv", () => {
 
     const { loadWorkspaceEnv } = await import("./vite-env");
 
-    const result = loadWorkspaceEnv("production", "/workspace/Eddie/apps/web");
+    const result = loadWorkspaceEnv("production", workspaceRoot);
 
     expect(loadEnvMock).toHaveBeenCalledTimes(2);
-    expect(loadEnvMock).toHaveBeenNthCalledWith(1, "production", "/workspace/Eddie", "");
+    expect(loadEnvMock).toHaveBeenNthCalledWith(1, "production", repoRoot, "");
     expect(result.VITE_WEBSOCKET_URL).toBe("ws://workspace");
   });
 });
