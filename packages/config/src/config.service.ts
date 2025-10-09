@@ -723,9 +723,21 @@ export class ConfigService {
           }
         : input.auth;
 
+    const host =
+      typeof input.host === "string" && input.host.trim() !== ""
+        ? input.host
+        : normalizedBase.host;
+
+    const port =
+      typeof input.port === "number" && Number.isFinite(input.port)
+        ? input.port
+        : normalizedBase.port;
+
     return {
       ...normalizedBase,
       ...input,
+      host,
+      port,
       telemetry,
       validation,
       cache,
