@@ -137,4 +137,64 @@ describe("RequestLoggingInterceptor", () => {
       "Request pipeline emitted an error"
     );
   });
+
+  it("logs bodies on the first request when debug logging is enabled", async () => {
+    const logger = { debug: vi.fn(), info: vi.fn(), error: vi.fn() };
+    let resolveConfig: ((config: EddieConfig) => void) | undefined;
+    const configPromise = new Promise<EddieConfig>((resolve) => {
+      resolveConfig = resolve;
+    });
+    const configService = {
+      load: vi.fn().mockReturnValue(configPromise),
+    } as unknown as ConfigService;
+    const interceptor = new RequestLoggingInterceptor(
+      configService,
+      logger as unknown as Logger
+    );
+
+    (process.hrtime as unknown as { bigint: () => bigint }).bigint = vi
+      .fn()
+      .mockReturnValueOnce(0n)
+      .mockReturnValueOnce(1_000_000n);
+
+    const requestBody = { example: true };
+    const request = {
+      method: "POST",
+      originalUrl: "/debug", // ensure originalUrl is preferred when present
+      url: "/debug",
+      get: vi.fn(() => "agent"),
+      body: requestBody,
+    } as unknown as Request;
+    const response = { statusCode: 201 } as unknown as Response;
+    const context = createExecutionContext(request, response);
+    const next: CallHandler = { handle: vi.fn(() => of({ status: "created" })) };
+
+    const resultPromise = firstValueFrom(interceptor.intercept(context, next));
+
+    await Promise.resolve();
+    expect(logger.debug).not.toHaveBeenCalled();
+
+    resolveConfig?.(createConfig("debug"));
+
+    const result = await resultPromise;
+
+    expect(result).toEqual({ status: "created" });
+    expect(configService.load).toHaveBeenCalledTimes(1);
+    expect(logger.debug).toHaveBeenCalledWith(
+      {
+        method: "POST",
+        url: "/debug",
+        userAgent: "agent",
+        body: requestBody,
+      },
+      "Handling incoming request"
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        response: { status: "created" },
+        body: requestBody,
+      }),
+      "Request completed successfully"
+    );
+  });
 });
