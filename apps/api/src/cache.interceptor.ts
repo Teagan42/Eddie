@@ -6,7 +6,14 @@ import {
   OnModuleInit,
 } from "@nestjs/common";
 import type { Request } from "express";
-import { Observable, of, tap } from "rxjs";
+import {
+  Observable,
+  catchError,
+  defer,
+  of,
+  switchMap,
+  tap,
+} from "rxjs";
 import { createHash, pbkdf2Sync } from "node:crypto";
 import { ConfigService } from "@eddie/config";
 import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
@@ -152,41 +159,50 @@ export class ApiCacheInterceptor implements NestInterceptor, OnModuleInit {
   }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
-    if (!this.enabled || context.getType() !== "http") {
+    if (context.getType() !== "http") {
       return next.handle();
     }
-
-    void this.ensureInitialised().catch((error) => {
-      this.logger.error(
-        { error },
-        "Failed to initialise cache interceptor configuration"
-      );
-    });
 
     const request = context.switchToHttp().getRequest<Request>();
 
-    if (request.method !== "GET") {
-      return next.handle();
-    }
+    return defer(() => this.ensureInitialised()).pipe(
+      catchError((error) => {
+        this.logger.error(
+          { error },
+          "Failed to initialise cache interceptor configuration"
+        );
+        return of(null);
+      }),
+      switchMap(() => {
+        if (!this.enabled) {
+          return next.handle();
+        }
 
-    this.prune();
+        if (request.method !== "GET") {
+          return next.handle();
+        }
 
-    const cacheKey = this.createCacheKey(request);
-    const entry = this.cache.get(cacheKey);
-    const now = Date.now();
-
-    if (entry && (this.ttlMs === 0 || entry.expiresAt > now)) {
-      this.logger.debug({ cacheKey }, "Serving response from cache");
-      return of(entry.value);
-    }
-
-    this.logger.debug({ cacheKey }, "Caching fresh response");
-
-    return next.handle().pipe(
-      tap((value) => {
-        const expiresAt = this.ttlMs > 0 ? Date.now() + this.ttlMs : Number.POSITIVE_INFINITY;
-        this.cache.set(cacheKey, { value, expiresAt });
         this.prune();
+
+        const cacheKey = this.createCacheKey(request);
+        const entry = this.cache.get(cacheKey);
+        const now = Date.now();
+
+        if (entry && (this.ttlMs === 0 || entry.expiresAt > now)) {
+          this.logger.debug({ cacheKey }, "Serving response from cache");
+          return of(entry.value);
+        }
+
+        this.logger.debug({ cacheKey }, "Caching fresh response");
+
+        return next.handle().pipe(
+          tap((value) => {
+            const expiresAt =
+              this.ttlMs > 0 ? Date.now() + this.ttlMs : Number.POSITIVE_INFINITY;
+            this.cache.set(cacheKey, { value, expiresAt });
+            this.prune();
+          })
+        );
       })
     );
   }

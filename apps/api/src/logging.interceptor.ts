@@ -6,7 +6,7 @@ import {
   OnModuleInit,
 } from "@nestjs/common";
 import type { Request, Response } from "express";
-import { Observable, tap } from "rxjs";
+import { Observable, catchError, defer, of, switchMap, tap } from "rxjs";
 import { ConfigService } from "@eddie/config";
 import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
 import { InjectLogger } from "@eddie/io";
@@ -50,58 +50,63 @@ export class RequestLoggingInterceptor
       return next.handle();
     }
 
-    void this.ensureInitialised().catch((error) => {
-      this.logger.error(
-        { error },
-        "Failed to initialise request logging interceptor"
-      );
-    });
-
     const http = context.switchToHttp();
     const request = http.getRequest<Request>();
     const response = http.getResponse<Response>();
     const start = process.hrtime.bigint();
-    const baseLog = {
-      method: request.method,
-      url: request.originalUrl ?? request.url,
-      userAgent: request.get("user-agent"),
-      body: this.logBodies ? request.body : undefined,
-    };
 
-    this.logger.debug(baseLog, "Handling incoming request");
+    return defer(() => this.ensureInitialised()).pipe(
+      catchError((error) => {
+        this.logger.error(
+          { error },
+          "Failed to initialise request logging interceptor"
+        );
+        return of(null);
+      }),
+      switchMap(() => {
+        const baseLog = {
+          method: request.method,
+          url: request.originalUrl ?? request.url,
+          userAgent: request.get("user-agent"),
+          body: this.logBodies ? request.body : undefined,
+        };
 
-    return next.handle().pipe(
-      tap({
-        next: (value) => {
-          const durationNs = process.hrtime.bigint() - start;
-          const durationMs = Number(durationNs) / 1_000_000;
-          this.logger.info(
-            {
-              ...baseLog,
-              statusCode: response.statusCode,
-              durationMs: Number.isFinite(durationMs)
-                ? Number(durationMs.toFixed(3))
-                : undefined,
-              response: this.logBodies ? value : undefined,
+        this.logger.debug(baseLog, "Handling incoming request");
+
+        return next.handle().pipe(
+          tap({
+            next: (value) => {
+              const durationNs = process.hrtime.bigint() - start;
+              const durationMs = Number(durationNs) / 1_000_000;
+              this.logger.info(
+                {
+                  ...baseLog,
+                  statusCode: response.statusCode,
+                  durationMs: Number.isFinite(durationMs)
+                    ? Number(durationMs.toFixed(3))
+                    : undefined,
+                  response: this.logBodies ? value : undefined,
+                },
+                "Request completed successfully"
+              );
             },
-            "Request completed successfully"
-          );
-        },
-        error: (error) => {
-          const durationNs = process.hrtime.bigint() - start;
-          const durationMs = Number(durationNs) / 1_000_000;
-          this.logger.error(
-            {
-              ...baseLog,
-              statusCode: response.statusCode,
-              durationMs: Number.isFinite(durationMs)
-                ? Number(durationMs.toFixed(3))
-                : undefined,
-              error,
+            error: (error) => {
+              const durationNs = process.hrtime.bigint() - start;
+              const durationMs = Number(durationNs) / 1_000_000;
+              this.logger.error(
+                {
+                  ...baseLog,
+                  statusCode: response.statusCode,
+                  durationMs: Number.isFinite(durationMs)
+                    ? Number(durationMs.toFixed(3))
+                    : undefined,
+                  error,
+                },
+                "Request pipeline emitted an error"
+              );
             },
-            "Request pipeline emitted an error"
-          );
-        },
+          })
+        );
       })
     );
   }

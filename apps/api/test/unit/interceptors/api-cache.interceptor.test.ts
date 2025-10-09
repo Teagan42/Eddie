@@ -131,4 +131,58 @@ describe("ApiCacheInterceptor", () => {
       "Caching fresh response"
     );
   });
+
+  it("waits for configuration before first request when caching is disabled", async () => {
+    const logger = { debug: vi.fn(), error: vi.fn() };
+    let resolveConfig: ((config: EddieConfig) => void) | undefined;
+    const configPromise = new Promise<EddieConfig>((resolve) => {
+      resolveConfig = resolve;
+    });
+    const configService = {
+      load: vi.fn().mockReturnValue(configPromise),
+    } as unknown as ConfigService;
+    const contextService = {
+      pack: vi.fn().mockResolvedValue({ files: [], totalBytes: 0 }),
+    } as unknown as ContextService;
+    const interceptor = new ApiCacheInterceptor(
+      configService,
+      contextService,
+      logger as unknown as Logger
+    );
+
+    const request = {
+      method: "GET",
+      originalUrl: "/config/first",
+      headers: {},
+      get: vi.fn(() => undefined),
+      query: {},
+    } as unknown as Request;
+    const context = createExecutionContext(request);
+    const next: CallHandler = { handle: vi.fn(() => of({ status: "ok" })) };
+
+    const resultPromise = firstValueFrom(interceptor.intercept(context, next));
+
+    await Promise.resolve();
+    expect(next.handle).not.toHaveBeenCalled();
+
+    resolveConfig?.(
+      createConfig({
+        cache: { enabled: false },
+      })
+    );
+
+    const result = await resultPromise;
+
+    expect(result).toEqual({ status: "ok" });
+    expect(next.handle).toHaveBeenCalledTimes(1);
+    expect(configService.load).toHaveBeenCalledTimes(1);
+
+    await firstValueFrom(interceptor.intercept(context, next));
+
+    expect(next.handle).toHaveBeenCalledTimes(2);
+    expect(logger.debug).not.toHaveBeenCalledWith(
+      expect.anything(),
+      "Caching fresh response"
+    );
+  });
 });
