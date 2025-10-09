@@ -54,7 +54,7 @@ VITE_ENABLE_TELEMETRY=false
    npm run web:dev
    ```
 
-   The Vite dev server proxies any request beginning with `/api`—including Socket.IO namespaces—to the NestJS API on port 3000 so the browser can keep using relative URLs during development. Set `VITE_DEV_API_TARGET` before running the command if your API listens on a different host or port.【F:apps/web/vite.config.ts†L4-L24】
+   The Vite dev server proxies any request beginning with `/api`—including WebSocket upgrade paths—to the NestJS API on port 3000 so the browser can keep using relative URLs during development. Set `VITE_DEV_API_TARGET` before running the command if your API listens on a different host or port.【F:apps/web/vite.config.ts†L4-L24】
 
 3. Open `http://localhost:5173` in your browser. If API keys are enabled, use the header’s **Add API Key** button to store a key; it will be sent on every HTTP request and WebSocket connection.
 
@@ -62,4 +62,4 @@ To create an optimized production build, run `npm run web:build`. Vite will emit
 
 ## What the UI expects from the API
 
-The generated API client calls REST endpoints for chat sessions, traces, logs, runtime configuration, user preferences, and orchestrator metadata, and subscribes to the `/chat-sessions`, `/traces`, `/logs`, and `/config` Socket.IO namespaces for realtime updates.【F:packages/api-client/src/index.ts†L1-L307】 Ensure those modules stay enabled in the API module graph so that UI interactions succeed without 404s or socket connection failures.【F:apps/api/src/api.module.ts†L1-L61】
+The generated API client calls REST endpoints for chat sessions, traces, logs, runtime configuration, user preferences, and orchestrator metadata, and opens WebSocket connections to the `/chat-sessions`, `/traces`, `/logs`, and `/config` endpoints for realtime updates.【F:packages/api-client/src/index.ts†L242-L443】 Ensure those modules stay enabled in the API module graph so that UI interactions succeed without 404s or connection failures.【F:apps/api/src/api.module.ts†L1-L61】

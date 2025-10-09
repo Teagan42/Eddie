@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
-import { IoAdapter } from "@nestjs/platform-socket.io";
+import { WsAdapter } from "@nestjs/platform-ws";
 import { ApiModule } from "./api.module";
 import { initTracing } from "./telemetry/tracing";
 import { HttpLoggerMiddleware } from "./middleware/http-logger.middleware";
@@ -8,6 +8,7 @@ import { ConfigService } from "@eddie/config";
 import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
 import { LoggerService } from "@eddie/io";
 import { applyCorsConfig } from "./cors";
+import { ensureDefaultConfigRoot } from "./config-root";
 
 function configureLogging(
   config: EddieConfig,
@@ -20,10 +21,12 @@ function configureLogging(
   });
 }
 
-async function bootstrap(): Promise<void> {
+export async function bootstrap(): Promise<void> {
+  ensureDefaultConfigRoot();
+
   const app = await NestFactory.create(ApiModule, { bufferLogs: true });
   app.enableShutdownHooks();
-  app.useWebSocketAdapter(new IoAdapter(app));
+  app.useWebSocketAdapter(new WsAdapter(app));
 
   const configService = app.get(ConfigService);
   const loggerService = app.get(LoggerService);

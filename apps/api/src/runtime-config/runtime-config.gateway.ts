@@ -3,7 +3,8 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from "@nestjs/websockets";
-import { Server } from "socket.io";
+import type { Server } from "ws";
+import { emitEvent } from "../websocket/utils";
 import { RuntimeConfigDto } from "./dto/runtime-config.dto";
 import {
   RuntimeConfigListener,
@@ -11,8 +12,7 @@ import {
 } from "./runtime-config.service";
 
 @WebSocketGateway({
-  namespace: "/config",
-  cors: { origin: true, credentials: true },
+  path: "/config",
 })
 export class RuntimeConfigGateway
   implements RuntimeConfigListener, OnModuleInit, OnModuleDestroy
@@ -37,6 +37,6 @@ export class RuntimeConfigGateway
   }
 
   onConfigChanged(config: RuntimeConfigDto): void {
-    this.server.emit("config.updated", config);
+    emitEvent(this.server, "config.updated", config);
   }
 }

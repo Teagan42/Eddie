@@ -3,13 +3,13 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from "@nestjs/websockets";
-import { Server } from "socket.io";
+import type { Server } from "ws";
+import { emitEvent } from "../websocket/utils";
 import { TraceDto } from "./dto/trace.dto";
 import { TracesListener, TracesService } from "./traces.service";
 
 @WebSocketGateway({
-  namespace: "/traces",
-  cors: { origin: true, credentials: true },
+  path: "/traces",
 })
 export class TracesGateway
   implements TracesListener, OnModuleInit, OnModuleDestroy
@@ -34,10 +34,10 @@ export class TracesGateway
   }
 
   onTraceCreated(trace: TraceDto): void {
-    this.server.emit("trace.created", trace);
+    emitEvent(this.server, "trace.created", trace);
   }
 
   onTraceUpdated(trace: TraceDto): void {
-    this.server.emit("trace.updated", trace);
+    emitEvent(this.server, "trace.updated", trace);
   }
 }

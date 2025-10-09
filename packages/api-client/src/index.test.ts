@@ -1,61 +1,113 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Mock } from "vitest";
 import { createApiClient } from "./index";
 import { OpenAPI } from "./generated/core/OpenAPI";
+import { CreateChatMessageDto } from "./generated/models/CreateChatMessageDto";
 
-class MockSocket {
-  public io = { opts: { extraHeaders: {} as Record<string, string> } };
-  public auth: Record<string, unknown> = {};
-  public connected = false;
-  public on = vi.fn();
-  public off = vi.fn();
-  public emit = vi.fn();
-  public connect = vi.fn(() => {
-    this.connected = true;
-  });
-  public disconnect = vi.fn(() => {
-    this.connected = false;
-  });
+vi.mock("./realtime", () => ({ createRealtimeChannel: vi.fn() }));
+
+import { createRealtimeChannel } from "./realtime";
+import type { RealtimeChannel, RealtimeHandler } from "./realtime";
+
+type Handler = RealtimeHandler<unknown>;
+
+class MockChannel implements RealtimeChannel {
+  public readonly on: RealtimeChannel["on"] = vi.fn(
+    <T>(event: string, handler: RealtimeHandler<T>): (() => void) => {
+      const handlers =
+        this.handlers.get(event) ?? new Set<RealtimeHandler<unknown>>();
+      handlers.add(handler as Handler);
+      this.handlers.set(event, handlers);
+      return () => {
+        const current = this.handlers.get(event);
+        if (!current) {
+          return;
+        }
+        current.delete(handler as Handler);
+        if (current.size === 0) {
+          this.handlers.delete(event);
+        }
+      };
+    }
+  );
+  public readonly emit: Mock<RealtimeChannel["emit"]> = vi.fn();
+  public readonly updateAuth: Mock<RealtimeChannel["updateAuth"]> = vi.fn();
+  public readonly close: Mock<RealtimeChannel["close"]> = vi.fn();
+  public readonly handlers = new Map<string, Set<Handler>>();
+
+  constructor(
+    public readonly baseUrl: string,
+    public readonly namespace: string,
+    public readonly apiKey: string | null
+  ) {}
 }
 
-var ioMock: ReturnType<typeof vi.fn>;
-
-vi.mock("socket.io-client", () => {
-  ioMock = vi.fn(() => new MockSocket());
-  return {
-    io: ioMock,
-  };
-});
+const createdChannels: MockChannel[] = [];
+const realtimeMock =
+  createRealtimeChannel as unknown as Mock<
+    (baseUrl: string, namespace: string, apiKey: string | null) => RealtimeChannel
+  >;
 
 describe("createApiClient", () => {
   beforeEach(() => {
     OpenAPI.BASE = "";
     OpenAPI.HEADERS = undefined;
     OpenAPI.TOKEN = undefined;
-    ioMock?.mockClear();
+    createdChannels.splice(0, createdChannels.length);
+    realtimeMock.mockReset();
+    realtimeMock.mockImplementation(
+      (baseUrl: string, namespace: string, apiKey: string | null) => {
+        const channel = new MockChannel(baseUrl, namespace, apiKey);
+        createdChannels.push(channel);
+        return channel;
+      }
+    );
   });
 
-  it("configures OpenAPI and sockets", async () => {
+  it("configures OpenAPI and realtime channels", async () => {
     const client = createApiClient({
       baseUrl: "https://example.test/api/",
       websocketUrl: "ws://example.test/ws/",
     });
 
     expect(OpenAPI.BASE).toBe("https://example.test/api");
-    expect(ioMock!).toHaveBeenCalledWith(
-      "ws://example.test/chat-sessions",
-      expect.objectContaining({
-        path: "/ws/socket.io",
-        transports: ["websocket"],
-        autoConnect: false,
-        withCredentials: true,
-      })
+    expect(realtimeMock).toHaveBeenCalledTimes(4);
+    expect(createdChannels.map((channel) => channel.namespace)).toEqual([
+      "/chat-sessions",
+      "/traces",
+      "/logs",
+      "/config",
+    ]);
+    createdChannels.forEach((channel) => {
+      expect(channel.baseUrl).toBe("ws://example.test/ws");
+      expect(channel.apiKey).toBeNull();
+    });
+
+    const chatChannel = createdChannels[0]!;
+    const sessionCreated = vi.fn();
+    const unsubscribe = client.sockets.chatSessions.onSessionCreated(
+      sessionCreated
+    );
+    expect(chatChannel.on).toHaveBeenCalledWith(
+      "session.created",
+      sessionCreated
     );
 
-    ioMock!.mock.results.forEach((result) => {
-      const socket = result.value as MockSocket;
-      expect(socket.connect).toHaveBeenCalledTimes(1);
-      expect(socket.auth).toEqual({});
+    chatChannel.emit.mockClear();
+    client.sockets.chatSessions.emitMessage("session-1", {
+      role: CreateChatMessageDto.role.USER,
+      content: "hi",
     });
+    expect(chatChannel.emit).toHaveBeenCalledWith("message.send", {
+      sessionId: "session-1",
+      message: {
+        role: CreateChatMessageDto.role.USER,
+        content: "hi",
+      },
+    });
+
+    unsubscribe();
+    expect(chatChannel.handlers.get("session.created")?.size ?? 0).toBe(0);
 
     client.updateAuth("secret");
 
@@ -66,29 +118,22 @@ describe("createApiClient", () => {
         : {};
     expect(headers).toHaveProperty("x-api-key", "secret");
 
-    ioMock!.mock.results.forEach((result) => {
-      const socket = result.value as MockSocket;
-      expect(socket.disconnect).toHaveBeenCalledTimes(1);
-      expect(socket.connect).toHaveBeenCalledTimes(2);
-      expect(socket.auth).toEqual({ apiKey: "secret" });
+    createdChannels.forEach((channel) => {
+      expect(channel.updateAuth).toHaveBeenCalledWith("secret");
     });
 
     client.dispose();
-    expect(ioMock!).toHaveBeenCalledTimes(4);
-    ioMock!.mock.results.forEach((result) => {
-      const socket = result.value as MockSocket;
-      expect(socket.disconnect).toHaveBeenCalledTimes(2);
+    createdChannels.forEach((channel) => {
+      expect(channel.close).toHaveBeenCalledTimes(1);
     });
   });
 
-  it("configures socket path for relative websocket URLs", () => {
-    const client = createApiClient({ baseUrl: "/api", websocketUrl: "/api" });
+  it("normalizes relative websocket URLs", () => {
+    createApiClient({ baseUrl: "/api", websocketUrl: "/api/" }).dispose();
 
-    expect(ioMock!).toHaveBeenCalledWith(
-      "/chat-sessions",
-      expect.objectContaining({ path: "/api/socket.io" })
-    );
-
-    client.dispose();
+    expect(realtimeMock).toHaveBeenCalledTimes(4);
+    realtimeMock.mock.calls.forEach(([baseUrl]) => {
+      expect(baseUrl).toBe("/api");
+    });
   });
 });

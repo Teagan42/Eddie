@@ -16,6 +16,7 @@ import { RequestLoggingInterceptor } from "../../src/logging.interceptor";
 import { ApiCacheInterceptor } from "../../src/cache.interceptor";
 import { HttpLoggerMiddleware } from "../../src/middleware/http-logger.middleware";
 import { ChatSessionsService } from "../../src/chat-sessions/chat-sessions.service";
+import { ChatSessionsEngineListener } from "../../src/chat-sessions/chat-sessions-engine.listener";
 import { TracesService } from "../../src/traces/traces.service";
 import { LogsService } from "../../src/logs/logs.service";
 import { RuntimeConfigService } from "../../src/runtime-config/runtime-config.service";
@@ -59,6 +60,7 @@ describe("ApiModule integration", () => {
     use: ReturnType<typeof vi.fn>;
   };
   let chatSessionsServiceStub: ChatSessionsService;
+  let chatSessionsEngineListenerStub: ChatSessionsEngineListener;
   let tracesServiceStub: TracesService;
   let logsServiceStub: LogsService;
   let runtimeConfigServiceStub: RuntimeConfigService;
@@ -175,6 +177,14 @@ describe("ApiModule integration", () => {
       })),
     } as unknown as ChatSessionsService;
 
+    chatSessionsEngineListenerStub = {
+      onModuleInit: vi.fn(),
+      onModuleDestroy: vi.fn(),
+      onSessionCreated: vi.fn(),
+      onSessionUpdated: vi.fn(),
+      onMessageCreated: vi.fn(),
+    } as unknown as ChatSessionsEngineListener;
+
     tracesServiceStub = {
       registerListener: vi.fn(() => vi.fn()),
       list: vi.fn(() => []),
@@ -236,6 +246,8 @@ describe("ApiModule integration", () => {
       .useValue(httpLoggerMiddlewareStub as unknown as HttpLoggerMiddleware)
       .overrideProvider(ChatSessionsService)
       .useValue(chatSessionsServiceStub)
+      .overrideProvider(ChatSessionsEngineListener)
+      .useValue(chatSessionsEngineListenerStub)
       .overrideProvider(TracesService)
       .useValue(tracesServiceStub)
       .overrideProvider(LogsService)
