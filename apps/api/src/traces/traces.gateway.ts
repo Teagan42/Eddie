@@ -7,7 +7,10 @@ import { Server } from "socket.io";
 import { TraceDto } from "./dto/trace.dto";
 import { TracesListener, TracesService } from "./traces.service";
 
-@WebSocketGateway({ namespace: "/traces" })
+@WebSocketGateway({
+  namespace: "/traces",
+  cors: { origin: true, credentials: true },
+})
 export class TracesGateway
   implements TracesListener, OnModuleInit, OnModuleDestroy
 {

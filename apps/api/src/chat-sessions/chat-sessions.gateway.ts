@@ -13,7 +13,10 @@ import { ChatSessionsService, ChatSessionsListener } from "./chat-sessions.servi
 import { ChatMessageDto, ChatSessionDto } from "./dto/chat-session.dto";
 import { CreateChatMessageDto } from "./dto/create-chat-message.dto";
 
-@WebSocketGateway({ namespace: "/chat-sessions" })
+@WebSocketGateway({
+  namespace: "/chat-sessions",
+  cors: { origin: true, credentials: true },
+})
 export class ChatSessionsGateway
   implements ChatSessionsListener, OnModuleInit, OnModuleDestroy
 {

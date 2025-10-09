@@ -10,7 +10,10 @@ import {
   RuntimeConfigService,
 } from "./runtime-config.service";
 
-@WebSocketGateway({ namespace: "/config" })
+@WebSocketGateway({
+  namespace: "/config",
+  cors: { origin: true, credentials: true },
+})
 export class RuntimeConfigGateway
   implements RuntimeConfigListener, OnModuleInit, OnModuleDestroy
 {
