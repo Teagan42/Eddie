@@ -1,18 +1,41 @@
 import { ReactNode } from "react";
-import { BrowserRouter, Link, Navigate, Route, Routes } from "react-router-dom";
-import { Flex, Heading, IconButton, Separator, Text } from "@radix-ui/themes";
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Avatar, Badge, Button, Flex, Heading, IconButton, Separator, Text } from "@radix-ui/themes";
 import { ChatPage } from "./chat/ChatPage";
 import { OverviewPage } from "./OverviewPage";
 import { useAuth } from "@/auth/auth-context";
 import { ExitIcon } from "@radix-ui/react-icons";
+import { AuroraBackground } from "@/components/aurora-background";
+import { cn } from "@/components/lib/utils";
 
-function NavigationLink({ to, label }: { to: string; label: string }): JSX.Element {
+interface NavigationLinkProps {
+  to: string;
+  label: string;
+}
+
+function NavigationLink({ to, label }: NavigationLinkProps): JSX.Element {
+  const location = useLocation();
+  const isActive = location.pathname === to;
+
   return (
     <Link
       to={to}
-      className="rounded-md px-3 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent/10 hover:text-foreground"
+      className={cn(
+        "group relative overflow-hidden rounded-full px-4 py-2 text-sm font-medium transition-all",
+        isActive
+          ? "bg-emerald-500/90 text-emerald-50 shadow-[0_18px_45px_-20px_rgba(16,185,129,0.8)]"
+          : "text-foreground/70 hover:-translate-y-0.5 hover:bg-emerald-500/15 hover:text-foreground"
+      )}
     >
-      {label}
+      <span className="relative z-10 flex items-center gap-2">
+        <span>{label}</span>
+        {isActive ? (
+          <Badge color="grass" variant="solid" radius="full" className="hidden md:inline-flex">
+            Active
+          </Badge>
+        ) : null}
+      </span>
+      <span className="absolute inset-0 z-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
     </Link>
   );
 }
@@ -20,37 +43,88 @@ function NavigationLink({ to, label }: { to: string; label: string }): JSX.Eleme
 function AppShell({ children }: { children: ReactNode }): JSX.Element {
   const { apiKey, setApiKey } = useAuth();
   return (
-    <Flex direction="column" className="min-h-screen bg-gray-1 text-foreground">
-      <header className="sticky top-0 z-20 border-b border-gray-5 bg-panel/80 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-3">
-          <Flex align="center" gap="3">
-            <Heading size="4" weight="medium">
-              Eddie Control Plane
-            </Heading>
-            <Separator orientation="vertical" className="h-6" />
-            <NavigationLink to="/" label="Overview" />
-            <NavigationLink to="/chat" label="Chat" />
-          </Flex>
-          <Flex align="center" gap="3">
-            <Text size="2" color="gray">
-              {apiKey ? "API key connected" : "No API key"}
-            </Text>
-            {apiKey ? (
-              <IconButton
-                variant="soft"
-                color="red"
-                size="2"
-                onClick={() => setApiKey(null)}
-                aria-label="Clear API key"
-              >
-                <ExitIcon />
-              </IconButton>
-            ) : null}
-          </Flex>
-        </div>
-      </header>
-      <main className="flex-1 bg-gray-2">{children}</main>
-    </Flex>
+    <div className="relative min-h-screen overflow-hidden bg-slate-900 text-foreground">
+      <AuroraBackground className="mix-blend-soft-light" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.2),transparent_60%)]" />
+      <Flex direction="column" className="relative z-10 min-h-screen">
+        <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-900/75 backdrop-blur-xl">
+          <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
+            <Flex align="center" gap="4">
+              <div className="relative flex items-center gap-3">
+                <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-400 via-emerald-500 to-sky-500 shadow-[0_25px_45px_-30px_rgba(16,185,129,0.95)]">
+                  <span className="text-lg font-semibold text-white">Ed</span>
+                </div>
+                <div>
+                  <Heading size="5" weight="medium" className="tracking-tight text-white">
+                    Eddie Control Plane
+                  </Heading>
+                  <Text size="2" color="gray">
+                    Operate every orchestrator workflow in style
+                  </Text>
+                </div>
+              </div>
+              <Separator orientation="vertical" className="hidden h-8 md:block" />
+              <Flex align="center" gap="2" className="hidden md:flex">
+                <NavigationLink to="/" label="Overview" />
+                <NavigationLink to="/chat" label="Chat" />
+              </Flex>
+            </Flex>
+            <Flex align="center" gap="4">
+              <Flex direction="column" gap="1" className="text-right">
+                <Text size="1" color="gray" className="font-medium uppercase tracking-[0.2em]">
+                  API Status
+                </Text>
+                <Text size="2" className="font-semibold text-emerald-200">
+                  {apiKey ? "Connected" : "Awaiting key"}
+                </Text>
+              </Flex>
+              <Avatar
+                fallback="AI"
+                size="3"
+                className="border border-white/10 bg-white/5 text-white"
+                variant="solid"
+              />
+              {apiKey ? (
+                <IconButton
+                  variant="surface"
+                  size="3"
+                  color="red"
+                  onClick={() => setApiKey(null)}
+                  aria-label="Clear API key"
+                  className="shadow-[0_15px_35px_-25px_rgba(239,68,68,0.9)]"
+                >
+                  <ExitIcon />
+                </IconButton>
+              ) : (
+                <Button
+                  size="3"
+                  variant="solid"
+                  className="hidden bg-gradient-to-r from-emerald-400 via-emerald-500 to-sky-500 text-white shadow-[0_25px_45px_-25px_rgba(56,189,248,0.85)] md:inline-flex"
+                  asChild
+                >
+                  <Link to="/">Add API Key</Link>
+                </Button>
+              )}
+            </Flex>
+          </div>
+        </header>
+        <main className="relative flex-1">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(59,130,246,0.08),transparent_60%)]" aria-hidden />
+          <div className="relative z-10 mx-auto w-full max-w-6xl px-6 py-10">
+            <Flex direction="column" gap="9">
+              <Flex className="md:hidden" direction="column" gap="3">
+                <Separator className="opacity-40" />
+                <Flex align="center" gap="2">
+                  <NavigationLink to="/" label="Overview" />
+                  <NavigationLink to="/chat" label="Chat" />
+                </Flex>
+              </Flex>
+              {children}
+            </Flex>
+          </div>
+        </main>
+      </Flex>
+    </div>
   );
 }
 
