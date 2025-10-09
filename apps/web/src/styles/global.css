@@ -88,6 +88,23 @@ a:focus-visible {
   }
 }
 
+/* Radix theming overrides to ensure legibility on dark glass surfaces */
+.rt-Text[data-accent-color="gray"] {
+  color: rgba(226, 232, 240, 0.82);
+}
+
+.rt-Text[data-accent-color="gray"] a {
+  color: rgba(226, 232, 240, 0.9);
+}
+
+.rt-Badge[class*="rt-variant-soft"][data-accent-color] {
+  color: rgba(241, 245, 249, 0.9);
+}
+
+.rt-Badge[class*="rt-variant-soft"][data-accent-color="gray"] {
+  color: rgba(226, 232, 240, 0.85);
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
