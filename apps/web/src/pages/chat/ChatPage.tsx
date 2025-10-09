@@ -3,6 +3,8 @@ import {
   useEffect,
   useMemo,
   useState,
+  type ComponentProps,
+  type ComponentType,
   type ReactNode,
 } from "react";
 import {
@@ -24,7 +26,10 @@ import {
   ChatBubbleIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  GearIcon,
+  MagicWandIcon,
   PaperPlaneIcon,
+  PersonIcon,
   PlusIcon,
   ReloadIcon,
   RocketIcon,
@@ -36,6 +41,7 @@ import type {
   CreateChatMessageDto,
   CreateChatSessionDto,
   OrchestratorMetadataDto,
+  ToolCallStatusDto,
 } from "@eddie/api-client";
 import { useApi } from "@/api/api-provider";
 import { useLayoutPreferences } from "@/hooks/useLayoutPreferences";
@@ -54,6 +60,84 @@ const MODEL_OPTIONS: Record<string, string[]> = {
   vertex: ["gemini-2.0-pro", "gemini-1.5-flash"],
   custom: ["manual"],
 };
+
+type BadgeColor = ComponentProps<typeof Badge>["color"];
+
+const TOOL_STATUS_COLORS: Record<ToolCallStatusDto, BadgeColor> = {
+  pending: "gray",
+  running: "blue",
+  completed: "green",
+  failed: "red",
+};
+
+type MessageRole = ChatMessageDto["role"];
+
+interface MessageRoleStyle {
+  label: string;
+  badgeColor: BadgeColor;
+  align: "start" | "end";
+  cardClassName: string;
+  icon: ComponentType<{ className?: string }>;
+  iconClassName: string;
+  contentClassName?: string;
+}
+
+const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
+  user: {
+    label: "User",
+    badgeColor: "blue",
+    align: "end",
+    cardClassName:
+      "border border-primary/30 bg-primary/10 text-primary-foreground shadow-sm",
+    icon: PersonIcon,
+    iconClassName: "text-blue-500",
+    contentClassName: "whitespace-pre-wrap leading-relaxed",
+  },
+  assistant: {
+    label: "Assistant",
+    badgeColor: "green",
+    align: "start",
+    cardClassName: "border border-muted/50 bg-card shadow-sm",
+    icon: MagicWandIcon,
+    iconClassName: "text-emerald-500",
+    contentClassName: "whitespace-pre-wrap leading-relaxed",
+  },
+  system: {
+    label: "Command",
+    badgeColor: "purple",
+    align: "start",
+    cardClassName:
+      "border border-accent/40 bg-accent/10 text-accent-foreground shadow-sm",
+    icon: GearIcon,
+    iconClassName: "text-purple-500",
+    contentClassName: "whitespace-pre-wrap text-sm font-mono",
+  },
+};
+
+function formatTime(value: string): string | null {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatDateTime(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toLocaleString([], {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
 
 const PANEL_IDS = {
   context: "context-bundles",
@@ -130,23 +214,72 @@ function ToolTree({ nodes }: { nodes: OrchestratorMetadataDto["toolInvocations"]
   }
 
   return (
-    <ul className="space-y-2">
-      {nodes.map((node) => (
-        <li key={node.id} className="rounded-lg border border-muted/40 p-3">
-          <Flex justify="between" align="center">
-            <Text weight="medium">{node.name}</Text>
-            <Badge color={node.status === "failed" ? "red" : "jade"}>
-              {node.status.toUpperCase()}
-            </Badge>
-          </Flex>
-          {node.metadata?.preview ? (
-            <Text size="2" color="gray">
-              {node.metadata.preview as string}
-            </Text>
-          ) : null}
-          {node.children.length > 0 ? <ToolTree nodes={node.children} /> : null}
-        </li>
-      ))}
+    <ul className="space-y-3">
+      {nodes.map((node) => {
+        const statusColor = TOOL_STATUS_COLORS[node.status] ?? "gray";
+        const command =
+          typeof node.metadata?.command === "string"
+            ? node.metadata.command
+            : typeof node.metadata?.preview === "string"
+              ? node.metadata.preview
+              : null;
+        const executedAt = formatDateTime(node.metadata?.createdAt);
+        const args =
+          typeof node.metadata?.arguments === "string"
+            ? node.metadata.arguments
+            : null;
+
+        return (
+          <li
+            key={node.id}
+            className="rounded-xl border border-muted/40 bg-muted/10 p-4"
+          >
+            <Flex align="center" justify="between" gap="3">
+              <Flex align="center" gap="2">
+                <Badge variant="soft" color="gray">
+                  Tool
+                </Badge>
+                <Text weight="medium" className="font-mono text-sm">
+                  {node.name}
+                </Text>
+              </Flex>
+              <Badge color={statusColor} variant="soft">
+                {node.status.toUpperCase()}
+              </Badge>
+            </Flex>
+
+            {command ? (
+              <Box className="mt-3 rounded-md bg-background/80 p-3 font-mono text-xs text-foreground/80">
+                {command}
+              </Box>
+            ) : null}
+
+            <Flex
+              align="center"
+              justify={args ? "between" : "start"}
+              className="mt-3"
+              gap="2"
+            >
+              {executedAt ? (
+                <Text size="1" color="gray">
+                  Captured {executedAt}
+                </Text>
+              ) : null}
+              {args ? (
+                <Text size="1" color="gray">
+                  Args: {args}
+                </Text>
+              ) : null}
+            </Flex>
+
+            {node.children.length > 0 ? (
+              <Box className="mt-3 border-l border-dashed border-muted/50 pl-3">
+                <ToolTree nodes={node.children} />
+              </Box>
+            ) : null}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -161,22 +294,52 @@ function AgentTree({ nodes }: { nodes: OrchestratorMetadataDto["agentHierarchy"]
   }
 
   return (
-    <ul className="space-y-2">
-      {nodes.map((node) => (
-        <li key={node.id} className="rounded-lg border border-muted/40 p-3">
-          <Flex direction="column" gap="1">
-            <Text weight="medium">{node.name}</Text>
-            <Text size="2" color="gray">
-              {node.provider ?? "provider"} • {node.model ?? "model"}
-            </Text>
-            {node.children.length > 0 ? (
-              <Box className="pl-4">
-                <AgentTree nodes={node.children} />
-              </Box>
-            ) : null}
-          </Flex>
-        </li>
-      ))}
+    <ul className="space-y-3">
+      {nodes.map((node) => {
+        const providerLabel = node.provider ?? "Unknown provider";
+        const modelLabel = node.model ?? "Unknown model";
+        const depth = typeof node.depth === "number" ? node.depth : null;
+        const messageCount =
+          typeof node.metadata?.messageCount === "number"
+            ? node.metadata.messageCount
+            : null;
+
+        return (
+          <li
+            key={node.id}
+            className="rounded-xl border border-muted/40 bg-muted/5 p-4"
+          >
+            <Flex direction="column" gap="2">
+              <Flex align="center" gap="2">
+                <Text weight="medium">{node.name}</Text>
+                {depth !== null ? (
+                  <Badge variant="soft" color="gray">
+                    depth {depth}
+                  </Badge>
+                ) : null}
+              </Flex>
+              <Flex align="center" gap="2">
+                <Badge variant="soft" color="blue">
+                  {providerLabel}
+                </Badge>
+                <Badge variant="soft" color="gray">
+                  {modelLabel}
+                </Badge>
+              </Flex>
+              {messageCount !== null ? (
+                <Text size="1" color="gray">
+                  Messages observed: {messageCount}
+                </Text>
+              ) : null}
+              {node.children.length > 0 ? (
+                <Box className="border-l border-dashed border-muted/50 pl-3">
+                  <AgentTree nodes={node.children} />
+                </Box>
+              ) : null}
+            </Flex>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -628,28 +791,61 @@ export function ChatPage(): JSX.Element {
                   command.
                 </Text>
               ) : (
-                messages.map((message) => (
-                  <Card key={message.id} className="space-y-2">
-                    <Flex align="center" justify="between">
-                      <Text weight="medium">
-                        {message.role.toUpperCase()} • {new Date(message.createdAt).toLocaleTimeString()}
-                      </Text>
-                      {message.role !== "assistant" ? (
-                        <Tooltip content="Re-issue command">
-                          <IconButton
-                            size="2"
-                            variant="soft"
-                            onClick={() => handleReissueCommand(message)}
-                            aria-label="Re-issue command"
-                          >
-                            <ReloadIcon />
-                          </IconButton>
-                        </Tooltip>
-                      ) : null}
-                    </Flex>
-                    <Text>{message.content}</Text>
-                  </Card>
-                ))
+                messages.map((message) => {
+                  const roleStyle = MESSAGE_ROLE_STYLES[message.role];
+                  const timestamp = formatTime(message.createdAt);
+                  const Icon = roleStyle.icon;
+                  const alignmentClass =
+                    roleStyle.align === "end"
+                      ? "ml-auto w-full max-w-2xl"
+                      : "mr-auto w-full max-w-2xl";
+
+                  return (
+                    <Box key={message.id} className={alignmentClass}>
+                      <Card
+                        variant="surface"
+                        className={`space-y-3 ${roleStyle.cardClassName}`}
+                      >
+                        <Flex align="start" justify="between" gap="3">
+                          <Flex align="center" gap="2">
+                            <Box className="rounded-full bg-background/80 p-2">
+                              <Icon
+                                className={`h-4 w-4 ${roleStyle.iconClassName}`}
+                              />
+                            </Box>
+                            <Badge color={roleStyle.badgeColor} variant="soft">
+                              {roleStyle.label}
+                            </Badge>
+                            {timestamp ? (
+                              <Text size="1" color="gray">
+                                {timestamp}
+                              </Text>
+                            ) : null}
+                          </Flex>
+                          {message.role !== "assistant" ? (
+                            <Tooltip content="Re-issue command">
+                              <IconButton
+                                size="2"
+                                variant="soft"
+                                onClick={() => handleReissueCommand(message)}
+                                aria-label="Re-issue command"
+                              >
+                                <ReloadIcon />
+                              </IconButton>
+                            </Tooltip>
+                          ) : null}
+                        </Flex>
+                        <Box
+                          className={`text-sm text-foreground/90 ${
+                            roleStyle.contentClassName ?? ""
+                          }`}
+                        >
+                          {message.content}
+                        </Box>
+                      </Card>
+                    </Box>
+                  );
+                })
               )}
             </Flex>
           </ScrollArea>

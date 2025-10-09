@@ -7,7 +7,10 @@ import { Server } from "socket.io";
 import { LogEntryDto } from "./dto/log-entry.dto";
 import { LogsListener, LogsService } from "./logs.service";
 
-@WebSocketGateway({ namespace: "/logs" })
+@WebSocketGateway({
+  namespace: "/logs",
+  cors: { origin: true, credentials: true },
+})
 export class LogsGateway
   implements LogsListener, OnModuleInit, OnModuleDestroy
 {

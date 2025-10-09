@@ -61,20 +61,46 @@ export class OrchestratorMetadataService {
     sessionId: string,
     messages: ReturnType<ChatSessionsService["listMessages"]>
   ): ToolCallNodeDto[] {
-    return messages
-      .filter((message) => message.role !== "user")
-      .map((message, index) => {
-        const node = new ToolCallNodeDto();
-        node.id = `${sessionId}-tool-${index}`;
-        node.name = message.role === "system" ? "system_prompt" : "assistant_reply";
-        node.status = ToolCallStatusDto.Completed;
-        node.metadata = {
-          preview: message.content.slice(0, 120),
-          createdAt: message.createdAt,
-        };
-        node.children = [];
-        return node;
-      });
+    const toolMessages = messages
+      .filter((message) => message.role === "system")
+      .map((message) => ({ ...message, content: message.content.trim() }))
+      .filter((message) => message.content.length > 0);
+
+    return toolMessages.map((message, index) => {
+      const node = new ToolCallNodeDto();
+      node.id = `${sessionId}-tool-${index}`;
+      node.name = this.extractToolName(message.content);
+      node.status = ToolCallStatusDto.Completed;
+      const args = this.extractToolArguments(message.content);
+      node.metadata = {
+        preview: message.content.slice(0, 120),
+        command: message.content,
+        createdAt: message.createdAt,
+        ...(args ? { arguments: args } : {}),
+      };
+      node.children = [];
+      return node;
+    });
+  }
+
+  private extractToolName(command: string): string {
+    const trimmed = command.trim();
+    if (!trimmed) {
+      return "tool";
+    }
+
+    const firstToken = trimmed.split(/\s+/u)[0] ?? "tool";
+    const normalised = firstToken.replace(/^\/*/u, "");
+    return normalised.length > 0 ? normalised : "tool";
+  }
+
+  private extractToolArguments(command: string): string | null {
+    const tokens = command.trim().split(/\s+/u);
+    if (tokens.length <= 1) {
+      return null;
+    }
+
+    return tokens.slice(1).join(" ");
   }
 
   private createAgentHierarchy(
