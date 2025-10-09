@@ -78,10 +78,13 @@ export interface EddieConfigPreviewDto {
   config: EddieConfigDto;
 }
 
-export interface EddieConfigSourceDto extends EddieConfigPreviewDto {
+export interface EddieConfigSourceDto {
   path: string | null;
   format: ConfigFileFormat;
   content: string;
+  input: EddieConfigInputDto;
+  config: EddieConfigDto | null;
+  error: string | null;
 }
 
 export interface UpdateEddieConfigPayload {

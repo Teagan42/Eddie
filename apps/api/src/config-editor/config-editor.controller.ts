@@ -40,6 +40,7 @@ export class ConfigEditorController {
       content: snapshot.content,
       input: snapshot.input,
       config: snapshot.config,
+      error: snapshot.error,
     };
   }
 
@@ -73,6 +74,7 @@ export class ConfigEditorController {
       content: snapshot.content,
       input: snapshot.input,
       config: snapshot.config,
+      error: snapshot.error,
     };
   }
 }

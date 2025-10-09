@@ -28,7 +28,8 @@ export interface ConfigFileSnapshot {
   format: ConfigFileFormat;
   content: string;
   input: EddieConfigInput;
-  config: EddieConfig;
+  config: EddieConfig | null;
+  error: string | null;
 }
 
 const CONFIG_FILENAMES = [
@@ -101,7 +102,18 @@ export class ConfigService {
       input = this.parseSource(content, "yaml");
     }
 
-    const config = await this.compose(input, options);
+    let config: EddieConfig | null = null;
+    let error: string | null = null;
+
+    try {
+      config = await this.compose(input, options);
+    } catch (err) {
+      if (err instanceof Error && err.message) {
+        error = err.message;
+      } else {
+        error = "Unable to compose configuration.";
+      }
+    }
 
     return {
       path: configPath,
@@ -109,6 +121,7 @@ export class ConfigService {
       content,
       input,
       config,
+      error,
     };
   }
 
@@ -118,12 +131,16 @@ export class ConfigService {
     options: CliRuntimeOptions = {},
     targetPath?: string | null
   ): Promise<ConfigFileSnapshot> {
-    let resolvedTarget: string | undefined;
+    let resolvedTarget: string | null | undefined;
     if (targetPath) {
       // resolve user input against config root - prevents directory traversal
       resolvedTarget = path.resolve(CONFIG_ROOT, targetPath);
       // Validate that final path is within CONFIG_ROOT
-      if (!resolvedTarget.startsWith(CONFIG_ROOT + path.sep)) {
+      const relativeTarget = path.relative(CONFIG_ROOT, resolvedTarget);
+      const isWithinConfigRoot =
+        relativeTarget === "" ||
+        (!relativeTarget.startsWith("..") && !path.isAbsolute(relativeTarget));
+      if (!isWithinConfigRoot) {
         throw new Error("Invalid target path: outside of config directory.");
       }
     } else {
@@ -150,6 +167,7 @@ export class ConfigService {
       content: serialized,
       input,
       config,
+      error: null,
     };
   }
 

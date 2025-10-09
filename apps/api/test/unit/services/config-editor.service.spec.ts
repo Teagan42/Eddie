@@ -26,6 +26,7 @@ describe("ConfigEditorService", () => {
     content: "model: gpt-4",
     input: { model: "gpt-4" } as EddieConfigInput,
     config: { model: "gpt-4" } as EddieConfig,
+    error: null,
   });
 
   beforeEach(() => {

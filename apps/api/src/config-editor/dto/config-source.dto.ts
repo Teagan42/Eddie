@@ -32,6 +32,14 @@ export class ConfigSourceDto {
     description: "Resolved Eddie configuration.",
     type: "object",
     additionalProperties: true,
+    nullable: true,
   })
-  config!: EddieConfig;
+  config!: EddieConfig | null;
+
+  @ApiProperty({
+    description:
+      "Validation error message when the configuration could not be composed.",
+    nullable: true,
+  })
+  error!: string | null;
 }

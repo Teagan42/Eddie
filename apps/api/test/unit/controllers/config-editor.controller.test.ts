@@ -21,6 +21,7 @@ describe("ConfigEditorController", () => {
     content: "model: gpt-4",
     input: { model: "gpt-4" } as EddieConfigInput,
     config: { model: "gpt-4" } as EddieConfig,
+    error: null,
   };
 
   beforeEach(() => {
@@ -59,6 +60,7 @@ describe("ConfigEditorController", () => {
       content: snapshot.content,
       input: snapshot.input,
       config: snapshot.config,
+      error: snapshot.error,
     });
   });
 
@@ -91,6 +93,7 @@ describe("ConfigEditorController", () => {
       content: snapshot.content,
       input: snapshot.input,
       config: snapshot.config,
+      error: snapshot.error,
     });
 
     expect(service.save).toHaveBeenCalledWith(
