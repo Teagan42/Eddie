@@ -37,6 +37,11 @@ import {
   type UpdateEddieConfigPayload,
 } from "@eddie/api-client";
 import { useApi } from "@/api/api-provider";
+import { cn } from "@/components/lib/utils";
+import {
+  getSurfaceLayoutClasses,
+  SURFACE_CONTENT_CLASS,
+} from "@/styles/surfaces";
 
 const YAML_OPTIONS = { lineWidth: 120, noRefs: true } as const;
 
@@ -424,7 +429,13 @@ export function ConfigPage(): JSX.Element {
     approxLines > 0 ? approxLines.toLocaleString() : "0";
 
   return (
-    <Flex direction="column" gap="7">
+    <div
+      className={cn(
+        getSurfaceLayoutClasses("config"),
+        SURFACE_CONTENT_CLASS
+      )}
+    >
+      <Flex direction="column" gap="7">
       <Card className={`${GLASS_CARD_CLASS} p-6`}>
         <Flex
           direction={{ initial: "column", md: "row" }}
@@ -1003,6 +1014,6 @@ export function ConfigPage(): JSX.Element {
           </Card>
         </Flex>
       </Flex>
-    </Flex>
+    </div>
   );
 }

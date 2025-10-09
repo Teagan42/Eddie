@@ -46,6 +46,11 @@ import type {
 import { useApi } from "@/api/api-provider";
 import { useLayoutPreferences } from "@/hooks/useLayoutPreferences";
 import type { LayoutPreferencesDto } from "@eddie/api-client";
+import { cn } from "@/components/lib/utils";
+import {
+  getSurfaceLayoutClasses,
+  SURFACE_CONTENT_CLASS,
+} from "@/styles/surfaces";
 
 const PROVIDER_OPTIONS: Array<{ label: string; value: string }> = [
   { label: "OpenAI", value: "openai" },
@@ -668,13 +673,19 @@ export function ChatPage(): JSX.Element {
   );
 
   return (
-    <Flex direction="column" className="mx-auto w-full max-w-7xl gap-6 px-6 py-8">
-      <Flex align="center" gap="4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/70 to-sky-500/70 shadow-[0_25px_55px_-35px_rgba(56,189,248,0.7)]">
-          <ChatBubbleIcon className="h-5 w-5 text-white" />
-        </div>
-        <Box className="space-y-1">
-          <Heading size="6" className="text-white">
+    <div
+      className={cn(
+        getSurfaceLayoutClasses("chat"),
+        SURFACE_CONTENT_CLASS
+      )}
+    >
+      <Flex direction="column" className="gap-6">
+        <Flex align="center" gap="4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/70 to-sky-500/70 shadow-[0_25px_55px_-35px_rgba(56,189,248,0.7)]">
+            <ChatBubbleIcon className="h-5 w-5 text-white" />
+          </div>
+          <Box className="space-y-1">
+            <Heading size="6" className="text-white">
             Chat orchestrator
           </Heading>
           <Text size="2" color="gray" className="text-slate-200/85">
@@ -684,12 +695,12 @@ export function ChatPage(): JSX.Element {
         </Box>
       </Flex>
 
-      <Card className={`${GLASS_CARD_CLASS} space-y-4 p-6`}>
-        <Flex align="center" justify="between" gap="3" wrap="wrap">
-          <Flex align="center" gap="3" wrap="wrap">
-            <Heading as="h2" size="4">
-              Sessions
-            </Heading>
+        <Card className={`${GLASS_CARD_CLASS} space-y-4 p-6`}>
+          <Flex align="center" justify="between" gap="3" wrap="wrap">
+            <Flex align="center" gap="3" wrap="wrap">
+              <Heading as="h2" size="4">
+                Sessions
+              </Heading>
             {sessions.length === 0 ? (
               <Text size="2" color="gray">
                 Create a session to begin orchestrating conversations.
@@ -738,8 +749,8 @@ export function ChatPage(): JSX.Element {
         </ScrollArea>
       </Card>
 
-      <div className="flex flex-col gap-6 lg:flex-row">
-        <Card className={`${GLASS_CARD_CLASS} flex-1 space-y-5 p-6`}>
+        <div className="flex flex-col gap-6 lg:flex-row">
+          <Card className={`${GLASS_CARD_CLASS} flex-1 space-y-5 p-6`}>
           <Flex align="center" justify="between" wrap="wrap" gap="3">
             <Heading as="h3" size="4">
               {sessions.find((session) => session.id === selectedSessionId)?.title ??
@@ -948,7 +959,7 @@ export function ChatPage(): JSX.Element {
             <AgentTree nodes={orchestratorMetadata?.agentHierarchy ?? []} />
           </CollapsiblePanel>
         </div>
-      </div>
-    </Flex>
+      </Flex>
+    </div>
   );
 }
