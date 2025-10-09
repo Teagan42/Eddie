@@ -3,13 +3,87 @@
 @tailwind utilities;
 
 :root {
-  --color-background: 0 0% 6%;
-  --color-foreground: 0 0% 98%;
-  --color-muted: 0 0% 26%;
-  --color-accent: 160 84% 39%;
-  --font-sans: "Inter";
+  --color-background: 210 50% 6%;
+  --color-background-elevated: 210 45% 10%;
+  --color-foreground: 0 0% 100%;
+  --color-foreground-muted: 210 20% 75%;
+  --color-muted: 210 12% 28%;
+  --color-accent: 160 84% 44%;
+  --shadow-soft: 0 40px 80px -40px rgba(15, 23, 42, 0.7);
+  --font-sans: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
 }
 
 body {
   font-family: var(--font-sans);
+  background: radial-gradient(circle at 20% 20%, rgba(34, 197, 94, 0.08), transparent 60%),
+    radial-gradient(circle at 80% 0%, rgba(6, 182, 212, 0.06), transparent 55%),
+    hsl(var(--color-background));
+  color: hsl(var(--color-foreground));
+  min-height: 100vh;
+  text-rendering: optimizeLegibility;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  scroll-behavior: smooth;
+  background-attachment: fixed;
+}
+
+::selection {
+  background-color: rgba(16, 185, 129, 0.35);
+  color: hsl(var(--color-foreground));
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+p {
+  color: hsl(var(--color-foreground-muted));
+  max-width: 70ch;
+}
+
+a {
+  color: hsl(var(--color-accent));
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 150ms ease, text-shadow 150ms ease;
+}
+
+a:hover,
+a:focus-visible {
+  color: hsl(var(--color-accent) / 0.85);
+  text-shadow: 0 0 18px rgba(34, 197, 94, 0.25);
+}
+
+.card-surface {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.45));
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(12px);
+}
+
+@media (max-width: 768px) {
+  body {
+    line-height: 1.55;
+    padding: 0 1rem;
+  }
+
+  p {
+    max-width: unset;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
