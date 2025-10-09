@@ -2,9 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Badge,
-  Box,
   Button,
-  Card,
   Callout,
   Flex,
   Heading,
@@ -38,17 +36,13 @@ import {
 } from "@eddie/api-client";
 import { useApi } from "@/api/api-provider";
 import { cn } from "@/components/lib/utils";
+import { Panel } from "@/components/panel";
 import {
   getSurfaceLayoutClasses,
   SURFACE_CONTENT_CLASS,
 } from "@/styles/surfaces";
 
 const YAML_OPTIONS = { lineWidth: 120, noRefs: true } as const;
-
-const GLASS_CARD_CLASS =
-  "relative overflow-hidden border border-white/10 bg-gradient-to-br from-emerald-500/12 via-slate-900/70 to-slate-900/35 shadow-[0_40px_70px_-45px_rgba(16,185,129,0.55)] backdrop-blur-xl";
-const ACCENT_CARD_CLASS =
-  "relative overflow-hidden border border-white/10 bg-gradient-to-br from-sky-500/12 via-slate-900/70 to-slate-900/40 shadow-[0_40px_70px_-45px_rgba(56,189,248,0.5)] backdrop-blur-xl";
 
 function cloneInput(input?: EddieConfigInputDto): EddieConfigInputDto {
   return JSON.parse(JSON.stringify(input ?? {}));
@@ -111,20 +105,10 @@ function Section({
   children: ReactNode;
 }): JSX.Element {
   return (
-    <Card className={`${GLASS_CARD_CLASS} space-y-4 p-6`}>
-      <Box>
-        <Heading as="h3" size="4">
-          {title}
-        </Heading>
-        {description ? (
-          <Text size="2" color="gray">
-            {description}
-          </Text>
-        ) : null}
-      </Box>
+    <Panel title={title} description={description}>
       <Separator className="opacity-40" />
       <div className="space-y-3">{children}</div>
-    </Card>
+    </Panel>
   );
 }
 
@@ -436,22 +420,10 @@ export function ConfigPage(): JSX.Element {
       )}
     >
       <Flex direction="column" gap="7">
-        <Card className={`${GLASS_CARD_CLASS} p-6`}>
-          <Flex
-            direction={{ initial: "column", md: "row" }}
-            align={{ initial: "start", md: "center" }}
-            justify="between"
-            gap="6"
-          >
-            <Box className="space-y-2">
-              <Heading size="7" className="tracking-tight text-white">
-                Configuration studio
-              </Heading>
-              <Text size="3" color="gray" className="max-w-xl text-slate-200/80">
-                Compose runtime settings with live previews, schema validation,
-                and guardrails tailored for Eddie orchestrations.
-              </Text>
-            </Box>
+        <Panel
+          title="Configuration studio"
+          description="Compose runtime settings with live previews, schema validation, and guardrails tailored for Eddie orchestrations."
+          actions={
             <div className="grid w-full max-w-xl gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-[0_25px_55px_-45px_rgba(16,185,129,0.7)] backdrop-blur">
                 <Text
@@ -497,8 +469,8 @@ export function ConfigPage(): JSX.Element {
                 </Text>
               </div>
             </div>
-          </Flex>
-        </Card>
+          }
+        />
 
       {statusMessage ? (
         <Callout.Root
@@ -829,11 +801,9 @@ export function ConfigPage(): JSX.Element {
         </Flex>
 
         <Flex direction="column" gap="5" className="w-full lg:w-1/2">
-          <Card className={`${ACCENT_CARD_CLASS} space-y-4 p-6`}>
-            <Flex align="center" justify="between">
-              <Heading as="h3" size="4">
-                Source editor
-              </Heading>
+          <Panel
+            title="Source editor"
+            actions={
               <Flex align="center" gap="3">
                 <Badge color={isDirty ? "amber" : "jade"}>
                   {isDirty ? "Unsaved" : "Up to date"}
@@ -855,8 +825,8 @@ export function ConfigPage(): JSX.Element {
                   </Button>
                 </Flex>
               </Flex>
-            </Flex>
-
+            }
+          >
             <Tabs.Root
               value={showDiff ? "diff" : "editor"}
               onValueChange={(value) => setShowDiff(value === "diff")}
@@ -969,12 +939,9 @@ export function ConfigPage(): JSX.Element {
                 </Button>
               </Flex>
             </Flex>
-          </Card>
+          </Panel>
 
-          <Card className="space-y-4">
-            <Heading as="h3" size="4">
-              Effective configuration preview
-            </Heading>
+          <Panel title="Effective configuration preview">
             {isPreviewing ? (
               <Text color="gray">Validating configuration…</Text>
             ) : currentConfig ? (
@@ -1011,7 +978,7 @@ export function ConfigPage(): JSX.Element {
             ) : (
               <Text color="gray">No preview available.</Text>
             )}
-          </Card>
+          </Panel>
         </Flex>
       </Flex>
     </Flex>

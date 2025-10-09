@@ -11,7 +11,6 @@ import {
   Badge,
   Box,
   Button,
-  Card,
   Flex,
   Heading,
   IconButton,
@@ -47,6 +46,7 @@ import { useApi } from "@/api/api-provider";
 import { useLayoutPreferences } from "@/hooks/useLayoutPreferences";
 import type { LayoutPreferencesDto } from "@eddie/api-client";
 import { cn } from "@/components/lib/utils";
+import { Panel } from "@/components/panel";
 import {
   getSurfaceLayoutClasses,
   SURFACE_CONTENT_CLASS,
@@ -75,10 +75,10 @@ const TOOL_STATUS_COLORS: Record<ToolCallStatusDto, BadgeColor> = {
   failed: "red",
 };
 
-const GLASS_CARD_CLASS =
-  "relative overflow-hidden border border-white/10 bg-gradient-to-br from-emerald-500/12 via-slate-900/70 to-slate-900/35 shadow-[0_35px_65px_-45px_rgba(16,185,129,0.6)] backdrop-blur-xl";
-const SKY_CARD_CLASS =
-  "relative overflow-hidden border border-white/10 bg-gradient-to-br from-sky-500/12 via-slate-900/70 to-slate-900/40 shadow-[0_35px_65px_-45px_rgba(56,189,248,0.55)] backdrop-blur-xl";
+const SIDEBAR_PANEL_CLASS =
+  "relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-sky-500/12 via-slate-900/70 to-slate-900/40 shadow-[0_35px_65px_-45px_rgba(56,189,248,0.55)] backdrop-blur-xl";
+const MESSAGE_CONTAINER_CLASS =
+  "space-y-3 rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur-xl";
 
 type MessageRole = ChatMessageDto["role"];
 
@@ -187,7 +187,9 @@ function CollapsiblePanel({
   children,
 }: CollapsiblePanelProps): JSX.Element {
   return (
-    <Card className={`${SKY_CARD_CLASS} flex flex-col gap-3 p-5`}>
+    <section
+      className={`${SIDEBAR_PANEL_CLASS} flex flex-col gap-3 p-5 text-white`}
+    >
       <Flex align="center" justify="between" gap="3">
         <Box>
           <Heading as="h3" size="3">
@@ -210,8 +212,10 @@ function CollapsiblePanel({
           </IconButton>
         </Tooltip>
       </Flex>
-      {!collapsed ? <Box className="text-sm text-foreground/90">{children}</Box> : null}
-    </Card>
+      {!collapsed ? (
+        <Box className="text-sm text-slate-200/90">{children}</Box>
+      ) : null}
+    </section>
   );
 }
 
@@ -695,18 +699,14 @@ export function ChatPage(): JSX.Element {
           </Box>
         </Flex>
 
-        <Card className={`${GLASS_CARD_CLASS} space-y-4 p-6`}>
-          <Flex align="center" justify="between" gap="3" wrap="wrap">
-            <Flex align="center" gap="3" wrap="wrap">
-              <Heading as="h2" size="4">
-                Sessions
-              </Heading>
-              {sessions.length === 0 ? (
-                <Text size="2" color="gray">
-                  Create a session to begin orchestrating conversations.
-                </Text>
-              ) : null}
-            </Flex>
+        <Panel
+          title="Sessions"
+          description={
+            sessions.length === 0
+              ? "Create a session to begin orchestrating conversations."
+              : undefined
+          }
+          actions={
             <Button
               onClick={handleCreateSession}
               size="2"
@@ -716,7 +716,8 @@ export function ChatPage(): JSX.Element {
             >
               <PlusIcon /> New session
             </Button>
-          </Flex>
+          }
+        >
           <ScrollArea type="always" className="mt-4 max-h-40">
             <Flex gap="2" wrap="wrap">
               {sessions.length === 0 ? (
@@ -747,15 +748,15 @@ export function ChatPage(): JSX.Element {
               )}
             </Flex>
           </ScrollArea>
-        </Card>
+        </Panel>
 
         <div className="flex flex-col gap-6 lg:flex-row">
-          <Card className={`${GLASS_CARD_CLASS} flex-1 space-y-5 p-6`}>
-            <Flex align="center" justify="between" wrap="wrap" gap="3">
-              <Heading as="h3" size="4">
-                {sessions.find((session) => session.id === selectedSessionId)?.title ??
-                  "Select a session"}
-              </Heading>
+          <Panel
+            title={
+              sessions.find((session) => session.id === selectedSessionId)?.title ??
+              "Select a session"
+            }
+            actions={
               <Flex align="center" gap="3" wrap="wrap">
                 <Select.Root
                   value={selectedProvider}
@@ -808,8 +809,8 @@ export function ChatPage(): JSX.Element {
                   <RocketIcon /> Save template
                 </Button>
               </Flex>
-            </Flex>
-
+            }
+          >
             <ScrollArea type="always" className="h-96 rounded-xl border border-muted/40 bg-muted/10 p-4">
               <Flex direction="column" gap="4">
                 {messages.length === 0 ? (
@@ -829,9 +830,11 @@ export function ChatPage(): JSX.Element {
 
                     return (
                       <Box key={message.id} className={alignmentClass}>
-                        <Card
-                          variant="surface"
-                          className={`space-y-3 ${roleStyle.cardClassName}`}
+                        <Box
+                          className={cn(
+                            MESSAGE_CONTAINER_CLASS,
+                            roleStyle.cardClassName
+                          )}
                         >
                           <Flex align="start" justify="between" gap="3">
                             <Flex align="center" gap="2">
@@ -869,7 +872,7 @@ export function ChatPage(): JSX.Element {
                           >
                             {message.content}
                           </Box>
-                        </Card>
+                        </Box>
                       </Box>
                     );
                   })
@@ -903,7 +906,7 @@ export function ChatPage(): JSX.Element {
                 </Button>
               </Flex>
             </Flex>
-          </Card>
+          </Panel>
 
           <div className="flex w-full flex-col gap-4 lg:w-80">
             <CollapsiblePanel
