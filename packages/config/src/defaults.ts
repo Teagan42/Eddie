@@ -39,6 +39,11 @@ export const DEFAULT_CONFIG: EddieConfig = {
       enabled: false,
       apiKeys: [],
     },
+    cors: {
+      enabled: true,
+      origin: true,
+      credentials: true,
+    },
   },
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
   logLevel: "info",

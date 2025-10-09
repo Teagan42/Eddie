@@ -10,6 +10,17 @@ const LOG_LEVEL_SCHEMA: JSONSchema7 = {
   enum: ["silent", "info", "debug"],
 };
 
+const STRING_OR_STRING_ARRAY_SCHEMA: JSONSchema7 = {
+  oneOf: [
+    { type: "string" },
+    {
+      type: "array",
+      items: { type: "string" },
+      minItems: 1,
+    },
+  ],
+};
+
 const TEMPLATE_DESCRIPTOR_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
@@ -95,6 +106,25 @@ const API_AUTH_SCHEMA: JSONSchema7 = {
   },
 };
 
+const API_CORS_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    enabled: { type: "boolean" },
+    origin: {
+      oneOf: [
+        { type: "boolean" },
+        STRING_OR_STRING_ARRAY_SCHEMA,
+      ],
+    },
+    methods: STRING_OR_STRING_ARRAY_SCHEMA,
+    allowedHeaders: STRING_OR_STRING_ARRAY_SCHEMA,
+    exposedHeaders: STRING_OR_STRING_ARRAY_SCHEMA,
+    credentials: { type: "boolean" },
+    maxAge: { type: "integer", minimum: 0 },
+  },
+};
+
 const API_CONFIG_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
@@ -105,6 +135,7 @@ const API_CONFIG_SCHEMA: JSONSchema7 = {
     validation: API_VALIDATION_SCHEMA,
     cache: API_CACHE_SCHEMA,
     auth: API_AUTH_SCHEMA,
+    cors: API_CORS_SCHEMA,
   },
 };
 
