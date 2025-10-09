@@ -424,8 +424,12 @@ export function ConfigPage(): JSX.Element {
           title="Configuration studio"
           description="Compose runtime settings with live previews, schema validation, and guardrails tailored for Eddie orchestrations."
           actions={
-            <div className="grid w-full max-w-xl gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-[0_25px_55px_-45px_rgba(16,185,129,0.7)] backdrop-blur">
+            <Flex direction={{ initial: "column", md: "row" }} wrap="wrap" gap="3" className="w-full max-w-xl">
+              <Flex
+                direction="column"
+                gap="1"
+                className="flex-1 min-w-[12rem] rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-[0_25px_55px_-45px_rgba(16,185,129,0.7)] backdrop-blur"
+              >
                 <Text
                   size="1"
                   color="gray"
@@ -436,8 +440,12 @@ export function ConfigPage(): JSX.Element {
                 <Text size="4" className="font-semibold text-emerald-200">
                   {formatLabel}
                 </Text>
-              </div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-[0_25px_55px_-45px_rgba(56,189,248,0.65)] backdrop-blur">
+              </Flex>
+              <Flex
+                direction="column"
+                gap="1"
+                className="flex-1 min-w-[12rem] rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-[0_25px_55px_-45px_rgba(56,189,248,0.65)] backdrop-blur"
+              >
                 <Text
                   size="1"
                   color="gray"
@@ -448,8 +456,12 @@ export function ConfigPage(): JSX.Element {
                 <Text size="4" className="font-semibold text-sky-200">
                   {sizeLabel}
                 </Text>
-              </div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-[0_25px_55px_-45px_rgba(250,204,21,0.6)] backdrop-blur sm:col-span-3">
+              </Flex>
+              <Flex
+                direction="column"
+                gap="1"
+                className="flex-[2] min-w-[16rem] rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-[0_25px_55px_-45px_rgba(250,204,21,0.6)] backdrop-blur"
+              >
                 <Text
                   size="1"
                   color="gray"
@@ -467,8 +479,8 @@ export function ConfigPage(): JSX.Element {
                 <Text size="1" color="gray">
                   {approxLinesLabel} lines tracked
                 </Text>
-              </div>
-            </div>
+              </Flex>
+            </Flex>
           }
         />
 
