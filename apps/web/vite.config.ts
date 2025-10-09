@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
 const rootDir = fileURLToPath(new URL("./", import.meta.url));
+const devApiTarget = process.env.VITE_DEV_API_TARGET ?? "http://localhost:3000";
 
 export default defineConfig({
   plugins: [react()],
@@ -11,6 +12,16 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(rootDir, "src"),
+    },
+  },
+  server: {
+    proxy: {
+      "/api": {
+        target: devApiTarget,
+        changeOrigin: true,
+        ws: true,
+        rewrite: (path) => path.replace(/^\/api/u, ""),
+      },
     },
   },
   test: {
