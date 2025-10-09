@@ -9,6 +9,10 @@ module.exports = [
   ...baseConfig,
   {
     files: ["**/*.{ts,tsx}"],
+    ignores: [
+      "src/components/components/**/*",
+      "src/components/hooks/**/*",
+    ],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
