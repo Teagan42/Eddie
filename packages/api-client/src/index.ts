@@ -243,24 +243,29 @@ function normalizeBaseUrl(url: string): string {
   return url.replace(/\/$/u, "");
 }
 
-function createSocket(
-  baseUrl: string,
-  namespace: string,
-  getHeaders: () => Record<string, string>
-): Socket {
+interface SocketAuthPayload {
+  apiKey?: string;
+}
+
+function createSocket(baseUrl: string, namespace: string): Socket {
   return io(`${baseUrl}${namespace}`, {
     transports: ["websocket"],
-    autoConnect: true,
-    extraHeaders: getHeaders(),
+    autoConnect: false,
+    withCredentials: true,
   });
 }
 
-function applySocketAuth(socket: Socket, headers: Record<string, string>): void {
-  socket.io.opts.extraHeaders = { ...headers };
+function resolveSocketAuth(headers: Record<string, string>): SocketAuthPayload {
+  const headerKey = headers["x-api-key"] ?? headers["api-key"];
+  return headerKey ? { apiKey: headerKey } : {};
+}
+
+function applySocketAuth(socket: Socket, auth: SocketAuthPayload): void {
+  socket.auth = { ...auth };
   if (socket.connected) {
     socket.disconnect();
-    socket.connect();
   }
+  socket.connect();
 }
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
@@ -285,12 +290,20 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
 
   applyHttpAuth();
 
-  const chatSocket = createSocket(wsBase, "/chat-sessions", resolveHeaders);
-  const tracesSocket = createSocket(wsBase, "/traces", resolveHeaders);
-  const logsSocket = createSocket(wsBase, "/logs", resolveHeaders);
-  const configSocket = createSocket(wsBase, "/config", resolveHeaders);
+  const chatSocket = createSocket(wsBase, "/chat-sessions");
+  const tracesSocket = createSocket(wsBase, "/traces");
+  const logsSocket = createSocket(wsBase, "/logs");
+  const configSocket = createSocket(wsBase, "/config");
 
   const sockets: Socket[] = [chatSocket, tracesSocket, logsSocket, configSocket];
+
+  const syncSocketAuth = (): void => {
+    const headers = resolveHeaders();
+    const auth = resolveSocketAuth(headers);
+    sockets.forEach((socket) => applySocketAuth(socket, auth));
+  };
+
+  syncSocketAuth();
 
   const createDefaultPreferences = (): LayoutPreferencesDto => ({
     chat: { collapsedPanels: {} },
@@ -466,8 +479,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     updateAuth(nextApiKey) {
       currentApiKey = nextApiKey ?? null;
       applyHttpAuth();
-      const headers = resolveHeaders();
-      sockets.forEach((socket) => applySocketAuth(socket, headers));
+      syncSocketAuth();
     },
     dispose() {
       sockets.forEach((socket) => socket.disconnect());
