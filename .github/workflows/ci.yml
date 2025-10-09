@@ -177,6 +177,10 @@ jobs:
             ${{ matrix.workspace.tsbuildinfo }}
           key: ${{ runner.os }}-build-${{ matrix.workspace.name }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles(matrix.workspace.tsconfig) }}
 
+      - name: Build api-client dependency
+        if: matrix.workspace.name == '@eddie/web'
+        run: npm run build --workspace @eddie/api-client
+
       - name: Run build
         run: npm run build --workspace ${{ matrix.workspace.name }}
 
