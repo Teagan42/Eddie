@@ -7,6 +7,8 @@ import { TemplateRendererService } from "@eddie/templates";
 const tmpDir = path.join(process.cwd(), "test-temp", "templates");
 let service: TemplateRendererService;
 let templatePath: string;
+let layoutTemplatePath: string;
+let childTemplatePath: string;
 
 beforeAll(async () => {
   service = new TemplateRendererService();
@@ -15,6 +17,20 @@ beforeAll(async () => {
   await fs.writeFile(
     templatePath,
     "Hello <%= name %> from <%= origin %>",
+    "utf-8"
+  );
+
+  layoutTemplatePath = path.join(tmpDir, "layout.eta");
+  await fs.writeFile(
+    layoutTemplatePath,
+    "<h1><%= it.layout.title %></h1>\n<section>\n<%~ it.body %>\n</section>",
+    "utf-8"
+  );
+
+  childTemplatePath = path.join(tmpDir, "child.eta");
+  await fs.writeFile(
+    childTemplatePath,
+    "<% layout('./layout') %>\n<p><%= it.content %></p>",
     "utf-8"
   );
 });
@@ -47,5 +63,21 @@ describe("TemplateRendererService", () => {
     );
 
     expect(output).toBe("Task: Refactor for Bob");
+  });
+
+  it("renders templates that use Eta layouts alongside layout variables", async () => {
+    const output = await service.renderTemplate(
+      {
+        file: path.basename(childTemplatePath),
+        baseDir: tmpDir,
+      },
+      {
+        layout: { title: "Session Briefing" },
+        content: "Welcome to the session.",
+      }
+    );
+
+    expect(output).toContain("<h1>Session Briefing</h1>");
+    expect(output).toContain("<p>Welcome to the session.</p>");
   });
 });

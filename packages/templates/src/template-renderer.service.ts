@@ -22,10 +22,17 @@ export class TemplateRendererService {
     const source = await fs.readFile(absolutePath, {
       encoding: descriptor.encoding ?? DEFAULT_ENCODING,
     });
-    return this.renderString(source, {
+    const mergedVariables = this.prepareVariables({
       ...(descriptor.variables ?? {}),
       ...variables,
-    }, absolutePath);
+    });
+
+    return this.renderStringInternal(
+      source,
+      mergedVariables,
+      absolutePath,
+      descriptor.baseDir
+    );
   }
 
   async renderString(
@@ -33,25 +40,8 @@ export class TemplateRendererService {
     variables: TemplateVariables = {},
     filename?: string
   ): Promise<string> {
-    if (filename) {
-      const cacheKey = `@${filename}`;
-      const cached = this.engine.templatesAsync.get(cacheKey);
-      if (!cached) {
-        const compiled = this.engine.compile(template, {
-          async: true,
-          filepath: filename,
-        });
-        this.engine.templatesAsync.define(cacheKey, compiled);
-      }
-
-      const rendered = await this.engine.renderAsync(cacheKey, variables, {
-        filepath: filename,
-      });
-      return rendered ?? "";
-    }
-
-    const rendered = await this.engine.renderStringAsync(template, variables);
-    return rendered ?? "";
+    const prepared = this.prepareVariables(variables);
+    return this.renderStringInternal(template, prepared, filename);
   }
 
   private resolvePath(descriptor: TemplateDescriptor): string {
@@ -59,5 +49,60 @@ export class TemplateRendererService {
     return path.isAbsolute(descriptor.file)
       ? descriptor.file
       : path.resolve(baseDir, descriptor.file);
+  }
+
+  private prepareVariables(
+    variables: TemplateVariables = {}
+  ): TemplateVariables {
+    const clone: TemplateVariables & {
+      [Symbol.unscopables]?: Record<string, boolean>;
+    } = { ...variables };
+
+    if (Object.prototype.hasOwnProperty.call(clone, "layout")) {
+      const existing = clone[Symbol.unscopables] ?? {};
+      clone[Symbol.unscopables] = { ...existing, layout: true };
+    }
+
+    return clone;
+  }
+
+  private async renderStringInternal(
+    template: string,
+    variables: TemplateVariables,
+    filename?: string,
+    baseDir?: string
+  ): Promise<string> {
+    const viewsRoot = baseDir
+      ? path.resolve(baseDir)
+      : filename
+        ? path.dirname(filename)
+        : process.cwd();
+
+    const previousViews = this.engine.config.views;
+    this.engine.config.views = viewsRoot;
+
+    try {
+      if (filename) {
+        const cacheKey = `@${filename}`;
+        const cached = this.engine.templatesAsync.get(cacheKey);
+        if (!cached) {
+          const compiled = this.engine.compile(template, {
+            async: true,
+            filepath: filename,
+          });
+          this.engine.templatesAsync.define(cacheKey, compiled);
+        }
+
+        const rendered = await this.engine.renderAsync(cacheKey, variables, {
+          filepath: filename,
+        });
+        return rendered ?? "";
+      }
+
+      const rendered = await this.engine.renderStringAsync(template, variables);
+      return rendered ?? "";
+    } finally {
+      this.engine.config.views = previousViews;
+    }
   }
 }
