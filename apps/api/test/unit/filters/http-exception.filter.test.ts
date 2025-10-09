@@ -4,7 +4,7 @@ import type { Request, Response } from "express";
 import { describe, expect, it, vi } from "vitest";
 import type { ConfigService, EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
-import { LoggerService } from "@eddie/io";
+import type { Logger } from "pino";
 import { ApiHttpExceptionFilter } from "../../../src/http-exception.filter";
 
 describe("ApiHttpExceptionFilter", () => {
@@ -33,9 +33,6 @@ describe("ApiHttpExceptionFilter", () => {
 
   it("formats http exceptions and logs them", async () => {
     const logger = { error: vi.fn(), debug: vi.fn() };
-    const loggerService = {
-      getLogger: vi.fn(() => logger),
-    } as unknown as LoggerService;
     const configService = {
       load: vi.fn().mockResolvedValue(baseConfig),
     } as unknown as ConfigService;
@@ -45,7 +42,7 @@ describe("ApiHttpExceptionFilter", () => {
     const filter = new ApiHttpExceptionFilter(
       configService,
       contextService,
-      loggerService
+      logger as unknown as Logger
     );
 
     await filter.onModuleInit();
@@ -68,7 +65,6 @@ describe("ApiHttpExceptionFilter", () => {
 
     expect(configService.load).toHaveBeenCalled();
     expect(contextService.pack).toHaveBeenCalled();
-    expect(loggerService.getLogger).toHaveBeenCalledWith("api:exceptions");
     expect(response.status).toHaveBeenCalledWith(400);
     expect(response.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -95,9 +91,6 @@ describe("ApiHttpExceptionFilter", () => {
       },
     } as unknown as EddieConfig;
     const logger = { error: vi.fn(), debug: vi.fn() };
-    const loggerService = {
-      getLogger: vi.fn(() => logger),
-    } as unknown as LoggerService;
     const configService = {
       load: vi.fn().mockResolvedValue(config),
     } as unknown as ConfigService;
@@ -107,7 +100,7 @@ describe("ApiHttpExceptionFilter", () => {
     const filter = new ApiHttpExceptionFilter(
       configService,
       contextService,
-      loggerService
+      logger as unknown as Logger
     );
 
     await filter.onModuleInit();
@@ -137,9 +130,6 @@ describe("ApiHttpExceptionFilter", () => {
 
   it("rethrows exceptions for non-http contexts", async () => {
     const logger = { error: vi.fn(), debug: vi.fn() };
-    const loggerService = {
-      getLogger: vi.fn(() => logger),
-    } as unknown as LoggerService;
     const configService = {
       load: vi.fn().mockResolvedValue(baseConfig),
     } as unknown as ConfigService;
@@ -149,7 +139,7 @@ describe("ApiHttpExceptionFilter", () => {
     const filter = new ApiHttpExceptionFilter(
       configService,
       contextService,
-      loggerService
+      logger as unknown as Logger
     );
 
     await expect(

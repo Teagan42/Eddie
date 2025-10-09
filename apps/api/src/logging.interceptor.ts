@@ -9,7 +9,8 @@ import type { Request, Response } from "express";
 import { Observable, tap } from "rxjs";
 import { ConfigService } from "@eddie/config";
 import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
-import { LoggerService } from "@eddie/io";
+import { InjectLogger } from "@eddie/io";
+import type { Logger } from "pino";
 
 @Injectable()
 export class RequestLoggingInterceptor
@@ -17,14 +18,11 @@ export class RequestLoggingInterceptor
 {
   private logBodies = false;
   private initPromise: Promise<void> | null = null;
-  private readonly logger: ReturnType<LoggerService["getLogger"]>;
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly loggerService: LoggerService
-  ) {
-    this.logger = this.loggerService.getLogger("api:requests");
-  }
+    @InjectLogger("api:requests") private readonly logger: Logger
+  ) {}
 
   async onModuleInit(): Promise<void> {
     this.initPromise = this.initialize();

@@ -11,7 +11,8 @@ import { createHash, pbkdf2Sync } from "node:crypto";
 import { ConfigService } from "@eddie/config";
 import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
-import { LoggerService } from "@eddie/io";
+import { InjectLogger } from "@eddie/io";
+import type { Logger } from "pino";
 
 interface CacheEntry {
   value: unknown;
@@ -27,15 +28,12 @@ export class ApiCacheInterceptor implements NestInterceptor, OnModuleInit {
   private contextFingerprint = "";
   private authEnabled = false;
   private initPromise: Promise<void> | null = null;
-  private readonly logger: ReturnType<LoggerService["getLogger"]>;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly contextService: ContextService,
-    private readonly loggerService: LoggerService
-  ) {
-    this.logger = this.loggerService.getLogger("api:cache");
-  }
+    @InjectLogger("api:cache") private readonly logger: Logger
+  ) {}
 
   async onModuleInit(): Promise<void> {
     this.initPromise = this.initialize();

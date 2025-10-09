@@ -4,7 +4,7 @@ import type { Request } from "express";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConfigService, EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
-import { LoggerService } from "@eddie/io";
+import type { Logger } from "pino";
 import type { Reflector } from "@nestjs/core";
 import { ApiKeyGuard } from "../../../src/auth/api-key.guard";
 
@@ -54,9 +54,6 @@ describe("ApiKeyGuard", () => {
 
   const createGuard = async (config: EddieConfig, reflector?: Reflector) => {
     const logger = { info: vi.fn(), warn: vi.fn(), debug: vi.fn() };
-    const loggerService = {
-      getLogger: vi.fn(() => logger),
-    } as unknown as LoggerService;
     const configService = {
       load: vi.fn().mockResolvedValue(config),
     } as unknown as ConfigService;
@@ -67,10 +64,10 @@ describe("ApiKeyGuard", () => {
       (reflector ?? { getAllAndOverride: vi.fn().mockReturnValue(false) }) as unknown as Reflector,
       configService,
       contextService,
-      loggerService
+      logger as unknown as Logger
     );
     await guard.onModuleInit();
-    return { guard, logger, loggerService, configService, contextService };
+    return { guard, logger, configService, contextService };
   };
 
   it("allows all requests when authentication is disabled", async () => {
@@ -87,10 +84,13 @@ describe("ApiKeyGuard", () => {
     const reflector = {
       getAllAndOverride: vi.fn().mockReturnValue(true),
     } as unknown as Reflector;
-    const { guard, loggerService } = await createGuard(baseConfig, reflector);
+    const { guard, logger } = await createGuard(baseConfig, reflector);
 
     await expect(guard.canActivate(createExecutionContext({}))).resolves.toBe(true);
-    expect(loggerService.getLogger).toHaveBeenCalledWith("api:auth");
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: true }),
+      "API key guard initialised"
+    );
   });
 
   it("accepts requests presenting a configured api key", async () => {

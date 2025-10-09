@@ -11,7 +11,8 @@ import type { Request, Response } from "express";
 import { ConfigService } from "@eddie/config";
 import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
-import { LoggerService } from "@eddie/io";
+import { InjectLogger } from "@eddie/io";
+import type { Logger } from "pino";
 
 interface ContextSummary {
   files: number;
@@ -24,15 +25,12 @@ export class ApiHttpExceptionFilter implements ExceptionFilter, OnModuleInit {
   private includeStackInResponse = false;
   private contextSummary: ContextSummary | null = null;
   private initPromise: Promise<void> | null = null;
-  private readonly logger: ReturnType<LoggerService["getLogger"]>;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly contextService: ContextService,
-    private readonly loggerService: LoggerService
-  ) {
-    this.logger = this.loggerService.getLogger("api:exceptions");
-  }
+    @InjectLogger("api:exceptions") private readonly logger: Logger
+  ) {}
 
   async onModuleInit(): Promise<void> {
     this.initPromise = this.initialize();

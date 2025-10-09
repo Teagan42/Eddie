@@ -10,20 +10,18 @@ import {
 import type { ValidationError } from "class-validator";
 import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
 import { ConfigService } from "@eddie/config";
-import { LoggerService } from "@eddie/io";
+import { InjectLogger } from "@eddie/io";
+import type { Logger } from "pino";
 
 @Injectable()
 export class ApiValidationPipe implements PipeTransform, OnModuleInit {
   private delegate: ValidationPipe | null = null;
   private initPromise: Promise<void> | null = null;
-  private readonly logger: ReturnType<LoggerService["getLogger"]>;
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly loggerService: LoggerService
-  ) {
-    this.logger = this.loggerService.getLogger("api:validation");
-  }
+    @InjectLogger("api:validation") private readonly logger: Logger
+  ) {}
 
   async onModuleInit(): Promise<void> {
     this.initPromise = this.initialize();

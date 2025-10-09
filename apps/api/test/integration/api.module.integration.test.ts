@@ -35,7 +35,6 @@ describe("ApiModule integration", () => {
   let app: INestApplication;
   let configService: ConfigService;
   let contextService: ContextService;
-  let loggerService: LoggerService;
   let validationPipeStub: {
     onModuleInit: ReturnType<typeof vi.fn>;
     transform: ReturnType<typeof vi.fn>;
@@ -64,13 +63,19 @@ describe("ApiModule integration", () => {
   let logsServiceStub: LogsService;
   let runtimeConfigServiceStub: RuntimeConfigService;
 
-  const logger = {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(() => logger),
+  const createLoggerStub = () => {
+    const stub = {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      child: vi.fn(),
+    };
+    stub.child.mockReturnValue(stub);
+    return stub;
   };
+
+  let loggerStubs: Record<string, ReturnType<typeof createLoggerStub>>;
 
   const config: EddieConfig = {
     logLevel: "debug",
@@ -109,27 +114,23 @@ describe("ApiModule integration", () => {
     const contextServiceMock = {
       pack: vi.fn().mockResolvedValue({ files: [], totalBytes: 0 }),
     } as unknown as ContextService;
+    loggerStubs = {
+      root: createLoggerStub(),
+      "api:requests": createLoggerStub(),
+      "api:auth": createLoggerStub(),
+      "api:validation": createLoggerStub(),
+      "api:exceptions": createLoggerStub(),
+      "api:cache": createLoggerStub(),
+      http: createLoggerStub(),
+    };
+    const getScopedLogger = (scope?: string) =>
+      loggerStubs[scope ?? "root"] ?? loggerStubs.root;
     const loggerServiceMock = {
       configure: vi.fn(),
-      getLogger: vi.fn(() => logger),
-      withBindings: vi.fn(() => logger),
+      getLogger: vi.fn((scope?: string) => getScopedLogger(scope)),
+      withBindings: vi.fn(() => getScopedLogger()),
       reset: vi.fn(),
     } as unknown as LoggerService;
-
-    const patchLoggerDependency = (target: { prototype: object }) => {
-      Object.defineProperty(target.prototype, "loggerService", {
-        value: loggerServiceMock,
-        writable: true,
-        configurable: true,
-      });
-    };
-
-    patchLoggerDependency(ApiValidationPipe);
-    patchLoggerDependency(ApiHttpExceptionFilter);
-    patchLoggerDependency(ApiKeyGuard);
-    patchLoggerDependency(RequestLoggingInterceptor);
-    patchLoggerDependency(ApiCacheInterceptor);
-    patchLoggerDependency(HttpLoggerMiddleware);
 
     validationPipeStub = {
       onModuleInit: vi.fn().mockResolvedValue(undefined),
@@ -248,7 +249,6 @@ describe("ApiModule integration", () => {
 
     configService = configServiceMock;
     contextService = contextServiceMock;
-    loggerService = loggerServiceMock;
   });
 
   afterEach(async () => {

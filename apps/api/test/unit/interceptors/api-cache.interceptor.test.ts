@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { firstValueFrom, of } from "rxjs";
 import type { ConfigService, EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
-import { LoggerService } from "@eddie/io";
+import type { Logger } from "pino";
 import { ApiCacheInterceptor } from "../../../src/cache.interceptor";
 
 const createExecutionContext = (request: Partial<Request>): ExecutionContext =>
@@ -54,9 +54,6 @@ describe("ApiCacheInterceptor", () => {
 
   it("caches GET responses until the entry expires", async () => {
     const logger = { debug: vi.fn(), error: vi.fn() };
-    const loggerService = {
-      getLogger: vi.fn(() => logger),
-    } as unknown as LoggerService;
     const configService = {
       load: vi.fn().mockResolvedValue(createConfig()),
     } as unknown as ConfigService;
@@ -66,7 +63,7 @@ describe("ApiCacheInterceptor", () => {
     const interceptor = new ApiCacheInterceptor(
       configService,
       contextService,
-      loggerService
+      logger as unknown as Logger
     );
     await interceptor.onModuleInit();
 
@@ -102,9 +99,6 @@ describe("ApiCacheInterceptor", () => {
 
   it("bypasses caching for non-GET requests", async () => {
     const logger = { debug: vi.fn(), error: vi.fn() };
-    const loggerService = {
-      getLogger: vi.fn(() => logger),
-    } as unknown as LoggerService;
     const configService = {
       load: vi.fn().mockResolvedValue(createConfig()),
     } as unknown as ConfigService;
@@ -114,7 +108,7 @@ describe("ApiCacheInterceptor", () => {
     const interceptor = new ApiCacheInterceptor(
       configService,
       contextService,
-      loggerService
+      logger as unknown as Logger
     );
     await interceptor.onModuleInit();
 
