@@ -212,3 +212,33 @@ jobs:
           name: ${{ matrix.workspace.coverage_artifact }}
           path: ${{ matrix.workspace.coverage }}
           if-no-files-found: error
+
+  summary:
+    name: CI summary
+    runs-on: ubuntu-latest
+    needs:
+      - lint
+      - build
+      - test
+    if: ${{ always() }}
+    steps:
+      - name: Report overall status
+        run: |
+          declare -A results
+          results[lint]="${{ needs.lint.result }}"
+          results[build]="${{ needs.build.result }}"
+          results[test]="${{ needs.test.result }}"
+
+          printf "%-10s %s\n" "Job" "Result"
+          for job in "${!results[@]}"; do
+            printf "%-10s %s\n" "$job" "${results[$job]}"
+          done
+
+          for job in "${!results[@]}"; do
+            if [ "${results[$job]}" != "success" ]; then
+              echo "::error title=CI summary::Job '$job' finished with status '${results[$job]}'"
+              exit 1
+            fi
+          done
+
+          echo "All matrix jobs completed successfully."
