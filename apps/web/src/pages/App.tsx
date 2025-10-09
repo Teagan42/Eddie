@@ -1,56 +1,122 @@
 import { ReactNode } from "react";
-import { BrowserRouter, Link, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { Flex, Heading, IconButton, Separator, Text } from "@radix-ui/themes";
 import { ChatPage } from "./chat/ChatPage";
 import { OverviewPage } from "./OverviewPage";
 import { useAuth } from "@/auth/auth-context";
 import { ExitIcon } from "@radix-ui/react-icons";
+import { clsx } from "clsx";
 
 function NavigationLink({ to, label }: { to: string; label: string }): JSX.Element {
   return (
-    <Link
+    <NavLink
       to={to}
-      className="rounded-md px-3 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent/10 hover:text-foreground"
+      className={({ isActive }) =>
+        clsx(
+          "group relative overflow-hidden rounded-full px-4 py-2 text-sm font-medium text-white/70 transition-all duration-300 hover:text-white/90",
+          "hover:bg-white/10",
+          isActive && "bg-white text-slate-900 shadow-[0_20px_45px_-28px_rgba(56,189,248,0.95)]"
+        )
+      }
     >
-      {label}
-    </Link>
+      {({ isActive }) => (
+        <>
+          <span
+            className={clsx(
+              "pointer-events-none absolute inset-0 -z-10 opacity-0 transition-opacity duration-500",
+              "group-hover:opacity-100",
+              isActive && "opacity-100"
+            )}
+          >
+            <span className="absolute inset-0 bg-gradient-to-r from-emerald-400/50 via-sky-400/40 to-violet-500/50 blur-xl" />
+          </span>
+          <span className="relative z-10 flex items-center gap-2">
+            <span
+              className={clsx(
+                "h-1.5 w-1.5 rounded-full transition-colors duration-300",
+                isActive ? "bg-emerald-400" : "bg-white/50 group-hover:bg-emerald-300"
+              )}
+            />
+            {label}
+          </span>
+        </>
+      )}
+    </NavLink>
   );
 }
 
 function AppShell({ children }: { children: ReactNode }): JSX.Element {
   const { apiKey, setApiKey } = useAuth();
   return (
-    <Flex direction="column" className="min-h-screen bg-gray-1 text-foreground">
-      <header className="sticky top-0 z-20 border-b border-gray-5 bg-panel/80 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-3">
-          <Flex align="center" gap="3">
-            <Heading size="4" weight="medium">
-              Eddie Control Plane
-            </Heading>
-            <Separator orientation="vertical" className="h-6" />
-            <NavigationLink to="/" label="Overview" />
-            <NavigationLink to="/chat" label="Chat" />
-          </Flex>
-          <Flex align="center" gap="3">
-            <Text size="2" color="gray">
-              {apiKey ? "API key connected" : "No API key"}
-            </Text>
-            {apiKey ? (
-              <IconButton
-                variant="soft"
-                color="red"
-                size="2"
-                onClick={() => setApiKey(null)}
-                aria-label="Clear API key"
+    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-foreground">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-24 top-[-10rem] h-96 w-96 rounded-full bg-emerald-500/30 blur-3xl" />
+        <div className="absolute right-[-12rem] top-[-6rem] h-[28rem] w-[28rem] rounded-full bg-sky-500/20 blur-[140px]" />
+        <div className="absolute bottom-[-12rem] left-1/2 h-[30rem] w-[30rem] -translate-x-1/2 rounded-full bg-purple-500/10 blur-[160px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.12),_transparent_60%)]" />
+      </div>
+      <Flex direction="column" className="relative z-10 min-h-screen">
+        <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/70 backdrop-blur-xl">
+          <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-4">
+            <Flex align="center" gap="4" wrap="wrap">
+              <Flex align="center" gap="3">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-sky-500 text-lg font-semibold text-slate-950 shadow-[0_12px_30px_-18px_rgba(56,189,248,0.75)]">
+                  e
+                </span>
+                <div className="space-y-1">
+                  <Heading size="4" weight="medium" className="gradient-text">
+                    Eddie Control Plane
+                  </Heading>
+                  <Text size="2" color="gray">
+                    Orchestrate, observe, and tune every agentic workflow.
+                  </Text>
+                </div>
+              </Flex>
+              <Separator orientation="vertical" className="hidden h-10 lg:block" />
+              <nav className="flex items-center gap-2">
+                <NavigationLink to="/" label="Overview" />
+                <NavigationLink to="/chat" label="Chat" />
+              </nav>
+            </Flex>
+            <Flex align="center" gap="3" wrap="wrap" justify="end">
+              <span
+                className={clsx(
+                  "inline-flex items-center gap-2 rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-widest transition-all duration-300",
+                  apiKey
+                    ? "bg-emerald-500/20 text-emerald-200 shadow-[0_8px_25px_-20px_rgba(16,185,129,0.9)]"
+                    : "bg-white/5 text-white/70"
+                )}
               >
-                <ExitIcon />
-              </IconButton>
-            ) : null}
-          </Flex>
-        </div>
-      </header>
-      <main className="flex-1 bg-gray-2">{children}</main>
-    </Flex>
+                <span
+                  className={clsx(
+                    "h-2 w-2 rounded-full",
+                    apiKey ? "bg-emerald-300 animate-pulse" : "bg-white/40"
+                  )}
+                />
+                {apiKey ? "API key connected" : "No API key"}
+              </span>
+              {apiKey ? (
+                <IconButton
+                  variant="soft"
+                  color="red"
+                  size="2"
+                  onClick={() => setApiKey(null)}
+                  aria-label="Clear API key"
+                  className="shadow-[0_18px_40px_-25px_rgba(248,113,113,0.65)]"
+                >
+                  <ExitIcon />
+                </IconButton>
+              ) : null}
+            </Flex>
+          </div>
+        </header>
+        <main className="flex-1 bg-gradient-to-b from-white/5 via-slate-900/0 to-transparent">
+          <div className="mx-auto w-full max-w-7xl pb-16">
+            {children}
+          </div>
+        </main>
+      </Flex>
+    </div>
   );
 }
 

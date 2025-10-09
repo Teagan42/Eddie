@@ -21,7 +21,6 @@ import {
   Tooltip,
 } from "@radix-ui/themes";
 import {
-  ChatBubbleIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   PaperPlaneIcon,
@@ -40,6 +39,7 @@ import type {
 import { useApi } from "@/api/api-provider";
 import { useLayoutPreferences } from "@/hooks/useLayoutPreferences";
 import type { LayoutPreferencesDto } from "@eddie/api-client";
+import { clsx } from "clsx";
 
 const PROVIDER_OPTIONS: Array<{ label: string; value: string }> = [
   { label: "OpenAI", value: "openai" },
@@ -92,30 +92,42 @@ function CollapsiblePanel({
   children,
 }: CollapsiblePanelProps): JSX.Element {
   return (
-    <Card className="flex flex-col gap-3">
-      <Flex align="center" justify="between" gap="3">
-        <Box>
-          <Heading as="h3" size="3">
-            {title}
-          </Heading>
-          {description ? (
-            <Text size="2" color="gray">
-              {description}
-            </Text>
-          ) : null}
-        </Box>
-        <Tooltip content={collapsed ? "Expand" : "Collapse"}>
-          <IconButton
-            variant="soft"
-            size="2"
-            onClick={() => onToggle(id, !collapsed)}
-            aria-label={collapsed ? "Expand panel" : "Collapse panel"}
-          >
-            {collapsed ? <ChevronRightIcon /> : <ChevronDownIcon />}
-          </IconButton>
-        </Tooltip>
-      </Flex>
-      {!collapsed ? <Box className="text-sm text-foreground/90">{children}</Box> : null}
+    <Card
+      className={clsx(
+        "group relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/60 p-6 text-foreground/90",
+        "shadow-[0_35px_80px_-55px_rgba(56,189,248,0.55)] transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_50px_110px_-60px_rgba(139,92,246,0.45)]"
+      )}
+    >
+      <div className="pointer-events-none absolute inset-0 opacity-60">
+        <div className="absolute -top-24 right-0 h-48 w-48 rounded-full bg-sky-500/20 blur-[150px]" />
+        <div className="absolute -bottom-20 left-0 h-44 w-44 rounded-full bg-emerald-400/15 blur-[150px]" />
+      </div>
+      <div className="relative z-10 flex flex-col gap-4">
+        <Flex align="center" justify="between" gap="3">
+          <Box>
+            <Heading as="h3" size="3" className="text-white">
+              {title}
+            </Heading>
+            {description ? (
+              <Text size="2" color="gray">
+                {description}
+              </Text>
+            ) : null}
+          </Box>
+          <Tooltip content={collapsed ? "Expand" : "Collapse"}>
+            <IconButton
+              variant="soft"
+              size="2"
+              onClick={() => onToggle(id, !collapsed)}
+              aria-label={collapsed ? "Expand panel" : "Collapse panel"}
+              className="shadow-[0_18px_40px_-25px_rgba(56,189,248,0.55)]"
+            >
+              {collapsed ? <ChevronRightIcon /> : <ChevronDownIcon />}
+            </IconButton>
+          </Tooltip>
+        </Flex>
+        {!collapsed ? <Box className="text-sm text-foreground/90">{children}</Box> : null}
+      </div>
     </Card>
   );
 }
@@ -132,15 +144,20 @@ function ToolTree({ nodes }: { nodes: OrchestratorMetadataDto["toolInvocations"]
   return (
     <ul className="space-y-2">
       {nodes.map((node) => (
-        <li key={node.id} className="rounded-lg border border-muted/40 p-3">
+        <li
+          key={node.id}
+          className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[0_18px_45px_-30px_rgba(56,189,248,0.45)]"
+        >
           <Flex justify="between" align="center">
-            <Text weight="medium">{node.name}</Text>
-            <Badge color={node.status === "failed" ? "red" : "jade"}>
+            <Text weight="medium" className="text-foreground">
+              {node.name}
+            </Text>
+            <Badge color={node.status === "failed" ? "red" : "jade"} className="uppercase tracking-wide">
               {node.status.toUpperCase()}
             </Badge>
           </Flex>
           {node.metadata?.preview ? (
-            <Text size="2" color="gray">
+            <Text size="2" color="gray" className="text-foreground/80">
               {node.metadata.preview as string}
             </Text>
           ) : null}
@@ -163,10 +180,15 @@ function AgentTree({ nodes }: { nodes: OrchestratorMetadataDto["agentHierarchy"]
   return (
     <ul className="space-y-2">
       {nodes.map((node) => (
-        <li key={node.id} className="rounded-lg border border-muted/40 p-3">
-          <Flex direction="column" gap="1">
-            <Text weight="medium">{node.name}</Text>
-            <Text size="2" color="gray">
+        <li
+          key={node.id}
+          className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[0_18px_45px_-30px_rgba(56,189,248,0.45)]"
+        >
+          <Flex direction="column" gap="2">
+            <Text weight="medium" className="text-foreground">
+              {node.name}
+            </Text>
+            <Text size="2" color="gray" className="text-foreground/80">
               {node.provider ?? "provider"} • {node.model ?? "model"}
             </Text>
             {node.children.length > 0 ? (
@@ -354,6 +376,22 @@ export function ChatPage(): JSX.Element {
   const messages = messagesQuery.data ?? [];
   const orchestratorMetadata: OrchestratorMetadataDto | null =
     orchestratorQuery.data ?? null;
+  const providerLabel = useMemo(
+    () =>
+      PROVIDER_OPTIONS.find((option) => option.value === selectedProvider)?.label ??
+      selectedProvider,
+    [selectedProvider]
+  );
+  const activeSessionTitle = useMemo(
+    () =>
+      sessions.find((session) => session.id === selectedSessionId)?.title ?? "No session selected",
+    [selectedSessionId, sessions]
+  );
+  const templateCount = useMemo(
+    () => Object.keys(templates).length,
+    [templates]
+  );
+  const messageCount = messages.length;
 
   const handleSelectSession = useCallback(
     (sessionId: string) => {
@@ -499,190 +537,291 @@ export function ChatPage(): JSX.Element {
   );
 
   return (
-    <Flex direction="column" className="mx-auto w-full max-w-7xl gap-6 px-6 py-8">
-      <Flex align="center" gap="3">
-        <ChatBubbleIcon className="text-3xl" />
-        <Heading size="6">Chat orchestrator</Heading>
-      </Flex>
-
-      <Card>
-        <Flex align="center" justify="between" gap="3" wrap="wrap">
-          <Flex align="center" gap="3" wrap="wrap">
-            <Heading as="h2" size="4">
-              Sessions
+    <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-12">
+      <section className="relative overflow-hidden rounded-[2.75rem] border border-white/10 bg-slate-950/70 p-10 shadow-[0_70px_120px_-70px_rgba(56,189,248,0.65)]">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-28 left-1/3 h-72 w-72 rounded-full bg-emerald-400/20 blur-[160px]" />
+          <div className="absolute -bottom-32 right-1/4 h-80 w-80 rounded-full bg-sky-500/20 blur-[180px]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(148,163,184,0.18),_transparent_65%)]" />
+        </div>
+        <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.4em] text-emerald-200/80">
+              Orchestrator studio
+            </p>
+            <Heading size="8" weight="medium" className="gradient-text">
+              Command the Eddie agent network
             </Heading>
-            {sessions.length === 0 ? (
-              <Text size="2" color="gray">
-                Create a session to begin orchestrating conversations.
+            <Text size="3" color="gray" className="max-w-2xl text-foreground/70">
+              Craft dialogues, orchestrate tool invocations, and monitor every agentic branch from a single cinematic console.
+            </Text>
+          </div>
+          <div className="flex w-full max-w-sm flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_35px_80px_-45px_rgba(56,189,248,0.55)]">
+            <div className="space-y-2">
+              <Text size="2" color="gray" className="uppercase tracking-[0.35em] text-emerald-200/80">
+                Active session
               </Text>
-            ) : null}
-          </Flex>
-          <Button
-            onClick={handleCreateSession}
-            size="2"
-            variant="solid"
-            color="jade"
-            disabled={createSessionMutation.isPending}
-          >
-            <PlusIcon /> New session
-          </Button>
-        </Flex>
-        <ScrollArea type="always" className="mt-4 max-h-40">
-          <Flex gap="2" wrap="wrap">
-            {sessions.length === 0 ? (
-              <Text size="2" color="gray">
-                No sessions yet.
-              </Text>
-            ) : (
-              sessions.map((session) => (
-                <Button
-                  key={session.id}
-                  size="2"
-                  variant={
-                    session.id === selectedSessionId ? "solid" : "soft"
-                  }
-                  color={session.id === selectedSessionId ? "jade" : "gray"}
-                  onClick={() => handleSelectSession(session.id)}
-                >
-                  <Flex align="center" gap="2">
-                    <span>{session.title}</span>
-                    {session.status === "archived" ? (
-                      <Badge color="gray" variant="soft">
-                        Archived
-                      </Badge>
-                    ) : null}
-                  </Flex>
-                </Button>
-              ))
-            )}
-          </Flex>
-        </ScrollArea>
-      </Card>
-
-      <div className="flex flex-col gap-6 lg:flex-row">
-        <Card className="flex-1 space-y-5">
-          <Flex align="center" justify="between" wrap="wrap" gap="3">
-            <Heading as="h3" size="4">
-              {sessions.find((session) => session.id === selectedSessionId)?.title ??
-                "Select a session"}
-            </Heading>
-            <Flex align="center" gap="3" wrap="wrap">
-              <Select.Root
-                value={selectedProvider}
-                onValueChange={handleProviderChange}
-                disabled={!selectedSessionId}
-              >
-                <Select.Trigger placeholder="Provider" />
-                <Select.Content>
-                  {PROVIDER_OPTIONS.map((option) => (
-                    <Select.Item key={option.value} value={option.value}>
-                      {option.label}
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Root>
-              <Select.Root
-                value={selectedModel}
-                onValueChange={handleModelChange}
-                disabled={!selectedSessionId}
-              >
-                <Select.Trigger placeholder="Model" />
-                <Select.Content>
-                  {availableModels.map((model) => (
-                    <Select.Item key={model} value={model}>
-                      {model}
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Root>
-              <Select.Root
-                value={templateSelection}
-                onValueChange={handleTemplateSelection}
-                disabled={Object.keys(templates).length === 0}
-              >
-                <Select.Trigger placeholder="Load template" />
-                <Select.Content>
-                  {Object.values(templates).map((template) => (
-                    <Select.Item key={template.id} value={template.id}>
-                      {template.name}
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Root>
-              <Button
-                variant="soft"
-                size="2"
-                onClick={handleSaveTemplate}
-                disabled={!composerValue.trim()}
-              >
-                <RocketIcon /> Save template
-              </Button>
+              <Heading size="5" className="text-white">
+                {activeSessionTitle}
+              </Heading>
+            </div>
+            <Flex gap="2" wrap="wrap">
+              <Badge variant="soft" color="jade" className="rounded-full bg-emerald-400/20 text-emerald-100 backdrop-blur">
+                {providerLabel}
+              </Badge>
+              <Badge variant="soft" color="blue" className="rounded-full bg-sky-400/20 text-sky-100 backdrop-blur">
+                {selectedModel}
+              </Badge>
+              <Badge variant="soft" color="gray" className="rounded-full bg-white/10 text-white/80 backdrop-blur">
+                {messageCount} messages
+              </Badge>
+              <Badge variant="soft" color="purple" className="rounded-full bg-violet-400/20 text-violet-100 backdrop-blur">
+                {templateCount} templates
+              </Badge>
             </Flex>
-          </Flex>
+            <Button
+              onClick={handleCreateSession}
+              size="3"
+              variant="solid"
+              color="jade"
+              disabled={createSessionMutation.isPending}
+              className="shadow-[0_25px_55px_-30px_rgba(16,185,129,0.85)]"
+            >
+              <PlusIcon /> New session
+            </Button>
+          </div>
+        </div>
+      </section>
 
-          <ScrollArea type="always" className="h-96 rounded-xl border border-muted/40 bg-muted/10 p-4">
-            <Flex direction="column" gap="4">
-              {messages.length === 0 ? (
+      <section className="relative overflow-hidden rounded-[2.4rem] border border-white/10 bg-slate-950/70 p-8 shadow-[0_60px_140px_-80px_rgba(56,189,248,0.6)]">
+        <div className="pointer-events-none absolute inset-0 opacity-80">
+          <div className="absolute -top-24 right-1/4 h-56 w-56 rounded-full bg-sky-500/15 blur-[150px]" />
+          <div className="absolute -bottom-24 left-0 h-48 w-48 rounded-full bg-emerald-400/15 blur-[150px]" />
+        </div>
+        <div className="relative z-10 flex flex-col gap-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <Heading as="h2" size="4" className="text-white">
+                Session switchboard
+              </Heading>
+              <Text size="2" color="gray">
+                Select or launch orchestrations
+              </Text>
+            </div>
+            <Button
+              onClick={handleCreateSession}
+              size="2"
+              variant="soft"
+              color="jade"
+              disabled={createSessionMutation.isPending}
+              className="shadow-[0_20px_45px_-25px_rgba(16,185,129,0.6)]"
+            >
+              <PlusIcon /> New session
+            </Button>
+          </div>
+          <ScrollArea
+            type="always"
+            className="h-48 rounded-3xl border border-white/10 bg-slate-950/60 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+          >
+            <div className="flex flex-col gap-3">
+              {sessions.length === 0 ? (
                 <Text size="2" color="gray">
-                  No messages yet. Use the composer below to send your first
-                  command.
+                  No sessions yet. Launch one to begin orchestrating.
                 </Text>
               ) : (
-                messages.map((message) => (
-                  <Card key={message.id} className="space-y-2">
-                    <Flex align="center" justify="between">
-                      <Text weight="medium">
-                        {message.role.toUpperCase()} • {new Date(message.createdAt).toLocaleTimeString()}
-                      </Text>
-                      {message.role !== "assistant" ? (
-                        <Tooltip content="Re-issue command">
-                          <IconButton
-                            size="2"
-                            variant="soft"
-                            onClick={() => handleReissueCommand(message)}
-                            aria-label="Re-issue command"
-                          >
-                            <ReloadIcon />
-                          </IconButton>
-                        </Tooltip>
+                sessions.map((session) => {
+                  const isActive = session.id === selectedSessionId;
+                  return (
+                    <button
+                      key={session.id}
+                      type="button"
+                      onClick={() => handleSelectSession(session.id)}
+                      className={clsx(
+                        "group relative flex items-center justify-between overflow-hidden rounded-2xl border px-4 py-3 text-left transition-all duration-300",
+                        isActive
+                          ? "border-emerald-400/60 bg-emerald-400/10 shadow-[0_25px_65px_-35px_rgba(16,185,129,0.7)]"
+                          : "border-white/5 bg-white/5 hover:border-emerald-400/40 hover:bg-emerald-400/5"
+                      )}
+                    >
+                      <span className="pointer-events-none absolute inset-0 -z-10 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
+                        <span className="absolute inset-0 bg-gradient-to-r from-emerald-400/20 to-sky-500/10 blur-2xl" />
+                      </span>
+                      <div className="flex flex-col gap-1">
+                        <Text weight="medium" className="text-white">
+                          {session.title}
+                        </Text>
+                        <Text size="1" color="gray">
+                          Updated {new Date(session.updatedAt).toLocaleTimeString()}
+                        </Text>
+                      </div>
+                      {session.status === "archived" ? (
+                        <Badge
+                          color="gray"
+                          variant="soft"
+                          className="rounded-full bg-white/10 text-white/70 backdrop-blur"
+                        >
+                          Archived
+                        </Badge>
                       ) : null}
-                    </Flex>
-                    <Text>{message.content}</Text>
-                  </Card>
-                ))
+                    </button>
+                  );
+                })
               )}
-            </Flex>
+            </div>
           </ScrollArea>
+        </div>
+      </section>
 
-          <Flex direction="column" gap="3">
-            <SegmentedControl.Root
-              value={composerRole}
-              onValueChange={(value) =>
-                setComposerRole(value as ComposerRole)
-              }
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+        <section className="relative overflow-hidden rounded-[2.4rem] border border-white/10 bg-slate-950/70 p-8 shadow-[0_60px_140px_-80px_rgba(139,92,246,0.5)]">
+          <div className="pointer-events-none absolute inset-0 opacity-80">
+            <div className="absolute -top-24 left-1/3 h-56 w-56 rounded-full bg-violet-500/20 blur-[170px]" />
+            <div className="absolute -bottom-24 right-0 h-48 w-48 rounded-full bg-sky-500/15 blur-[150px]" />
+          </div>
+          <div className="relative z-10 flex flex-col gap-6">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <div className="space-y-1">
+                <Heading as="h3" size="5" className="text-white">
+                  {activeSessionTitle}
+                </Heading>
+                <Text size="2" color="gray">
+                  Configure model routing and replay interactions.
+                </Text>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Select.Root
+                  value={selectedProvider}
+                  onValueChange={handleProviderChange}
+                  disabled={!selectedSessionId}
+                >
+                  <Select.Trigger className="min-w-[160px] rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white shadow-[0_20px_45px_-30px_rgba(56,189,248,0.45)] data-[placeholder]:text-white/60" />
+                  <Select.Content>
+                    {PROVIDER_OPTIONS.map((option) => (
+                      <Select.Item key={option.value} value={option.value}>
+                        {option.label}
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Root>
+                <Select.Root
+                  value={selectedModel}
+                  onValueChange={handleModelChange}
+                  disabled={!selectedSessionId}
+                >
+                  <Select.Trigger className="min-w-[160px] rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white shadow-[0_20px_45px_-30px_rgba(56,189,248,0.45)] data-[placeholder]:text-white/60" />
+                  <Select.Content>
+                    {availableModels.map((model) => (
+                      <Select.Item key={model} value={model}>
+                        {model}
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Root>
+                <Select.Root
+                  value={templateSelection}
+                  onValueChange={handleTemplateSelection}
+                  disabled={templateCount === 0}
+                >
+                  <Select.Trigger className="min-w-[180px] rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white shadow-[0_20px_45px_-30px_rgba(56,189,248,0.45)] data-[placeholder]:text-white/60" />
+                  <Select.Content>
+                    {Object.values(templates).map((template) => (
+                      <Select.Item key={template.id} value={template.id}>
+                        {template.name}
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Root>
+                <Button
+                  variant="soft"
+                  size="2"
+                  onClick={handleSaveTemplate}
+                  disabled={!composerValue.trim()}
+                  className="rounded-full bg-white/5 px-5 py-2 text-white shadow-[0_20px_45px_-25px_rgba(139,92,246,0.55)] hover:bg-emerald-400/20"
+                >
+                  <RocketIcon /> Save template
+                </Button>
+              </div>
+            </div>
+
+            <ScrollArea
+              type="always"
+              className="h-96 rounded-3xl border border-white/10 bg-slate-950/55 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
             >
-              <SegmentedControl.Item value="user">Ask</SegmentedControl.Item>
-              <SegmentedControl.Item value="system">Run</SegmentedControl.Item>
-            </SegmentedControl.Root>
-            <TextArea
-              value={composerValue}
-              onChange={(event) => setComposerValue(event.target.value)}
-              placeholder="Send a message to the orchestrator"
-              rows={4}
-              disabled={!selectedSessionId || sendMessageMutation.isPending}
-            />
-            <Flex justify="end" gap="2">
-              <Button
-                onClick={handleSendMessage}
-                disabled={!selectedSessionId || !composerValue.trim()}
-              >
-                <PaperPlaneIcon /> Send
-              </Button>
-            </Flex>
-          </Flex>
-        </Card>
+              <div className="flex flex-col gap-4">
+                {messages.length === 0 ? (
+                  <Text size="2" color="gray">
+                    No messages yet. Use the composer below to send your first command.
+                  </Text>
+                ) : (
+                  messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className="rounded-2xl border border-white/5 bg-white/5 p-4 shadow-[0_25px_60px_-40px_rgba(56,189,248,0.45)]"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <Text weight="medium" className="text-foreground">
+                          {message.role.toUpperCase()} • {new Date(message.createdAt).toLocaleTimeString()}
+                        </Text>
+                        {message.role !== "assistant" ? (
+                          <Tooltip content="Re-issue command">
+                            <IconButton
+                              size="2"
+                              variant="soft"
+                              onClick={() => handleReissueCommand(message)}
+                              aria-label="Re-issue command"
+                              className="shadow-[0_18px_40px_-25px_rgba(139,92,246,0.55)]"
+                            >
+                              <ReloadIcon />
+                            </IconButton>
+                          </Tooltip>
+                        ) : null}
+                      </div>
+                      <Text className="text-foreground/90">{message.content}</Text>
+                    </div>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
 
-        <div className="flex w-full flex-col gap-4 lg:w-80">
+            <div className="flex flex-col gap-3">
+              <SegmentedControl.Root
+                value={composerRole}
+                onValueChange={(value) =>
+                  setComposerRole(value as ComposerRole)
+                }
+                className="rounded-2xl border border-white/10 bg-white/5 text-white shadow-[0_20px_45px_-30px_rgba(56,189,248,0.45)]"
+              >
+                <SegmentedControl.Item value="user" className="data-[state=on]:bg-emerald-400/30">
+                  Ask
+                </SegmentedControl.Item>
+                <SegmentedControl.Item value="system" className="data-[state=on]:bg-emerald-400/30">
+                  Run
+                </SegmentedControl.Item>
+              </SegmentedControl.Root>
+              <TextArea
+                value={composerValue}
+                onChange={(event) => setComposerValue(event.target.value)}
+                placeholder="Send a message to the orchestrator"
+                rows={4}
+                disabled={!selectedSessionId || sendMessageMutation.isPending}
+                className="rounded-2xl border border-white/10 bg-slate-950/60 text-foreground/90 shadow-[0_25px_60px_-40px_rgba(56,189,248,0.55)] focus:border-emerald-400/60"
+              />
+              <Flex justify="end" gap="2">
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!selectedSessionId || !composerValue.trim()}
+                  size="3"
+                  color="jade"
+                  className="shadow-[0_25px_55px_-30px_rgba(16,185,129,0.85)]"
+                >
+                  <PaperPlaneIcon /> Send
+                </Button>
+              </Flex>
+            </div>
+          </div>
+        </section>
+
+        <div className="flex w-full flex-col gap-4 xl:w-[24rem]">
           <CollapsiblePanel
             id={PANEL_IDS.context}
             title="Context bundles"
@@ -691,15 +830,17 @@ export function ChatPage(): JSX.Element {
             onToggle={handleTogglePanel}
           >
             {orchestratorMetadata?.contextBundles?.length ? (
-              <ul className="space-y-2">
+              <ul className="space-y-3">
                 {orchestratorMetadata.contextBundles.map((bundle) => (
                   <li
                     key={bundle.id}
-                    className="rounded-lg border border-muted/40 p-3"
+                    className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[0_18px_45px_-30px_rgba(56,189,248,0.4)]"
                   >
-                    <Text weight="medium">{bundle.label}</Text>
+                    <Text weight="medium" className="text-foreground">
+                      {bundle.label}
+                    </Text>
                     {bundle.summary ? (
-                      <Text size="2" color="gray">
+                      <Text size="2" color="gray" className="text-foreground/80">
                         {bundle.summary}
                       </Text>
                     ) : null}
@@ -737,6 +878,6 @@ export function ChatPage(): JSX.Element {
           </CollapsiblePanel>
         </div>
       </div>
-    </Flex>
+    </div>
   );
 }
