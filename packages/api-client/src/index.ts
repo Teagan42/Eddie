@@ -24,6 +24,69 @@ export type {
   UpdateRuntimeConfigDto,
 };
 
+export interface ChatSessionTemplateDto {
+  id: string;
+  name: string;
+  provider: string;
+  model: string;
+  prompt: string;
+  createdAt: string;
+}
+
+export interface ChatLayoutPreferencesDto {
+  selectedSessionId?: string;
+  collapsedPanels?: Record<string, boolean>;
+  sessionSettings?: Record<
+    string,
+    {
+      provider?: string;
+      model?: string;
+    }
+  >;
+  templates?: Record<string, ChatSessionTemplateDto>;
+}
+
+export interface LayoutPreferencesDto {
+  chat?: ChatLayoutPreferencesDto;
+  updatedAt?: string;
+}
+
+export type ToolCallStatusDto = "pending" | "running" | "completed" | "failed";
+
+export interface OrchestratorContextBundleDto {
+  id: string;
+  label: string;
+  summary?: string;
+  sizeBytes: number;
+  fileCount: number;
+}
+
+export interface OrchestratorToolCallNodeDto {
+  id: string;
+  name: string;
+  status: ToolCallStatusDto;
+  metadata?: Record<string, unknown>;
+  children: OrchestratorToolCallNodeDto[];
+}
+
+export interface OrchestratorAgentNodeDto {
+  id: string;
+  name: string;
+  provider?: string;
+  model?: string;
+  depth?: number;
+  metadata?: Record<string, unknown>;
+  children: OrchestratorAgentNodeDto[];
+}
+
+export interface OrchestratorMetadataDto {
+  contextBundles: OrchestratorContextBundleDto[];
+  toolInvocations: OrchestratorToolCallNodeDto[];
+  agentHierarchy: OrchestratorAgentNodeDto[];
+  sessionId?: string;
+  capturedAt?: string;
+}
+
 export interface ApiClientOptions {
   baseUrl: string;
   websocketUrl: string;
@@ -80,6 +143,13 @@ export interface ApiClient {
     config: {
       get(): Promise<RuntimeConfigDto>;
       update(input: UpdateRuntimeConfigDto): Promise<RuntimeConfigDto>;
+    };
+    preferences: {
+      getLayout(): Promise<LayoutPreferencesDto>;
+      updateLayout(input: LayoutPreferencesDto): Promise<LayoutPreferencesDto>;
+    };
+    orchestrator: {
+      getMetadata(sessionId?: string): Promise<OrchestratorMetadataDto>;
     };
   };
   sockets: {
@@ -144,6 +214,58 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   const configSocket = createSocket(wsBase, "/config", resolveHeaders);
 
   const sockets: Socket[] = [chatSocket, tracesSocket, logsSocket, configSocket];
+
+  const createDefaultPreferences = (): LayoutPreferencesDto => ({
+    chat: { collapsedPanels: {} },
+    updatedAt: new Date().toISOString(),
+  });
+
+  const performRequest = async <T>(
+    path: string,
+    init: RequestInit = {}
+  ): Promise<T> => {
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      ...resolveHeaders(),
+    };
+
+    if (init.body !== undefined && !(init.body instanceof FormData)) {
+      headers["Content-Type"] = "application/json";
+    }
+
+    if (init.headers) {
+      Object.assign(headers, init.headers as Record<string, string>);
+    }
+
+    const response = await fetch(`${httpBase}${path}`, {
+      ...init,
+      headers,
+    });
+
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
+    if (!response.ok) {
+      const error = new Error(
+        `Request to ${path} failed with status ${response.status}`
+      );
+      (error as { status?: number }).status = response.status;
+      (error as { body?: string }).body = await response.text();
+      throw error;
+    }
+
+    if (response.headers.get("content-length") === "0") {
+      return undefined as T;
+    }
+
+    const contentType = response.headers.get("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      return (await response.json()) as T;
+    }
+
+    return (await response.text()) as T;
+  };
 
   const chatSessionsSocket: ChatSessionsSocket = {
     socket: chatSocket,
@@ -214,6 +336,34 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       config: {
         get: () => ConfigService.runtimeConfigControllerGet(),
         update: (input) => ConfigService.runtimeConfigControllerUpdate(input),
+      },
+      preferences: {
+        async getLayout() {
+          try {
+            return await performRequest<LayoutPreferencesDto>(
+              "/user/preferences/layout"
+            );
+          } catch (error) {
+            const status = (error as { status?: number }).status;
+            if (status === 404) {
+              return createDefaultPreferences();
+            }
+            throw error;
+          }
+        },
+        updateLayout: (input) =>
+          performRequest<LayoutPreferencesDto>("/user/preferences/layout", {
+            method: "PUT",
+            body: JSON.stringify(input ?? {}),
+          }),
+      },
+      orchestrator: {
+        getMetadata: (sessionId) =>
+          performRequest<OrchestratorMetadataDto>(
+            sessionId
+              ? `/orchestrator/metadata?sessionId=${encodeURIComponent(sessionId)}`
+              : "/orchestrator/metadata"
+          ),
       },
     },
     sockets: {

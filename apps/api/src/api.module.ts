@@ -20,6 +20,8 @@ import { ChatSessionsModule } from "./chat-sessions/chat-sessions.module";
 import { TracesModule } from "./traces/traces.module";
 import { LogsModule } from "./logs/logs.module";
 import { RuntimeConfigModule } from "./runtime-config/runtime-config.module";
+import { UserPreferencesModule } from "./user-preferences/user-preferences.module";
+import { OrchestratorModule } from "./orchestrator/orchestrator.module";
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { RuntimeConfigModule } from "./runtime-config/runtime-config.module";
     TracesModule,
     LogsModule,
     RuntimeConfigModule,
+    UserPreferencesModule,
+    OrchestratorModule,
   ],
   controllers: [HealthController],
   providers: [
