@@ -1,34 +1,38 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Mock } from "vitest";
 import { createApiClient } from "./index";
 import { OpenAPI } from "./generated/core/OpenAPI";
+import { CreateChatMessageDto } from "./generated/models/CreateChatMessageDto";
 
 vi.mock("./realtime", () => ({ createRealtimeChannel: vi.fn() }));
 
 import { createRealtimeChannel } from "./realtime";
+import type { RealtimeChannel, RealtimeHandler } from "./realtime";
 
-type Handler = (payload: unknown) => void;
+type Handler = RealtimeHandler<unknown>;
 
-class MockChannel {
-  public readonly on = vi.fn(
-    (event: string, handler: Handler): (() => void) => {
-      const handlers = this.handlers.get(event) ?? new Set<Handler>();
-      handlers.add(handler);
+class MockChannel implements RealtimeChannel {
+  public readonly on: RealtimeChannel["on"] = vi.fn(
+    <T>(event: string, handler: RealtimeHandler<T>): (() => void) => {
+      const handlers =
+        this.handlers.get(event) ?? new Set<RealtimeHandler<unknown>>();
+      handlers.add(handler as Handler);
       this.handlers.set(event, handlers);
       return () => {
         const current = this.handlers.get(event);
         if (!current) {
           return;
         }
-        current.delete(handler);
+        current.delete(handler as Handler);
         if (current.size === 0) {
           this.handlers.delete(event);
         }
       };
     }
   );
-  public readonly emit = vi.fn();
-  public readonly updateAuth = vi.fn();
-  public readonly close = vi.fn();
+  public readonly emit: Mock<RealtimeChannel["emit"]> = vi.fn();
+  public readonly updateAuth: Mock<RealtimeChannel["updateAuth"]> = vi.fn();
+  public readonly close: Mock<RealtimeChannel["close"]> = vi.fn();
   public readonly handlers = new Map<string, Set<Handler>>();
 
   constructor(
@@ -39,7 +43,10 @@ class MockChannel {
 }
 
 const createdChannels: MockChannel[] = [];
-const realtimeMock = createRealtimeChannel as unknown as vi.Mock;
+const realtimeMock =
+  createRealtimeChannel as unknown as Mock<
+    (baseUrl: string, namespace: string, apiKey: string | null) => RealtimeChannel
+  >;
 
 describe("createApiClient", () => {
   beforeEach(() => {
@@ -87,10 +94,16 @@ describe("createApiClient", () => {
     );
 
     chatChannel.emit.mockClear();
-    client.sockets.chatSessions.emitMessage("session-1", { role: "user", content: "hi" });
+    client.sockets.chatSessions.emitMessage("session-1", {
+      role: CreateChatMessageDto.role.USER,
+      content: "hi",
+    });
     expect(chatChannel.emit).toHaveBeenCalledWith("message.send", {
       sessionId: "session-1",
-      message: { role: "user", content: "hi" },
+      message: {
+        role: CreateChatMessageDto.role.USER,
+        content: "hi",
+      },
     });
 
     unsubscribe();

@@ -1,6 +1,10 @@
 import WebSocket from "isomorphic-ws";
 
-type Handler = (payload: unknown) => void;
+export type RealtimeHandler<T = unknown> = (payload: T) => void;
+
+interface MessageEventLike {
+  data?: unknown;
+}
 
 interface QueuedMessage {
   event: string;
@@ -8,11 +12,13 @@ interface QueuedMessage {
 }
 
 export interface RealtimeChannel {
-  on(event: string, handler: Handler): () => void;
+  on<T = unknown>(event: string, handler: RealtimeHandler<T>): () => void;
   emit(event: string, payload: unknown): void;
   updateAuth(apiKey: string | null): void;
   close(): void;
 }
+
+type StoredHandler = RealtimeHandler<unknown>;
 
 const RECONNECT_DELAY_MS = 1000;
 const protocolRegex = /^[a-zA-Z][a-zA-Z\d+.-]*:\/\//u;
@@ -108,7 +114,7 @@ export function createRealtimeChannel(
   namespace: string,
   initialApiKey: string | null
 ): RealtimeChannel {
-  const listeners = new Map<string, Set<Handler>>();
+  const listeners = new Map<string, Set<StoredHandler>>();
   const queue: QueuedMessage[] = [];
   let currentApiKey = initialApiKey ?? null;
   let socket: WebSocket | null = null;
@@ -215,8 +221,8 @@ export function createRealtimeChannel(
       flushQueue();
     };
 
-    instance.onmessage = (event) => {
-      handleMessage((event as { data?: unknown }).data);
+    instance.onmessage = (event: MessageEventLike) => {
+      handleMessage(event.data);
     };
 
     instance.onerror = () => {
@@ -235,9 +241,9 @@ export function createRealtimeChannel(
     };
   };
 
-  const on = (event: string, handler: Handler): (() => void) => {
-    const handlers = listeners.get(event) ?? new Set<Handler>();
-    handlers.add(handler);
+  const on: RealtimeChannel["on"] = (event, handler) => {
+    const handlers = listeners.get(event) ?? new Set<StoredHandler>();
+    handlers.add(handler as StoredHandler);
     listeners.set(event, handlers);
 
     return () => {
@@ -245,7 +251,7 @@ export function createRealtimeChannel(
       if (!current) {
         return;
       }
-      current.delete(handler);
+      current.delete(handler as StoredHandler);
       if (current.size === 0) {
         listeners.delete(event);
       }
