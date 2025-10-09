@@ -30,6 +30,18 @@ export interface ApiAuthConfig {
   apiKeys?: string[];
 }
 
+export type ApiCorsOrigin = boolean | string | string[];
+
+export interface ApiCorsConfig {
+  enabled?: boolean;
+  origin?: ApiCorsOrigin;
+  methods?: string | string[];
+  allowedHeaders?: string | string[];
+  exposedHeaders?: string | string[];
+  credentials?: boolean;
+  maxAge?: number;
+}
+
 export interface ApiConfig {
   host?: string;
   port?: number;
@@ -37,6 +49,7 @@ export interface ApiConfig {
   validation?: ApiValidationConfig;
   cache?: ApiCacheConfig;
   auth?: ApiAuthConfig;
+  cors?: ApiCorsConfig;
 }
 
 export interface ProviderConfig {

@@ -7,6 +7,7 @@ import { HttpLoggerMiddleware } from "./middleware/http-logger.middleware";
 import { ConfigService } from "@eddie/config";
 import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
 import { LoggerService } from "@eddie/io";
+import { applyCorsConfig } from "./cors";
 
 function configureLogging(
   config: EddieConfig,
@@ -36,6 +37,7 @@ async function bootstrap(): Promise<void> {
   }
 
   configureLogging(config, loggerService);
+  applyCorsConfig(app, config);
   app.flushLogs();
 
   const httpLogger = app.get(HttpLoggerMiddleware);
