@@ -1,6 +1,8 @@
 import {
   OnModuleDestroy,
   OnModuleInit,
+  UsePipes,
+  ValidationPipe,
 } from "@nestjs/common";
 import {
   MessageBody,
@@ -11,7 +13,7 @@ import {
 import { Server } from "socket.io";
 import { ChatSessionsService, ChatSessionsListener } from "./chat-sessions.service";
 import { ChatMessageDto, ChatSessionDto } from "./dto/chat-session.dto";
-import { CreateChatMessageDto } from "./dto/create-chat-message.dto";
+import { SendChatMessagePayloadDto } from "./dto/send-chat-message.dto";
 
 @WebSocketGateway({
   namespace: "/chat-sessions",
@@ -52,9 +54,14 @@ export class ChatSessionsGateway
   }
 
   @SubscribeMessage("message.send")
-  handleSendMessage(
-    @MessageBody() payload: { sessionId: string; message: CreateChatMessageDto }
-  ): void {
+  @UsePipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    })
+  )
+  handleSendMessage(@MessageBody() payload: SendChatMessagePayloadDto): void {
     const { sessionId, message } = payload;
     this.service.addMessage(sessionId, message);
   }
