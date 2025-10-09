@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.66.0",
-    "socket.io-client": "^4.7.5"
+    "isomorphic-ws": "^5.0.0"
   },
   "devDependencies": {
     "openapi-typescript-codegen": "^0.27.0"

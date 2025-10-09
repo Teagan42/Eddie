@@ -1,4 +1,4 @@
-import { io, type Socket } from "socket.io-client";
+import { createRealtimeChannel, type RealtimeChannel } from "./realtime";
 import { OpenAPI } from "./generated/core/OpenAPI";
 import { ChatSessionsService } from "./generated/services/ChatSessionsService";
 import { TracesService } from "./generated/services/TracesService";
@@ -169,23 +169,19 @@ export interface ChatSessionsSocket {
   onSessionUpdated(handler: (session: ChatSessionDto) => void): Unsubscribe;
   onMessageCreated(handler: (message: ChatMessageDto) => void): Unsubscribe;
   emitMessage(sessionId: string, payload: CreateChatMessageDto): void;
-  socket: Socket;
 }
 
 export interface TracesSocket {
   onTraceCreated(handler: (trace: TraceDto) => void): Unsubscribe;
   onTraceUpdated(handler: (trace: TraceDto) => void): Unsubscribe;
-  socket: Socket;
 }
 
 export interface LogsSocket {
   onLogCreated(handler: (entry: LogEntryDto) => void): Unsubscribe;
-  socket: Socket;
 }
 
 export interface ConfigSocket {
   onConfigUpdated(handler: (config: RuntimeConfigDto) => void): Unsubscribe;
-  socket: Socket;
 }
 
 export interface ApiClient {
@@ -243,63 +239,6 @@ function normalizeBaseUrl(url: string): string {
   return url.replace(/\/$/u, "");
 }
 
-interface SocketAuthPayload {
-  apiKey?: string;
-}
-
-const protocolRegex = /^[a-zA-Z][a-zA-Z\d+.-]*:\/\//u;
-
-function resolveSocketPath(baseUrl: string): string {
-  try {
-    const hasProtocol = protocolRegex.test(baseUrl);
-    const url = hasProtocol
-      ? new URL(baseUrl)
-      : new URL(baseUrl, "http://placeholder");
-    const pathname = url.pathname.replace(/\/$/u, "");
-    const resolved = `${pathname ? pathname : ""}/socket.io`;
-    return resolved.startsWith("/") ? resolved : `/${resolved}`;
-  } catch {
-    return "/socket.io";
-  }
-}
-
-function resolveSocketOrigin(baseUrl: string): string {
-  try {
-    if (!protocolRegex.test(baseUrl)) {
-      return "";
-    }
-    const url = new URL(baseUrl);
-    return `${url.protocol}//${url.host}`;
-  } catch {
-    return "";
-  }
-}
-
-function createSocket(baseUrl: string, namespace: string): Socket {
-  const origin = resolveSocketOrigin(baseUrl);
-  const path = resolveSocketPath(baseUrl);
-  const url = `${origin}${namespace}`;
-  return io(url || namespace, {
-    path,
-    transports: ["websocket"],
-    autoConnect: false,
-    withCredentials: true,
-  });
-}
-
-function resolveSocketAuth(headers: Record<string, string>): SocketAuthPayload {
-  const headerKey = headers["x-api-key"] ?? headers["api-key"];
-  return headerKey ? { apiKey: headerKey } : {};
-}
-
-function applySocketAuth(socket: Socket, auth: SocketAuthPayload): void {
-  socket.auth = { ...auth };
-  if (socket.connected) {
-    socket.disconnect();
-  }
-  socket.connect();
-}
-
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const httpBase = normalizeBaseUrl(options.baseUrl);
   const wsBase = normalizeBaseUrl(options.websocketUrl);
@@ -322,20 +261,17 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
 
   applyHttpAuth();
 
-  const chatSocket = createSocket(wsBase, "/chat-sessions");
-  const tracesSocket = createSocket(wsBase, "/traces");
-  const logsSocket = createSocket(wsBase, "/logs");
-  const configSocket = createSocket(wsBase, "/config");
+  const chatChannel = createRealtimeChannel(wsBase, "/chat-sessions", currentApiKey);
+  const tracesChannel = createRealtimeChannel(wsBase, "/traces", currentApiKey);
+  const logsChannel = createRealtimeChannel(wsBase, "/logs", currentApiKey);
+  const configChannel = createRealtimeChannel(wsBase, "/config", currentApiKey);
 
-  const sockets: Socket[] = [chatSocket, tracesSocket, logsSocket, configSocket];
-
-  const syncSocketAuth = (): void => {
-    const headers = resolveHeaders();
-    const auth = resolveSocketAuth(headers);
-    sockets.forEach((socket) => applySocketAuth(socket, auth));
-  };
-
-  syncSocketAuth();
+  const channels: RealtimeChannel[] = [
+    chatChannel,
+    tracesChannel,
+    logsChannel,
+    configChannel,
+  ];
 
   const createDefaultPreferences = (): LayoutPreferencesDto => ({
     chat: { collapsedPanels: {} },
@@ -390,49 +326,38 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   };
 
   const chatSessionsSocket: ChatSessionsSocket = {
-    socket: chatSocket,
     onSessionCreated(handler) {
-      chatSocket.on("session.created", handler);
-      return () => chatSocket.off("session.created", handler);
+      return chatChannel.on("session.created", handler);
     },
     onSessionUpdated(handler) {
-      chatSocket.on("session.updated", handler);
-      return () => chatSocket.off("session.updated", handler);
+      return chatChannel.on("session.updated", handler);
     },
     onMessageCreated(handler) {
-      chatSocket.on("message.created", handler);
-      return () => chatSocket.off("message.created", handler);
+      return chatChannel.on("message.created", handler);
     },
     emitMessage(sessionId, payload) {
-      chatSocket.emit("message.send", { sessionId, message: payload });
+      chatChannel.emit("message.send", { sessionId, message: payload });
     },
   };
 
   const tracesRealtime: TracesSocket = {
-    socket: tracesSocket,
     onTraceCreated(handler) {
-      tracesSocket.on("trace.created", handler);
-      return () => tracesSocket.off("trace.created", handler);
+      return tracesChannel.on("trace.created", handler);
     },
     onTraceUpdated(handler) {
-      tracesSocket.on("trace.updated", handler);
-      return () => tracesSocket.off("trace.updated", handler);
+      return tracesChannel.on("trace.updated", handler);
     },
   };
 
   const logsRealtime: LogsSocket = {
-    socket: logsSocket,
     onLogCreated(handler) {
-      logsSocket.on("log.created", handler);
-      return () => logsSocket.off("log.created", handler);
+      return logsChannel.on("log.created", handler);
     },
   };
 
   const configRealtime: ConfigSocket = {
-    socket: configSocket,
     onConfigUpdated(handler) {
-      configSocket.on("config.updated", handler);
-      return () => configSocket.off("config.updated", handler);
+      return configChannel.on("config.updated", handler);
     },
   };
 
@@ -511,10 +436,10 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     updateAuth(nextApiKey) {
       currentApiKey = nextApiKey ?? null;
       applyHttpAuth();
-      syncSocketAuth();
+      channels.forEach((channel) => channel.updateAuth(currentApiKey));
     },
     dispose() {
-      sockets.forEach((socket) => socket.disconnect());
+      channels.forEach((channel) => channel.close());
     },
   };
 }

@@ -3,13 +3,13 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from "@nestjs/websockets";
-import { Server } from "socket.io";
+import type { Server } from "ws";
+import { emitEvent } from "../websocket/utils";
 import { LogEntryDto } from "./dto/log-entry.dto";
 import { LogsListener, LogsService } from "./logs.service";
 
 @WebSocketGateway({
-  namespace: "/logs",
-  cors: { origin: true, credentials: true },
+  path: "/logs",
 })
 export class LogsGateway
   implements LogsListener, OnModuleInit, OnModuleDestroy
@@ -34,6 +34,6 @@ export class LogsGateway
   }
 
   onLogCreated(entry: LogEntryDto): void {
-    this.server.emit("log.created", entry);
+    emitEvent(this.server, "log.created", entry);
   }
 }

@@ -8,14 +8,14 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from "@nestjs/websockets";
-import { Server } from "socket.io";
+import type { Server } from "ws";
+import { emitEvent } from "../websocket/utils";
 import { ChatSessionsService, ChatSessionsListener } from "./chat-sessions.service";
 import { ChatMessageDto, ChatSessionDto } from "./dto/chat-session.dto";
 import { CreateChatMessageDto } from "./dto/create-chat-message.dto";
 
 @WebSocketGateway({
-  namespace: "/chat-sessions",
-  cors: { origin: true, credentials: true },
+  path: "/chat-sessions",
 })
 export class ChatSessionsGateway
   implements ChatSessionsListener, OnModuleInit, OnModuleDestroy
@@ -40,15 +40,15 @@ export class ChatSessionsGateway
   }
 
   onSessionCreated(session: ChatSessionDto): void {
-    this.server.emit("session.created", session);
+    emitEvent(this.server, "session.created", session);
   }
 
   onSessionUpdated(session: ChatSessionDto): void {
-    this.server.emit("session.updated", session);
+    emitEvent(this.server, "session.updated", session);
   }
 
   onMessageCreated(message: ChatMessageDto): void {
-    this.server.emit("message.created", message);
+    emitEvent(this.server, "message.created", message);
   }
 
   @SubscribeMessage("message.send")

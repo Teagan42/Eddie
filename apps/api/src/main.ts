@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
-import { IoAdapter } from "@nestjs/platform-socket.io";
+import { WsAdapter } from "@nestjs/platform-ws";
 import { ApiModule } from "./api.module";
 import { initTracing } from "./telemetry/tracing";
 import { HttpLoggerMiddleware } from "./middleware/http-logger.middleware";
@@ -23,7 +23,7 @@ function configureLogging(
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(ApiModule, { bufferLogs: true });
   app.enableShutdownHooks();
-  app.useWebSocketAdapter(new IoAdapter(app));
+  app.useWebSocketAdapter(new WsAdapter(app));
 
   const configService = app.get(ConfigService);
   const loggerService = app.get(LoggerService);
