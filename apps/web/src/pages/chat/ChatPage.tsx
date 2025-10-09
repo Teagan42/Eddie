@@ -338,7 +338,10 @@ export function ChatPage(): JSX.Element {
 
   const collapsedPanels = preferences.chat?.collapsedPanels ?? {};
   const sessionSettings = preferences.chat?.sessionSettings ?? {};
-  const templates = preferences.chat?.templates ?? {};
+  const templates = useMemo(
+    () => preferences.chat?.templates ?? {},
+    [preferences.chat?.templates]
+  );
 
   const activeSettings = selectedSessionId
     ? sessionSettings[selectedSessionId] ?? {}
