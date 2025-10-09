@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { ChatSessionsService } from "../chat-sessions/chat-sessions.service";
+import { ChatMessageRole } from "../chat-sessions/dto/create-chat-message.dto";
 import {
   ContextBundleDto,
   OrchestratorMetadataDto,
@@ -62,25 +63,71 @@ export class OrchestratorMetadataService {
     messages: ReturnType<ChatSessionsService["listMessages"]>
   ): ToolCallNodeDto[] {
     const toolMessages = messages
-      .filter((message) => message.role === "system")
+      .filter(
+        (message) =>
+          message.role === ChatMessageRole.Tool ||
+          message.role === ChatMessageRole.System
+      )
       .map((message) => ({ ...message, content: message.content.trim() }))
       .filter((message) => message.content.length > 0);
 
     return toolMessages.map((message, index) => {
       const node = new ToolCallNodeDto();
-      node.id = `${sessionId}-tool-${index}`;
-      node.name = this.extractToolName(message.content);
+      node.id = message.toolCallId ?? `${sessionId}-tool-${index}`;
+      node.name = message.name ?? this.extractToolName(message.content);
       node.status = ToolCallStatusDto.Completed;
-      const args = this.extractToolArguments(message.content);
+      const payload = this.parseToolPayload(message.content);
+      const args = payload.isJson
+        ? null
+        : this.extractToolArguments(message.content);
       node.metadata = {
-        preview: message.content.slice(0, 120),
-        command: message.content,
+        preview: payload.preview,
         createdAt: message.createdAt,
+        ...(payload.isJson
+          ? { payload: payload.value }
+          : { command: message.content }),
+        ...(message.toolCallId ? { toolCallId: message.toolCallId } : {}),
+        ...(message.name ? { toolName: message.name } : {}),
         ...(args ? { arguments: args } : {}),
       };
       node.children = [];
       return node;
     });
+  }
+
+  private parseToolPayload(
+    content: string
+  ): { isJson: boolean; value: unknown; preview: string } {
+    const trimmed = content.trim();
+    if (!trimmed) {
+      return { isJson: false, value: trimmed, preview: "" };
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed === "object" && parsed !== null) {
+        const preview = this.extractPreviewFromObject(parsed) ?? trimmed;
+        return { isJson: true, value: parsed, preview };
+      }
+      return { isJson: false, value: trimmed, preview: trimmed.slice(0, 120) };
+    } catch {
+      return { isJson: false, value: trimmed, preview: trimmed.slice(0, 120) };
+    }
+  }
+
+  private extractPreviewFromObject(value: unknown): string | null {
+    if (!value || typeof value !== "object") {
+      return null;
+    }
+
+    if (
+      "content" in value &&
+      typeof (value as { content?: unknown }).content === "string"
+    ) {
+      return (value as { content: string }).content.slice(0, 120);
+    }
+
+    return JSON.stringify(value).slice(0, 120);
   }
 
   private extractToolName(command: string): string {

@@ -1,4 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { ChatMessageRole } from "./create-chat-message.dto";
 
 export class ChatSessionDto {
@@ -36,4 +36,10 @@ export class ChatMessageDto {
 
   @ApiProperty({ description: "Creation timestamp (ISO string)" })
   createdAt!: string;
+
+  @ApiPropertyOptional({ description: "Identifier of the originating tool call" })
+  toolCallId?: string;
+
+  @ApiPropertyOptional({ description: "Originating tool name" })
+  name?: string;
 }

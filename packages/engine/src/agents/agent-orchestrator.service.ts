@@ -457,6 +457,7 @@ export class AgentOrchestratorService {
     let agentFailed = false;
     let continueConversation = true;
     let subagentStopEmitted = false;
+    let previousResponseId: string | undefined;
 
     const emitSubagentStop = async (): Promise<void> => {
       if (invocation.isRoot || subagentStopEmitted) {
@@ -504,6 +505,7 @@ export class AgentOrchestratorService {
           model: descriptor.model,
           messages: invocation.messages,
           tools: toolSchemas,
+          ...(previousResponseId ? { previousResponseId } : {}),
         });
 
         let assistantBuffer = "";
@@ -737,6 +739,9 @@ export class AgentOrchestratorService {
 
           if (event.type === "end") {
             this.streamRenderer.render(event);
+            if (event.responseId) {
+              previousResponseId = event.responseId;
+            }
             if (assistantBuffer.trim().length > 0) {
               invocation.messages.push({
                 role: "assistant",

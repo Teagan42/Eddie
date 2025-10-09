@@ -75,6 +75,7 @@ export type StreamEvent =
       type: "end";
       reason?: string;
       usage?: Record<string, unknown>;
+      responseId?: string;
     };
 
 export interface StreamOptions {
@@ -83,6 +84,7 @@ export interface StreamOptions {
   tools?: ToolSchema[];
   responseFormat?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
+  previousResponseId?: string;
 }
 
 export interface ProviderAdapter {

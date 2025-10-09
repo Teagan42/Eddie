@@ -44,4 +44,25 @@ describe("ChatSessionsService", () => {
     expect(listener.messages).toBe(1);
     expect(listener.updated).toBe(1);
   });
+
+  it("persists tool identifiers and names on stored messages", () => {
+    const service = new ChatSessionsService();
+    const session = service.createSession({ title: "Tool capture" });
+
+    const dto = {
+      role: "tool",
+      content: "{}",
+      toolCallId: "call-1",
+      name: "bash",
+    } as CreateChatMessageDto;
+
+    const { message } = service.addMessage(session.id, dto);
+
+    expect((message as Record<string, unknown>).toolCallId).toBe("call-1");
+    expect((message as Record<string, unknown>).name).toBe("bash");
+
+    const [stored] = service.listMessages(session.id);
+    expect((stored as Record<string, unknown>).toolCallId).toBe("call-1");
+    expect((stored as Record<string, unknown>).name).toBe("bash");
+  });
 });

@@ -30,7 +30,6 @@ type ResponseFormat = ResponseTextConfig["format"];
 
 interface ToolAccumulator {
   arguments: string;
-  ids: Set<string>;
   callId?: string;
   name?: string;
 }
@@ -48,61 +47,59 @@ export class OpenAIAdapter implements ProviderAdapter {
   }
 
   async *stream(options: StreamOptions): AsyncIterable<StreamEvent> {
-    const toolBuffer = new Map<string, ToolAccumulator>();
+    const toolBufferByIndex = new Map<number, ToolAccumulator>();
     const emittedToolCallIds = new Set<string>();
+    let currentResponseId: string | undefined;
     let stream: ReturnType<OpenAI["responses"]["stream"]>;
 
     const createAccumulator = (): ToolAccumulator => ({
       arguments: "",
-      ids: new Set<string>(),
       callId: undefined,
       name: undefined,
     });
 
-    const attachAccumulator = (
-      identifier: string | undefined,
-      accumulator: ToolAccumulator,
-    ): void => {
-      if (!identifier) {
-        return;
-      }
-
-      if (!accumulator.ids.has(identifier)) {
-        accumulator.ids.add(identifier);
-      }
-
-      toolBuffer.set(identifier, accumulator);
-    };
-
-    const ensureAccumulator = (
-      identifier: string | undefined,
-    ): ToolAccumulator => {
-      if (identifier) {
-        const existing = toolBuffer.get(identifier);
-        if (existing) {
-          return existing;
-        }
+    const ensureAccumulatorByIndex = (index: number): ToolAccumulator => {
+      const existing = toolBufferByIndex.get(index);
+      if (existing) {
+        return existing;
       }
 
       const accumulator = createAccumulator();
-      if (identifier) {
-        attachAccumulator(identifier, accumulator);
-      }
+      toolBufferByIndex.set(index, accumulator);
       return accumulator;
     };
 
-    const clearAccumulator = (accumulator: ToolAccumulator): void => {
-      for (const identifier of accumulator.ids) {
-        toolBuffer.delete(identifier);
-      }
-      accumulator.ids.clear();
+    const clearAccumulatorByIndex = (index: number): void => {
+      toolBufferByIndex.delete(index);
     };
+
+    const findAccumulatorEntryByCallId = (
+      callId: string | undefined,
+    ): { index: number; accumulator: ToolAccumulator } | undefined => {
+      if (!callId) {
+        return undefined;
+      }
+
+      for (const [index, accumulator] of toolBufferByIndex.entries()) {
+        if (accumulator.callId === callId) {
+          return { index, accumulator };
+        }
+      }
+
+      return undefined;
+    };
+
+    const resolveOutputIndex = (value: { output_index?: number }): number =>
+      typeof value.output_index === "number" ? value.output_index : -1;
 
     const streamParams = {
       model: options.model,
       input: this.formatMessages(options.messages),
       tools: this.formatTools(options.tools),
       metadata: this.formatMetadata(options.metadata),
+      ...(options.previousResponseId
+        ? { previous_response_id: options.previousResponseId }
+        : {}),
       ...(options.responseFormat
         ? { text: this.formatResponseTextConfig(options.responseFormat) }
         : {}),
@@ -124,6 +121,9 @@ export class OpenAIAdapter implements ProviderAdapter {
 
     try {
       for await (const event of stream) {
+        if (event.type === "response.created") {
+          currentResponseId = event.response?.id;
+        }
         for (const notification of extractNotificationEvents(event)) {
           yield notification;
         }
@@ -137,9 +137,8 @@ export class OpenAIAdapter implements ProviderAdapter {
               break;
             }
 
-            const accumulator = ensureAccumulator(item.id ?? item.call_id);
-            attachAccumulator(item.id, accumulator);
-            attachAccumulator(item.call_id, accumulator);
+            const index = resolveOutputIndex(event);
+            const accumulator = ensureAccumulatorByIndex(index);
             if (item.call_id) {
               accumulator.callId = item.call_id;
             }
@@ -153,23 +152,27 @@ export class OpenAIAdapter implements ProviderAdapter {
             break;
           }
           case "response.function_call_arguments.delta": {
-            const callId = (event as { call_id?: string }).call_id;
-            const eventName = (event as { name?: string }).name;
-            const accumulator = ensureAccumulator(event.item_id ?? callId);
+            const index = resolveOutputIndex(event);
+            const accumulator = ensureAccumulatorByIndex(index);
             accumulator.arguments += event.delta;
-            attachAccumulator(event.item_id, accumulator);
-            attachAccumulator(callId, accumulator);
+            const callId = (event as { call_id?: string }).call_id;
+            if (callId) {
+              accumulator.callId = callId;
+            }
+            const eventName = (event as { name?: string }).name;
             if (typeof eventName === "string") {
               accumulator.name = eventName;
             }
             break;
           }
           case "response.function_call_arguments.done": {
+            const index = resolveOutputIndex(event);
+            const accumulator = ensureAccumulatorByIndex(index);
             const callId = (event as { call_id?: string }).call_id;
+            if (callId) {
+              accumulator.callId = callId;
+            }
             const eventName = (event as { name?: string }).name;
-            const accumulator = ensureAccumulator(event.item_id ?? callId);
-            attachAccumulator(event.item_id, accumulator);
-            attachAccumulator(callId, accumulator);
             if (typeof eventName === "string") {
               accumulator.name = eventName;
             }
@@ -182,8 +185,10 @@ export class OpenAIAdapter implements ProviderAdapter {
             } catch {
               // Keep the raw string when JSON parsing fails.
             }
-            const identifier =
-              accumulator.callId ?? callId ?? event.item_id ?? undefined;
+            const identifier = accumulator.callId ?? callId;
+            if (!identifier) {
+              break;
+            }
             yield {
               type: "tool_call",
               id: identifier,
@@ -194,13 +199,8 @@ export class OpenAIAdapter implements ProviderAdapter {
                   : { input: parsed },
               raw,
             };
-            for (const accId of accumulator.ids) {
-              emittedToolCallIds.add(accId);
-            }
-            if (identifier) {
-              emittedToolCallIds.add(identifier);
-            }
-            clearAccumulator(accumulator);
+            emittedToolCallIds.add(identifier);
+            clearAccumulatorByIndex(index);
             break;
           }
           case "response.completed": {
@@ -254,6 +254,7 @@ export class OpenAIAdapter implements ProviderAdapter {
     }
 
     if (finalResponse) {
+      currentResponseId = currentResponseId ?? finalResponse.id;
       for (const notification of extractNotificationEvents(finalResponse)) {
         yield notification;
       }
@@ -263,13 +264,13 @@ export class OpenAIAdapter implements ProviderAdapter {
         }
 
         const call = item as ResponseFunctionToolCall;
-        const identifier = call.id ?? call.call_id;
-        if (identifier && emittedToolCallIds.has(identifier)) {
+        const identifier = call.call_id ?? undefined;
+        if (!identifier || emittedToolCallIds.has(identifier)) {
           continue;
         }
 
-        const accumulator = identifier ? toolBuffer.get(identifier) : undefined;
-        const buffered = accumulator?.arguments ?? "";
+        const accumulatorEntry = findAccumulatorEntryByCallId(identifier);
+        const buffered = accumulatorEntry?.accumulator.arguments ?? "";
         const raw = call.arguments ?? buffered;
         let parsed: unknown = raw;
         try {
@@ -281,7 +282,8 @@ export class OpenAIAdapter implements ProviderAdapter {
         yield {
           type: "tool_call",
           id: identifier,
-          name: accumulator?.name ?? call.name ?? "unknown_tool",
+          name:
+            call.name ?? accumulatorEntry?.accumulator.name ?? "unknown_tool",
           arguments:
             typeof parsed === "object" && parsed !== null
               ? (parsed as Record<string, unknown>)
@@ -289,13 +291,9 @@ export class OpenAIAdapter implements ProviderAdapter {
           raw,
         };
 
-        if (identifier) {
-          emittedToolCallIds.add(identifier);
-          if (accumulator) {
-            clearAccumulator(accumulator);
-          } else {
-            toolBuffer.delete(identifier);
-          }
+        emittedToolCallIds.add(identifier);
+        if (accumulatorEntry) {
+          clearAccumulatorByIndex(accumulatorEntry.index);
         }
       }
 
@@ -303,7 +301,7 @@ export class OpenAIAdapter implements ProviderAdapter {
       endReason = endReason ?? finalResponse.status ?? undefined;
     }
 
-    yield { type: "end", reason: endReason, usage };
+    yield { type: "end", reason: endReason, usage, responseId: currentResponseId };
   }
 
   private formatMessages(messages: StreamOptions["messages"]): ResponseInput {
