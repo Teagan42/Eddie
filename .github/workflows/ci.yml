@@ -30,67 +30,67 @@ jobs:
             tsconfig: apps/cli/tsconfig.build.json
           - name: "@eddie/config"
             path: packages/config
-            coverage: coverage/config
+            coverage: packages/config/coverage
             dist: packages/config/dist
             tsbuildinfo: packages/config/tsconfig.build.tsbuildinfo
             tsconfig: packages/config/tsconfig.build.json
           - name: "@eddie/context"
             path: packages/context
-            coverage: coverage/context
+            coverage: packages/context/coverage
             dist: packages/context/dist
             tsbuildinfo: packages/context/tsconfig.build.tsbuildinfo
             tsconfig: packages/context/tsconfig.build.json
           - name: "@eddie/engine"
             path: packages/engine
-            coverage: coverage/engine
+            coverage: packages/engine/coverage
             dist: packages/engine/dist
             tsbuildinfo: packages/engine/tsconfig.build.tsbuildinfo
             tsconfig: packages/engine/tsconfig.build.json
           - name: "@eddie/hooks"
             path: packages/hooks
-            coverage: coverage/hooks
+            coverage: packages/hooks/coverage
             dist: packages/hooks/dist
             tsbuildinfo: packages/hooks/tsconfig.build.tsbuildinfo
             tsconfig: packages/hooks/tsconfig.build.json
           - name: "@eddie/io"
             path: packages/io
-            coverage: coverage/io
+            coverage: packages/io/coverage
             dist: packages/io/dist
             tsbuildinfo: packages/io/tsconfig.build.tsbuildinfo
             tsconfig: packages/io/tsconfig.build.json
           - name: "@eddie/mcp"
             path: packages/mcp
-            coverage: coverage/mcp
+            coverage: packages/mcp/coverage
             dist: packages/mcp/dist
             tsbuildinfo: packages/mcp/tsconfig.build.tsbuildinfo
             tsconfig: packages/mcp/tsconfig.build.json
           - name: "@eddie/providers"
             path: packages/providers
-            coverage: coverage/providers
+            coverage: packages/providers/coverage
             dist: packages/providers/dist
             tsbuildinfo: packages/providers/tsconfig.build.tsbuildinfo
             tsconfig: packages/providers/tsconfig.build.json
           - name: "@eddie/templates"
             path: packages/templates
-            coverage: coverage/templates
+            coverage: packages/templates/coverage
             dist: packages/templates/dist
             tsbuildinfo: packages/templates/tsconfig.build.tsbuildinfo
             tsconfig: packages/templates/tsconfig.build.json
           - name: "@eddie/tokenizers"
             path: packages/tokenizers
-            coverage: coverage/tokenizers
+            coverage: packages/tokenizers/coverage
             dist: packages/tokenizers/dist
             tsbuildinfo: packages/tokenizers/tsconfig.build.tsbuildinfo
             tsconfig: packages/tokenizers/tsconfig.build.json
           - name: "@eddie/tools"
             path: packages/tools
-            coverage: coverage/tools
+            coverage: packages/tools/coverage
             dist: packages/tools/dist
             tsbuildinfo: packages/tools/tsconfig.build.tsbuildinfo
             tsconfig: packages/tools/tsconfig.build.json
           - name: "@eddie/types"
             path: packages/types
-            coverage: coverage/types
+            coverage: packages/types/coverage
             dist: packages/types/dist
             tsbuildinfo: packages/types/tsconfig.build.tsbuildinfo
             tsconfig: packages/types/tsconfig.build.json
@@ -186,6 +186,6 @@ jobs:
         if: always() && matrix.node-version == '20.x'
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-${{ matrix.workspace.name }}
+          name: coverage-${{ replace(replace(matrix.workspace.name, '@', ''), '/', '-') }}
           path: ${{ matrix.workspace.coverage }}
           if-no-files-found: error
