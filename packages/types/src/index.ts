@@ -75,6 +75,7 @@ export type StreamEvent =
       type: "end";
       reason?: string;
       usage?: Record<string, unknown>;
+      responseId?: string;
     };
 
 export interface StreamOptions {
