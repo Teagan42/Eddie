@@ -2,8 +2,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LayoutPreferencesDto } from "@eddie/api-client";
 import { useApi } from "@/api/api-provider";
+import { useAuth } from "@/auth/auth-context";
 
-const STORAGE_KEY = "eddie.layoutPreferences.v1";
+const STORAGE_NAMESPACE = "eddie.layoutPreferences.v1";
+
+function getStorageKey(apiKey: string | null): string {
+  if (apiKey) {
+    return `${STORAGE_NAMESPACE}.${apiKey}`;
+  }
+  return `${STORAGE_NAMESPACE}.guest`;
+}
 
 function createDefaults(): LayoutPreferencesDto {
   return {
@@ -16,13 +24,13 @@ function createDefaults(): LayoutPreferencesDto {
   };
 }
 
-function readLocalStorage(): LayoutPreferencesDto {
+function readLocalStorage(storageKey: string): LayoutPreferencesDto {
   if (typeof window === "undefined") {
     return createDefaults();
   }
 
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(storageKey);
     if (!raw) {
       return createDefaults();
     }
@@ -34,12 +42,12 @@ function readLocalStorage(): LayoutPreferencesDto {
   }
 }
 
-function writeLocalStorage(value: LayoutPreferencesDto): void {
+function writeLocalStorage(storageKey: string, value: LayoutPreferencesDto): void {
   if (typeof window === "undefined") {
     return;
   }
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+    window.localStorage.setItem(storageKey, JSON.stringify(value));
   } catch (error) {
     console.warn("Failed to persist layout preferences", error);
   }
@@ -82,13 +90,23 @@ export interface UseLayoutPreferencesResult {
 
 export function useLayoutPreferences(): UseLayoutPreferencesResult {
   const api = useApi();
+  const { apiKey } = useAuth();
   const queryClient = useQueryClient();
+  const storageKey = useMemo(() => getStorageKey(apiKey), [apiKey]);
+  const queryKey = useMemo(
+    () => ["layout-preferences", apiKey ?? "guest"],
+    [apiKey]
+  );
   const [localPreferences, setLocalPreferences] = useState<LayoutPreferencesDto>(
-    () => readLocalStorage()
+    () => readLocalStorage(storageKey)
   );
 
+  useEffect(() => {
+    setLocalPreferences(readLocalStorage(storageKey));
+  }, [storageKey]);
+
   const remoteQuery = useQuery({
-    queryKey: ["layout-preferences"],
+    queryKey,
     queryFn: () => api.http.preferences.getLayout(),
   });
 
@@ -96,18 +114,18 @@ export function useLayoutPreferences(): UseLayoutPreferencesResult {
     if (remoteQuery.data) {
       setLocalPreferences((previous) => {
         const merged = mergePreferences(previous, remoteQuery.data);
-        writeLocalStorage(merged);
+        writeLocalStorage(storageKey, merged);
         return merged;
       });
     }
-  }, [remoteQuery.data]);
+  }, [remoteQuery.data, storageKey]);
 
   const syncMutation = useMutation({
     mutationFn: (input: LayoutPreferencesDto) =>
       api.http.preferences.updateLayout(input),
     onSuccess: (payload) => {
-      writeLocalStorage(payload);
-      queryClient.setQueryData(["layout-preferences"], payload);
+      writeLocalStorage(storageKey, payload);
+      queryClient.setQueryData(queryKey, payload);
       setLocalPreferences(payload);
     },
   });
@@ -116,7 +134,7 @@ export function useLayoutPreferences(): UseLayoutPreferencesResult {
     (updater: (previous: LayoutPreferencesDto) => LayoutPreferencesDto) => {
       setLocalPreferences((previous) => {
         const next = updater(previous);
-        writeLocalStorage(next);
+        writeLocalStorage(storageKey, next);
         syncMutation.mutate(next, {
           onError: (error) => {
             console.warn("Failed to sync layout preferences", error);
@@ -125,7 +143,7 @@ export function useLayoutPreferences(): UseLayoutPreferencesResult {
         return next;
       });
     },
-    [syncMutation]
+    [storageKey, syncMutation]
   );
 
   const isRemoteAvailable = useMemo(() => !remoteQuery.isError, [remoteQuery.isError]);
