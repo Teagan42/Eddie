@@ -1,10 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import OpenAI from "openai";
 import type {
+  EasyInputMessage,
   FunctionTool,
   Response as OpenAIResponse,
   ResponseFunctionToolCall,
   ResponseInput,
+  ResponseInputItem,
   ResponseTextConfig,
 } from "openai/resources/responses/responses";
 import type { ProviderConfig } from "@eddie/config";
@@ -305,22 +307,29 @@ export class OpenAIAdapter implements ProviderAdapter {
   }
 
   private formatMessages(messages: StreamOptions["messages"]): ResponseInput {
-    return messages.map<ResponseInput[number]>((message) => {
+    return messages.map<ResponseInputItem>((message) => {
       if (message.role === "tool") {
+        const callId = message.tool_call_id ?? message.name ?? "tool";
+
         return {
-          type: "function_call_output",
-          call_id: message.tool_call_id ?? message.name ?? "tool",
+          call_id: callId,
           output: message.content,
-        } satisfies ResponseInput[number];
+          type: "function_call_output",
+        } satisfies ResponseInputItem.FunctionCallOutput;
       }
 
-      return {
-        role: message.role === "system" || message.role === "user" || message.role === "assistant"
+      const role: EasyInputMessage["role"] =
+        message.role === "system" ||
+        message.role === "user" ||
+        message.role === "assistant"
           ? message.role
-          : "user",
-        content: [{ type: "input_text", text: message.content }],
+          : "user";
+
+      return {
+        content: message.content,
+        role,
         type: "message",
-      } satisfies ResponseInput[number];
+      } satisfies EasyInputMessage;
     });
   }
 
