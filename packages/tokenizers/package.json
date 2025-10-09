@@ -17,13 +17,5 @@
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0"
-  },
-  "devDependencies": {
-    "@types/node": "^24.7.0",
-    "@typescript-eslint/eslint-plugin": "^8.46.0",
-    "@typescript-eslint/parser": "^8.46.0",
-    "eslint": "^9.37.0",
-    "typescript": "^5.9.3",
-    "vitest": "^3.2.4"
   }
 }
