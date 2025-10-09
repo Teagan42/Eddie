@@ -1,6 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import fs from "fs/promises";
 import path from "path";
+
+const CONFIG_ROOT = path.resolve(process.cwd(), "config");
 import yaml from "yaml";
 import { DEFAULT_CONFIG } from "./defaults";
 import type {
@@ -116,13 +118,22 @@ export class ConfigService {
     options: CliRuntimeOptions = {},
     targetPath?: string | null
   ): Promise<ConfigFileSnapshot> {
-    const resolvedTarget = targetPath
-      ? path.resolve(targetPath)
-      : await this.resolveConfigPath(options);
+    let resolvedTarget: string | undefined;
+    if (targetPath) {
+      // resolve user input against config root - prevents directory traversal
+      resolvedTarget = path.resolve(CONFIG_ROOT, targetPath);
+      // Validate that final path is within CONFIG_ROOT
+      if (!resolvedTarget.startsWith(CONFIG_ROOT + path.sep)) {
+        throw new Error("Invalid target path: outside of config directory.");
+      }
+    } else {
+      resolvedTarget = await this.resolveConfigPath(options);
+    }
 
     const destination =
       resolvedTarget ??
       path.resolve(
+        CONFIG_ROOT,
         format === "json" ? "eddie.config.json" : "eddie.config.yaml"
       );
 
