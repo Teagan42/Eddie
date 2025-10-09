@@ -44,6 +44,7 @@ describe("createApiClient", () => {
     expect(ioMock!).toHaveBeenCalledWith(
       "ws://example.test/ws/chat-sessions",
       expect.objectContaining({
+        path: "/ws/socket.io",
         transports: ["websocket"],
         autoConnect: false,
         withCredentials: true,
@@ -78,5 +79,16 @@ describe("createApiClient", () => {
       const socket = result.value as MockSocket;
       expect(socket.disconnect).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it("configures socket path for relative websocket URLs", () => {
+    const client = createApiClient({ baseUrl: "/api", websocketUrl: "/api" });
+
+    expect(ioMock!).toHaveBeenCalledWith(
+      "/api/chat-sessions",
+      expect.objectContaining({ path: "/api/socket.io" })
+    );
+
+    client.dispose();
   });
 });

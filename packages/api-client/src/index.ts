@@ -247,8 +247,25 @@ interface SocketAuthPayload {
   apiKey?: string;
 }
 
+const protocolRegex = /^[a-zA-Z][a-zA-Z\d+.-]*:\/\//u;
+
+function resolveSocketPath(baseUrl: string): string {
+  try {
+    const hasProtocol = protocolRegex.test(baseUrl);
+    const url = hasProtocol
+      ? new URL(baseUrl)
+      : new URL(baseUrl, "http://placeholder");
+    const pathname = url.pathname.replace(/\/$/u, "");
+    const resolved = `${pathname ? pathname : ""}/socket.io`;
+    return resolved.startsWith("/") ? resolved : `/${resolved}`;
+  } catch {
+    return "/socket.io";
+  }
+}
+
 function createSocket(baseUrl: string, namespace: string): Socket {
   return io(`${baseUrl}${namespace}`, {
+    path: resolveSocketPath(baseUrl),
     transports: ["websocket"],
     autoConnect: false,
     withCredentials: true,
