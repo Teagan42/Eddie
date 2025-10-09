@@ -8,6 +8,7 @@ import { ConfigService } from "@eddie/config";
 import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
 import { LoggerService } from "@eddie/io";
 import { applyCorsConfig } from "./cors";
+import { ensureDefaultConfigRoot } from "./config-root";
 
 function configureLogging(
   config: EddieConfig,
@@ -20,7 +21,9 @@ function configureLogging(
   });
 }
 
-async function bootstrap(): Promise<void> {
+export async function bootstrap(): Promise<void> {
+  ensureDefaultConfigRoot();
+
   const app = await NestFactory.create(ApiModule, { bufferLogs: true });
   app.enableShutdownHooks();
   app.useWebSocketAdapter(new WsAdapter(app));
