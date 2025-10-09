@@ -263,9 +263,24 @@ function resolveSocketPath(baseUrl: string): string {
   }
 }
 
+function resolveSocketOrigin(baseUrl: string): string {
+  try {
+    if (!protocolRegex.test(baseUrl)) {
+      return "";
+    }
+    const url = new URL(baseUrl);
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return "";
+  }
+}
+
 function createSocket(baseUrl: string, namespace: string): Socket {
-  return io(`${baseUrl}${namespace}`, {
-    path: resolveSocketPath(baseUrl),
+  const origin = resolveSocketOrigin(baseUrl);
+  const path = resolveSocketPath(baseUrl);
+  const url = `${origin}${namespace}`;
+  return io(url || namespace, {
+    path,
     transports: ["websocket"],
     autoConnect: false,
     withCredentials: true,

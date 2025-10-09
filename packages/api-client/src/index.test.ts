@@ -42,7 +42,7 @@ describe("createApiClient", () => {
 
     expect(OpenAPI.BASE).toBe("https://example.test/api");
     expect(ioMock!).toHaveBeenCalledWith(
-      "ws://example.test/ws/chat-sessions",
+      "ws://example.test/chat-sessions",
       expect.objectContaining({
         path: "/ws/socket.io",
         transports: ["websocket"],
@@ -85,7 +85,7 @@ describe("createApiClient", () => {
     const client = createApiClient({ baseUrl: "/api", websocketUrl: "/api" });
 
     expect(ioMock!).toHaveBeenCalledWith(
-      "/api/chat-sessions",
+      "/chat-sessions",
       expect.objectContaining({ path: "/api/socket.io" })
     );
 
