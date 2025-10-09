@@ -326,7 +326,7 @@ export class OpenAIAdapter implements ProviderAdapter {
           : "user";
 
       return {
-        content: [{ type: "input_text", text: message.content }],
+        content: message.content,
         role,
         type: "message",
       } satisfies EasyInputMessage;
