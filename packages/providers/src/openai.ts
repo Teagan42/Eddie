@@ -97,6 +97,9 @@ export class OpenAIAdapter implements ProviderAdapter {
       input: this.formatMessages(options.messages),
       tools: this.formatTools(options.tools),
       metadata: this.formatMetadata(options.metadata),
+      ...(options.previousResponseId
+        ? { previous_response_id: options.previousResponseId }
+        : {}),
       ...(options.responseFormat
         ? { text: this.formatResponseTextConfig(options.responseFormat) }
         : {}),

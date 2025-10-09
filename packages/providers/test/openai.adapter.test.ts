@@ -44,6 +44,33 @@ describe("OpenAIAdapter stream tool calls", () => {
     openAIConstructor.mockClear();
   });
 
+  it("passes previous response id to the OpenAI stream request", async () => {
+    const finalResponse = {
+      id: "resp_prev",
+      status: "completed",
+      output: [],
+    };
+    const events: StreamEventLike[] = [
+      { type: "response.created", response: { id: "resp_prev" } },
+      { type: "response.completed", response: finalResponse },
+    ];
+
+    streamMock.mockResolvedValueOnce(createStream(events, finalResponse));
+
+    const adapter = new OpenAIAdapter({});
+    await collectStream(
+      adapter.stream({
+        model: "gpt-4o-mini",
+        messages: [],
+        previousResponseId: "resp_prev",
+      } as StreamOptions & { previousResponseId: string })
+    );
+
+    expect(streamMock).toHaveBeenCalledTimes(1);
+    const [payload] = streamMock.mock.calls[0] ?? [];
+    expect(payload).toMatchObject({ previous_response_id: "resp_prev" });
+  });
+
   it("emits tool calls using call_id once available and surfaces the response id", async () => {
     const finalResponse = {
       id: "resp_123",

@@ -84,6 +84,7 @@ export interface StreamOptions {
   tools?: ToolSchema[];
   responseFormat?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
+  previousResponseId?: string;
 }
 
 export interface ProviderAdapter {
