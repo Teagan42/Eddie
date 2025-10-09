@@ -1,0 +1,38 @@
+<%
+  const layout = it.layout || {};
+  const title = layout.title ?? "Voice operations bay";
+  const audience = layout.audience ?? "voice concierge";
+  const instructions = Array.isArray(layout.instructions) ? layout.instructions : [];
+  const cues = Array.isArray(layout.cues) ? layout.cues : [];
+  const footer = Array.isArray(layout.footer) ? layout.footer : [];
+%>
+# <%= title %>
+
+_Target audience: <%= audience %>_
+
+<% if (instructions.length) { %>
+## Mission prompts
+<% instructions.forEach((line) => { %>
+- <%= line %>
+<% }) %>
+<% } %>
+
+<% if (cues.length) { %>
+## Spoken delivery cues
+<% cues.forEach((cue) => { %>
+- <%= cue %>
+<% }) %>
+<% } %>
+
+<% if (it.body) { %>
+<%~ it.body %>
+<% } else { %>
+<!-- Child template should supply body content -->
+<% } %>
+
+<% if (footer.length) { %>
+---
+<% footer.forEach((line) => { %>
+- <%= line %>
+<% }) %>
+<% } %>

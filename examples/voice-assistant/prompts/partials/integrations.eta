@@ -1,0 +1,9 @@
+<%
+  const integrations = Array.isArray(it.integrations) ? it.integrations : [];
+%>
+<% if (integrations.length) { %>
+### Connected surfaces
+<% integrations.forEach((integration) => { %>
+- <%= integration.name ?? integration.id %>: <%= integration.purpose ?? 'general support' %>
+<% }) %>
+<% } %>
