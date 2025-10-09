@@ -15,4 +15,9 @@ import { ChatSessionsEngineListener } from "./chat-sessions-engine.listener";
   controllers: [ChatSessionsController],
   exports: [ChatSessionsService],
 })
-export class ChatSessionsModule {}
+export class ChatSessionsModule {
+  constructor(
+    // Ensures the engine listener is instantiated so it can self-register
+    private readonly _engineListener: ChatSessionsEngineListener
+  ) {}
+}
