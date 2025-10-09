@@ -7,7 +7,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "module": "ES2022",
-    "moduleResolution": "Node"
+    "moduleResolution": "Bundler"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["dist", "test", "**/*.spec.ts"],
