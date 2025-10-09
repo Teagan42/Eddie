@@ -1,0 +1,657 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Liveness state"
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "HealthController_readiness",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Readiness state"
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/chat-sessions": {
+      "get": {
+        "operationId": "ChatSessionsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChatSessionDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List chat sessions",
+        "tags": [
+          "chat-sessions"
+        ]
+      },
+      "post": {
+        "operationId": "ChatSessionsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChatSessionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatSessionDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create a new chat session",
+        "tags": [
+          "chat-sessions"
+        ]
+      }
+    },
+    "/chat-sessions/{id}": {
+      "get": {
+        "operationId": "ChatSessionsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatSessionDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Fetch a single chat session",
+        "tags": [
+          "chat-sessions"
+        ]
+      }
+    },
+    "/chat-sessions/{id}/archive": {
+      "patch": {
+        "operationId": "ChatSessionsController_archive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatSessionDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Archive a chat session",
+        "tags": [
+          "chat-sessions"
+        ]
+      }
+    },
+    "/chat-sessions/{id}/messages": {
+      "get": {
+        "operationId": "ChatSessionsController_listMessages",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChatMessageDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List session messages",
+        "tags": [
+          "chat-sessions"
+        ]
+      },
+      "post": {
+        "operationId": "ChatSessionsController_createMessage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChatMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatMessageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Append a message to the session",
+        "tags": [
+          "chat-sessions"
+        ]
+      }
+    },
+    "/traces": {
+      "get": {
+        "operationId": "TracesController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TraceDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List traces",
+        "tags": [
+          "traces"
+        ]
+      }
+    },
+    "/traces/{id}": {
+      "get": {
+        "operationId": "TracesController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraceDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get a trace",
+        "tags": [
+          "traces"
+        ]
+      }
+    },
+    "/logs": {
+      "get": {
+        "operationId": "LogsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LogEntryDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List log entries",
+        "tags": [
+          "logs"
+        ]
+      },
+      "post": {
+        "operationId": "LogsController_emit",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogEntryDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Append a diagnostic log",
+        "tags": [
+          "logs"
+        ]
+      }
+    },
+    "/config": {
+      "get": {
+        "operationId": "RuntimeConfigController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeConfigDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get runtime configuration",
+        "tags": [
+          "config"
+        ]
+      },
+      "patch": {
+        "operationId": "RuntimeConfigController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRuntimeConfigDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeConfigDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update runtime configuration",
+        "tags": [
+          "config"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Eddie API",
+    "description": "REST and WebSocket surface for the Eddie control plane",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "Chat Sessions",
+      "description": ""
+    },
+    {
+      "name": "Traces",
+      "description": ""
+    },
+    {
+      "name": "Logs",
+      "description": ""
+    },
+    {
+      "name": "Runtime Config",
+      "description": ""
+    }
+  ],
+  "servers": [],
+  "components": {
+    "schemas": {
+      "ChatSessionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier"
+          },
+          "title": {
+            "type": "string",
+            "description": "Human friendly title"
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional description"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "archived"
+            ],
+            "description": "Session status"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Creation timestamp (ISO string)"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Last update timestamp (ISO string)"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CreateChatSessionDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Human friendly session title"
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional description rendered in dashboards"
+          }
+        },
+        "required": [
+          "title"
+        ]
+      },
+      "ChatMessageDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier"
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "Owning session id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant",
+              "system"
+            ],
+            "description": "Message role"
+          },
+          "content": {
+            "type": "string",
+            "description": "Message content"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Creation timestamp (ISO string)"
+          }
+        },
+        "required": [
+          "id",
+          "sessionId",
+          "role",
+          "content",
+          "createdAt"
+        ]
+      },
+      "CreateChatMessageDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant",
+              "system"
+            ],
+            "default": "user"
+          },
+          "content": {
+            "type": "string",
+            "description": "Content of the chat message"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ]
+      },
+      "TraceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Trace identifier"
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "Related chat session id"
+          },
+          "name": {
+            "type": "string",
+            "description": "Trace name"
+          },
+          "status": {
+            "type": "string",
+            "description": "Trace status",
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "failed"
+            ]
+          },
+          "durationMs": {
+            "type": "number",
+            "description": "Duration in milliseconds"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Creation timestamp"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Last update timestamp"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Structured metadata"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "LogEntryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Log identifier"
+          },
+          "level": {
+            "type": "string",
+            "description": "Log level"
+          },
+          "message": {
+            "type": "string",
+            "description": "Log message"
+          },
+          "context": {
+            "type": "object",
+            "description": "Structured context"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Creation timestamp"
+          }
+        },
+        "required": [
+          "id",
+          "level",
+          "message",
+          "createdAt"
+        ]
+      },
+      "RuntimeConfigDto": {
+        "type": "object",
+        "properties": {
+          "apiUrl": {
+            "type": "string",
+            "description": "Public HTTP API URL"
+          },
+          "websocketUrl": {
+            "type": "string",
+            "description": "Public WebSocket URL"
+          },
+          "features": {
+            "type": "object",
+            "description": "Feature flags"
+          },
+          "theme": {
+            "type": "string",
+            "description": "Active theme",
+            "enum": [
+              "light",
+              "dark"
+            ]
+          }
+        },
+        "required": [
+          "apiUrl",
+          "websocketUrl",
+          "features",
+          "theme"
+        ]
+      },
+      "UpdateRuntimeConfigDto": {
+        "type": "object",
+        "properties": {
+          "apiUrl": {
+            "type": "string",
+            "description": "Public HTTP API URL"
+          },
+          "websocketUrl": {
+            "type": "string",
+            "description": "Public WebSocket URL"
+          },
+          "features": {
+            "type": "object",
+            "description": "Feature flags"
+          },
+          "theme": {
+            "type": "string",
+            "description": "Active theme",
+            "enum": [
+              "light",
+              "dark"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

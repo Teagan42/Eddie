@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-background: 0 0% 6%;
+  --color-foreground: 0 0% 98%;
+  --color-muted: 0 0% 26%;
+  --color-accent: 160 84% 39%;
+  --font-sans: "Inter";
+}
+
+body {
+  font-family: var(--font-sans);
+}

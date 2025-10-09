@@ -15,6 +15,10 @@ import { ApiHttpExceptionFilter } from "../../src/http-exception.filter";
 import { RequestLoggingInterceptor } from "../../src/logging.interceptor";
 import { ApiCacheInterceptor } from "../../src/cache.interceptor";
 import { HttpLoggerMiddleware } from "../../src/middleware/http-logger.middleware";
+import { ChatSessionsService } from "../../src/chat-sessions/chat-sessions.service";
+import { TracesService } from "../../src/traces/traces.service";
+import { LogsService } from "../../src/logs/logs.service";
+import { RuntimeConfigService } from "../../src/runtime-config/runtime-config.service";
 
 const createExecutionContext = (request: Partial<Request>): ExecutionContext =>
   ({
@@ -55,6 +59,10 @@ describe("ApiModule integration", () => {
   let httpLoggerMiddlewareStub: {
     use: ReturnType<typeof vi.fn>;
   };
+  let chatSessionsServiceStub: ChatSessionsService;
+  let tracesServiceStub: TracesService;
+  let logsServiceStub: LogsService;
+  let runtimeConfigServiceStub: RuntimeConfigService;
 
   const logger = {
     info: vi.fn(),
@@ -147,6 +155,63 @@ describe("ApiModule integration", () => {
       use: vi.fn((_req, _res, next) => next()),
     };
 
+    chatSessionsServiceStub = {
+      registerListener: vi.fn(() => vi.fn()),
+      listSessions: vi.fn(() => []),
+      createSession: vi.fn(),
+      getSession: vi.fn(),
+      archiveSession: vi.fn(),
+      listMessages: vi.fn(() => []),
+      addMessage: vi.fn(() => ({
+        message: { id: "", sessionId: "", role: "user", content: "", createdAt: new Date().toISOString() },
+        session: {
+          id: "",
+          title: "",
+          status: "active",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      })),
+    } as unknown as ChatSessionsService;
+
+    tracesServiceStub = {
+      registerListener: vi.fn(() => vi.fn()),
+      list: vi.fn(() => []),
+      get: vi.fn(() => ({
+        id: "",
+        name: "",
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })),
+      create: vi.fn(),
+      updateStatus: vi.fn(),
+    } as unknown as TracesService;
+
+    logsServiceStub = {
+      registerListener: vi.fn(() => vi.fn()),
+      list: vi.fn(() => []),
+      append: vi.fn(() => ({
+        id: "",
+        level: "info",
+        message: "",
+        createdAt: new Date().toISOString(),
+      })),
+    } as unknown as LogsService;
+
+    const defaultConfig = {
+      apiUrl: "http://localhost:3000",
+      websocketUrl: "ws://localhost:3000",
+      features: {},
+      theme: "dark" as const,
+    };
+
+    runtimeConfigServiceStub = {
+      registerListener: vi.fn(() => vi.fn()),
+      get: vi.fn(() => defaultConfig),
+      update: vi.fn((value) => ({ ...defaultConfig, ...value })),
+    } as unknown as RuntimeConfigService;
+
     const moduleRef = await Test.createTestingModule({
       imports: [ApiModule],
     })
@@ -168,6 +233,14 @@ describe("ApiModule integration", () => {
       .useValue(cacheInterceptorStub as unknown as ApiCacheInterceptor)
       .overrideProvider(HttpLoggerMiddleware)
       .useValue(httpLoggerMiddlewareStub as unknown as HttpLoggerMiddleware)
+      .overrideProvider(ChatSessionsService)
+      .useValue(chatSessionsServiceStub)
+      .overrideProvider(TracesService)
+      .useValue(tracesServiceStub)
+      .overrideProvider(LogsService)
+      .useValue(logsServiceStub)
+      .overrideProvider(RuntimeConfigService)
+      .useValue(runtimeConfigServiceStub)
       .compile();
 
     app = moduleRef.createNestApplication();

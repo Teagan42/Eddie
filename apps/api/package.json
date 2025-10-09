@@ -15,7 +15,8 @@
     "prestart": "npm run build",
     "start": "node dist/main.js",
     "build:watch": "tsc -b tsconfig.build.json --watch",
-    "dev": "bash -c 'npm run build:watch -- --preserveWatchOutput & BUILD_PID=$!; trap \"kill $BUILD_PID\" EXIT; nest start api --watch'"
+    "dev": "bash -c 'npm run build:watch -- --preserveWatchOutput & BUILD_PID=$!; trap \"kill $BUILD_PID\" EXIT; nest start api --watch'",
+    "openapi:spec": "node -r ts-node/register ./src/openapi.ts"
   },
   "dependencies": {
     "@eddie/config": "^0.0.0",
@@ -27,6 +28,7 @@
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/platform-socket.io": "^11.0.0",
     "@nestjs/websockets": "^11.0.0",
+    "@nestjs/swagger": "^11.0.2",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.50.0",
     "@opentelemetry/resources": "^1.29.0",
@@ -41,6 +43,8 @@
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
-    "@types/on-finished": "^2.3.5"
+    "@types/on-finished": "^2.3.5",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.2"
   }
 }

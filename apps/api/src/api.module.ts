@@ -16,9 +16,22 @@ import { ApiHttpExceptionFilter } from "./http-exception.filter";
 import { ApiKeyGuard } from "./auth/api-key.guard";
 import { RequestLoggingInterceptor } from "./logging.interceptor";
 import { ApiCacheInterceptor } from "./cache.interceptor";
+import { ChatSessionsModule } from "./chat-sessions/chat-sessions.module";
+import { TracesModule } from "./traces/traces.module";
+import { LogsModule } from "./logs/logs.module";
+import { RuntimeConfigModule } from "./runtime-config/runtime-config.module";
 
 @Module({
-  imports: [ConfigModule, ContextModule, IoModule, EngineModule],
+  imports: [
+    ConfigModule,
+    ContextModule,
+    IoModule,
+    EngineModule,
+    ChatSessionsModule,
+    TracesModule,
+    LogsModule,
+    RuntimeConfigModule,
+  ],
   controllers: [HealthController],
   providers: [
     HttpLoggerMiddleware,
