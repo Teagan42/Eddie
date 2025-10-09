@@ -12,6 +12,7 @@ module.exports = [
     ignores: [
       "src/components/components/**/*",
       "src/components/hooks/**/*",
+      "src/components/hooks/*",
     ],
     languageOptions: {
       parser: tsParser,
