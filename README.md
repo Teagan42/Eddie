@@ -71,6 +71,7 @@ Every top-level key in `EddieConfig` serves a specific subsystem:
 - Deep dives on subagents live in [docs/subagents.md](docs/subagents.md).
 - Adding MCP tool servers is covered in [docs/mcp-servers.md](docs/mcp-servers.md).
 - Prompt/context templating is documented in [docs/templates.md](docs/templates.md).
+- Running the Web UI against the API stack is covered in [docs/web-ui.md](docs/web-ui.md).
 
 Whenever you add a new configuration key in `apps/cli/src/config/types.ts`, update this
 section, `DEFAULT_CONFIG`, and any impacted guides so the documentation stays in
