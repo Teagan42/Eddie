@@ -4,12 +4,48 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Theme } from "@radix-ui/themes";
 import { ConfigPage } from "./ConfigPage";
+import { load as loadYaml } from "js-yaml";
+import type { UpdateEddieConfigPayload } from "@eddie/api-client";
 
 const catalogMock = vi.fn();
 const getSchemaMock = vi.fn();
 const loadSourceMock = vi.fn();
 const previewMock = vi.fn();
 const saveMock = vi.fn();
+
+const baseSourceResponse = {
+  path: null,
+  format: "yaml" as const,
+  content: "model: api-model-2\nprovider:\n  name: api-provider\n",
+  input: {
+    model: "api-model-2",
+    provider: { name: "api-provider" },
+    context: { include: ["src/**/*"], exclude: ["dist/**"] },
+    tools: { enabled: ["filesystem", "git"], autoApprove: true },
+    agents: {
+      mode: "router",
+      manager: { prompt: "Coordinate the plan" },
+      enableSubagents: true,
+    },
+    logging: { level: "info" },
+  },
+  config: {
+    model: "api-model-2",
+    provider: { name: "api-provider" },
+    context: { include: ["src/**/*"], exclude: ["dist/**"] },
+    tools: { enabled: ["filesystem", "git"], autoApprove: true },
+    agents: {
+      mode: "router",
+      manager: { prompt: "Coordinate the plan" },
+      enableSubagents: true,
+    },
+    logging: { level: "info" },
+  },
+  error: null,
+};
+
+const cloneSourceResponse = () =>
+  JSON.parse(JSON.stringify(baseSourceResponse)) as typeof baseSourceResponse;
 
 class ResizeObserverMock {
   observe(): void {}
@@ -92,35 +128,20 @@ describe("ConfigPage interactions", () => {
       schema: {},
       inputSchema: {},
     });
-    loadSourceMock.mockResolvedValue({
-      path: null,
-      format: "yaml",
-      content: "model: api-model-2\nprovider:\n  name: api-provider\n",
-      input: {
-        model: "api-model-2",
-        provider: { name: "api-provider" },
-        context: { include: ["src/**/*"], exclude: ["dist/**"] },
-        tools: { enabled: ["filesystem", "git"], autoApprove: true },
-        agents: {
-          mode: "router",
-          manager: { prompt: "Coordinate the plan" },
-          enableSubagents: true,
-        },
-        logging: { level: "info" },
-      },
-      config: {
-        model: "api-model-2",
-        provider: { name: "api-provider" },
-        context: { include: ["src/**/*"], exclude: ["dist/**"] },
-        tools: { enabled: ["filesystem", "git"], autoApprove: true },
-        agents: {
-          mode: "router",
-          manager: { prompt: "Coordinate the plan" },
-          enableSubagents: true,
-        },
-        logging: { level: "info" },
-      },
-      error: null,
+    loadSourceMock.mockResolvedValue(cloneSourceResponse());
+    saveMock.mockImplementation(async (payload: UpdateEddieConfigPayload) => {
+      const parsed =
+        payload.format === "json"
+          ? (JSON.parse(payload.content) as unknown)
+          : loadYaml(payload.content);
+      return {
+        path: null,
+        format: payload.format,
+        content: payload.content,
+        input: (parsed ?? {}) as Record<string, unknown>,
+        config: (parsed ?? {}) as Record<string, unknown>,
+        error: null,
+      };
     });
   });
 
@@ -176,6 +197,53 @@ describe("ConfigPage interactions", () => {
         screen.getByRole("switch", { name: /filesystem tool/i })
       ).toHaveAttribute("aria-checked", "false")
     );
+  });
+
+  it("removes a re-enabled tool from the disabled list before saving", async () => {
+    const user = userEvent.setup();
+    const disabledToolSource = cloneSourceResponse();
+    disabledToolSource.input.tools = {
+      enabled: ["filesystem"],
+      disabled: ["git"],
+      autoApprove: true,
+    };
+    disabledToolSource.config.tools = {
+      enabled: ["filesystem"],
+      disabled: ["git"],
+      autoApprove: true,
+    };
+    loadSourceMock.mockResolvedValueOnce(disabledToolSource);
+
+    renderConfigPage();
+
+    const gitToggle = await screen.findByRole("switch", { name: /git tool/i });
+    expect(gitToggle).toHaveAttribute("aria-checked", "false");
+
+    await user.click(gitToggle);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("switch", { name: /git tool/i })
+      ).toHaveAttribute("aria-checked", "true")
+    );
+
+    const saveButton = await screen.findByRole("button", {
+      name: /save changes/i,
+    });
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    await user.click(saveButton);
+
+    await waitFor(() => expect(saveMock).toHaveBeenCalledTimes(1));
+    const payload = saveMock.mock.calls[0]?.[0];
+    expect(payload).toBeDefined();
+    if (!payload || typeof payload.content !== "string") {
+      throw new Error("Expected save payload to include serialized content");
+    }
+    const saved = loadYaml(payload.content) as {
+      tools?: { enabled?: string[]; disabled?: string[] };
+    };
+    expect(saved.tools?.enabled ?? []).toContain("git");
+    expect(saved.tools?.disabled ?? []).not.toContain("git");
   });
 
   it("hides prompt editors until expanded", async () => {
