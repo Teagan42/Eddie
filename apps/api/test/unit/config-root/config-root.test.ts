@@ -34,6 +34,7 @@ describe("ensureDefaultConfigRoot", () => {
     const ensureMock = vi.fn().mockReturnValue("mock-root");
     const loadMock = vi.fn().mockResolvedValue({ api: {} });
     const configureMock = vi.fn();
+    const configureOpenApiMock = vi.fn().mockResolvedValue(undefined);
     const applyCorsMock = vi.fn();
     const useMock = vi.fn();
     const listenMock = vi.fn().mockResolvedValue(undefined);
@@ -123,6 +124,10 @@ describe("ensureDefaultConfigRoot", () => {
       applyCorsConfig: applyCorsMock,
     }));
 
+    vi.doMock("../../../src/openapi-config", () => ({
+      configureOpenApi: configureOpenApiMock,
+    }));
+
     const { bootstrap } = await import("../../../src/main");
 
     await new Promise((resolve) => setImmediate(resolve));
@@ -130,11 +135,13 @@ describe("ensureDefaultConfigRoot", () => {
     ensureMock.mockClear();
     createMock.mockClear();
     listenMock.mockClear();
+    configureOpenApiMock.mockClear();
 
     await bootstrap();
 
     expect(ensureMock).toHaveBeenCalledTimes(1);
     expect(createMock).toHaveBeenCalledTimes(1);
+    expect(configureOpenApiMock).toHaveBeenCalledTimes(1);
     expect(ensureMock.mock.invocationCallOrder[0]).toBeLessThan(
       createMock.mock.invocationCallOrder[0]
     );
