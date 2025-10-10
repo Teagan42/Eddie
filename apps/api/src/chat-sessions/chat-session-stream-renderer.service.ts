@@ -4,9 +4,8 @@ import { StreamRendererService } from "@eddie/io";
 import type { StreamEvent } from "@eddie/types";
 import { ChatSessionsService } from "./chat-sessions.service";
 import { ChatMessageRole } from "./dto/create-chat-message.dto";
-import { ChatMessagesGateway } from "./chat-messages.gateway";
-import { ToolsGateway } from "../tools/tools.gateway";
 import type { ChatMessageDto } from "./dto/chat-session.dto";
+import { ChatSessionEventsService } from "./chat-session-events.service";
 
 interface StreamState {
     sessionId: string;
@@ -25,8 +24,7 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
   private readonly storage = new AsyncLocalStorage<StreamState>();
   constructor(
         private readonly chatSessions: ChatSessionsService,
-        private readonly messagesGateway: ChatMessagesGateway,
-        private readonly toolsGateway?: ToolsGateway,
+        private readonly events: ChatSessionEventsService,
   ) {
     super();
   }
@@ -69,33 +67,23 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
         break;
       }
       case "tool_call": {
-        if (!this.toolsGateway) break;
-        try {
-          this.toolsGateway.emitToolCall({
-            sessionId: state.sessionId,
-            id: event.id ?? undefined,
-            name: event.name,
-            arguments: event.arguments ?? null,
-            timestamp: new Date().toISOString(),
-          });
-        } catch {
-          // ignore gateway errors to keep stream rendering robust
-        }
+        this.events.emitToolCall({
+          sessionId: state.sessionId,
+          id: event.id ?? undefined,
+          name: event.name,
+          arguments: event.arguments ?? null,
+          timestamp: new Date().toISOString(),
+        });
         break;
       }
       case "tool_result": {
-        if (!this.toolsGateway) break;
-        try {
-          this.toolsGateway.emitToolResult({
-            sessionId: state.sessionId,
-            id: event.id ?? undefined,
-            name: event.name,
-            result: event.result ?? null,
-            timestamp: new Date().toISOString(),
-          });
-        } catch {
-          // ignore
-        }
+        this.events.emitToolResult({
+          sessionId: state.sessionId,
+          id: event.id ?? undefined,
+          name: event.name,
+          result: event.result ?? null,
+          timestamp: new Date().toISOString(),
+        });
         break;
       }
       case "end": {
@@ -135,6 +123,6 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
   }
 
   private emitPartial(message: ChatMessageDto | undefined): void {
-    if (message) this.messagesGateway.emitPartial(message);
+    if (message) this.events.emitPartial(message);
   }
 }

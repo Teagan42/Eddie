@@ -1,19 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
 import { ChatSessionStreamRendererService } from "../../../src/chat-sessions/chat-session-stream-renderer.service";
-import type { ChatMessagesGateway } from "../../../src/chat-sessions/chat-messages.gateway";
 import { InMemoryChatSessionsRepository } from "../../../src/chat-sessions/chat-sessions.repository";
+import type { ChatSessionEventsService } from "../../../src/chat-sessions/chat-session-events.service";
 
 describe("ChatSessionStreamRendererService", () => {
     let service: ChatSessionsService;
     let renderer: ChatSessionStreamRendererService;
     let sessionId: string;
-    let gateway: ChatMessagesGateway;
+    let events: ChatSessionEventsService;
 
     beforeEach(() => {
         service = new ChatSessionsService(new InMemoryChatSessionsRepository());
-        gateway = { emitPartial: vi.fn() } as unknown as ChatMessagesGateway;
-        renderer = new ChatSessionStreamRendererService(service, gateway);
+        events = {
+            emitPartial: vi.fn(),
+            emitToolCall: vi.fn(),
+            emitToolResult: vi.fn(),
+        } as unknown as ChatSessionEventsService;
+        renderer = new ChatSessionStreamRendererService(service, events);
         sessionId = service.createSession({ title: "Stream" }).id;
     });
 
@@ -58,10 +62,10 @@ describe("ChatSessionStreamRendererService", () => {
         expect(messages[ 0 ]?.content).toBe("Partial");
     });
     it("emits partial updates for assistant responses", async () => {
-        const events: string[] = [];
-        const emitPartialMock = gateway.emitPartial as unknown as ReturnType<typeof vi.fn>;
+        const partialEvents: string[] = [];
+        const emitPartialMock = events.emitPartial as unknown as ReturnType<typeof vi.fn>;
         emitPartialMock.mockImplementation((message: { content: string; }) =>
-            events.push(message.content)
+            partialEvents.push(message.content)
         );
 
         await renderer.capture(sessionId, async () => {
@@ -69,23 +73,24 @@ describe("ChatSessionStreamRendererService", () => {
             renderer.render({ type: "delta", text: " world" });
         });
 
-        expect(events).toEqual([ "Hello", "Hello world" ]);
+        expect(partialEvents).toEqual([ "Hello", "Hello world" ]);
     });
 
     it("emits tool events via ToolsGateway", async () => {
-        const toolsGateway = {
+        const toolEvents = {
+            emitPartial: vi.fn(),
             emitToolCall: vi.fn(),
             emitToolResult: vi.fn(),
-        } as unknown as { emitToolCall: (p: unknown) => void; emitToolResult: (p: unknown) => void; };
+        } as unknown as ChatSessionEventsService;
 
-        const rendererWithTools = new ChatSessionStreamRendererService(service, gateway, toolsGateway as any);
+        const rendererWithTools = new ChatSessionStreamRendererService(service, toolEvents);
 
         await rendererWithTools.capture(sessionId, async () => {
             rendererWithTools.render({ type: "tool_call", name: "echo", arguments: { text: "hi" }, id: "t1" } as any);
             rendererWithTools.render({ type: "tool_result", name: "echo", result: { schema: "s1", content: "ok" }, id: "t1" } as any);
         });
 
-        expect((toolsGateway.emitToolCall as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(1);
-        expect((toolsGateway.emitToolResult as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(1);
+        expect((toolEvents.emitToolCall as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalled();
+        expect((toolEvents.emitToolResult as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalled();
     });
 });
