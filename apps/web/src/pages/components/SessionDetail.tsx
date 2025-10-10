@@ -28,7 +28,9 @@ export function SessionDetail({ session, messages, isLoading }: SessionDetailPro
 
 function MessagesList({ messages }: { messages: ChatMessageDto[] }): JSX.Element {
   const lastMessageMarkerRef = useRef<HTMLDivElement | null>(null);
-  const lastMessageId = messages.length > 0 ? messages[messages.length - 1]!.id : null;
+  const lastMessage = messages.length > 0 ? messages[messages.length - 1]! : null;
+  const lastMessageId = lastMessage?.id ?? null;
+  const lastMessageContent = lastMessage?.content ?? null;
 
   useEffect(() => {
     if (!lastMessageId) {
@@ -42,7 +44,7 @@ function MessagesList({ messages }: { messages: ChatMessageDto[] }): JSX.Element
     }
 
     node.scrollIntoView({ block: "end" });
-  }, [lastMessageId]);
+  }, [lastMessageId, lastMessageContent]);
 
   return (
     <ScrollArea

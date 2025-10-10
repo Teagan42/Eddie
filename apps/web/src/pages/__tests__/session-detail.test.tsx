@@ -62,4 +62,32 @@ describe("SessionDetail", () => {
 
     HTMLElement.prototype.scrollIntoView = original;
   });
+
+  it("keeps the latest message visible while it streams updates", async () => {
+    const original = HTMLElement.prototype.scrollIntoView;
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+
+    const session = createSession();
+    const initialMessages = [createMessage({ id: "message-1", content: "Partial" })];
+    const { rerender } = render(
+      <SessionDetail session={session} isLoading={false} messages={initialMessages} />
+    );
+
+    scrollIntoView.mockClear();
+
+    rerender(
+      <SessionDetail
+        session={session}
+        isLoading={false}
+        messages={[createMessage({ id: "message-1", content: "Partial update complete" })]}
+      />
+    );
+
+    await waitFor(() => {
+      expect(scrollIntoView).toHaveBeenCalled();
+    });
+
+    HTMLElement.prototype.scrollIntoView = original;
+  });
 });
