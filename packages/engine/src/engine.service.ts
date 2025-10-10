@@ -39,16 +39,16 @@ import { McpToolSourceService } from "@eddie/mcp";
 import type { DiscoveredMcpResource } from "@eddie/mcp";
 
 export interface EngineOptions extends CliRuntimeOptions {
-  history?: ChatMessage[];
-  autoApprove?: boolean;
-  nonInteractive?: boolean;
+    history?: ChatMessage[];
+    autoApprove?: boolean;
+    nonInteractive?: boolean;
 }
 
 export interface EngineResult {
-  messages: ChatMessage[];
-  context: PackedContext;
-  tracePath?: string;
-  agents: AgentInvocation[];
+    messages: ChatMessage[];
+    context: PackedContext;
+    tracePath?: string;
+    agents: AgentInvocation[];
 }
 
 /**
@@ -59,28 +59,28 @@ export interface EngineResult {
 @Injectable()
 export class EngineService {
   constructor(
-    private readonly configService: ConfigService,
-    private readonly contextService: ContextService,
-    private readonly providerFactory: ProviderFactoryService,
-    private readonly hooksService: HooksService,
-    private readonly confirmService: ConfirmService,
-    private readonly tokenizerService: TokenizerService,
-    private readonly loggerService: LoggerService,
-    private readonly agentOrchestrator: AgentOrchestratorService,
-    private readonly mcpToolSourceService: McpToolSourceService
-  ) {}
+        private readonly configService: ConfigService,
+        private readonly contextService: ContextService,
+        private readonly providerFactory: ProviderFactoryService,
+        private readonly hooksService: HooksService,
+        private readonly confirmService: ConfirmService,
+        private readonly tokenizerService: TokenizerService,
+        private readonly loggerService: LoggerService,
+        private readonly agentOrchestrator: AgentOrchestratorService,
+        private readonly mcpToolSourceService: McpToolSourceService
+  ) { }
 
   setStreamRenderer(streamRenderer: StreamRendererService): void {
     this.agentOrchestrator.setStreamRenderer(streamRenderer);
   }
 
   /**
-   * Executes a single CLI run, emitting hooks in the order
-   * `sessionStart` → `beforeContextPack` → `afterContextPack` →
-   * `userPromptSubmit` before delegating to the agent orchestrator. Once the
-   * agent tree finishes, a terminal `sessionEnd` hook is dispatched with the
-   * aggregated result or failure context.
-   */
+     * Executes a single CLI run, emitting hooks in the order
+     * `sessionStart` → `beforeContextPack` → `afterContextPack` →
+     * `userPromptSubmit` before delegating to the agent orchestrator. Once the
+     * agent tree finishes, a terminal `sessionEnd` hook is dispatched with the
+     * aggregated result or failure context.
+     */
   async run(prompt: string, options: EngineOptions = {}): Promise<EngineResult> {
     const runStartedAt = Date.now();
     const sessionId = randomUUID();
@@ -180,7 +180,7 @@ export class EngineService {
       logger.debug({ contextTokens }, "Packed context");
 
       const toolsEnabled = this.filterTools(
-        [...builtinTools, ...remoteTools],
+        [ ...builtinTools, ...remoteTools ],
         cfg.tools?.enabled,
         cfg.tools?.disabled
       );
@@ -200,6 +200,8 @@ export class EngineService {
         tracePath,
         traceAppend: cfg.output?.jsonlAppend ?? true,
       };
+      // Attach sessionId so trace writes include it
+      (runtime as any).sessionId = sessionId;
 
       const userPromptSubmit = await hooks.emitAsync(
         HOOK_EVENTS.userPromptSubmit,
@@ -251,10 +253,10 @@ export class EngineService {
           durationMs: Date.now() - runStartedAt,
           result: result
             ? {
-                messageCount: result.messages.length,
-                agentCount: result.agents.length,
-                contextBytes: result.context.totalBytes,
-              }
+              messageCount: result.messages.length,
+              agentCount: result.agents.length,
+              contextBytes: result.context.totalBytes,
+            }
             : undefined,
           error: failure ? this.serializeError(failure) : undefined,
         });
@@ -279,7 +281,7 @@ export class EngineService {
       return;
     }
 
-    context.resources = [...(context.resources ?? []), ...packedResources];
+    context.resources = [ ...(context.resources ?? []), ...packedResources ];
 
     const resourceSections = packedResources
       .map((resource) => this.composeResourceText(resource))
@@ -287,8 +289,8 @@ export class EngineService {
 
     if (resourceSections.length > 0) {
       const baseSections =
-        context.text && context.text.trim().length > 0 ? [context.text] : [];
-      context.text = [...baseSections, ...resourceSections].join("\n\n");
+                context.text && context.text.trim().length > 0 ? [ context.text ] : [];
+      context.text = [ ...baseSections, ...resourceSections ].join("\n\n");
     }
 
     const additionalBytes = packedResources.reduce(
@@ -301,7 +303,7 @@ export class EngineService {
   private toPackedResource(resource: DiscoveredMcpResource): PackedResource {
     const label = resource.name ?? resource.uri;
     const idBase = label ?? resource.uri;
-    const normalizedId = `mcp:${resource.sourceId}:${idBase}`
+    const normalizedId = `mcp:${ resource.sourceId }:${ idBase }`
       .replace(/\s+/g, "-")
       .replace(/[^a-zA-Z0-9:_-]/g, "_");
 
@@ -318,13 +320,13 @@ export class EngineService {
       metadata.attributes = structuredClone(resource.metadata);
     }
 
-    const details: string[] = [`URI: ${resource.uri}`];
+    const details: string[] = [ `URI: ${ resource.uri }` ];
     if (resource.mimeType) {
-      details.push(`MIME: ${resource.mimeType}`);
+      details.push(`MIME: ${ resource.mimeType }`);
     }
     if (resource.metadata && Object.keys(resource.metadata).length > 0) {
       details.push(
-        `Metadata: ${JSON.stringify(resource.metadata, null, 2)}`
+        `Metadata: ${ JSON.stringify(resource.metadata, null, 2) }`
       );
     }
 
@@ -340,15 +342,15 @@ export class EngineService {
 
   private composeResourceText(resource: PackedResource): string {
     const label = resource.name ?? resource.id;
-    const description = resource.description ? ` - ${resource.description}` : "";
+    const description = resource.description ? ` - ${ resource.description }` : "";
     const body = resource.text.trimEnd();
-    const lines = [`// Resource: ${label}${description}`];
+    const lines = [ `// Resource: ${ label }${ description }` ];
 
     if (body.length > 0) {
       lines.push(body);
     }
 
-    lines.push(`// End Resource: ${label}`);
+    lines.push(`// End Resource: ${ label }`);
     return lines.join("\n");
   }
 
@@ -410,9 +412,9 @@ export class EngineService {
       const adapter = getAdapter(runtimeInfo.providerConfig);
 
       const allowedTools =
-        subagent.tools && subagent.tools.length > 0
-          ? this.filterTools(tools, subagent.tools, undefined)
-          : tools;
+                subagent.tools && subagent.tools.length > 0
+                  ? this.filterTools(tools, subagent.tools, undefined)
+                  : tools;
 
       const definition: AgentDefinition = {
         id: subagent.id,
@@ -444,9 +446,9 @@ export class EngineService {
         model: runtimeInfo.model,
         provider: adapter,
         metadata:
-          Object.keys(metadataEntries).length > 0
-            ? (metadataEntries as AgentRuntimeDescriptor["metadata"])
-            : undefined,
+                    Object.keys(metadataEntries).length > 0
+                      ? (metadataEntries as AgentRuntimeDescriptor[ "metadata" ])
+                      : undefined,
       };
 
       subagentMap.set(subagent.id, descriptor);
@@ -463,13 +465,13 @@ export class EngineService {
     cfg: EddieConfig,
     spec: AgentProviderConfig | undefined,
     modelOverride?: string
-  ): { providerConfig: ProviderConfig; model: string; profileId?: string } {
+  ): { providerConfig: ProviderConfig; model: string; profileId?: string; } {
     let providerConfig = this.cloneProviderConfig(cfg.provider);
     let profileModel: string | undefined;
     let profileId: string | undefined;
 
     if (typeof spec === "string") {
-      const profile = cfg.providers?.[spec];
+      const profile = cfg.providers?.[ spec ];
       if (profile) {
         providerConfig = this.cloneProviderConfig(profile.provider);
         profileModel = profile.model;
@@ -489,7 +491,7 @@ export class EngineService {
 
     if (
       typeof providerConfig.name !== "string" ||
-      providerConfig.name.trim() === ""
+            providerConfig.name.trim() === ""
     ) {
       providerConfig.name = cfg.provider.name;
     }
@@ -521,15 +523,15 @@ export class EngineService {
   }
 
   private serializeError(error: unknown): {
-    message: string;
-    stack?: string;
-    cause?: unknown;
-  } {
+        message: string;
+        stack?: string;
+        cause?: unknown;
+    } {
     if (error instanceof Error) {
       return {
         message: error.message,
         stack: error.stack,
-        cause: (error as { cause?: unknown }).cause,
+        cause: (error as { cause?: unknown; }).cause,
       };
     }
 
@@ -540,28 +542,28 @@ export class EngineService {
     event: K,
     dispatch: HookDispatchResult<K>,
     logger: Logger,
-    options: { allowBlock?: boolean } = {}
+    options: { allowBlock?: boolean; } = {}
   ): void {
     if (dispatch.error) {
       const cause = dispatch.error;
       if (cause instanceof Error) {
-        logger.error({ err: cause, event }, `Hook "${event}" failed`);
+        logger.error({ err: cause, event }, `Hook "${ event }" failed`);
       } else {
-        logger.error({ event, error: cause }, `Hook "${event}" failed`);
+        logger.error({ event, error: cause }, `Hook "${ event }" failed`);
       }
 
       const message =
-        cause instanceof Error
-          ? `Hook "${event}" failed: ${cause.message}`
-          : `Hook "${event}" failed: ${String(cause)}`;
+                cause instanceof Error
+                  ? `Hook "${ event }" failed: ${ cause.message }`
+                  : `Hook "${ event }" failed: ${ String(cause) }`;
 
       throw new Error(message, { cause });
     }
 
     if (options.allowBlock && dispatch.blocked) {
       const reason =
-        dispatch.blocked.reason ?? `Hook "${event}" blocked execution.`;
-      logger.warn({ event, reason }, `Hook "${event}" blocked execution`);
+                dispatch.blocked.reason ?? `Hook "${ event }" blocked execution.`;
+      logger.warn({ event, reason }, `Hook "${ event }" blocked execution`);
       throw new Error(reason, { cause: dispatch.blocked });
     }
   }
@@ -569,10 +571,10 @@ export class EngineService {
 
 class DefaultAgentRuntimeCatalog implements AgentRuntimeCatalog {
   constructor(
-    private readonly manager: AgentRuntimeDescriptor,
-    private readonly subagents: Map<string, AgentRuntimeDescriptor>,
-    readonly enableSubagents: boolean
-  ) {}
+        private readonly manager: AgentRuntimeDescriptor,
+        private readonly subagents: Map<string, AgentRuntimeDescriptor>,
+        readonly enableSubagents: boolean
+  ) { }
 
   getManager(): AgentRuntimeDescriptor {
     return this.manager;

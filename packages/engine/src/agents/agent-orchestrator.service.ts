@@ -23,66 +23,67 @@ import type { AgentRuntimeCatalog, AgentRuntimeDescriptor } from "./agent-runtim
 import type { TemplateVariables } from "@eddie/templates";
 
 interface AgentTraceEvent {
-  phase: string;
-  data?: Record<string, unknown>;
+    phase: string;
+    data?: Record<string, unknown>;
 }
 
 const SPAWN_TOOL_NAME = "spawn_subagent";
 const SPAWN_TOOL_RESULT_SCHEMA = "eddie.tool.spawn_subagent.result.v1";
 
 interface SpawnToolArguments {
-  agent: string;
-  prompt: string;
-  variables?: TemplateVariables;
-  metadata?: Record<string, unknown>;
+    agent: string;
+    prompt: string;
+    variables?: TemplateVariables;
+    metadata?: Record<string, unknown>;
 }
 
 export interface AgentRuntimeOptions {
-  catalog: AgentRuntimeCatalog;
-  hooks: HookBus;
-  confirm: (message: string) => Promise<boolean>;
-  cwd: string;
-  logger: Logger;
-  tracePath?: string;
-  traceAppend?: boolean;
-  transcriptCompactor?: TranscriptCompactor;
+    catalog: AgentRuntimeCatalog;
+    hooks: HookBus;
+    confirm: (message: string) => Promise<boolean>;
+    cwd: string;
+    logger: Logger;
+    tracePath?: string;
+    sessionId?: string;
+    traceAppend?: boolean;
+    transcriptCompactor?: TranscriptCompactor;
 }
 
 export interface AgentRunRequest extends AgentInvocationOptions {
-  definition: AgentDefinition;
-  parent?: AgentInvocation;
+    definition: AgentDefinition;
+    parent?: AgentInvocation;
 }
 
 export interface TranscriptCompactionResult {
-  removedMessages?: number;
+    removedMessages?: number;
 }
 
 export interface TranscriptCompactionPlan {
-  reason?: string;
-  apply(): Promise<TranscriptCompactionResult | void> | TranscriptCompactionResult | void;
+    reason?: string;
+    apply(): Promise<TranscriptCompactionResult | void> | TranscriptCompactionResult | void;
 }
 
 export interface TranscriptCompactor {
-  plan(
-    invocation: AgentInvocation,
-    iteration: number
-  ): Promise<TranscriptCompactionPlan | null | undefined> |
-    TranscriptCompactionPlan | null | undefined;
+    plan(
+        invocation: AgentInvocation,
+        iteration: number
+    ): Promise<TranscriptCompactionPlan | null | undefined> |
+        TranscriptCompactionPlan | null | undefined;
 }
 
 @Injectable()
 export class AgentOrchestratorService {
   private readonly runtimeMap = new WeakMap<AgentInvocation, AgentRuntimeOptions>();
   private readonly descriptorMap = new WeakMap<
-    AgentInvocation,
-    AgentRuntimeDescriptor
-  >();
+        AgentInvocation,
+        AgentRuntimeDescriptor
+    >();
 
   constructor(
-    private readonly agentInvocationFactory: AgentInvocationFactory,
-    private streamRenderer: StreamRendererService,
-    private readonly traceWriter: JsonlWriterService
-  ) {}
+        private readonly agentInvocationFactory: AgentInvocationFactory,
+        private streamRenderer: StreamRendererService,
+        private readonly traceWriter: JsonlWriterService
+  ) { }
 
   setStreamRenderer(streamRenderer: StreamRendererService): void {
     this.streamRenderer = streamRenderer;
@@ -124,7 +125,7 @@ export class AgentOrchestratorService {
     const runtime = this.runtimeMap.get(parent);
     if (!runtime) {
       throw new Error(
-        `Unable to spawn subagent for ${parent.id}; runtime context missing.`
+        `Unable to spawn subagent for ${ parent.id }; runtime context missing.`
       );
     }
 
@@ -146,7 +147,7 @@ export class AgentOrchestratorService {
   }
 
   collectInvocations(root: AgentInvocation): AgentInvocation[] {
-    const queue: AgentInvocation[] = [root];
+    const queue: AgentInvocation[] = [ root ];
     const result: AgentInvocation[] = [];
 
     while (queue.length > 0) {
@@ -165,7 +166,7 @@ export class AgentOrchestratorService {
     const descriptor = runtime.catalog.getAgent(invocation.definition.id);
     if (!descriptor) {
       throw new Error(
-        `No runtime descriptor registered for agent ${invocation.definition.id}`
+        `No runtime descriptor registered for agent ${ invocation.definition.id }`
       );
     }
 
@@ -179,7 +180,7 @@ export class AgentOrchestratorService {
     const descriptor = this.descriptorMap.get(invocation);
     if (!descriptor) {
       throw new Error(
-        `No runtime descriptor registered for agent ${invocation.definition.id}`
+        `No runtime descriptor registered for agent ${ invocation.definition.id }`
       );
     }
 
@@ -202,7 +203,7 @@ export class AgentOrchestratorService {
       return undefined;
     }
 
-    return [...schemas, ...additional];
+    return [ ...schemas, ...additional ];
   }
 
   private createSpawnToolSchema(
@@ -219,18 +220,18 @@ export class AgentOrchestratorService {
 
     const lines = subagents.map((agent) => {
       const nameLabel =
-        agent.metadata?.name && agent.metadata.name !== agent.id
-          ? `${agent.id} (${agent.metadata.name})`
-          : agent.id;
+                agent.metadata?.name && agent.metadata.name !== agent.id
+                  ? `${ agent.id } (${ agent.metadata.name })`
+                  : agent.id;
       const description = agent.metadata?.description
-        ? ` – ${agent.metadata.description}`
+        ? ` – ${ agent.metadata.description }`
         : "";
-      return `- ${nameLabel}${description}`;
+      return `- ${ nameLabel }${ description }`;
     });
 
     const description = [
       "Spawn a configured subagent to handle part of the request.",
-      lines.length ? `Available subagents:\n${lines.join("\n")}` : undefined,
+      lines.length ? `Available subagents:\n${ lines.join("\n") }` : undefined,
     ]
       .filter(Boolean)
       .join("\n");
@@ -241,7 +242,7 @@ export class AgentOrchestratorService {
       description,
       parameters: {
         type: "object",
-        required: ["agent", "prompt"],
+        required: [ "agent", "prompt" ],
         additionalProperties: false,
         properties: {
           agent: {
@@ -255,13 +256,13 @@ export class AgentOrchestratorService {
           variables: {
             type: "object",
             description:
-              "Optional template variables merged into the subagent's prompt context.",
+                            "Optional template variables merged into the subagent's prompt context.",
             additionalProperties: true,
           },
           metadata: {
             type: "object",
             description:
-              "Optional metadata describing the delegation request for auditing.",
+                            "Optional metadata describing the delegation request for auditing.",
             additionalProperties: true,
           },
         },
@@ -291,18 +292,18 @@ export class AgentOrchestratorService {
   private parseSpawnArguments(raw: unknown): SpawnToolArguments {
     const value = this.coerceToolArguments(raw);
     const agentValue =
-      value.agent ?? value.agentId ?? value.id ?? value.target ?? undefined;
+            value.agent ?? value.agentId ?? value.id ?? value.target ?? undefined;
     if (typeof agentValue !== "string" || agentValue.trim() === "") {
       throw new Error(
-        `${SPAWN_TOOL_NAME} requires an "agent" property identifying the subagent to spawn.`
+        `${ SPAWN_TOOL_NAME } requires an "agent" property identifying the subagent to spawn.`
       );
     }
 
     const promptValue =
-      value.prompt ?? value.message ?? value.input ?? value.instructions;
+            value.prompt ?? value.message ?? value.input ?? value.instructions;
     if (typeof promptValue !== "string" || promptValue.trim() === "") {
       throw new Error(
-        `${SPAWN_TOOL_NAME} requires a non-empty "prompt" string describing the task.`
+        `${ SPAWN_TOOL_NAME } requires a non-empty "prompt" string describing the task.`
       );
     }
 
@@ -327,7 +328,7 @@ export class AgentOrchestratorService {
   private async executeSpawnTool(
     invocation: AgentInvocation,
     runtime: AgentRuntimeOptions,
-    event: Extract<StreamEvent, { type: "tool_call" }>,
+    event: Extract<StreamEvent, { type: "tool_call"; }>,
     parentDescriptor: AgentRuntimeDescriptor
   ): Promise<ToolResult> {
     if (!runtime.catalog.enableSubagents) {
@@ -344,8 +345,8 @@ export class AgentOrchestratorService {
         .join(", ");
       throw new Error(
         available
-          ? `Unknown subagent "${args.agent}". Available agents: ${available}.`
-          : `Unknown subagent "${args.agent}".`
+          ? `Unknown subagent "${ args.agent }". Available agents: ${ available }.`
+          : `Unknown subagent "${ args.agent }".`
       );
     }
 
@@ -365,9 +366,9 @@ export class AgentOrchestratorService {
 
     const finalMessage = child.messages.at(-1);
     const content =
-      finalMessage && finalMessage.content.trim().length > 0
-        ? finalMessage.content
-        : `Subagent ${descriptor.id} completed without a final response.`;
+            finalMessage && finalMessage.content.trim().length > 0
+              ? finalMessage.content
+              : `Subagent ${ descriptor.id } completed without a final response.`;
 
     const metadata: Record<string, unknown> = {
       agentId: descriptor.id,
@@ -419,18 +420,18 @@ export class AgentOrchestratorService {
   }
 
   /**
-   * Drives a single agent invocation through its lifecycle, emitting
-   * `beforeAgentStart` once, then for each iteration optionally `preCompact`,
-   * followed by `beforeModelCall`. Tool calls trigger the
-   * `preToolUse`/`postToolUse` pair (or `onAgentError` on failure), stream
-   * anomalies emit `notification`, `onError`, and `onAgentError`, and each
-   * iteration culminates with `stop`. When the agent finishes cleanly,
-   * `afterAgentComplete` fires, and non-root agents also raise `subagentStop`.
-   */
+     * Drives a single agent invocation through its lifecycle, emitting
+     * `beforeAgentStart` once, then for each iteration optionally `preCompact`,
+     * followed by `beforeModelCall`. Tool calls trigger the
+     * `preToolUse`/`postToolUse` pair (or `onAgentError` on failure), stream
+     * anomalies emit `notification`, `onError`, and `onAgentError`, and each
+     * iteration culminates with `stop`. When the agent finishes cleanly,
+     * `afterAgentComplete` fires, and non-root agents also raise `subagentStop`.
+     */
   private async executeInvocation(invocation: AgentInvocation): Promise<void> {
     const runtime = this.runtimeMap.get(invocation);
     if (!runtime) {
-      throw new Error(`No runtime registered for agent ${invocation.id}`);
+      throw new Error(`No runtime registered for agent ${ invocation.id }`);
     }
 
     const descriptor = this.getInvocationDescriptor(invocation);
@@ -556,7 +557,7 @@ export class AgentOrchestratorService {
 
             if (blockSignal) {
               const reason =
-                blockSignal.reason ?? "Tool execution blocked by hook.";
+                                blockSignal.reason ?? "Tool execution blocked by hook.";
 
               invocation.messages.push({
                 role: "tool",
@@ -580,18 +581,18 @@ export class AgentOrchestratorService {
 
             try {
               const result =
-                event.name === SPAWN_TOOL_NAME
-                  ? await this.executeSpawnTool(
-                      invocation,
-                      runtime,
-                      event,
-                      descriptor
-                    )
-                  : await invocation.toolRegistry.execute(event, {
-                      cwd: runtime.cwd,
-                      confirm: runtime.confirm,
-                      env: process.env,
-                    });
+                                event.name === SPAWN_TOOL_NAME
+                                  ? await this.executeSpawnTool(
+                                    invocation,
+                                    runtime,
+                                    event,
+                                    descriptor
+                                  )
+                                  : await invocation.toolRegistry.execute(event, {
+                                    cwd: runtime.cwd,
+                                    confirm: runtime.confirm,
+                                    env: process.env,
+                                  });
 
               this.streamRenderer.render({
                 type: "tool_result",
@@ -645,8 +646,8 @@ export class AgentOrchestratorService {
               continueConversation = true;
             } catch (error) {
               const serialized = this.serializeError(error);
-              const message = `Tool execution failed: ${serialized.message}`;
-              const notification: Extract<StreamEvent, { type: "notification" }> = {
+              const message = `Tool execution failed: ${ serialized.message }`;
+              const notification: Extract<StreamEvent, { type: "notification"; }> = {
                 type: "notification",
                 payload: message,
                 metadata: {
@@ -834,6 +835,7 @@ export class AgentOrchestratorService {
         context: lifecycle.context,
         historyLength: lifecycle.historyLength,
         data: event.data,
+        sessionId: runtime.sessionId,
         timestamp: new Date().toISOString(),
       },
       append
@@ -844,7 +846,7 @@ export class AgentOrchestratorService {
     runtime: AgentRuntimeOptions,
     invocation: AgentInvocation,
     event: K,
-    payload: HookEventMap[K]
+    payload: HookEventMap[ K ]
   ): Promise<HookDispatchResult<K>> {
     const dispatch = await runtime.hooks.emitAsync(event, payload);
 
@@ -864,9 +866,9 @@ export class AgentOrchestratorService {
       }
 
       const error = new Error(
-        `Hook "${event}" failed: ${serialized.message}`
+        `Hook "${ event }" failed: ${ serialized.message }`
       );
-      (error as { cause?: unknown }).cause = dispatch.error;
+      (error as { cause?: unknown; }).cause = dispatch.error;
       throw error;
     }
 
@@ -914,15 +916,15 @@ export class AgentOrchestratorService {
   }
 
   private serializeError(error: unknown): {
-    message: string;
-    stack?: string;
-    cause?: unknown;
-  } {
+        message: string;
+        stack?: string;
+        cause?: unknown;
+    } {
     if (error instanceof Error) {
       return {
         message: error.message,
         stack: error.stack,
-        cause: (error as { cause?: unknown }).cause,
+        cause: (error as { cause?: unknown; }).cause,
       };
     }
 

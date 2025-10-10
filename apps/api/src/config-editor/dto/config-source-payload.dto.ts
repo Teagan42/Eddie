@@ -7,12 +7,12 @@ const CONFIG_FORMATS: ConfigFileFormat[] = ["yaml", "json"];
 export class ConfigSourcePayloadDto {
   @ApiProperty({ description: "Configuration source contents." })
   @IsString()
-  content!: string;
+    content!: string;
 
   @ApiProperty({ description: "Format of the configuration payload.", enum: CONFIG_FORMATS })
   @IsString()
   @IsIn(CONFIG_FORMATS)
-  format!: ConfigFileFormat;
+    format!: ConfigFileFormat;
 
   @ApiProperty({
     description: "Optional explicit path override when persisting the configuration.",
@@ -21,5 +21,5 @@ export class ConfigSourcePayloadDto {
   })
   @IsOptional()
   @IsString()
-  path?: string | null;
+    path?: string | null;
 }

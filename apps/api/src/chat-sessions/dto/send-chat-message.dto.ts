@@ -7,9 +7,9 @@ import { CreateChatMessageDto } from "./create-chat-message.dto";
 
 export class SendChatMessagePayloadDto {
   @IsUUID()
-  sessionId!: string;
+    sessionId!: string;
 
   @ValidateNested()
   @Type(() => CreateChatMessageDto)
-  message!: CreateChatMessageDto;
+    message!: CreateChatMessageDto;
 }

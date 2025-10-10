@@ -20,7 +20,7 @@ import { SendChatMessagePayloadDto } from "./dto/send-chat-message.dto";
   path: "/chat-sessions",
 })
 export class ChatSessionsGateway
-  implements ChatSessionsListener, OnModuleInit, OnModuleDestroy
+implements ChatSessionsListener, OnModuleInit, OnModuleDestroy
 {
   @WebSocketServer()
   private server!: Server;

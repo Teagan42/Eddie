@@ -6,7 +6,7 @@ export class CreateChatSessionDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(120)
-  title!: string;
+    title!: string;
 
   @ApiProperty({
     description: "Optional description rendered in dashboards",
@@ -15,5 +15,5 @@ export class CreateChatSessionDto {
   @IsString()
   @IsOptional()
   @MaxLength(280)
-  description?: string;
+    description?: string;
 }

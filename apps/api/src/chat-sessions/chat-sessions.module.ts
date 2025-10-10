@@ -10,6 +10,7 @@ import { ChatSessionsGateway } from "./chat-sessions.gateway";
 import { ChatSessionsEngineListener } from "./chat-sessions-engine.listener";
 import { ChatSessionStreamRendererService } from "./chat-session-stream-renderer.service";
 import { ChatMessagesGateway } from "./chat-messages.gateway";
+import { ToolsModule } from "../tools/tools.module";
 import {
   CHAT_SESSIONS_REPOSITORY,
   InMemoryChatSessionsRepository,
@@ -23,16 +24,16 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
     const persistence = config.api?.persistence ?? { driver: "memory" };
     if (persistence.driver === "sqlite") {
       const filename =
-        persistence.sqlite?.filename ?? "data/chat-sessions.sqlite";
+                persistence.sqlite?.filename ?? "data/chat-sessions.sqlite";
       return new SqliteChatSessionsRepository({ filename });
     }
     return new InMemoryChatSessionsRepository();
   },
-  inject: [ConfigService],
+  inject: [ ConfigService ],
 };
 
 @Module({
-  imports: [EngineModule, TracesModule, LogsModule, ConfigModule],
+  imports: [ EngineModule, TracesModule, LogsModule, ConfigModule, ToolsModule ],
   providers: [
     ChatSessionsService,
     ChatSessionsGateway,
@@ -48,12 +49,12 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
       useExisting: StreamRendererService,
     },
   ],
-  controllers: [ChatSessionsController],
-  exports: [ChatSessionsService],
+  controllers: [ ChatSessionsController ],
+  exports: [ ChatSessionsService ],
 })
 export class ChatSessionsModule {
   constructor(
-    // Ensures the engine listener is instantiated so it can self-register
-    private readonly _engineListener: ChatSessionsEngineListener
-  ) {}
+        // Ensures the engine listener is instantiated so it can self-register
+        private readonly _engineListener: ChatSessionsEngineListener
+  ) { }
 }

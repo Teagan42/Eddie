@@ -12,7 +12,7 @@ import { LogsListener, LogsService } from "./logs.service";
   path: "/logs",
 })
 export class LogsGateway
-  implements LogsListener, OnModuleInit, OnModuleDestroy
+implements LogsListener, OnModuleInit, OnModuleDestroy
 {
   @WebSocketServer()
   private server!: Server;

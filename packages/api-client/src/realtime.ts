@@ -3,19 +3,19 @@ import WebSocket from "isomorphic-ws";
 export type RealtimeHandler<T = unknown> = (payload: T) => void;
 
 interface MessageEventLike {
-  data?: unknown;
+    data?: unknown;
 }
 
 interface QueuedMessage {
-  event: string;
-  data: unknown;
+    event: string;
+    data: unknown;
 }
 
 export interface RealtimeChannel {
-  on<T = unknown>(event: string, handler: RealtimeHandler<T>): () => void;
-  emit(event: string, payload: unknown): void;
-  updateAuth(apiKey: string | null): void;
-  close(): void;
+    on<T = unknown>(event: string, handler: RealtimeHandler<T>): () => void;
+    emit(event: string, payload: unknown): void;
+    updateAuth(apiKey: string | null): void;
+    close(): void;
 }
 
 type StoredHandler = RealtimeHandler<unknown>;
@@ -25,7 +25,7 @@ const protocolRegex = /^[a-zA-Z][a-zA-Z\d+.-]*:\/\//u;
 const decoder = typeof TextDecoder !== "undefined" ? new TextDecoder() : null;
 
 function normalizeNamespace(namespace: string): string {
-  return namespace.startsWith("/") ? namespace : `/${namespace}`;
+  return namespace.startsWith("/") ? namespace : `/${ namespace }`;
 }
 
 function joinUrl(
@@ -39,14 +39,14 @@ function joinUrl(
     if (!apiKey) {
       return normalizedNamespace;
     }
-    return `${normalizedNamespace}?apiKey=${encodeURIComponent(apiKey)}`;
+    return `${ normalizedNamespace }?apiKey=${ encodeURIComponent(apiKey) }`;
   }
 
   try {
     if (protocolRegex.test(baseUrl)) {
       const url = new URL(baseUrl);
       const basePath = url.pathname.replace(/\/$/u, "");
-      url.pathname = `${basePath}${normalizedNamespace}`;
+      url.pathname = `${ basePath }${ normalizedNamespace }`;
 
       if (url.protocol === "http:") {
         url.protocol = "ws:";
@@ -73,16 +73,16 @@ function joinUrl(
     }
 
     const query = url.searchParams.toString();
-    const path = `${basePath}${normalizedNamespace}` || normalizedNamespace;
-    return `${path}${query ? `?${query}` : ""}`;
+    const path = `${ basePath }${ normalizedNamespace }` || normalizedNamespace;
+    return `${ path }${ query ? `?${ query }` : "" }`;
   } catch {
     const sanitizedBase = baseUrl.replace(/\/$/u, "");
-    const path = `${sanitizedBase}${normalizedNamespace}` || normalizedNamespace;
+    const path = `${ sanitizedBase }${ normalizedNamespace }` || normalizedNamespace;
     if (!apiKey) {
       return path;
     }
     const separator = path.includes("?") ? "&" : "?";
-    return `${path}${separator}apiKey=${encodeURIComponent(apiKey)}`;
+    return `${ path }${ separator }apiKey=${ encodeURIComponent(apiKey) }`;
   }
 }
 
@@ -136,6 +136,7 @@ export function createRealtimeChannel(
   };
 
   const notify = (event: string, payload: unknown): void => {
+    // notify handlers of the parsed event
     const handlers = listeners.get(event);
     if (!handlers) {
       return;
@@ -147,6 +148,7 @@ export function createRealtimeChannel(
   };
 
   const handleMessage = (raw: unknown): void => {
+    // process raw message bytes into JSON
     const content = toUtf8(raw);
     if (!content) {
       return;
@@ -163,12 +165,13 @@ export function createRealtimeChannel(
       return;
     }
 
-    const event = (parsed as { event?: unknown }).event;
+    const event = (parsed as { event?: unknown; }).event;
     if (typeof event !== "string") {
       return;
     }
 
-    const data = (parsed as { data?: unknown }).data;
+    const data = (parsed as { data?: unknown; }).data;
+    // parsed event ready for handlers
     notify(event, data);
   };
 
@@ -193,7 +196,7 @@ export function createRealtimeChannel(
 
     if (
       instance.readyState === WebSocket.OPEN ||
-      instance.readyState === WebSocket.CONNECTING
+            instance.readyState === WebSocket.CONNECTING
     ) {
       instance.close();
     }
@@ -241,7 +244,7 @@ export function createRealtimeChannel(
     };
   };
 
-  const on: RealtimeChannel["on"] = (event, handler) => {
+  const on: RealtimeChannel[ "on" ] = (event, handler) => {
     const handlers = listeners.get(event) ?? new Set<StoredHandler>();
     handlers.add(handler as StoredHandler);
     listeners.set(event, handlers);

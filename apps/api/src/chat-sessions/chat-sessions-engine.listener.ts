@@ -19,21 +19,20 @@ import { LogsService } from "../logs/logs.service";
 import type { LogEntryDto } from "../logs/dto/log-entry.dto";
 
 const DEFAULT_ENGINE_FAILURE_MESSAGE =
-  "Engine failed to respond. Check server logs for details.";
+    "Engine failed to respond. Check server logs for details.";
 
 @Injectable()
 export class ChatSessionsEngineListener
-  implements ChatSessionsListener, OnModuleInit, OnModuleDestroy
-{
+implements ChatSessionsListener, OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ChatSessionsEngineListener.name);
   private unregister: (() => void) | null = null;
 
   constructor(
-    private readonly chatSessions: ChatSessionsService,
-    private readonly engine: EngineService,
-    private readonly traces: TracesService,
-    private readonly logs: LogsService,
-    private readonly streamRenderer: ChatSessionStreamRendererService
+        private readonly chatSessions: ChatSessionsService,
+        private readonly engine: EngineService,
+        private readonly traces: TracesService,
+        private readonly logs: LogsService,
+        private readonly streamRenderer: ChatSessionStreamRendererService
   ) {
     this.engine.setStreamRenderer(this.streamRenderer);
   }
@@ -71,7 +70,7 @@ export class ChatSessionsEngineListener
   private shouldInvokeEngine(message: ChatMessageDto): boolean {
     return (
       message.role === ChatMessageRole.User ||
-      message.role === ChatMessageRole.System
+            message.role === ChatMessageRole.System
     );
   }
 
@@ -109,9 +108,9 @@ export class ChatSessionsEngineListener
 
       const streamedContent = capture.state.buffer.trim();
       let streamedHandled =
-        !capture.state.messageId || streamedContent.length === 0;
+                !capture.state.messageId || streamedContent.length === 0;
       let responseCount =
-        capture.state.messageId && streamedContent.length > 0 ? 1 : 0;
+                capture.state.messageId && streamedContent.length > 0 ? 1 : 0;
 
       for (const entry of novelMessages) {
         if (entry.role !== "assistant") {
@@ -158,10 +157,10 @@ export class ChatSessionsEngineListener
       });
     } catch (error) {
       const reason =
-        error instanceof Error ? error.message : DEFAULT_ENGINE_FAILURE_MESSAGE;
+                error instanceof Error ? error.message : DEFAULT_ENGINE_FAILURE_MESSAGE;
 
       this.logger.error(
-        `Engine execution failed for session ${message.sessionId}: ${reason}`,
+        `Engine execution failed for session ${ message.sessionId }: ${ reason }`,
         error instanceof Error ? error.stack : undefined
       );
 
@@ -214,7 +213,7 @@ export class ChatSessionsEngineListener
 
   private updateTrace(
     trace: TraceDto | null,
-    status: TraceDto["status"],
+    status: TraceDto[ "status" ],
     durationMs: number | undefined,
     metadata: Record<string, unknown>
   ): void {
@@ -242,7 +241,7 @@ export class ChatSessionsEngineListener
   }
 
   private appendLog(
-    level: LogEntryDto["level"],
+    level: LogEntryDto[ "level" ],
     message: string,
     context: Record<string, unknown>
   ): void {
@@ -310,7 +309,7 @@ export class ChatSessionsEngineListener
     };
   }
 
-  private toChatMessageRole(role: ChatMessage["role"]): ChatMessageRole {
+  private toChatMessageRole(role: ChatMessage[ "role" ]): ChatMessageRole {
     switch (role) {
       case "assistant":
         return ChatMessageRole.Assistant;

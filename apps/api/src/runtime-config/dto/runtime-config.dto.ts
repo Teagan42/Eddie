@@ -2,14 +2,14 @@ import { ApiProperty } from "@nestjs/swagger";
 
 export class RuntimeConfigDto {
   @ApiProperty({ description: "Public HTTP API URL" })
-  apiUrl!: string;
+    apiUrl!: string;
 
   @ApiProperty({ description: "Public WebSocket URL" })
-  websocketUrl!: string;
+    websocketUrl!: string;
 
   @ApiProperty({ description: "Feature flags" })
-  features!: Record<string, boolean>;
+    features!: Record<string, boolean>;
 
   @ApiProperty({ description: "Active theme", enum: ["light", "dark"] })
-  theme!: "light" | "dark";
+    theme!: "light" | "dark";
 }

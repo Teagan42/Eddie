@@ -27,68 +27,68 @@ export type {
 export type ConfigFileFormat = "yaml" | "json";
 
 export interface EddieProviderConfigDto {
-  name?: string;
-  baseUrl?: string;
-  apiKey?: string;
-  version?: string;
+    name?: string;
+    baseUrl?: string;
+    apiKey?: string;
+    version?: string;
 }
 
 export interface EddieContextConfigDto {
-  baseDir?: string;
-  include?: string[];
-  exclude?: string[];
+    baseDir?: string;
+    include?: string[];
+    exclude?: string[];
 }
 
 export interface EddieToolsConfigDto {
-  enabled?: string[];
-  autoApprove?: boolean;
+    enabled?: string[];
+    autoApprove?: boolean;
 }
 
 export interface EddieAgentsManagerDto {
-  prompt?: string;
+    prompt?: string;
 }
 
 export interface EddieAgentsConfigDto {
-  mode?: string;
-  manager?: EddieAgentsManagerDto;
-  enableSubagents?: boolean;
+    mode?: string;
+    manager?: EddieAgentsManagerDto;
+    enableSubagents?: boolean;
 }
 
 export interface EddieConfigDto {
-  model?: string;
-  provider?: EddieProviderConfigDto;
-  context?: EddieContextConfigDto;
-  systemPrompt?: string;
-  tools?: EddieToolsConfigDto;
-  agents?: EddieAgentsConfigDto;
-  logging?: { level?: string };
+    model?: string;
+    provider?: EddieProviderConfigDto;
+    context?: EddieContextConfigDto;
+    systemPrompt?: string;
+    tools?: EddieToolsConfigDto;
+    agents?: EddieAgentsConfigDto;
+    logging?: { level?: string; };
 }
 
 export type EddieConfigInputDto = EddieConfigDto;
 
 export interface EddieConfigSchemaDto {
-  id: string;
-  version: string;
-  schema: Record<string, unknown>;
-  inputSchema: Record<string, unknown>;
+    id: string;
+    version: string;
+    schema: Record<string, unknown>;
+    inputSchema: Record<string, unknown>;
 }
 
 export interface EddieConfigPreviewDto {
-  input: EddieConfigInputDto;
-  config: EddieConfigDto;
+    input: EddieConfigInputDto;
+    config: EddieConfigDto;
 }
 
 export interface ProviderCatalogEntryDto {
-  name: string;
-  label?: string;
-  models: string[];
+    name: string;
+    label?: string;
+    models: string[];
 }
 
 export const FALLBACK_PROVIDER_CATALOG: ProviderCatalogEntryDto[] = [
   {
     name: "openai",
     label: "OpenAI",
-    models: ["gpt-4o", "gpt-4o-mini"],
+    models: [ "gpt-4o", "gpt-4o-mini" ],
   },
   {
     name: "anthropic",
@@ -109,174 +109,178 @@ export const FALLBACK_PROVIDER_CATALOG: ProviderCatalogEntryDto[] = [
 ];
 
 export interface EddieConfigSourceDto {
-  path: string | null;
-  format: ConfigFileFormat;
-  content: string;
-  input: EddieConfigInputDto;
-  config?: EddieConfigDto | null;
-  error?: string | null;
+    path: string | null;
+    format: ConfigFileFormat;
+    content: string;
+    input: EddieConfigInputDto;
+    config?: EddieConfigDto | null;
+    error?: string | null;
 }
 
 export interface UpdateEddieConfigPayload {
-  content: string;
-  format: ConfigFileFormat;
-  path?: string | null;
+    content: string;
+    format: ConfigFileFormat;
+    path?: string | null;
 }
 
 export interface ChatSessionTemplateDto {
-  id: string;
-  name: string;
-  provider: string;
-  model: string;
-  prompt: string;
-  createdAt: string;
+    id: string;
+    name: string;
+    provider: string;
+    model: string;
+    prompt: string;
+    createdAt: string;
 }
 
 export interface ChatLayoutPreferencesDto {
-  selectedSessionId?: string;
-  collapsedPanels?: Record<string, boolean>;
-  sessionSettings?: Record<
-    string,
-    {
-      provider?: string;
-      model?: string;
-    }
-  >;
-  templates?: Record<string, ChatSessionTemplateDto>;
+    selectedSessionId?: string;
+    collapsedPanels?: Record<string, boolean>;
+    sessionSettings?: Record<
+        string,
+        {
+            provider?: string;
+            model?: string;
+        }
+    >;
+    templates?: Record<string, ChatSessionTemplateDto>;
 }
 
 export interface LayoutPreferencesDto {
-  chat?: ChatLayoutPreferencesDto;
-  updatedAt?: string;
+    chat?: ChatLayoutPreferencesDto;
+    updatedAt?: string;
 }
 
 export type ToolCallStatusDto = "pending" | "running" | "completed" | "failed";
 
 export interface OrchestratorContextBundleDto {
-  id: string;
-  label: string;
-  summary?: string;
-  sizeBytes: number;
-  fileCount: number;
+    id: string;
+    label: string;
+    summary?: string;
+    sizeBytes: number;
+    fileCount: number;
 }
 
 export interface OrchestratorToolCallNodeDto {
-  id: string;
-  name: string;
-  status: ToolCallStatusDto;
-  metadata?: Record<string, unknown>;
-  children: OrchestratorToolCallNodeDto[];
+    id: string;
+    name: string;
+    status: ToolCallStatusDto;
+    metadata?: Record<string, unknown>;
+    children: OrchestratorToolCallNodeDto[];
 }
 
 export interface OrchestratorAgentNodeDto {
-  id: string;
-  name: string;
-  provider?: string;
-  model?: string;
-  depth?: number;
-  metadata?: Record<string, unknown>;
-  children: OrchestratorAgentNodeDto[];
+    id: string;
+    name: string;
+    provider?: string;
+    model?: string;
+    depth?: number;
+    metadata?: Record<string, unknown>;
+    children: OrchestratorAgentNodeDto[];
 }
 
 export interface OrchestratorMetadataDto {
-  contextBundles: OrchestratorContextBundleDto[];
-  toolInvocations: OrchestratorToolCallNodeDto[];
-  agentHierarchy: OrchestratorAgentNodeDto[];
-  sessionId?: string;
-  capturedAt?: string;
+    contextBundles: OrchestratorContextBundleDto[];
+    toolInvocations: OrchestratorToolCallNodeDto[];
+    agentHierarchy: OrchestratorAgentNodeDto[];
+    sessionId?: string;
+    capturedAt?: string;
 }
 
 export interface ApiClientOptions {
-  baseUrl: string;
-  websocketUrl: string;
-  apiKey?: string;
+    baseUrl: string;
+    websocketUrl: string;
+    apiKey?: string;
 }
 
 export type Unsubscribe = () => void;
 
 export interface ChatSessionsSocket {
-  onSessionCreated(handler: (session: ChatSessionDto) => void): Unsubscribe;
-  onSessionUpdated(handler: (session: ChatSessionDto) => void): Unsubscribe;
-  onMessageCreated(handler: (message: ChatMessageDto) => void): Unsubscribe;
-  onMessageUpdated(handler: (message: ChatMessageDto) => void): Unsubscribe;
-  emitMessage(sessionId: string, payload: CreateChatMessageDto): void;
+    onSessionCreated(handler: (session: ChatSessionDto) => void): Unsubscribe;
+    onSessionUpdated(handler: (session: ChatSessionDto) => void): Unsubscribe;
+    onMessageCreated(handler: (message: ChatMessageDto) => void): Unsubscribe;
+    onMessageUpdated(handler: (message: ChatMessageDto) => void): Unsubscribe;
+    emitMessage(sessionId: string, payload: CreateChatMessageDto): void;
 }
 
 export interface ChatMessagesSocket {
-  onMessagePartial(handler: (message: ChatMessageDto) => void): Unsubscribe;
+    onMessagePartial(handler: (message: ChatMessageDto) => void): Unsubscribe;
 }
 
 export interface TracesSocket {
-  onTraceCreated(handler: (trace: TraceDto) => void): Unsubscribe;
-  onTraceUpdated(handler: (trace: TraceDto) => void): Unsubscribe;
+    onTraceCreated(handler: (trace: TraceDto) => void): Unsubscribe;
+    onTraceUpdated(handler: (trace: TraceDto) => void): Unsubscribe;
 }
 
 export interface LogsSocket {
-  onLogCreated(handler: (entry: LogEntryDto) => void): Unsubscribe;
+    onLogCreated(handler: (entry: LogEntryDto) => void): Unsubscribe;
 }
 
 export interface LogsListOptions {
-  offset?: number;
-  limit?: number;
+    offset?: number;
+    limit?: number;
 }
 
 export interface ConfigSocket {
-  onConfigUpdated(handler: (config: RuntimeConfigDto) => void): Unsubscribe;
+    onConfigUpdated(handler: (config: RuntimeConfigDto) => void): Unsubscribe;
 }
 
 export interface ApiClient {
-  http: {
-    chatSessions: {
-      list(): Promise<ChatSessionDto[]>;
-      create(input: CreateChatSessionDto): Promise<ChatSessionDto>;
-      get(id: string): Promise<ChatSessionDto>;
-      archive(id: string): Promise<ChatSessionDto>;
-      listMessages(id: string): Promise<ChatMessageDto[]>;
-      createMessage(
-        id: string,
-        input: CreateChatMessageDto
-      ): Promise<ChatMessageDto>;
+    http: {
+        chatSessions: {
+            list(): Promise<ChatSessionDto[]>;
+            create(input: CreateChatSessionDto): Promise<ChatSessionDto>;
+            get(id: string): Promise<ChatSessionDto>;
+            archive(id: string): Promise<ChatSessionDto>;
+            listMessages(id: string): Promise<ChatMessageDto[]>;
+            createMessage(
+                id: string,
+                input: CreateChatMessageDto
+            ): Promise<ChatMessageDto>;
+        };
+        traces: {
+            list(): Promise<TraceDto[]>;
+            get(id: string): Promise<TraceDto>;
+        };
+        logs: {
+            list(params?: LogsListOptions): Promise<LogEntryDto[]>;
+            emit(): Promise<LogEntryDto>;
+        };
+        config: {
+            get(): Promise<RuntimeConfigDto>;
+            update(input: UpdateRuntimeConfigDto): Promise<RuntimeConfigDto>;
+            getSchema(): Promise<EddieConfigSchemaDto>;
+            loadEddieConfig(): Promise<EddieConfigSourceDto>;
+            previewEddieConfig(
+                payload: UpdateEddieConfigPayload
+            ): Promise<EddieConfigPreviewDto>;
+            saveEddieConfig(
+                payload: UpdateEddieConfigPayload
+            ): Promise<EddieConfigSourceDto>;
+        };
+        providers: {
+            catalog(): Promise<ProviderCatalogEntryDto[]>;
+        };
+        preferences: {
+            getLayout(): Promise<LayoutPreferencesDto>;
+            updateLayout(input: LayoutPreferencesDto): Promise<LayoutPreferencesDto>;
+        };
+        orchestrator: {
+            getMetadata(sessionId?: string): Promise<OrchestratorMetadataDto>;
+        };
     };
-    traces: {
-      list(): Promise<TraceDto[]>;
-      get(id: string): Promise<TraceDto>;
+    sockets: {
+        chatSessions: ChatSessionsSocket;
+        chatMessages: ChatMessagesSocket;
+        traces: TracesSocket;
+        logs: LogsSocket;
+        config: ConfigSocket;
+        tools?: {
+            onToolCall(handler: (payload: unknown) => void): Unsubscribe;
+            onToolResult(handler: (payload: unknown) => void): Unsubscribe;
+        };
     };
-    logs: {
-      list(params?: LogsListOptions): Promise<LogEntryDto[]>;
-      emit(): Promise<LogEntryDto>;
-    };
-    config: {
-      get(): Promise<RuntimeConfigDto>;
-      update(input: UpdateRuntimeConfigDto): Promise<RuntimeConfigDto>;
-      getSchema(): Promise<EddieConfigSchemaDto>;
-      loadEddieConfig(): Promise<EddieConfigSourceDto>;
-      previewEddieConfig(
-        payload: UpdateEddieConfigPayload
-      ): Promise<EddieConfigPreviewDto>;
-      saveEddieConfig(
-        payload: UpdateEddieConfigPayload
-      ): Promise<EddieConfigSourceDto>;
-    };
-    providers: {
-      catalog(): Promise<ProviderCatalogEntryDto[]>;
-    };
-    preferences: {
-      getLayout(): Promise<LayoutPreferencesDto>;
-      updateLayout(input: LayoutPreferencesDto): Promise<LayoutPreferencesDto>;
-    };
-    orchestrator: {
-      getMetadata(sessionId?: string): Promise<OrchestratorMetadataDto>;
-    };
-  };
-  sockets: {
-    chatSessions: ChatSessionsSocket;
-    chatMessages: ChatMessagesSocket;
-    traces: TracesSocket;
-    logs: LogsSocket;
-    config: ConfigSocket;
-  };
-  updateAuth(apiKey?: string): void;
-  dispose(): void;
+    updateAuth(apiKey?: string): void;
+    dispose(): void;
 }
 
 function normalizeBaseUrl(url: string): string {
@@ -310,6 +314,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   const tracesChannel = createRealtimeChannel(wsBase, "/traces", currentApiKey);
   const logsChannel = createRealtimeChannel(wsBase, "/logs", currentApiKey);
   const configChannel = createRealtimeChannel(wsBase, "/config", currentApiKey);
+  const toolsChannel = createRealtimeChannel(wsBase, "/tools", currentApiKey);
 
   const channels: RealtimeChannel[] = [
     chatChannel,
@@ -317,6 +322,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     tracesChannel,
     logsChannel,
     configChannel,
+    toolsChannel,
   ];
 
   const createDefaultPreferences = (): LayoutPreferencesDto => ({
@@ -334,14 +340,14 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     };
 
     if (init.body !== undefined && !(init.body instanceof FormData)) {
-      headers["Content-Type"] = "application/json";
+      headers[ "Content-Type" ] = "application/json";
     }
 
     if (init.headers) {
       Object.assign(headers, init.headers as Record<string, string>);
     }
 
-    const response = await fetch(`${httpBase}${path}`, {
+    const response = await fetch(`${ httpBase }${ path }`, {
       ...init,
       headers,
     });
@@ -352,10 +358,10 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
 
     if (!response.ok) {
       const error = new Error(
-        `Request to ${path} failed with status ${response.status}`
+        `Request to ${ path } failed with status ${ response.status }`
       );
-      (error as { status?: number }).status = response.status;
-      (error as { body?: string }).body = await response.text();
+      (error as { status?: number; }).status = response.status;
+      (error as { body?: string; }).body = await response.text();
       throw error;
     }
 
@@ -409,7 +415,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       return logsChannel.on(
         "logs.created",
         (entries: LogEntryDto[] | LogEntryDto) => {
-          const batch = Array.isArray(entries) ? entries : [entries];
+          const batch = Array.isArray(entries) ? entries : [ entries ];
           batch.forEach((entry) => handler(entry));
         }
       );
@@ -419,6 +425,15 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   const configRealtime: ConfigSocket = {
     onConfigUpdated(handler) {
       return configChannel.on("config.updated", handler);
+    },
+  };
+
+  const toolsRealtime = {
+    onToolCall(handler: (payload: unknown) => void) {
+      return toolsChannel.on("tool.call", handler);
+    },
+    onToolResult(handler: (payload: unknown) => void) {
+      return toolsChannel.on("tool.result", handler);
     },
   };
 
@@ -467,7 +482,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
               "/providers/catalog"
             );
           } catch (error) {
-            const status = (error as { status?: number }).status;
+            const status = (error as { status?: number; }).status;
             if (status === 404 || error instanceof TypeError) {
               return FALLBACK_PROVIDER_CATALOG;
             }
@@ -482,7 +497,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
               "/user/preferences/layout"
             );
           } catch (error) {
-            const status = (error as { status?: number }).status;
+            const status = (error as { status?: number; }).status;
             if (status === 404) {
               return createDefaultPreferences();
             }
@@ -499,7 +514,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         getMetadata: (sessionId) =>
           performRequest<OrchestratorMetadataDto>(
             sessionId
-              ? `/orchestrator/metadata?sessionId=${encodeURIComponent(sessionId)}`
+              ? `/orchestrator/metadata?sessionId=${ encodeURIComponent(sessionId) }`
               : "/orchestrator/metadata"
           ),
       },
@@ -510,6 +525,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       traces: tracesRealtime,
       logs: logsRealtime,
       config: configRealtime,
+      tools: toolsRealtime,
     },
     updateAuth(nextApiKey) {
       currentApiKey = nextApiKey ?? null;

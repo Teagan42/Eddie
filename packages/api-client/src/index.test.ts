@@ -17,41 +17,41 @@ import type { RealtimeChannel, RealtimeHandler } from "./realtime";
 type Handler = RealtimeHandler<unknown>;
 
 class MockChannel implements RealtimeChannel {
-  public readonly on: RealtimeChannel["on"] = vi.fn(
-    <T>(event: string, handler: RealtimeHandler<T>): (() => void) => {
-      const handlers =
-        this.handlers.get(event) ?? new Set<RealtimeHandler<unknown>>();
-      handlers.add(handler as Handler);
-      this.handlers.set(event, handlers);
-      return () => {
-        const current = this.handlers.get(event);
-        if (!current) {
-          return;
+  public readonly on: RealtimeChannel[ "on" ] = vi.fn(
+        <T>(event: string, handler: RealtimeHandler<T>): (() => void) => {
+          const handlers =
+                this.handlers.get(event) ?? new Set<RealtimeHandler<unknown>>();
+          handlers.add(handler as Handler);
+          this.handlers.set(event, handlers);
+          return () => {
+            const current = this.handlers.get(event);
+            if (!current) {
+              return;
+            }
+            current.delete(handler as Handler);
+            if (current.size === 0) {
+              this.handlers.delete(event);
+            }
+          };
         }
-        current.delete(handler as Handler);
-        if (current.size === 0) {
-          this.handlers.delete(event);
-        }
-      };
-    }
   );
-  public readonly emit: Mock<RealtimeChannel["emit"]> = vi.fn();
-  public readonly updateAuth: Mock<RealtimeChannel["updateAuth"]> = vi.fn();
-  public readonly close: Mock<RealtimeChannel["close"]> = vi.fn();
+  public readonly emit: Mock<RealtimeChannel[ "emit" ]> = vi.fn();
+  public readonly updateAuth: Mock<RealtimeChannel[ "updateAuth" ]> = vi.fn();
+  public readonly close: Mock<RealtimeChannel[ "close" ]> = vi.fn();
   public readonly handlers = new Map<string, Set<Handler>>();
 
   constructor(
-    public readonly baseUrl: string,
-    public readonly namespace: string,
-    public readonly apiKey: string | null
-  ) {}
+        public readonly baseUrl: string,
+        public readonly namespace: string,
+        public readonly apiKey: string | null
+  ) { }
 }
 
 const createdChannels: MockChannel[] = [];
 const realtimeMock =
-  createRealtimeChannel as unknown as Mock<
-    (baseUrl: string, namespace: string, apiKey: string | null) => RealtimeChannel
-  >;
+    createRealtimeChannel as unknown as Mock<
+        (baseUrl: string, namespace: string, apiKey: string | null) => RealtimeChannel
+    >;
 
 describe("createApiClient", () => {
   beforeEach(() => {
@@ -76,24 +76,25 @@ describe("createApiClient", () => {
     });
 
     expect(OpenAPI.BASE).toBe("https://example.test/api");
-    expect(realtimeMock).toHaveBeenCalledTimes(5);
+    expect(realtimeMock).toHaveBeenCalledTimes(6);
     expect(createdChannels.map((channel) => channel.namespace)).toEqual([
       "/chat-sessions",
       "/chat-messages",
       "/traces",
       "/logs",
       "/config",
+      "/tools",
     ]);
     createdChannels.forEach((channel) => {
       expect(channel.baseUrl).toBe("ws://example.test/ws");
       expect(channel.apiKey).toBeNull();
     });
 
-    const chatChannel = createdChannels[0]!;
-    const chatMessagesChannel = createdChannels[1]!;
+    const chatChannel = createdChannels[ 0 ]!;
+    const chatMessagesChannel = createdChannels[ 1 ]!;
     const sessionCreated = vi.fn();
     const unsubscribeSessionCreated =
-      client.sockets.chatSessions.onSessionCreated(sessionCreated);
+            client.sockets.chatSessions.onSessionCreated(sessionCreated);
     expect(chatChannel.on).toHaveBeenCalledWith(
       "session.created",
       sessionCreated
@@ -101,7 +102,7 @@ describe("createApiClient", () => {
 
     const messageCreated = vi.fn();
     const unsubscribeMessageCreated =
-      client.sockets.chatSessions.onMessageCreated(messageCreated);
+            client.sockets.chatSessions.onMessageCreated(messageCreated);
     expect(chatChannel.on).toHaveBeenCalledWith(
       "message.created",
       messageCreated
@@ -109,7 +110,7 @@ describe("createApiClient", () => {
 
     const messageUpdated = vi.fn();
     const unsubscribeMessageUpdated =
-      client.sockets.chatSessions.onMessageUpdated(messageUpdated);
+            client.sockets.chatSessions.onMessageUpdated(messageUpdated);
     expect(chatChannel.on).toHaveBeenCalledWith(
       "message.updated",
       messageUpdated
@@ -152,9 +153,9 @@ describe("createApiClient", () => {
 
     const headersResolver = OpenAPI.HEADERS;
     const headers =
-      typeof headersResolver === "function"
-        ? await headersResolver({ method: "GET" } as never)
-        : {};
+            typeof headersResolver === "function"
+              ? await headersResolver({ method: "GET" } as never)
+              : {};
     expect(headers).toHaveProperty("x-api-key", "secret");
 
     createdChannels.forEach((channel) => {
@@ -173,7 +174,7 @@ describe("createApiClient", () => {
       websocketUrl: "ws://example.test/ws/",
     });
 
-    const logsChannel = createdChannels[3]!;
+    const logsChannel = createdChannels[ 3 ]!;
     const handler = vi.fn();
 
     const unsubscribe = client.sockets.logs.onLogCreated(handler);
@@ -181,7 +182,7 @@ describe("createApiClient", () => {
     const logHandlers = logsChannel.handlers.get("logs.created");
     expect(logHandlers?.size).toBe(1);
 
-    const [registeredHandler] = [...(logHandlers ?? [])];
+    const [ registeredHandler ] = [ ...(logHandlers ?? []) ];
     expect(typeof registeredHandler).toBe("function");
 
     const batch = [
@@ -192,8 +193,8 @@ describe("createApiClient", () => {
     registeredHandler?.(batch);
 
     expect(handler).toHaveBeenCalledTimes(2);
-    expect(handler).toHaveBeenNthCalledWith(1, batch[0]);
-    expect(handler).toHaveBeenNthCalledWith(2, batch[1]);
+    expect(handler).toHaveBeenNthCalledWith(1, batch[ 0 ]);
+    expect(handler).toHaveBeenNthCalledWith(2, batch[ 1 ]);
 
     unsubscribe();
     expect(logsChannel.handlers.get("logs.created")?.size ?? 0).toBe(0);
@@ -222,8 +223,8 @@ describe("createApiClient", () => {
   it("normalizes relative websocket URLs", () => {
     createApiClient({ baseUrl: "/api", websocketUrl: "/api/" }).dispose();
 
-    expect(realtimeMock).toHaveBeenCalledTimes(5);
-    realtimeMock.mock.calls.forEach(([baseUrl]) => {
+    expect(realtimeMock).toHaveBeenCalledTimes(6);
+    realtimeMock.mock.calls.forEach(([ baseUrl ]) => {
       expect(baseUrl).toBe("/api");
     });
   });
@@ -296,7 +297,7 @@ describe("createApiClient", () => {
 
   it("returns catalog responses from the server when available", async () => {
     const payload: ProviderCatalogEntryDto[] = [
-      { name: "api-provider", label: "API Provider", models: ["model-a"] },
+      { name: "api-provider", label: "API Provider", models: [ "model-a" ] },
     ];
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")

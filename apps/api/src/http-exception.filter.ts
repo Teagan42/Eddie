@@ -128,10 +128,10 @@ export class ApiHttpExceptionFilter implements ExceptionFilter, OnModuleInit {
         error:
           exception instanceof Error
             ? {
-                name: exception.name,
-                message: exception.message,
-                stack: exception.stack,
-              }
+              name: exception.name,
+              message: exception.message,
+              stack: exception.stack,
+            }
             : exception,
       },
       "Unhandled exception while processing request"

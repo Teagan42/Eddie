@@ -5,34 +5,35 @@ import type { StreamEvent } from "@eddie/types";
 import { ChatSessionsService } from "./chat-sessions.service";
 import { ChatMessageRole } from "./dto/create-chat-message.dto";
 import { ChatMessagesGateway } from "./chat-messages.gateway";
+import { ToolsGateway } from "../tools/tools.gateway";
 import type { ChatMessageDto } from "./dto/chat-session.dto";
 
 interface StreamState {
-  sessionId: string;
-  buffer: string;
-  messageId?: string;
+    sessionId: string;
+    buffer: string;
+    messageId?: string;
 }
 
 export interface StreamCaptureResult<T> {
-  result?: T;
-  error?: unknown;
-  state: StreamState;
+    result?: T;
+    error?: unknown;
+    state: StreamState;
 }
 
 @Injectable()
 export class ChatSessionStreamRendererService extends StreamRendererService {
   private readonly storage = new AsyncLocalStorage<StreamState>();
-
   constructor(
-    private readonly chatSessions: ChatSessionsService,
-    private readonly messagesGateway: ChatMessagesGateway
+        private readonly chatSessions: ChatSessionsService,
+        private readonly messagesGateway: ChatMessagesGateway,
+        private readonly toolsGateway?: ToolsGateway,
   ) {
     super();
   }
 
   async capture<T>(
     sessionId: string,
-    handler: () => Promise<T>
+    handler: () => Promise<T>,
   ): Promise<StreamCaptureResult<T>> {
     const state: StreamState = { sessionId, buffer: "" };
     let result: T | undefined;
@@ -62,24 +63,48 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
   private handleEvent(state: StreamState, event: StreamEvent): void {
     switch (event.type) {
       case "delta": {
-        if (!event.text) {
-          return;
-        }
-
+        if (!event.text) return;
         state.buffer += event.text;
         this.upsertMessage(state);
         break;
       }
-      case "end": {
-        if (!state.messageId) {
-          return;
+      case "tool_call": {
+        if (!this.toolsGateway) break;
+        try {
+          this.toolsGateway.emitToolCall({
+            sessionId: state.sessionId,
+            id: event.id ?? undefined,
+            name: event.name,
+            arguments: event.arguments ?? null,
+            timestamp: new Date().toISOString(),
+          });
+        } catch {
+          // ignore gateway errors to keep stream rendering robust
         }
-
+        break;
+      }
+      case "tool_result": {
+        if (!this.toolsGateway) break;
+        try {
+          this.toolsGateway.emitToolResult({
+            sessionId: state.sessionId,
+            id: event.id ?? undefined,
+            name: event.name,
+            result: event.result ?? null,
+            timestamp: new Date().toISOString(),
+          });
+        } catch {
+          // ignore
+        }
+        break;
+      }
+      case "end": {
+        if (!state.messageId) return;
         const content = state.buffer.trimEnd();
         const message = this.chatSessions.updateMessageContent(
           state.sessionId,
           state.messageId,
-          content
+          content,
         );
         this.emitPartial(message);
         break;
@@ -90,29 +115,26 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
   }
 
   private upsertMessage(state: StreamState): void {
-    let message: ChatMessageDto;
     if (!state.messageId) {
       const result = this.chatSessions.addMessage(state.sessionId, {
         role: ChatMessageRole.Assistant,
         content: state.buffer,
       });
-      message = result.message;
+      const message = result.message;
       state.messageId = message.id;
       this.emitPartial(message);
       return;
     }
 
-    message = this.chatSessions.updateMessageContent(
+    const message = this.chatSessions.updateMessageContent(
       state.sessionId,
       state.messageId,
-      state.buffer
+      state.buffer,
     );
     this.emitPartial(message);
   }
 
   private emitPartial(message: ChatMessageDto | undefined): void {
-    if (message) {
-      this.messagesGateway.emitPartial(message);
-    }
+    if (message) this.messagesGateway.emitPartial(message);
   }
 }

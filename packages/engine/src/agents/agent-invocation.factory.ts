@@ -45,30 +45,30 @@ export class AgentInvocationFactory {
 
     const systemPrompt = definition.systemPromptTemplate
       ? await this.templateRenderer.renderTemplate(
-          definition.systemPromptTemplate,
-          renderVariables
-        )
+        definition.systemPromptTemplate,
+        renderVariables
+      )
       : await this.templateRenderer.renderString(
-          definition.systemPrompt,
-          renderVariables
-        );
+        definition.systemPrompt,
+        renderVariables
+      );
 
     renderVariables.systemPrompt = systemPrompt;
 
     const prompt = options.promptTemplate
       ? await this.templateRenderer.renderTemplate(
-          options.promptTemplate,
-          renderVariables
-        )
+        options.promptTemplate,
+        renderVariables
+      )
       : definition.userPromptTemplate
         ? await this.templateRenderer.renderTemplate(
-            definition.userPromptTemplate,
-            renderVariables
-          )
+          definition.userPromptTemplate,
+          renderVariables
+        )
         : await this.templateRenderer.renderString(
-            options.prompt,
-            renderVariables
-          );
+          options.prompt,
+          renderVariables
+        );
 
     const resolvedDefinition: AgentDefinition = {
       ...definition,

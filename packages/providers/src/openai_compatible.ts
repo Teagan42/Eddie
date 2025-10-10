@@ -168,7 +168,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
 
 @Injectable()
 export class OpenAICompatibleAdapterFactory
-  implements ProviderAdapterFactory
+implements ProviderAdapterFactory
 {
   readonly name = "openai_compatible";
 
