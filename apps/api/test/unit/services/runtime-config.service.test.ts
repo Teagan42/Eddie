@@ -40,4 +40,16 @@ describe("RuntimeConfigService", () => {
     expect(received).toHaveLength(1);
     expect(received[0].features).toEqual(expectedFeatures);
   });
+
+  it("returns a cloned snapshot from get so external mutations do not leak", () => {
+    const service = new RuntimeConfigService();
+
+    const snapshot = service.get();
+    snapshot.theme = "light";
+    snapshot.features.chat = false;
+
+    const nextRead = service.get();
+    expect(nextRead.theme).toBe("dark");
+    expect(nextRead.features.chat).toBe(true);
+  });
 });
