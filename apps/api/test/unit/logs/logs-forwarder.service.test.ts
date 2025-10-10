@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   JsonlWriterEvent,
@@ -5,6 +6,8 @@ import type {
   LoggerEvent,
   LoggerService,
 } from "@eddie/io";
+import { getLoggerToken } from "@eddie/io";
+import { SELF_DECLARED_DEPS_METADATA } from "@nestjs/common/constants";
 import { LogsForwarderService } from "../../../src/logs/logs-forwarder.service";
 import type { LogsService } from "../../../src/logs/logs.service";
 
@@ -47,7 +50,7 @@ describe("LogsForwarderService", () => {
       append: logsAppend,
     } as unknown as LogsService;
 
-    forwarder = new LogsForwarderService(logger, writer, logs);
+    forwarder = new LogsForwarderService(logger, writer, logs, logger);
   });
 
   it("registers listeners and forwards logger events", () => {
@@ -123,5 +126,17 @@ describe("LogsForwarderService", () => {
 
     expect(loggerListener).toBeUndefined();
     expect(jsonlListener).toBeUndefined();
+  });
+
+  it("decorates the logger dependency with InjectLogger", () => {
+    const metadata =
+      (Reflect.getMetadata(
+        SELF_DECLARED_DEPS_METADATA,
+        LogsForwarderService
+      ) as Array<{ index: number; param?: unknown }>) ?? [];
+
+    const dependency = metadata.find((entry) => entry.index === 0);
+
+    expect(dependency?.param).toBe(getLoggerToken());
   });
 });

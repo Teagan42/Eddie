@@ -4,6 +4,7 @@ import {
   JsonlWriterService,
   LoggerEvent,
   LoggerService,
+  InjectLogger,
 } from "@eddie/io";
 import { LogsService } from "./logs.service";
 import type { LogEntryDto } from "./dto/log-entry.dto";
@@ -27,9 +28,10 @@ export class LogsForwarderService implements OnModuleInit, OnModuleDestroy {
   private unregisterJsonl: RegisteredDisposer | null = null;
 
   constructor(
-    private readonly loggerService: LoggerService,
+    @InjectLogger() private readonly _loggerDependency: LoggerService,
     private readonly jsonlWriter: JsonlWriterService,
-    private readonly logs: LogsService
+    private readonly logs: LogsService,
+    private readonly loggerService: LoggerService
   ) {}
 
   onModuleInit(): void {
@@ -153,4 +155,5 @@ export class LogsForwarderService implements OnModuleInit, OnModuleDestroy {
       Object.getPrototypeOf(value) === Object.prototype
     );
   }
+
 }

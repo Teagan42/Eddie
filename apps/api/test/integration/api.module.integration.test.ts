@@ -135,6 +135,7 @@ describe("ApiModule integration", () => {
       configure: vi.fn(),
       getLogger: vi.fn((scope?: string) => getScopedLogger(scope)),
       withBindings: vi.fn(() => getScopedLogger()),
+      registerListener: vi.fn(() => vi.fn()),
       reset: vi.fn(),
     } as unknown as LoggerService;
 
