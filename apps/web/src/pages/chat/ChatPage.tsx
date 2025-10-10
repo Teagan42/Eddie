@@ -47,7 +47,7 @@ import type {
 import { useApi } from '@/api/api-provider';
 import { useLayoutPreferences } from '@/hooks/useLayoutPreferences';
 import type { LayoutPreferencesDto } from '@eddie/api-client';
-import { Panel } from "@/components";
+import { Panel } from "@/components/common";
 import { cn } from "@/vendor/lib/utils";
 import { ChatMessageContent } from './ChatMessageContent';
 import { getSurfaceLayoutClasses, SURFACE_CONTENT_CLASS } from '@/styles/surfaces';

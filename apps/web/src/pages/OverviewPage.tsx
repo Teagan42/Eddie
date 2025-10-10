@@ -21,7 +21,7 @@ import {
 } from '@radix-ui/themes';
 import { ArrowUpRight, KeyRound, Sparkles, Waves } from 'lucide-react';
 import { PaperPlaneIcon, PlusIcon, ReloadIcon } from '@radix-ui/react-icons';
-import { Panel } from "@/components";
+import { Panel } from "@/components/common";
 import { useAuth } from '@/auth/auth-context';
 import { useApi } from '@/api/api-provider';
 import { ChatSessionsPanel, OverviewAuthPanel, OverviewHero } from './components';
