@@ -56,12 +56,10 @@ export class UserPreferencesService {
         collapsedPanels: {
           ...(preferences.chat.collapsedPanels ?? {}),
         },
-        sessionSettings: {
-          ...(preferences.chat.sessionSettings ?? {}),
-        },
-        templates: {
-          ...(preferences.chat.templates ?? {}),
-        },
+        sessionSettings: this.cloneSessionSettings(
+          preferences.chat.sessionSettings
+        ),
+        templates: this.cloneTemplates(preferences.chat.templates),
       },
     };
   }
@@ -108,7 +106,7 @@ export class UserPreferencesService {
     current: Record<string, SessionLayoutSettingsDto>,
     update: Record<string, SessionLayoutSettingsDto>
   ): Record<string, SessionLayoutSettingsDto> {
-    const result: Record<string, SessionLayoutSettingsDto> = { ...current };
+    const result = this.cloneSessionSettings(current);
     for (const [sessionId, value] of Object.entries(update)) {
       if (!value) {
         // falsy values clear the preference for the session
@@ -128,14 +126,62 @@ export class UserPreferencesService {
     current: Record<string, ChatSessionTemplateDto>,
     update: Record<string, ChatSessionTemplateDto>
   ): Record<string, ChatSessionTemplateDto> {
-    const result: Record<string, ChatSessionTemplateDto> = { ...current };
+    const result = this.cloneTemplates(current);
     for (const [templateId, template] of Object.entries(update)) {
       if (!template) {
         delete result[templateId];
         continue;
       }
-      result[templateId] = template;
+      result[templateId] = this.cloneTemplate(template);
     }
     return result;
+  }
+
+  private cloneSessionSettings(
+    settings?: Record<string, SessionLayoutSettingsDto>
+  ): Record<string, SessionLayoutSettingsDto> {
+    if (!settings) {
+      return {};
+    }
+    return Object.fromEntries(
+      Object.entries(settings).map(([sessionId, value]) => [
+        sessionId,
+        this.cloneSessionSetting(value),
+      ])
+    );
+  }
+
+  private cloneSessionSetting(
+    value: SessionLayoutSettingsDto
+  ): SessionLayoutSettingsDto {
+    return {
+      provider: value.provider,
+      model: value.model,
+    };
+  }
+
+  private cloneTemplates(
+    templates?: Record<string, ChatSessionTemplateDto>
+  ): Record<string, ChatSessionTemplateDto> {
+    if (!templates) {
+      return {};
+    }
+    return Object.fromEntries(
+      Object.entries(templates).map(([templateId, template]) => [
+        templateId,
+        this.cloneTemplate(template),
+      ])
+    );
+  }
+
+  private cloneTemplate(template: ChatSessionTemplateDto): ChatSessionTemplateDto {
+    return {
+      id: template.id,
+      name: template.name,
+      provider: template.provider,
+      model: template.model,
+      prompt: template.prompt,
+      createdAt: template.createdAt,
+    };
   }
 }
