@@ -7,6 +7,7 @@ import {
   Flex,
   Heading,
   IconButton,
+  Select,
   Separator,
   Switch,
   Tabs,
@@ -32,6 +33,7 @@ import {
   type EddieConfigPreviewDto,
   type EddieConfigSchemaDto,
   type EddieConfigSourceDto,
+  type ProviderCatalogEntryDto,
   type UpdateEddieConfigPayload,
 } from "@eddie/api-client";
 import { useApi } from "@/api/api-provider";
@@ -127,6 +129,12 @@ export function ConfigPage(): JSX.Element {
   const sourceQuery = useQuery<EddieConfigSourceDto>({
     queryKey: ["config", "eddie", "source"],
     queryFn: () => api.http.config.loadEddieConfig(),
+  });
+
+  const providerCatalogQuery = useQuery<ProviderCatalogEntryDto[]>({
+    queryKey: ["providers", "catalog"],
+    queryFn: () => api.http.providers.catalog(),
+    staleTime: 300_000,
   });
 
   const [mode, setMode] = useState<ConfigFileFormat>("yaml");
@@ -313,6 +321,26 @@ export function ConfigPage(): JSX.Element {
 
   const currentConfig = previewData?.config;
   const effectiveInput = parsedInput ?? {};
+  const providerCatalog = providerCatalogQuery.data ?? [];
+  const selectedProviderName = effectiveInput.provider?.name ?? null;
+  const catalogModels = useMemo(() => {
+    if (!selectedProviderName) {
+      return [] as string[];
+    }
+    const entry = providerCatalog.find(
+      (item) => item.name === selectedProviderName
+    );
+    return entry?.models ?? [];
+  }, [providerCatalog, selectedProviderName]);
+  const modelOptions = useMemo(() => {
+    const options = [...catalogModels];
+    if (effectiveInput.model && !options.includes(effectiveInput.model)) {
+      options.unshift(effectiveInput.model);
+    }
+    return options;
+  }, [catalogModels, effectiveInput.model]);
+  const selectedModel =
+    effectiveInput.model ?? modelOptions[0] ?? "";
   const autoApproveChecked =
     effectiveInput.tools?.autoApprove ?? currentConfig?.tools?.autoApprove ?? false;
   const enableSubagentsChecked =
@@ -560,20 +588,55 @@ export function ConfigPage(): JSX.Element {
             description="Configure providers, models, and system prompts."
           >
             <Flex direction="column" gap="3">
-              <TextField.Root
-                value={effectiveInput.model ?? ""}
-                onChange={(event) =>
+              <Select.Root
+                value={selectedModel}
+                onValueChange={(value) => {
+                  if (value === "__custom__") {
+                    const next = window.prompt(
+                      "Model identifier",
+                      selectedModel ?? ""
+                    );
+                    const manual = next?.trim() ?? "";
+                    if (!manual) {
+                      return;
+                    }
+                    updateInput((draft) => {
+                      draft.model = manual;
+                    });
+                    return;
+                  }
+                  if (value === "__clear__") {
+                    updateInput((draft) => {
+                      delete draft.model;
+                    });
+                    return;
+                  }
                   updateInput((draft) => {
-                    const next = event.target.value || undefined;
-                    if (next) {
-                      draft.model = next;
+                    if (value) {
+                      draft.model = value;
                     } else {
                       delete draft.model;
                     }
-                  })
-                }
-                placeholder={currentConfig?.model ?? "Model identifier"}
-              />
+                  });
+                }}
+                disabled={providerCatalogQuery.isLoading && modelOptions.length === 0}
+              >
+                <Select.Trigger
+                  placeholder={currentConfig?.model ?? "Model identifier"}
+                />
+                <Select.Content>
+                  {modelOptions.map((model) => (
+                    <Select.Item key={model} value={model}>
+                      {model}
+                    </Select.Item>
+                  ))}
+                  {modelOptions.length > 0 ? <Select.Separator /> : null}
+                  <Select.Item value="__custom__">Custom model…</Select.Item>
+                  {selectedModel ? (
+                    <Select.Item value="__clear__">Clear model</Select.Item>
+                  ) : null}
+                </Select.Content>
+              </Select.Root>
               <TextArea
                 value={effectiveInput.systemPrompt ?? ""}
                 onChange={(event) =>
@@ -971,8 +1034,19 @@ export function ConfigPage(): JSX.Element {
                   <Text>{currentConfig.provider?.name ?? "Unknown"}</Text>
                 </Flex>
                 <Flex gap="2" align="center">
-                  <Text weight="medium">Model:</Text>
-                  <Text>{currentConfig.model}</Text>
+                  <Text
+                    aria-label={`Model: ${currentConfig.model ?? "Unknown"}`}
+                    asChild
+                  >
+                    <span>
+                      <span className="font-medium">Model:</span>{" "}
+                      <span aria-hidden="true">
+                        {currentConfig.model
+                          ? currentConfig.model.replace(/-/gu, "\u2011")
+                          : "Unknown"}
+                      </span>
+                    </span>
+                  </Text>
                 </Flex>
                 <Flex gap="2" align="center">
                   <Text weight="medium">Context base:</Text>

@@ -78,6 +78,12 @@ export interface EddieConfigPreviewDto {
   config: EddieConfigDto;
 }
 
+export interface ProviderCatalogEntryDto {
+  name: string;
+  label?: string;
+  models: string[];
+}
+
 export interface EddieConfigSourceDto {
   path: string | null;
   format: ConfigFileFormat;
@@ -216,6 +222,9 @@ export interface ApiClient {
       saveEddieConfig(
         payload: UpdateEddieConfigPayload
       ): Promise<EddieConfigSourceDto>;
+    };
+    providers: {
+      catalog(): Promise<ProviderCatalogEntryDto[]>;
     };
     preferences: {
       getLayout(): Promise<LayoutPreferencesDto>;
@@ -403,6 +412,10 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
             method: "PUT",
             body: JSON.stringify(payload),
           }),
+      },
+      providers: {
+        catalog: () =>
+          performRequest<ProviderCatalogEntryDto[]>("/providers/catalog"),
       },
       preferences: {
         async getLayout() {
