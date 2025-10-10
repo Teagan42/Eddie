@@ -460,6 +460,16 @@ export function ChatPage(): JSX.Element {
           }
         );
       }),
+      api.sockets.traces.onTraceCreated((trace) => {
+        queryClient.invalidateQueries({
+          queryKey: ["orchestrator-metadata", trace.sessionId],
+        });
+      }),
+      api.sockets.traces.onTraceUpdated((trace) => {
+        queryClient.invalidateQueries({
+          queryKey: ["orchestrator-metadata", trace.sessionId],
+        });
+      }),
     ];
 
     return () => {
