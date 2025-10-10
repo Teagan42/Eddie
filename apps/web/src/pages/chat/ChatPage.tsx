@@ -867,7 +867,7 @@ export function ChatPage(): JSX.Element {
                             ) : null}
                           </Flex>
                           <ChatMessageContent
-                            role={message.role}
+                            messageRole={message.role}
                             content={message.content}
                             className={cn(
                               "text-sm text-slate-100",
