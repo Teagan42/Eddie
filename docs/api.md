@@ -54,6 +54,12 @@ All provider behaviour is driven by the new `api` section in `eddie.config.*`:
     "auth": {
       "enabled": true,
       "apiKeys": ["primary-key", "secondary-key"]
+    },
+    "persistence": {
+      "driver": "sqlite",
+      "sqlite": {
+        "filename": "./data/chat-sessions.sqlite"
+      }
     }
   }
 }
@@ -62,6 +68,11 @@ All provider behaviour is driven by the new `api` section in `eddie.config.*`:
 The guard accepts keys from the configuration file, the `EDDIE_API_KEY`/
 `EDDIE_API_KEYS` environment variables, or context variables named `apiKeys` or
 `API_KEYS`.
+
+Set `api.persistence.driver` to `"memory"` (default) to keep the in-memory
+repository for ephemeral testing, or `"sqlite"` to persist chat sessions and
+messages to disk. When using SQLite you can override the storage location via
+`api.persistence.sqlite.filename`.
 
 ## Public Routes
 

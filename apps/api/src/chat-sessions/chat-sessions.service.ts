@@ -1,45 +1,14 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { randomUUID } from "crypto";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { CreateChatSessionDto } from "./dto/create-chat-session.dto";
-import {
-  ChatMessageRole,
-  CreateChatMessageDto,
-} from "./dto/create-chat-message.dto";
+import { CreateChatMessageDto } from "./dto/create-chat-message.dto";
 import { ChatMessageDto, ChatSessionDto } from "./dto/chat-session.dto";
-
-export interface AgentInvocationMessageSnapshot {
-  role: ChatMessageRole;
-  content: string;
-  name?: string;
-  toolCallId?: string;
-}
-
-export interface AgentInvocationSnapshot {
-  id: string;
-  messages: AgentInvocationMessageSnapshot[];
-  children: AgentInvocationSnapshot[];
-}
-
-type ChatSessionStatus = "active" | "archived";
-
-interface ChatSessionEntity {
-  id: string;
-  title: string;
-  description?: string;
-  status: ChatSessionStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface ChatMessageEntity {
-  id: string;
-  sessionId: string;
-  role: ChatMessageRole;
-  content: string;
-  createdAt: Date;
-  toolCallId?: string;
-  name?: string;
-}
+import {
+  CHAT_SESSIONS_REPOSITORY,
+  type AgentInvocationSnapshot,
+  type ChatMessageRecord,
+  type ChatSessionRecord,
+  type ChatSessionsRepository,
+} from "./chat-sessions.repository";
 
 export interface ChatSessionsListener {
   onSessionCreated(session: ChatSessionDto): void;
@@ -50,17 +19,19 @@ export interface ChatSessionsListener {
 
 @Injectable()
 export class ChatSessionsService {
-  private readonly sessions = new Map<string, ChatSessionEntity>();
-  private readonly messages = new Map<string, ChatMessageEntity[]>();
   private readonly listeners = new Set<ChatSessionsListener>();
-  private readonly agentInvocations = new Map<string, AgentInvocationSnapshot[]>();
+
+  constructor(
+    @Inject(CHAT_SESSIONS_REPOSITORY)
+    private readonly repository: ChatSessionsRepository
+  ) {}
 
   registerListener(listener: ChatSessionsListener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
 
-  private toDto(entity: ChatSessionEntity): ChatSessionDto {
+  private toDto(entity: ChatSessionRecord): ChatSessionDto {
     return {
       id: entity.id,
       title: entity.title,
@@ -71,7 +42,7 @@ export class ChatSessionsService {
     };
   }
 
-  private messageToDto(entity: ChatMessageEntity): ChatMessageDto {
+  private messageToDto(entity: ChatMessageRecord): ChatMessageDto {
     return {
       id: entity.id,
       sessionId: entity.sessionId,
@@ -88,20 +59,11 @@ export class ChatSessionsService {
     invocations: AgentInvocationSnapshot[]
   ): void {
     this.ensureSessionExists(sessionId);
-    if (invocations.length === 0) {
-      this.agentInvocations.delete(sessionId);
-      return;
-    }
-    const cloned = invocations.map((invocation) => this.cloneInvocation(invocation));
-    this.agentInvocations.set(sessionId, cloned);
+    this.repository.saveAgentInvocations(sessionId, invocations);
   }
 
   listAgentInvocations(sessionId: string): AgentInvocationSnapshot[] {
-    const stored = this.agentInvocations.get(sessionId);
-    if (!stored) {
-      return [];
-    }
-    return stored.map((invocation) => this.cloneInvocation(invocation));
+    return this.repository.listAgentInvocations(sessionId);
   }
 
   private notifySessionCreated(session: ChatSessionDto): void {
@@ -131,13 +93,13 @@ export class ChatSessionsService {
   }
 
   listSessions(): ChatSessionDto[] {
-    return Array.from(this.sessions.values())
-      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+    return this.repository
+      .listSessions()
       .map((session) => this.toDto(session));
   }
 
   getSession(id: string): ChatSessionDto {
-    const session = this.sessions.get(id);
+    const session = this.repository.getSessionById(id);
     if (!session) {
       throw new NotFoundException(`Chat session ${id} not found`);
     }
@@ -145,29 +107,20 @@ export class ChatSessionsService {
   }
 
   createSession(dto: CreateChatSessionDto): ChatSessionDto {
-    const now = new Date();
-    const entity: ChatSessionEntity = {
-      id: randomUUID(),
+    const entity = this.repository.createSession({
       title: dto.title,
       description: dto.description,
-      status: "active",
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.sessions.set(entity.id, entity);
-    this.messages.set(entity.id, []);
+    });
     const sessionDto = this.toDto(entity);
     this.notifySessionCreated(sessionDto);
     return sessionDto;
   }
 
   archiveSession(id: string): ChatSessionDto {
-    const session = this.sessions.get(id);
+    const session = this.repository.updateSessionStatus(id, "archived");
     if (!session) {
       throw new NotFoundException(`Chat session ${id} not found`);
     }
-    session.status = "archived";
-    session.updatedAt = new Date();
     const dto = this.toDto(session);
     this.notifySessionUpdated(dto);
     return dto;
@@ -175,10 +128,8 @@ export class ChatSessionsService {
 
   listMessages(sessionId: string): ChatMessageDto[] {
     this.ensureSessionExists(sessionId);
-    const items = this.messages.get(sessionId) ?? [];
-    return items
-      .slice()
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+    return this.repository
+      .listMessages(sessionId)
       .map((message) => this.messageToDto(message));
   }
 
@@ -186,31 +137,18 @@ export class ChatSessionsService {
     sessionId: string,
     dto: CreateChatMessageDto
   ): { message: ChatMessageDto; session: ChatSessionDto } {
-    const session = this.sessions.get(sessionId);
-    if (!session) {
-      throw new NotFoundException(`Chat session ${sessionId} not found`);
-    }
-
-    const entity: ChatMessageEntity = {
-      id: randomUUID(),
+    const result = this.repository.appendMessage({
       sessionId,
       role: dto.role,
       content: dto.content,
-      createdAt: new Date(),
       toolCallId: dto.toolCallId,
       name: dto.name,
-    };
-
-    const collection = this.messages.get(sessionId);
-    if (!collection) {
-      this.messages.set(sessionId, [entity]);
-    } else {
-      collection.push(entity);
+    });
+    if (!result) {
+      throw new NotFoundException(`Chat session ${sessionId} not found`);
     }
-
-    session.updatedAt = new Date();
-    const messageDto = this.messageToDto(entity);
-    const sessionDto = this.toDto(session);
+    const messageDto = this.messageToDto(result.message);
+    const sessionDto = this.toDto(result.session);
     this.notifyMessageCreated(messageDto);
     this.notifySessionUpdated(sessionDto);
     return { message: messageDto, session: sessionDto };
@@ -218,35 +156,24 @@ export class ChatSessionsService {
 
   updateMessageContent(sessionId: string, messageId: string, content: string): ChatMessageDto {
     this.ensureSessionExists(sessionId);
-    const collection = this.messages.get(sessionId);
-    if (!collection) {
-      throw new NotFoundException(`No messages stored for session ${sessionId}`);
-    }
-
-    const entity = collection.find((item) => item.id === messageId);
+    const entity = this.repository.updateMessageContent(
+      sessionId,
+      messageId,
+      content
+    );
     if (!entity) {
-      throw new NotFoundException(`Message ${messageId} not found in session ${sessionId}`);
+      throw new NotFoundException(
+        `Message ${messageId} not found in session ${sessionId}`
+      );
     }
-
-    entity.content = content;
     const dto = this.messageToDto(entity);
     this.notifyMessageUpdated(dto);
     return dto;
   }
 
   private ensureSessionExists(id: string): void {
-    if (!this.sessions.has(id)) {
+    if (!this.repository.getSessionById(id)) {
       throw new NotFoundException(`Chat session ${id} not found`);
     }
-  }
-
-  private cloneInvocation(
-    invocation: AgentInvocationSnapshot
-  ): AgentInvocationSnapshot {
-    return {
-      id: invocation.id,
-      messages: invocation.messages.map((message) => ({ ...message })),
-      children: invocation.children.map((child) => this.cloneInvocation(child)),
-    };
   }
 }

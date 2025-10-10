@@ -44,6 +44,9 @@ export const DEFAULT_CONFIG: EddieConfig = {
       origin: true,
       credentials: true,
     },
+    persistence: {
+      driver: "memory",
+    },
   },
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
   logLevel: "info",

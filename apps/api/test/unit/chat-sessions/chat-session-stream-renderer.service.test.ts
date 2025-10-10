@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
 import { ChatSessionStreamRendererService } from "../../../src/chat-sessions/chat-session-stream-renderer.service";
 import type { ChatMessagesGateway } from "../../../src/chat-sessions/chat-messages.gateway";
+import { InMemoryChatSessionsRepository } from "../../../src/chat-sessions/chat-sessions.repository";
 
 describe("ChatSessionStreamRendererService", () => {
   let service: ChatSessionsService;
@@ -10,7 +11,7 @@ describe("ChatSessionStreamRendererService", () => {
   let gateway: ChatMessagesGateway;
 
   beforeEach(() => {
-    service = new ChatSessionsService();
+    service = new ChatSessionsService(new InMemoryChatSessionsRepository());
     gateway = { emitPartial: vi.fn() } as unknown as ChatMessagesGateway;
     renderer = new ChatSessionStreamRendererService(service, gateway);
     sessionId = service.createSession({ title: "Stream" }).id;
