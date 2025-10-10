@@ -351,7 +351,13 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
 
   const logsRealtime: LogsSocket = {
     onLogCreated(handler) {
-      return logsChannel.on("log.created", handler);
+      return logsChannel.on(
+        "logs.created",
+        (entries: LogEntryDto[] | LogEntryDto) => {
+          const batch = Array.isArray(entries) ? entries : [entries];
+          batch.forEach((entry) => handler(entry));
+        }
+      );
     },
   };
 

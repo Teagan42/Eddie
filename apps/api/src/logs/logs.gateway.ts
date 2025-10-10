@@ -18,6 +18,8 @@ export class LogsGateway
   private server!: Server;
 
   private unregister: (() => void) | null = null;
+  private pending: LogEntryDto[] = [];
+  private flushHandle: NodeJS.Timeout | null = null;
 
   constructor(private readonly logs: LogsService) {}
 
@@ -31,9 +33,35 @@ export class LogsGateway
   onModuleDestroy(): void {
     this.unregister?.();
     this.unregister = null;
+    if (this.flushHandle) {
+      clearTimeout(this.flushHandle);
+      this.flushHandle = null;
+    }
+    this.flushPending();
   }
 
   onLogCreated(entry: LogEntryDto): void {
-    emitEvent(this.server, "log.created", entry);
+    this.pending.push(entry);
+    this.scheduleFlush();
+  }
+
+  private scheduleFlush(): void {
+    if (this.flushHandle) {
+      return;
+    }
+
+    this.flushHandle = setTimeout(() => {
+      this.flushHandle = null;
+      this.flushPending();
+    }, 0);
+  }
+
+  private flushPending(): void {
+    if (this.pending.length === 0) {
+      return;
+    }
+
+    const batch = this.pending.splice(0);
+    emitEvent(this.server, "logs.created", batch);
   }
 }

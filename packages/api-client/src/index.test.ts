@@ -128,6 +128,40 @@ describe("createApiClient", () => {
     });
   });
 
+  it("fans out batched log events to the consumer", () => {
+    const client = createApiClient({
+      baseUrl: "https://example.test/api/",
+      websocketUrl: "ws://example.test/ws/",
+    });
+
+    const logsChannel = createdChannels[2]!;
+    const handler = vi.fn();
+
+    const unsubscribe = client.sockets.logs.onLogCreated(handler);
+
+    const logHandlers = logsChannel.handlers.get("logs.created");
+    expect(logHandlers?.size).toBe(1);
+
+    const [registeredHandler] = [...(logHandlers ?? [])];
+    expect(typeof registeredHandler).toBe("function");
+
+    const batch = [
+      { id: "1", level: "info", message: "one", createdAt: "now" },
+      { id: "2", level: "warn", message: "two", createdAt: "later" },
+    ];
+
+    registeredHandler?.(batch);
+
+    expect(handler).toHaveBeenCalledTimes(2);
+    expect(handler).toHaveBeenNthCalledWith(1, batch[0]);
+    expect(handler).toHaveBeenNthCalledWith(2, batch[1]);
+
+    unsubscribe();
+    expect(logsChannel.handlers.get("logs.created")?.size ?? 0).toBe(0);
+
+    client.dispose();
+  });
+
   it("normalizes relative websocket URLs", () => {
     createApiClient({ baseUrl: "/api", websocketUrl: "/api/" }).dispose();
 
