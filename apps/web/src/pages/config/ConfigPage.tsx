@@ -1140,10 +1140,26 @@ export function ConfigPage(): JSX.Element {
                 </Text>
               ) : (
                 configuredTools.map((toolId) => {
-                  const isEnabled =
-                    effectiveInput.tools?.enabled?.includes(toolId) ??
-                    currentConfig?.tools?.enabled?.includes(toolId) ??
-                    false;
+                  const toolSources = [
+                    effectiveInput.tools,
+                    baselineInput.tools,
+                    currentConfig?.tools,
+                  ].filter(
+                    (value): value is NonNullable<EddieConfigInputDto["tools"]> =>
+                      Boolean(value)
+                  );
+                  let resolvedState: boolean | null = null;
+                  for (const source of toolSources) {
+                    if ("enabled" in source) {
+                      resolvedState = source.enabled?.includes(toolId) ?? false;
+                      break;
+                    }
+                    if ("disabled" in source) {
+                      resolvedState = !(source.disabled?.includes(toolId) ?? false);
+                      break;
+                    }
+                  }
+                  const isEnabled = resolvedState ?? false;
                   return (
                     <Flex key={toolId} align="center" gap="3" justify="between">
                       <Text size="2">{`${toolId} tool`}</Text>
