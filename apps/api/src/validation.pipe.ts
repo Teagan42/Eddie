@@ -8,10 +8,11 @@ import {
   type ValidationPipeOptions,
 } from "@nestjs/common";
 import type { ValidationError } from "class-validator";
-import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
+import type { EddieConfig } from "@eddie/config";
 import { ConfigService } from "@eddie/config";
 import { InjectLogger } from "@eddie/io";
 import type { Logger } from "pino";
+import { getRuntimeOptions } from "./runtime-options";
 
 @Injectable()
 export class ApiValidationPipe implements PipeTransform, OnModuleInit {
@@ -29,7 +30,7 @@ export class ApiValidationPipe implements PipeTransform, OnModuleInit {
   }
 
   private async initialize(): Promise<void> {
-    const runtimeOptions: CliRuntimeOptions = {};
+    const runtimeOptions = getRuntimeOptions();
     const config: EddieConfig = await this.configService.load(runtimeOptions);
     const validation = config.api?.validation ?? {};
 

@@ -9,10 +9,11 @@ import {
 } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { ConfigService } from "@eddie/config";
-import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
+import type { EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { InjectLogger } from "@eddie/io";
 import type { Logger } from "pino";
+import { getRuntimeOptions } from "./runtime-options";
 
 interface ContextSummary {
   files: number;
@@ -38,7 +39,7 @@ export class ApiHttpExceptionFilter implements ExceptionFilter, OnModuleInit {
   }
 
   private async initialize(): Promise<void> {
-    const runtimeOptions: CliRuntimeOptions = {};
+    const runtimeOptions = getRuntimeOptions();
     const config: EddieConfig = await this.configService.load(runtimeOptions);
     this.includeStackInResponse =
       config.api?.telemetry?.exposeErrorStack ?? config.logLevel === "debug";

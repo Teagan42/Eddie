@@ -5,11 +5,12 @@ import { ApiModule } from "./api.module";
 import { initTracing } from "./telemetry/tracing";
 import { HttpLoggerMiddleware } from "./middleware/http-logger.middleware";
 import { ConfigService } from "@eddie/config";
-import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
+import type { EddieConfig } from "@eddie/config";
 import { LoggerService } from "@eddie/io";
 import { applyCorsConfig } from "./cors";
 import { ensureDefaultConfigRoot } from "./config-root";
 import { configureOpenApi } from "./openapi-config";
+import { getRuntimeOptions } from "./runtime-options";
 
 function configureLogging(
   config: EddieConfig,
@@ -31,7 +32,7 @@ export async function bootstrap(): Promise<void> {
 
   const configService = app.get(ConfigService);
   const loggerService = app.get(LoggerService);
-  const runtimeOptions: CliRuntimeOptions = {};
+  const runtimeOptions = getRuntimeOptions();
   const config: EddieConfig = await configService.load(runtimeOptions);
 
   if (config.api?.telemetry?.enabled) {

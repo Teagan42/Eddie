@@ -16,10 +16,11 @@ import {
 } from "rxjs";
 import { createHash, pbkdf2Sync } from "node:crypto";
 import { ConfigService } from "@eddie/config";
-import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
+import type { EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { InjectLogger } from "@eddie/io";
 import type { Logger } from "pino";
+import { getRuntimeOptions } from "./runtime-options";
 
 interface CacheEntry {
   value: unknown;
@@ -48,7 +49,7 @@ export class ApiCacheInterceptor implements NestInterceptor, OnModuleInit {
   }
 
   private async initialize(): Promise<void> {
-    const runtimeOptions: CliRuntimeOptions = {};
+    const runtimeOptions = getRuntimeOptions();
     const config: EddieConfig = await this.configService.load(runtimeOptions);
     const cacheConfig = config.api?.cache ?? {};
 
