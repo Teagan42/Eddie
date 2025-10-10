@@ -31,6 +31,8 @@ module.exports = [
     rules: {
       ...js.configs.recommended.rules,
       ...tsPlugin.configs.recommended.rules,
+      // enforce 2-space indentation consistently across the repo
+      "@/indent": ["error", 2, { "SwitchCase": 1 }],
       "no-undef": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "no-console": "off",
