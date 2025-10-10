@@ -1,5 +1,6 @@
 import { Badge, Flex, Heading, ScrollArea, Text } from "@radix-ui/themes";
 import type { ChatMessageDto, ChatSessionDto } from "@eddie/api-client";
+import { useEffect, useRef } from "react";
 
 export interface SessionDetailProps {
   session: ChatSessionDto | null;
@@ -26,6 +27,25 @@ export function SessionDetail({ session, messages, isLoading }: SessionDetailPro
 }
 
 function MessagesList({ messages }: { messages: ChatMessageDto[] }): JSX.Element {
+  const lastMessageMarkerRef = useRef<HTMLDivElement | null>(null);
+  const lastMessage = messages.length > 0 ? messages[messages.length - 1]! : null;
+  const lastMessageId = lastMessage?.id ?? null;
+  const lastMessageContent = lastMessage?.content ?? null;
+
+  useEffect(() => {
+    if (!lastMessageId) {
+      return;
+    }
+
+    const node = lastMessageMarkerRef.current;
+
+    if (!node || typeof node.scrollIntoView !== "function") {
+      return;
+    }
+
+    node.scrollIntoView({ block: "end" });
+  }, [lastMessageId, lastMessageContent]);
+
   return (
     <ScrollArea
       type="always"
@@ -69,6 +89,7 @@ function MessagesList({ messages }: { messages: ChatMessageDto[] }): JSX.Element
             </Flex>
           ))
         )}
+        <div ref={lastMessageMarkerRef} aria-hidden />
       </Flex>
     </ScrollArea>
   );
