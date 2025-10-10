@@ -166,6 +166,118 @@ type ToolRealtimePayload = {
   timestamp?: string | null;
 };
 
+type ToolInvocationNode = OrchestratorMetadataDto['toolInvocations'][number];
+
+let toolInvocationIdCounter = 0;
+
+function coerceToolInvocationId(value: unknown, fallbackPrefix = 'tool'): string {
+  if (value === undefined || value === null || value === '') {
+    toolInvocationIdCounter += 1;
+    return `${fallbackPrefix}_${toolInvocationIdCounter}`;
+  }
+
+  return String(value);
+}
+
+function normalizeToolInvocationNode(node: ToolInvocationNode): ToolInvocationNode {
+  const meta = node.metadata ?? ({} as Record<string, unknown>);
+
+  const existingPreview = typeof meta.preview === 'string' ? meta.preview : undefined;
+  const command = typeof meta.command === 'string' ? meta.command : undefined;
+  const argsPreview = summarizeObject(meta.arguments ?? meta.args ?? null);
+  const resultPreview = summarizeObject(meta.result ?? null);
+
+  const preview = existingPreview ?? command ?? argsPreview ?? resultPreview ?? undefined;
+
+  let argumentsString: string | undefined;
+  if (typeof meta.arguments === 'string') {
+    argumentsString = meta.arguments;
+  } else if (meta.arguments != null) {
+    try {
+      argumentsString = JSON.stringify(meta.arguments);
+    } catch {
+      argumentsString = undefined;
+    }
+  }
+
+  return {
+    ...node,
+    id: coerceToolInvocationId(node.id),
+    metadata: {
+      ...meta,
+      preview,
+      command,
+      arguments: argumentsString ?? meta.arguments,
+    },
+    children: (node.children ?? []).map((child) => normalizeToolInvocationNode(child)),
+  } as ToolInvocationNode;
+}
+
+function mergeToolInvocationNodes(
+  existing: ToolInvocationNode[],
+  incoming: ToolInvocationNode[],
+): ToolInvocationNode[] {
+  const normalizedExisting = existing.map((node) => normalizeToolInvocationNode(node));
+  const normalizedIncoming = incoming.map((node) => normalizeToolInvocationNode(node));
+
+  const byId = new Map<string, ToolInvocationNode>();
+  const result: ToolInvocationNode[] = normalizedExisting.map((node) => {
+    const clone: ToolInvocationNode = {
+      ...node,
+      metadata: { ...(node.metadata ?? {}) },
+      children: [...(node.children ?? [])],
+    };
+    byId.set(clone.id, clone);
+    return clone;
+  });
+
+  for (const node of normalizedIncoming) {
+    const current = byId.get(node.id);
+    if (current) {
+      const mergedChildren = mergeToolInvocationNodes(current.children ?? [], node.children ?? []);
+      const mergedMetadata: Record<string, unknown> = {
+        ...(current.metadata ?? {}),
+      };
+
+      if (node.metadata) {
+        for (const [key, value] of Object.entries(node.metadata)) {
+          if (value !== null && value !== undefined) {
+            mergedMetadata[key] = value;
+          }
+        }
+      }
+
+      const merged: ToolInvocationNode = {
+        ...current,
+        children: mergedChildren,
+        metadata: mergedMetadata as ToolInvocationNode['metadata'],
+      };
+
+      for (const [key, value] of Object.entries(node)) {
+        if (key === 'metadata' || key === 'children') {
+          continue;
+        }
+
+        if (value !== null && value !== undefined) {
+          (merged as Record<string, unknown>)[key] = value;
+        }
+      }
+      byId.set(node.id, merged);
+      const index = result.findIndex((item) => item.id === node.id);
+      if (index >= 0) {
+        result[index] = merged;
+      } else {
+        result.push(merged);
+      }
+    } else {
+      byId.set(node.id, node);
+      result.push(node);
+    }
+  }
+
+  return result;
+}
+
 function summarizeObject(obj: unknown, maxLen = 200): string | null {
   try {
     if (obj == null) return null;
@@ -182,41 +294,7 @@ function normalizeOrchestratorMetadata(
 ): OrchestratorMetadataDto | null {
   if (!input) return null;
 
-  const toolInvocations = (input.toolInvocations ?? []).map((node) => {
-    const meta = node.metadata ?? ({} as Record<string, unknown>);
-
-    // Prefer an explicit preview, then a command string, then a summarized
-    // arguments object, finally fall back to summarizing the result.
-    const existingPreview = typeof meta.preview === 'string' ? meta.preview : undefined;
-    const command = typeof meta.command === 'string' ? meta.command : undefined;
-    const argsPreview = summarizeObject(meta.arguments ?? meta.args ?? null);
-    const resultPreview = summarizeObject(meta.result ?? null);
-
-    const preview = existingPreview ?? command ?? argsPreview ?? resultPreview ?? undefined;
-
-    // Ensure arguments is a string when available so the UI can render it
-    // consistently (the server may send structured objects).
-    let argumentsString: string | undefined;
-    if (typeof meta.arguments === 'string') {
-      argumentsString = meta.arguments;
-    } else if (meta.arguments != null) {
-      try {
-        argumentsString = JSON.stringify(meta.arguments);
-      } catch {
-        argumentsString = undefined;
-      }
-    }
-
-    return {
-      ...node,
-      metadata: {
-        ...meta,
-        preview,
-        command: command ?? (typeof meta.command === 'string' ? meta.command : undefined),
-        arguments: argumentsString ?? meta.arguments,
-      },
-    } as typeof node;
-  });
+  const toolInvocations = (input.toolInvocations ?? []).map((node) => normalizeToolInvocationNode(node));
 
   return { ...input, toolInvocations };
 }
@@ -415,6 +493,7 @@ export function ChatPage(): JSX.Element {
   const sessions = useMemo(() => sortSessions(sessionsQuery.data ?? []), [sessionsQuery.data]);
 
   const selectedSessionIdRef = useRef<string | null>(null);
+  const toolInvocationCacheRef = useRef<Map<string, ToolInvocationNode[]>>(new Map());
 
   const invalidateOrchestratorMetadata = useCallback(
     (sessionId?: string) => {
@@ -559,10 +638,9 @@ export function ChatPage(): JSX.Element {
                   capturedAt: new Date().toISOString(),
                 };
 
-                const id = String(p.id ?? `call_${Date.now()}`);
+                const id = coerceToolInvocationId(p.id, 'call');
                 const name = String(p.name ?? 'unknown');
                 const status = (p.status ?? ('pending' as ToolCallStatusDto)) as ToolCallStatusDto;
-                const existingMeta = base.toolInvocations.find((t) => t.id === id)?.metadata ?? {};
                 const createdAt = p.timestamp ?? new Date().toISOString();
                 // Normalize arguments into either a preview/command or arguments string
                 const argMeta =
@@ -576,34 +654,21 @@ export function ChatPage(): JSX.Element {
                         };
                       })();
 
-                const metadata = {
-                  ...existingMeta,
-                  ...argMeta,
-                  createdAt,
-                };
-
-                const existingIndex = base.toolInvocations.findIndex((n) => n.id === id);
-                if (existingIndex >= 0) {
-                  const updated = {
-                    ...base.toolInvocations[existingIndex],
-                    name,
-                    status,
-                    metadata,
-                  };
-                  const next = [...base.toolInvocations];
-                  next[existingIndex] = updated;
-                  return { ...base, toolInvocations: next };
-                }
-
-                const node = {
+                const node = normalizeToolInvocationNode({
                   id,
                   name,
                   status,
-                  metadata,
+                  metadata: {
+                    ...argMeta,
+                    createdAt,
+                  },
                   children: [],
-                };
+                });
 
-                return { ...base, toolInvocations: [...base.toolInvocations, node] };
+                const nextToolInvocations = mergeToolInvocationNodes(base.toolInvocations, [node]);
+                const next = { ...base, toolInvocations: nextToolInvocations };
+                toolInvocationCacheRef.current.set(sessionId, nextToolInvocations);
+                return next;
               },
             );
           } catch {
@@ -628,52 +693,38 @@ export function ChatPage(): JSX.Element {
                   capturedAt: new Date().toISOString(),
                 };
 
-                const id = String(p.id ?? `call_${Date.now()}`);
+                const id = coerceToolInvocationId(p.id, 'call');
                 const status = (p.status ??
                   ('completed' as ToolCallStatusDto)) as ToolCallStatusDto;
                 const createdAt = p.timestamp ?? new Date().toISOString();
                 const resultMeta =
                   typeof p.result === 'string' ? { result: p.result } : { ...(p.result ?? {}) };
 
-                const existingIndex = base.toolInvocations.findIndex((n) => n.id === id);
-                if (existingIndex >= 0) {
-                  const updated = {
-                    ...base.toolInvocations[existingIndex],
-                    status,
-                    metadata: {
-                      ...(base.toolInvocations[existingIndex].metadata ?? {}),
-                      ...resultMeta,
-                    },
-                  };
-                  const next = [...base.toolInvocations];
-                  next[existingIndex] = updated;
-                  return { ...base, toolInvocations: next };
-                }
-
-                // If we don't have the call yet, create a completed node so the
-                // tree shows it immediately. Prefer a preview derived from
-                // the original arguments/command when available so the tree
-                // retains the context (args/command) rather than only the
-                // final output.
                 const previewFromArgs =
                   typeof p.arguments === 'string'
                     ? p.arguments
                     : (summarizeObject(p.arguments) ?? undefined);
 
-                const node = {
+                const node = normalizeToolInvocationNode({
                   id,
                   name: String(p.name ?? 'unknown'),
                   status,
                   metadata: {
                     ...resultMeta,
                     preview: previewFromArgs ?? summarizeObject(p.result) ?? undefined,
-                    arguments: typeof p.arguments === 'string' ? p.arguments : p.arguments,
+                    arguments:
+                      typeof p.arguments === 'string'
+                        ? p.arguments
+                        : (summarizeObject(p.arguments) ?? undefined),
                     createdAt,
                   },
                   children: [],
-                };
+                });
 
-                return { ...base, toolInvocations: [...base.toolInvocations, node] };
+                const nextToolInvocations = mergeToolInvocationNodes(base.toolInvocations, [node]);
+                const next = { ...base, toolInvocations: nextToolInvocations };
+                toolInvocationCacheRef.current.set(sessionId, nextToolInvocations);
+                return next;
               },
             );
           } catch {
@@ -699,7 +750,37 @@ export function ChatPage(): JSX.Element {
             toolInvocations: [],
             agentHierarchy: [],
           }),
-    select: (data) => normalizeOrchestratorMetadata(data ?? null),
+    select: (data) => {
+      const normalized = normalizeOrchestratorMetadata(data ?? null);
+      if (!normalized) {
+        return null;
+      }
+
+      const sessionId = normalized.sessionId ?? selectedSessionId ?? null;
+      if (!sessionId) {
+        return normalized;
+      }
+
+      if (normalized.toolInvocations.length === 0) {
+        const cached = toolInvocationCacheRef.current.get(sessionId);
+        if (
+          cached &&
+          cached.length > 0 &&
+          selectedSessionIdRef.current &&
+          selectedSessionIdRef.current === sessionId
+        ) {
+          return { ...normalized, toolInvocations: cached };
+        }
+
+        toolInvocationCacheRef.current.set(sessionId, []);
+        return normalized;
+      }
+
+      const cached = toolInvocationCacheRef.current.get(sessionId) ?? [];
+      const merged = mergeToolInvocationNodes(cached, normalized.toolInvocations);
+      toolInvocationCacheRef.current.set(sessionId, merged);
+      return { ...normalized, toolInvocations: merged };
+    },
     refetchInterval: 10_000,
   });
 
