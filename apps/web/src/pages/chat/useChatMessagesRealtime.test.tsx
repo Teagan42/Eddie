@@ -6,9 +6,11 @@ import type { ApiClient, ChatMessageDto } from "@eddie/api-client";
 import { useChatMessagesRealtime } from "./useChatMessagesRealtime";
 
 function createWrapper(queryClient: QueryClient) {
-  return ({ children }: { children: ReactNode }) => (
+  const QueryClientWrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
+  QueryClientWrapper.displayName = "QueryClientWrapper";
+  return QueryClientWrapper;
 }
 
 describe("useChatMessagesRealtime", () => {
