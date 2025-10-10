@@ -1,0 +1,26 @@
+{% set layout_config = layout or {} %}
+{% set title = layout_config.title or "Eddie session" %}
+{% set tagline = layout_config.tagline or "assistant briefing" %}
+{% set instructions = layout_config.instructions or [] %}
+{% set footer = layout_config.footer or [] %}
+# {{ title }}
+
+_{{ tagline }}_
+
+{% if instructions %}
+## Quick cues
+{% for item in instructions %}
+- {{ item }}
+{% endfor %}
+{% endif %}
+
+{% block content %}
+<!-- Body content goes here -->
+{% endblock %}
+
+{% if footer %}
+---
+{% for line in footer %}
+- {{ line }}
+{% endfor %}
+{% endif %}

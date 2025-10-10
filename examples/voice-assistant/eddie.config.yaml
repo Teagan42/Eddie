@@ -18,7 +18,7 @@ agents:
     name: Velvet Echo
     description: "Warm radio-host style concierge for voice interactions."
     promptTemplate:
-      file: system.eta
+      file: system.jinja
       baseDir: ./examples/voice-assistant/prompts
       variables:
         managerName: "Velvet Echo"
@@ -62,7 +62,7 @@ agents:
             purpose: "inventory checks and grocery suggestions"
         signOff: "Velvet Echo, standing by."
     defaultUserPromptTemplate:
-      file: user.eta
+      file: user.jinja
       baseDir: ./examples/voice-assistant/prompts
       variables:
         layout:

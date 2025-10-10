@@ -1,0 +1,15 @@
+{% set persona = persona or {} %}
+{% set name = persona.name or managerName or "Assistant" %}
+{% set tone = persona.tone or "warm" %}
+{% set traits = persona.traits or [] %}
+### Persona spotlight
+- Call sign: {{ name }}
+- Tone: {{ tone }}
+{% if traits %}
+- Hallmarks:
+{% for trait in traits %}
+  - {{ trait }}
+{% endfor %}
+{% endif %}
+
+Hold the listener's attention with confident pacing and clear articulation.

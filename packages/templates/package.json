@@ -17,6 +17,6 @@
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
-    "eta": "^3.5.0"
+    "nunjucks": "^3.2.4"
   }
 }

@@ -111,16 +111,16 @@ looks like this:
    IDs, display names, and any `virtualPath` segments that should be surfaced to
    the model.
 2. **Design resource-aware templates** – Update your system and user prompt
-   templates to acknowledge the remote materials. Eta templates can iterate over
+   templates to acknowledge the remote materials. Jinja templates can iterate over
    resources so you can spell out where the data originated and how the agent
    should use it. For instance:
 
-   ```eta
-   <% context.resources.forEach(resource => { %>
-   Resource: <%= resource.name || resource.id %>
-   Location: <%= resource.virtualPath || "remote" %>
-   Summary: <%= resource.text?.slice(0, 400) %>
-   <% }) %>
+   ```jinja
+   {% for resource in context.resources %}
+   Resource: {{ resource.name or resource.id }}
+   Location: {{ resource.virtualPath or "remote" }}
+   Summary: {{ resource.text[:400] }}
+   {% endfor %}
    ```
 
    Pair these sections with guardrails that remind the model which tools map to
@@ -150,7 +150,7 @@ resources reported by the server.【F:apps/cli/src/integrations/mcp/mcp-tool-sou
 The engine fetches these prompt definitions together with other MCP assets,
 making them available for custom orchestration even though the default CLI does
 not yet inject them into the packed context.【F:apps/cli/src/core/engine/engine.service.ts†L147-L156】
-You can wire the discovered prompts into your own Eta templates, persist them in
+You can wire the discovered prompts into your own Jinja templates, persist them in
 hooks, or mirror them into local prompt catalogs to keep subagents aligned with
 remote guidance.
 

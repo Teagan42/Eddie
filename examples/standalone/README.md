@@ -13,7 +13,7 @@ From the repository root execute:
 eddie run --config examples/standalone/eddie.config.yaml
 ```
 
-The configuration loads the Eta templates in `examples/standalone/prompts/` and
+The configuration loads the Jinja templates in `examples/standalone/prompts/` and
 scopes context collection to the repository `src/` and `docs/` trees so the
 reviewer can cross-reference implementation details with the documentation.
 

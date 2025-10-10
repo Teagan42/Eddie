@@ -1,0 +1,20 @@
+{% set delivery_config = delivery or {} %}
+{% set tempo = delivery_config.tempo or "steady" %}
+{% set clarity_tips = delivery_config.clarityTips or [] %}
+{% set warmups = delivery_config.warmups or [] %}
+### Delivery notes
+- Tempo: {{ tempo }}
+{% if warmups %}
+- Opening beats:
+{% for line in warmups %}
+  - {{ line }}
+{% endfor %}
+{% endif %}
+{% if clarity_tips %}
+- Clarity checklist:
+{% for tip in clarity_tips %}
+  - {{ tip }}
+{% endfor %}
+{% endif %}
+
+Remember to acknowledge the wake word "{{ context.variables.wakeWord if context and context.variables and context.variables.wakeWord else 'Hey assistant' }}" when appropriate.

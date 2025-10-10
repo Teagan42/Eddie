@@ -16,7 +16,7 @@ agents:
     name: Standalone NestJS architect
     description: "Solo reviewer that audits NestJS structure and patterns."
     promptTemplate:
-      file: system.eta
+      file: system.jinja
       baseDir: ./examples/standalone/prompts
       variables:
         managerName: "Standalone Architect"
@@ -33,7 +33,7 @@ agents:
             - "Guard, interceptor, and pipe coverage"
             - "Testing strategies"
     defaultUserPromptTemplate:
-      file: user.eta
+      file: user.jinja
       baseDir: ./examples/standalone/prompts
       variables:
         layout:

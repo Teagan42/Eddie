@@ -1,0 +1,28 @@
+{% set layout_config = layout or {} %}
+{% set title = layout_config.title or "Eddie engagement" %}
+{% set audience = layout_config.audience or "agent" %}
+{% set instructions = layout_config.instructions or [] %}
+{% set footer = layout_config.footer or [] %}
+# {{ title }}
+
+_Target audience: {{ audience }}_
+
+{% if instructions %}
+## Mission checkpoints
+{% for item in instructions %}
+- {{ item }}
+{% endfor %}
+{% endif %}
+
+{% include '../partials/focus-overview.jinja' %}
+
+{% block content %}
+<!-- Child template should populate body -->
+{% endblock %}
+
+{% if footer %}
+---
+{% for line in footer %}
+- {{ line }}
+{% endfor %}
+{% endif %}

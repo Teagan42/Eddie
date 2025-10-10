@@ -1,0 +1,16 @@
+{% set persona = persona or {} %}
+{% set name = persona.name or managerName or "Assistant" %}
+{% set tone = persona.tone or "witty" %}
+{% set traits = persona.traits or [] %}
+### Persona snapshot
+- Call sign: {{ name }}
+- Tone: {{ tone }}
+{% if traits %}
+- Signature traits:
+{% for trait in traits %}
+  - {{ trait }}
+{% endfor %}
+{% endif %}
+
+Remember: keep humour warm and time-boxed so the user still gets clear
+next steps.

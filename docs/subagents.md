@@ -17,13 +17,13 @@ agents:
   enableSubagents: true
   manager:
     promptTemplate:
-      file: prompts/manager.eta
+      file: prompts/manager.jinja
   subagents:
     - id: summariser
       name: Context summariser
       description: "Pull key findings from repo files"
       promptTemplate:
-        file: prompts/summariser.eta
+        file: prompts/summariser.jinja
       resources:
         - type: bundle
           id: repo-files
@@ -97,7 +97,7 @@ delegated calls are routed through the intended backend.【F:apps/cli/src/core/e
 
 ### Manager vs. subagent definitions
 
-Managers and subagents share the same shape: they support inline prompts or Eta
+Managers and subagents share the same shape: they support inline prompts or Jinja
 templates, default user prompt templates, template variables, and resource
 attachments. These are validated through the configuration service, ensuring
 each agent receives clean copies of prompt descriptors, variables, and context
@@ -111,17 +111,18 @@ fresh definition.【F:apps/cli/src/config/config.service.ts†L338-L387】
 
 ### Prompt template examples
 
-Prompt templates can be stored as Eta (`.eta`) files or provided inline. The
+Prompt templates can be stored as Jinja (`.jinja`) files or provided inline. The
 following snippets show a manager and subagent pairing that pass variables via
 the standard template context (`promptTemplate.variables`).
 
-**`prompts/manager.eta`**
+**`prompts/manager.jinja`**
 
-```eta
-<% layout('../layouts/base') %>
-<%~ include('../partials/run-context', it) %>
+```jinja
+{% extends '../layouts/base.jinja' %}
+{% block content %}
+{% include '../partials/run-context.jinja' %}
 
-You are <%= it.managerName %>, the lead coordinator.
+You are {{ managerName }}, the lead coordinator.
 Break the requested work into milestones and decide whether the
 `summariser` or `planner` subagent is the best fit. Provide:
 
@@ -131,15 +132,17 @@ Break the requested work into milestones and decide whether the
 
 Only delegate if you have high confidence that the subagent can progress the
 task; otherwise, reply with a manager action plan.
+{% endblock %}
 ```
 
-**`prompts/summariser.eta`**
+**`prompts/summariser.jinja`**
 
-```eta
-<% layout('../layouts/base') %>
+```jinja
+{% extends '../layouts/base.jinja' %}
 
+{% block content %}
 You are a repository summariser specialising in TypeScript projects.
-Focus on the files provided in `<%= it.bundleName %>` and capture:
+Focus on the files provided in `{{ bundleName }}` and capture:
 
 - High-level purpose of each module.
 - Dependency injection patterns and NestJS providers involved.
@@ -147,80 +150,76 @@ Focus on the files provided in `<%= it.bundleName %>` and capture:
 
 Format the response as markdown with sections for "Overview", "Risks", and
 "Next steps".
+{% endblock %}
 ```
 
 To keep templates DRY you can factor shared chrome into layouts and partials.
 The manager snippet above expects a base layout and a `run-context` partial,
 which could look like the following:
 
-**`docs/examples/prompts/layouts/base.eta`**
+**`docs/examples/prompts/layouts/base.jinja`**
 
-```eta
+```jinja
 <!DOCTYPE markdown>
-<%
-  const {
-    title = 'Agent prompt',
-    audience = 'subagent',
-    instructions = [],
-    footer = []
-  } = it.layout || {};
-%>
-<% if (title) { %>
-# <%= title %>
-<% } %>
+{% set layout_config = layout or {} %}
+{% set title = layout_config.title or 'Agent prompt' %}
+{% set audience = layout_config.audience or 'subagent' %}
+{% set instructions = layout_config.instructions or [] %}
+{% set footer = layout_config.footer or [] %}
+{% if title %}
+# {{ title }}
+{% endif %}
 
-<% if (audience) { %>
-_Target audience: <%= audience %>_
-<% } %>
+{% if audience %}
+_Target audience: {{ audience }}_
+{% endif %}
 
-<% if (instructions.length) { %>
+{% if instructions %}
 ## Operating instructions
-<% instructions.forEach((line) => { %>
-- <%= line %>
-<% }) %>
-<% } %>
+{% for line in instructions %}
+- {{ line }}
+{% endfor %}
+{% endif %}
 
-<%~ include('../partials/run-context', it) %>
+{% include '../partials/run-context.jinja' %}
 
-<% if (it.body) { %>
-<%~ it.body %>
-<% } else { %>
+{% block content %}
 <!-- Child template should provide body content -->
-<% } %>
+{% endblock %}
 
-<% if (footer.length) { %>
+{% if footer %}
 ---
-<% footer.forEach((line) => { %>
-- <%= line %>
-<% }) %>
-<% } %>
+{% for line in footer %}
+- {{ line }}
+{% endfor %}
+{% endif %}
 ```
 
-**`docs/examples/prompts/partials/run-context.eta`**
+**`docs/examples/prompts/partials/run-context.jinja`**
 
-```eta
-<% if (it.run) { %>
+```jinja
+{% if run %}
 ## Run context
 
-<% if (it.run.goal) { %>
-- **Goal:** <%= it.run.goal %>
-<% } %>
-<% if (it.run.step) { %>
-- **Current step:** <%= it.run.step %>
-<% } %>
-<% if (Array.isArray(it.run.constraints) && it.run.constraints.length) { %>
+{% if run.goal %}
+- **Goal:** {{ run.goal }}
+{% endif %}
+{% if run.step %}
+- **Current step:** {{ run.step }}
+{% endif %}
+{% if run.constraints %}
 - **Constraints:**
-<% it.run.constraints.forEach((constraint) => { %>
-  - <%= constraint %>
-<% }) %>
-<% } %>
-<% if (it.run.files && it.run.files.length) { %>
+{% for constraint in run.constraints %}
+  - {{ constraint }}
+{% endfor %}
+{% endif %}
+{% if run.files %}
 - **Files available:**
-<% it.run.files.forEach((file) => { %>
-  - <%= file.path %> (<%= file.purpose || 'context' %>)
-<% }) %>
-<% } %>
-<% } %>
+{% for file in run.files %}
+  - {{ file.path }} ({{ file.purpose or 'context' }})
+{% endfor %}
+{% endif %}
+{% endif %}
 ```
 
 ### Routing controls

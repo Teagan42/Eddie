@@ -16,7 +16,7 @@ agents:
     name: Cosmic Concierge
     description: "Playful household assistant that quips while getting things done."
     promptTemplate:
-      file: system.eta
+      file: system.jinja
       baseDir: ./examples/personal-assistant/prompts
       variables:
         managerName: "Cosmic Concierge"
@@ -51,7 +51,7 @@ agents:
             nickname: "Cinematic curator"
             focus: "movie and music metadata"
     defaultUserPromptTemplate:
-      file: user.eta
+      file: user.jinja
       baseDir: ./examples/personal-assistant/prompts
       variables:
         layout:

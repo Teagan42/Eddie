@@ -19,7 +19,7 @@ agents:
     name: Platform triage lead
     description: "Coordinates specialised NestJS reviewers before delegating work."
     promptTemplate:
-      file: manager.eta
+      file: manager.jinja
       baseDir: ./examples/subagent/prompts
       variables:
         layout:
@@ -38,7 +38,7 @@ agents:
             - "planner"
             - "qa"
     defaultUserPromptTemplate:
-      file: user.eta
+      file: user.jinja
       baseDir: ./examples/subagent/prompts
       variables:
         layout:
@@ -51,7 +51,7 @@ agents:
       description: "Produces milestone-driven implementation steps."
       tools: ["file_read", "bash"]
       promptTemplate:
-        file: subagents/planner.eta
+        file: subagents/planner.jinja
         baseDir: ./examples/subagent/prompts
         variables:
           layout:
@@ -67,7 +67,7 @@ agents:
               - "Surface logging and caching implications early."
             theme: "Implementation roadmap"
       defaultUserPromptTemplate:
-        file: user.eta
+        file: user.jinja
         baseDir: ./examples/subagent/prompts
         variables:
           layout:
@@ -80,7 +80,7 @@ agents:
       description: "Focuses on validation, guards, and defensive coding."
       tools: ["file_read"]
       promptTemplate:
-        file: subagents/qa.eta
+        file: subagents/qa.jinja
         baseDir: ./examples/subagent/prompts
         variables:
           layout:
@@ -96,7 +96,7 @@ agents:
               - "Prefer validation via pipes over ad-hoc checks."
             theme: "Reliability & quality"
       defaultUserPromptTemplate:
-        file: user.eta
+        file: user.jinja
         baseDir: ./examples/subagent/prompts
         variables:
           layout:

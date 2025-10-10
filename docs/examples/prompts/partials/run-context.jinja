@@ -1,0 +1,22 @@
+{% if run %}
+## Run context
+
+{% if run.goal %}
+- **Goal:** {{ run.goal }}
+{% endif %}
+{% if run.step %}
+- **Current step:** {{ run.step }}
+{% endif %}
+{% if run.constraints %}
+- **Constraints:**
+{% for constraint in run.constraints %}
+  - {{ constraint }}
+{% endfor %}
+{% endif %}
+{% if run.files %}
+- **Files available:**
+{% for file in run.files %}
+  - {{ file.path }} ({{ file.purpose or 'context' }})
+{% endfor %}
+{% endif %}
+{% endif %}

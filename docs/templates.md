@@ -1,9 +1,9 @@
 # Prompt and Context Templates
 
-Eddie uses the [Eta](https://eta.js.org/) templating engine to render prompts and
-context resources at runtime. Templates can live in dedicated files or inline
-strings and support the standard `<%= expression %>` syntax for injecting
-variables.
+Eddie uses [Nunjucks](https://mozilla.github.io/nunjucks/) (a Jinja-compatible
+engine) to render prompts and context resources at runtime. Templates can live in
+dedicated files or inline strings and support familiar Jinja syntax such as
+`{{ expression }}` and control blocks with `{% ... %}`.
 
 ## Prompt Templates
 
@@ -17,12 +17,12 @@ accepts a `file` path (relative to `baseDir` when provided) and optional default
   "agents": {
     "manager": {
       "promptTemplate": {
-        "file": "prompts/system.eta",
+        "file": "prompts/system.jinja",
         "baseDir": "./config",
         "variables": { "product": "workspace" }
       },
       "defaultUserPromptTemplate": {
-        "file": "prompts/user.eta"
+        "file": "prompts/user.jinja"
       },
       "variables": {
         "owner": "docs-team"
@@ -41,10 +41,10 @@ merging variables in the following order:
 3. Variables supplied for a specific invocation (`AgentInvocationOptions.variables`).
 
 This merged bag is available to system and user prompt templates, enabling rich
-contextualisation (for example `<%= context.text %>` or `<%= history.length %>`).
+contextualisation (for example `{{ context.text }}` or `{{ history | length }}`).
 
 If no template descriptor is present, inline prompt strings are still rendered
-with Eta so you can use expressions directly inside configuration files.
+with Nunjucks so you can use expressions directly inside configuration files.
 
 ## Context Resources
 
@@ -70,7 +70,7 @@ flavours:
       {
         "type": "template",
         "id": "summary",
-        "template": { "file": "templates/summary.eta" },
+        "template": { "file": "templates/summary.jinja" },
         "variables": { "scope": "authentication" }
       }
     ]

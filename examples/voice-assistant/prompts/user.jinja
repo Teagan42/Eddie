@@ -1,0 +1,24 @@
+{% extends "./layouts/base.jinja" %}
+
+{% block content %}
+## Conversation snapshot
+Listener: {{ context.variables.listenerName if context and context.variables and context.variables.listenerName else 'Friend' }}
+Space: {{ context.variables.spaceName if context and context.variables and context.variables.spaceName else 'Home' }}
+Ambient notes: {{ context.variables.acousticNotes if context and context.variables and context.variables.acousticNotes else 'Not provided' }}
+
+When guiding Velvet Echo, keep the following in mind:
+
+- Start with a natural-language description of what you need.
+- Mention any people nearby who should be addressed or avoided.
+- Share timing windows, location changes, or background sounds.
+- Point out tasks that should be confirmed before execution.
+
+Expected response style:
+
+- Greeting example: {{ response.greetingExample if response and response.greetingExample else 'Hello there.' }}
+- Pace guidance:
+{% for tip in (response.pacingTips if response and response.pacingTips else []) %}
+  - {{ tip }}
+{% endfor %}
+- Closing reminder: {{ response.closingReminder if response and response.closingReminder else 'Wrap with your signature sign-off.' }}
+{% endblock %}

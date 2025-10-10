@@ -44,7 +44,8 @@ describe("EngineService MCP resource integration", () => {
       agents: {
         mode: "manager",
         manager: {
-          prompt: "Docs: <%= context.resources.map(r => r.metadata.uri).join(', ') %>",
+          prompt:
+            "Docs: {% for resource in context.resources %}{{ resource.metadata.uri }}{% if not loop.last %}, {% endif %}{% endfor %}",
         },
         subagents: [],
         enableSubagents: false,

@@ -1,0 +1,34 @@
+{% set layout_config = layout or {} %}
+{% set title = layout_config.title or "Voice operations bay" %}
+{% set audience = layout_config.audience or "voice concierge" %}
+{% set instructions = layout_config.instructions or [] %}
+{% set cues = layout_config.cues or [] %}
+{% set footer = layout_config.footer or [] %}
+# {{ title }}
+
+_Target audience: {{ audience }}_
+
+{% if instructions %}
+## Mission prompts
+{% for line in instructions %}
+- {{ line }}
+{% endfor %}
+{% endif %}
+
+{% if cues %}
+## Spoken delivery cues
+{% for cue in cues %}
+- {{ cue }}
+{% endfor %}
+{% endif %}
+
+{% block content %}
+<!-- Child template should supply body content -->
+{% endblock %}
+
+{% if footer %}
+---
+{% for line in footer %}
+- {{ line }}
+{% endfor %}
+{% endif %}
