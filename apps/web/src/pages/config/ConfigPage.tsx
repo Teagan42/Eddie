@@ -44,8 +44,8 @@ import {
   type UpdateEddieConfigPayload,
 } from "@eddie/api-client";
 import { useApi } from "@/api/api-provider";
+import { Panel } from "@/components";
 import { cn } from "@/components/lib/utils";
-import { Panel } from "@/components/panel";
 import {
   getSurfaceLayoutClasses,
   SURFACE_CONTENT_CLASS,

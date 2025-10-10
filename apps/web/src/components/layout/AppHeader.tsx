@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Avatar, Button, Flex, Heading, IconButton, Separator, Text } from "@radix-ui/themes";
 import { ExitIcon } from "@radix-ui/react-icons";
-import { NavigationLink } from "@/components/navigation/NavigationLink";
+import { NavigationLink } from "@/components/navigation";
 
 export interface AppHeaderProps {
   apiConnected: boolean;
