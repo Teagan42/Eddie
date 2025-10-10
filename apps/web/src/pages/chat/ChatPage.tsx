@@ -163,7 +163,63 @@ type ToolRealtimePayload = {
   status?: ToolCallStatusDto;
   arguments?: string | Record<string, unknown>;
   result?: string | Record<string, unknown>;
+  timestamp?: string | null;
 };
+
+function summarizeObject(obj: unknown, maxLen = 200): string | null {
+  try {
+    if (obj == null) return null;
+    if (typeof obj === 'string') return obj.length > maxLen ? obj.slice(0, maxLen) + '…' : obj;
+    const s = JSON.stringify(obj);
+    return s.length > maxLen ? s.slice(0, maxLen) + '…' : s;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeOrchestratorMetadata(
+  input: OrchestratorMetadataDto | null | undefined,
+): OrchestratorMetadataDto | null {
+  if (!input) return null;
+
+  const toolInvocations = (input.toolInvocations ?? []).map((node) => {
+    const meta = node.metadata ?? ({} as Record<string, unknown>);
+
+    // Prefer an explicit preview, then a command string, then a summarized
+    // arguments object, finally fall back to summarizing the result.
+    const existingPreview = typeof meta.preview === 'string' ? meta.preview : undefined;
+    const command = typeof meta.command === 'string' ? meta.command : undefined;
+    const argsPreview = summarizeObject(meta.arguments ?? meta.args ?? null);
+    const resultPreview = summarizeObject(meta.result ?? null);
+
+    const preview = existingPreview ?? command ?? argsPreview ?? resultPreview ?? undefined;
+
+    // Ensure arguments is a string when available so the UI can render it
+    // consistently (the server may send structured objects).
+    let argumentsString: string | undefined;
+    if (typeof meta.arguments === 'string') {
+      argumentsString = meta.arguments;
+    } else if (meta.arguments != null) {
+      try {
+        argumentsString = JSON.stringify(meta.arguments);
+      } catch {
+        argumentsString = undefined;
+      }
+    }
+
+    return {
+      ...node,
+      metadata: {
+        ...meta,
+        preview,
+        command: command ?? (typeof meta.command === 'string' ? meta.command : undefined),
+        arguments: argumentsString ?? meta.arguments,
+      },
+    } as typeof node;
+  });
+
+  return { ...input, toolInvocations };
+}
 
 interface CollapsiblePanelProps {
   id: string;
@@ -230,8 +286,17 @@ function ToolTree({ nodes }: { nodes: OrchestratorMetadataDto['toolInvocations']
             : typeof node.metadata?.preview === 'string'
               ? node.metadata.preview
               : null;
-        const executedAt = formatDateTime(node.metadata?.createdAt);
-        const args = typeof node.metadata?.arguments === 'string' ? node.metadata.arguments : null;
+        const executedAtRaw = node.metadata?.createdAt;
+        const executedAt = formatDateTime(executedAtRaw);
+        const executedAtDisplay = executedAt ?? '—';
+
+        const rawArgs = node.metadata?.arguments ?? node.metadata?.args ?? null;
+        const args =
+          rawArgs == null
+            ? '—'
+            : typeof rawArgs === 'string'
+              ? rawArgs
+              : (summarizeObject(rawArgs) ?? '—');
 
         return (
           <li key={node.id} className="rounded-xl border border-muted/40 bg-muted/10 p-4">
@@ -255,17 +320,13 @@ function ToolTree({ nodes }: { nodes: OrchestratorMetadataDto['toolInvocations']
               </Box>
             ) : null}
 
-            <Flex align="center" justify={args ? 'between' : 'start'} className="mt-3" gap="2">
-              {executedAt ? (
-                <Text size="1" color="gray">
-                  Captured {executedAt}
-                </Text>
-              ) : null}
-              {args ? (
-                <Text size="1" color="gray">
-                  Args: {args}
-                </Text>
-              ) : null}
+            <Flex align="center" justify="between" className="mt-3" gap="2">
+              <Text size="1" color="gray">
+                Captured {executedAtDisplay}
+              </Text>
+              <Text size="1" color="gray">
+                Args: {args}
+              </Text>
             </Flex>
 
             {node.children.length > 0 ? (
@@ -501,16 +562,25 @@ export function ChatPage(): JSX.Element {
                 const id = String(p.id ?? `call_${Date.now()}`);
                 const name = String(p.name ?? 'unknown');
                 const status = (p.status ?? ('pending' as ToolCallStatusDto)) as ToolCallStatusDto;
-                const metadata =
+                const existingMeta = base.toolInvocations.find((t) => t.id === id)?.metadata ?? {};
+                const createdAt = p.timestamp ?? new Date().toISOString();
+                // Normalize arguments into either a preview/command or arguments string
+                const argMeta =
                   typeof p.arguments === 'string'
-                    ? {
-                        ...(base.toolInvocations.find((t) => t.id === id)?.metadata ?? {}),
-                        arguments: p.arguments,
-                      }
-                    : {
-                        ...(base.toolInvocations.find((t) => t.id === id)?.metadata ?? {}),
-                        ...(p.arguments ?? {}),
-                      };
+                    ? { arguments: p.arguments, command: p.arguments, preview: p.arguments }
+                    : (() => {
+                        const summary = summarizeObject(p.arguments);
+                        return {
+                          arguments: summary ?? JSON.stringify(p.arguments),
+                          preview: summary ?? undefined,
+                        };
+                      })();
+
+                const metadata = {
+                  ...existingMeta,
+                  ...argMeta,
+                  createdAt,
+                };
 
                 const existingIndex = base.toolInvocations.findIndex((n) => n.id === id);
                 if (existingIndex >= 0) {
@@ -561,6 +631,7 @@ export function ChatPage(): JSX.Element {
                 const id = String(p.id ?? `call_${Date.now()}`);
                 const status = (p.status ??
                   ('completed' as ToolCallStatusDto)) as ToolCallStatusDto;
+                const createdAt = p.timestamp ?? new Date().toISOString();
                 const resultMeta =
                   typeof p.result === 'string' ? { result: p.result } : { ...(p.result ?? {}) };
 
@@ -580,12 +651,25 @@ export function ChatPage(): JSX.Element {
                 }
 
                 // If we don't have the call yet, create a completed node so the
-                // tree shows it immediately.
+                // tree shows it immediately. Prefer a preview derived from
+                // the original arguments/command when available so the tree
+                // retains the context (args/command) rather than only the
+                // final output.
+                const previewFromArgs =
+                  typeof p.arguments === 'string'
+                    ? p.arguments
+                    : (summarizeObject(p.arguments) ?? undefined);
+
                 const node = {
                   id,
                   name: String(p.name ?? 'unknown'),
                   status,
-                  metadata: resultMeta,
+                  metadata: {
+                    ...resultMeta,
+                    preview: previewFromArgs ?? summarizeObject(p.result) ?? undefined,
+                    arguments: typeof p.arguments === 'string' ? p.arguments : p.arguments,
+                    createdAt,
+                  },
                   children: [],
                 };
 
@@ -615,6 +699,7 @@ export function ChatPage(): JSX.Element {
             toolInvocations: [],
             agentHierarchy: [],
           }),
+    select: (data) => normalizeOrchestratorMetadata(data ?? null),
     refetchInterval: 10_000,
   });
 

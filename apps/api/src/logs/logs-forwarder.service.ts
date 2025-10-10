@@ -158,6 +158,16 @@ export class LogsForwarderService implements OnModuleInit, OnModuleDestroy {
                     id,
                     name,
                 };
+                // Prefer any timestamp present in the trace payload (data or raw),
+                // otherwise fall back to the current time.
+                const rawTimestamp = (data && (data.timestamp ?? data.time ?? data.ts)) ?? (raw.timestamp ?? raw.time ?? raw.ts);
+                let timestampIso: string | null = null;
+                if (typeof rawTimestamp === 'number') {
+                    try { timestampIso = new Date(rawTimestamp).toISOString(); } catch { timestampIso = null; }
+                } else if (typeof rawTimestamp === 'string') {
+                    timestampIso = rawTimestamp;
+                }
+                forwardPayload.timestamp = timestampIso ?? new Date().toISOString();
                 if (phase === "tool_call") {
                     (forwardPayload as any).arguments = safeStringify(args) ?? null;
                 } else {
