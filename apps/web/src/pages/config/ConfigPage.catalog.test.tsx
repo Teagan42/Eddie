@@ -20,8 +20,8 @@ Object.defineProperty(globalThis, "ResizeObserver", {
 
 vi.mock("@monaco-editor/react", () => ({
   __esModule: true,
-  default: () => <div data-testid="monaco-editor" />, // eslint-disable-line react/display-name
-  DiffEditor: () => <div data-testid="monaco-diff-editor" />, // eslint-disable-line react/display-name
+  default: () => <div data-testid="monaco-editor" />,
+  DiffEditor: () => <div data-testid="monaco-diff-editor" />,
   useMonaco: () => null,
 }));
 

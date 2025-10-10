@@ -321,7 +321,10 @@ export function ConfigPage(): JSX.Element {
 
   const currentConfig = previewData?.config;
   const effectiveInput = parsedInput ?? {};
-  const providerCatalog = providerCatalogQuery.data ?? [];
+  const providerCatalog = useMemo(
+    () => providerCatalogQuery.data ?? [],
+    [providerCatalogQuery.data]
+  );
   const selectedProviderName = effectiveInput.provider?.name ?? null;
   const catalogModels = useMemo(() => {
     if (!selectedProviderName) {

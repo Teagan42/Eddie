@@ -8,12 +8,14 @@ import { ChatSessionsController } from "./chat-sessions.controller";
 import { ChatSessionsGateway } from "./chat-sessions.gateway";
 import { ChatSessionsEngineListener } from "./chat-sessions-engine.listener";
 import { ChatSessionStreamRendererService } from "./chat-session-stream-renderer.service";
+import { ChatMessagesGateway } from "./chat-messages.gateway";
 
 @Module({
   imports: [EngineModule, TracesModule, LogsModule],
   providers: [
     ChatSessionsService,
     ChatSessionsGateway,
+    ChatMessagesGateway,
     ChatSessionsEngineListener,
     {
       provide: StreamRendererService,

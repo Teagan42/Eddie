@@ -4,6 +4,8 @@ import { StreamRendererService } from "@eddie/io";
 import type { StreamEvent } from "@eddie/types";
 import { ChatSessionsService } from "./chat-sessions.service";
 import { ChatMessageRole } from "./dto/create-chat-message.dto";
+import { ChatMessagesGateway } from "./chat-messages.gateway";
+import type { ChatMessageDto } from "./dto/chat-session.dto";
 
 interface StreamState {
   sessionId: string;
@@ -21,7 +23,10 @@ export interface StreamCaptureResult<T> {
 export class ChatSessionStreamRendererService extends StreamRendererService {
   private readonly storage = new AsyncLocalStorage<StreamState>();
 
-  constructor(private readonly chatSessions: ChatSessionsService) {
+  constructor(
+    private readonly chatSessions: ChatSessionsService,
+    private readonly messagesGateway: ChatMessagesGateway
+  ) {
     super();
   }
 
@@ -71,11 +76,12 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
         }
 
         const content = state.buffer.trimEnd();
-        this.chatSessions.updateMessageContent(
+        const message = this.chatSessions.updateMessageContent(
           state.sessionId,
           state.messageId,
           content
         );
+        this.emitPartial(message);
         break;
       }
       default:
@@ -84,19 +90,29 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
   }
 
   private upsertMessage(state: StreamState): void {
+    let message: ChatMessageDto;
     if (!state.messageId) {
-      const { message } = this.chatSessions.addMessage(state.sessionId, {
+      const result = this.chatSessions.addMessage(state.sessionId, {
         role: ChatMessageRole.Assistant,
         content: state.buffer,
       });
+      message = result.message;
       state.messageId = message.id;
+      this.emitPartial(message);
       return;
     }
 
-    this.chatSessions.updateMessageContent(
+    message = this.chatSessions.updateMessageContent(
       state.sessionId,
       state.messageId,
       state.buffer
     );
+    this.emitPartial(message);
+  }
+
+  private emitPartial(message: ChatMessageDto | undefined): void {
+    if (message) {
+      this.messagesGateway.emitPartial(message);
+    }
   }
 }

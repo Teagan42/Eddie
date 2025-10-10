@@ -53,6 +53,8 @@ import {
   getSurfaceLayoutClasses,
   SURFACE_CONTENT_CLASS,
 } from "@/styles/surfaces";
+import { sortSessions, upsertMessage } from "./chat-utils";
+import { useChatMessagesRealtime } from "./useChatMessagesRealtime";
 
 type BadgeColor = ComponentProps<typeof Badge>["color"];
 
@@ -147,15 +149,6 @@ const PANEL_IDS = {
 type ChatPreferences = NonNullable<LayoutPreferencesDto["chat"]>;
 
 type ComposerRole = CreateChatMessageDto["role"];
-
-function sortSessions(sessions: ChatSessionDto[]): ChatSessionDto[] {
-  return sessions
-    .slice()
-    .sort(
-      (a, b) =>
-        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-    );
-}
 
 interface CollapsiblePanelProps {
   id: string;
@@ -351,6 +344,7 @@ export function ChatPage(): JSX.Element {
   const api = useApi();
   const queryClient = useQueryClient();
   const { preferences, updatePreferences } = useLayoutPreferences();
+  useChatMessagesRealtime(api);
   const [composerValue, setComposerValue] = useState("");
   const [composerRole, setComposerRole] = useState<ComposerRole>("user");
   const [templateSelection, setTemplateSelection] = useState<string>("");
@@ -473,6 +467,7 @@ export function ChatPage(): JSX.Element {
     };
   }, [api, queryClient]);
 
+
   const orchestratorQuery = useQuery({
     queryKey: ["orchestrator-metadata", selectedSessionId],
     enabled: Boolean(selectedSessionId),
@@ -506,15 +501,7 @@ export function ChatPage(): JSX.Element {
       setComposerValue("");
       queryClient.setQueryData<ChatMessageDto[]>(
         ["chat-session", message.sessionId, "messages"],
-        (previous = []) => {
-          const next = previous.some((existing) => existing.id === message.id)
-            ? previous
-            : [...previous, message];
-          return next.sort(
-            (a, b) =>
-              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-          );
-        }
+        (previous = []) => upsertMessage(previous, message)
       );
     },
   });
@@ -532,7 +519,10 @@ export function ChatPage(): JSX.Element {
     staleTime: 300_000,
   });
 
-  const providerCatalog = providerCatalogQuery.data ?? [];
+  const providerCatalog = useMemo(
+    () => providerCatalogQuery.data ?? [],
+    [providerCatalogQuery.data]
+  );
 
   const activeSettings = selectedSessionId
     ? sessionSettings[selectedSessionId] ?? {}
