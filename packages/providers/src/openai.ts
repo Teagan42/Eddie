@@ -386,11 +386,28 @@ export class OpenAIAdapterFactory implements ProviderAdapterFactory {
   readonly name = "openai";
 
   create(config: ProviderConfig): ProviderAdapter {
-    const adapterConfig: OpenAIConfig = {
+    return new OpenAIAdapter(this.toAdapterConfig(config));
+  }
+
+  async listModels(config: ProviderConfig): Promise<string[]> {
+    const adapterConfig = this.toAdapterConfig(config);
+    const client = new OpenAI({
+      apiKey: adapterConfig.apiKey || process.env.OPENAI_API_KEY || undefined,
+      baseURL: adapterConfig.baseUrl,
+    });
+
+    const response = await client.models.list();
+    const data = Array.isArray(response.data) ? response.data : [];
+
+    return data
+      .map((item) => (typeof item?.id === "string" ? item.id : undefined))
+      .filter((id): id is string => typeof id === "string");
+  }
+
+  private toAdapterConfig(config: ProviderConfig): OpenAIConfig {
+    return {
       baseUrl: typeof config.baseUrl === "string" ? config.baseUrl : undefined,
       apiKey: typeof config.apiKey === "string" ? config.apiKey : undefined,
     };
-
-    return new OpenAIAdapter(adapterConfig);
   }
 }

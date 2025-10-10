@@ -146,11 +146,36 @@ export class AnthropicAdapterFactory implements ProviderAdapterFactory {
   readonly name = "anthropic";
 
   create(config: ProviderConfig): ProviderAdapter {
-    const adapterConfig: AnthropicConfig = {
+    return new AnthropicAdapter(this.toAdapterConfig(config));
+  }
+
+  async listModels(config: ProviderConfig): Promise<string[]> {
+    const adapterConfig = this.toAdapterConfig(config);
+    const baseUrl = (adapterConfig.baseUrl ?? "https://api.anthropic.com").replace(/\/$/, "");
+    const response = await fetch(`${baseUrl}/v1/models`, {
+      method: "GET",
+      headers: {
+        "x-api-key": adapterConfig.apiKey ?? process.env.ANTHROPIC_API_KEY ?? "",
+        "anthropic-version": "2023-06-01",
+      },
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const body = (await response.json()) as { data?: Array<{ id?: unknown }> };
+    const data = Array.isArray(body.data) ? body.data : [];
+
+    return data
+      .map((item) => (typeof item?.id === "string" ? item.id : undefined))
+      .filter((id): id is string => typeof id === "string");
+  }
+
+  private toAdapterConfig(config: ProviderConfig): AnthropicConfig {
+    return {
       baseUrl: typeof config.baseUrl === "string" ? config.baseUrl : undefined,
       apiKey: typeof config.apiKey === "string" ? config.apiKey : undefined,
     };
-
-    return new AnthropicAdapter(adapterConfig);
   }
 }
