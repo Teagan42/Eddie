@@ -2,7 +2,7 @@ import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ChatMessageDto } from "@eddie/api-client";
-import { cn } from "@/components/lib/utils";
+import { cn } from "@/vendor/lib/utils";
 
 const CODE_BLOCK_CONTAINER_CLASSES =
   "mt-4 overflow-x-auto rounded-lg bg-slate-900/70 p-4 font-mono text-sm";

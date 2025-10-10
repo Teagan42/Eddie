@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { Badge } from "@radix-ui/themes";
-import { cn } from "@/components/lib/utils";
+import { cn } from "@/vendor/lib/utils";
 
 export interface NavigationLinkProps {
   to: string;

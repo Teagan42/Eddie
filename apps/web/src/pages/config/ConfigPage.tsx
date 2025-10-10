@@ -45,7 +45,7 @@ import {
 } from "@eddie/api-client";
 import { useApi } from "@/api/api-provider";
 import { Panel } from "@/components";
-import { cn } from "@/components/lib/utils";
+import { cn } from "@/vendor/lib/utils";
 import {
   getSurfaceLayoutClasses,
   SURFACE_CONTENT_CLASS,
