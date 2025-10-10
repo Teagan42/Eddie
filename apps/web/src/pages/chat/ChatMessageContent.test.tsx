@@ -70,4 +70,28 @@ describe("ChatMessageContent", () => {
       "rounded bg-slate-900/70 px-1 font-mono text-sm text-slate-100"
     );
   });
+
+  it("applies data table styling to markdown tables", () => {
+    render(
+      <ChatMessageContent
+        messageRole="assistant"
+        content={"| Column | Value |\n| --- | --- |\n| Hello | World |"}
+      />
+    );
+
+    const table = screen.getByRole("table");
+    const wrapper = table.parentElement;
+    const headerCell = screen.getByRole("columnheader", { name: "Column" });
+    const bodyCell = screen.getByRole("cell", { name: "World" });
+
+    expect(wrapper).not.toBeNull();
+    expect(wrapper).toHaveClass("relative w-full overflow-auto");
+    expect(table).toHaveClass("w-full caption-bottom text-sm");
+    expect(headerCell).toHaveClass(
+      "h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+    );
+    expect(bodyCell).toHaveClass(
+      "p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+    );
+  });
 });
