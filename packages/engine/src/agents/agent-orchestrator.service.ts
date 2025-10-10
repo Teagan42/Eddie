@@ -80,9 +80,13 @@ export class AgentOrchestratorService {
 
   constructor(
     private readonly agentInvocationFactory: AgentInvocationFactory,
-    private readonly streamRenderer: StreamRendererService,
+    private streamRenderer: StreamRendererService,
     private readonly traceWriter: JsonlWriterService
   ) {}
+
+  setStreamRenderer(streamRenderer: StreamRendererService): void {
+    this.streamRenderer = streamRenderer;
+  }
 
   async runAgent(
     request: AgentRunRequest,

@@ -34,7 +34,9 @@ export class ChatSessionsEngineListener
     private readonly traces: TracesService,
     private readonly logs: LogsService,
     private readonly streamRenderer: ChatSessionStreamRendererService
-  ) {}
+  ) {
+    this.engine.setStreamRenderer(this.streamRenderer);
+  }
 
   onModuleInit(): void {
     this.unregister = this.chatSessions.registerListener(this);

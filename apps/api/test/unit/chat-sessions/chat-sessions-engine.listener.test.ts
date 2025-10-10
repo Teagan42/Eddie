@@ -27,11 +27,13 @@ describe("ChatSessionsEngineListener", () => {
   const updateMessageContent = vi.fn();
   const saveAgentInvocations = vi.fn();
   const capture = vi.fn();
+  let engineSetStreamRenderer: ReturnType<typeof vi.fn>;
   let engineRun: ReturnType<typeof vi.fn>;
   let tracesCreate: ReturnType<typeof vi.fn>;
   let tracesUpdateStatus: ReturnType<typeof vi.fn>;
   let logsAppend: ReturnType<typeof vi.fn>;
   let chatSessions: ChatSessionsService;
+  let streamRenderer: ChatSessionStreamRendererService;
   let listener: ChatSessionsEngineListener;
 
   beforeEach(() => {
@@ -51,8 +53,10 @@ describe("ChatSessionsEngineListener", () => {
     } as unknown as ChatSessionsService;
 
     engineRun = vi.fn();
+    engineSetStreamRenderer = vi.fn();
     const engine = {
       run: engineRun,
+      setStreamRenderer: engineSetStreamRenderer,
     } as unknown as EngineService;
 
     tracesCreate = vi.fn();
@@ -75,7 +79,7 @@ describe("ChatSessionsEngineListener", () => {
       append: logsAppend,
     } as unknown as LogsService;
 
-    const streamRenderer = {
+    streamRenderer = {
       capture,
     } as unknown as ChatSessionStreamRendererService;
 
@@ -98,6 +102,10 @@ describe("ChatSessionsEngineListener", () => {
 
     listener.onModuleDestroy();
     expect(unregister).toHaveBeenCalled();
+  });
+
+  it("registers the stream renderer with the engine", () => {
+    expect(engineSetStreamRenderer).toHaveBeenCalledWith(streamRenderer);
   });
 
   it("ignores assistant messages", () => {
