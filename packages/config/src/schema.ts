@@ -387,6 +387,41 @@ const MCP_AUTH_SCHEMA: JSONSchema7 = {
   ],
 };
 
+const MCP_STREAMABLE_HTTP_RECONNECTION_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    maxReconnectionDelay: { type: "integer", minimum: 0 },
+    initialReconnectionDelay: { type: "integer", minimum: 0 },
+    reconnectionDelayGrowFactor: { type: "number", minimum: 0 },
+    maxRetries: { type: "integer", minimum: 0 },
+  },
+};
+
+const MCP_STREAMABLE_HTTP_TRANSPORT_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type"],
+  properties: {
+    type: { const: "streamable-http" },
+    sessionId: { type: "string", minLength: 1 },
+    reconnection: MCP_STREAMABLE_HTTP_RECONNECTION_SCHEMA,
+  },
+};
+
+const MCP_SSE_TRANSPORT_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type"],
+  properties: {
+    type: { const: "sse" },
+  },
+};
+
+const MCP_TRANSPORT_SCHEMA: JSONSchema7 = {
+  oneOf: [MCP_STREAMABLE_HTTP_TRANSPORT_SCHEMA, MCP_SSE_TRANSPORT_SCHEMA],
+};
+
 const MCP_TOOL_SOURCE_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
@@ -415,6 +450,7 @@ const MCP_TOOL_SOURCE_SCHEMA: JSONSchema7 = {
         },
       },
     },
+    transport: MCP_TRANSPORT_SCHEMA,
   },
 };
 

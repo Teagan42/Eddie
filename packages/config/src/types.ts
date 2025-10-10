@@ -259,6 +259,27 @@ export interface MCPToolSourceCapabilitiesConfig {
   [key: string]: unknown;
 }
 
+export interface MCPStreamableHttpReconnectionConfig {
+  maxReconnectionDelay?: number;
+  initialReconnectionDelay?: number;
+  reconnectionDelayGrowFactor?: number;
+  maxRetries?: number;
+}
+
+export interface MCPStreamableHttpTransportConfig {
+  type: "streamable-http";
+  sessionId?: string;
+  reconnection?: MCPStreamableHttpReconnectionConfig;
+}
+
+export interface MCPSseTransportConfig {
+  type: "sse";
+}
+
+export type MCPTransportConfig =
+  | MCPStreamableHttpTransportConfig
+  | MCPSseTransportConfig;
+
 export interface MCPToolSourceConfig {
   id: string;
   type: "mcp";
@@ -267,6 +288,7 @@ export interface MCPToolSourceConfig {
   headers?: Record<string, string>;
   auth?: MCPAuthConfig;
   capabilities?: MCPToolSourceCapabilitiesConfig;
+  transport?: MCPTransportConfig;
 }
 
 export type ToolSourceConfig = MCPToolSourceConfig;
