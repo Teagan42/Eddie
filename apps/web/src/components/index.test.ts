@@ -1,17 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  AppHeader,
-  AuroraBackground,
-  NavigationLink,
-  Panel,
-} from "./index";
+import * as components from "./index";
+import * as common from "./common";
+import * as layout from "./layout";
+import * as navigation from "./navigation";
 
 describe("components barrel", () => {
-  it("exposes common layout and navigation elements", () => {
-    expect(typeof Panel).toBe("function");
-    expect(typeof AuroraBackground).toBe("function");
-    expect(typeof AppHeader).toBe("function");
-    expect(typeof NavigationLink).toBe("function");
+  it("exposes grouped layout, navigation, and common primitives", () => {
+    expect(typeof common.Panel).toBe("function");
+    expect(typeof common.AuroraBackground).toBe("function");
+    expect(typeof layout.AppHeader).toBe("function");
+    expect(typeof navigation.NavigationLink).toBe("function");
+  });
+
+  it("re-exports grouped primitives from the root barrel", () => {
+    expect(components.Panel).toBe(common.Panel);
+    expect(components.AuroraBackground).toBe(common.AuroraBackground);
+    expect(components.AppHeader).toBe(layout.AppHeader);
+    expect(components.NavigationLink).toBe(navigation.NavigationLink);
   });
 });
