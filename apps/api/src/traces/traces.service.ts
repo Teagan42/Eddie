@@ -23,44 +23,6 @@ export class TracesService {
   private readonly traces = new Map<string, TraceEntity>();
   private readonly listeners = new Set<TracesListener>();
 
-  constructor() {
-    const now = Date.now();
-    const seeds: Array<Omit<TraceEntity, "id" | "createdAt" | "updatedAt">> = [
-      {
-        name: "bootstrap",
-        status: "completed",
-        durationMs: 42,
-        metadata: { source: "seed" },
-      },
-      {
-        name: "context hydration",
-        status: "running",
-        durationMs: 128_000,
-        metadata: { stage: "vectorize", dataset: "docs/" },
-      },
-      {
-        name: "agent orchestration",
-        status: "pending",
-        metadata: { stage: "awaiting command" },
-      },
-    ];
-
-    seeds.forEach((seed, index) => {
-      const createdAt = new Date(now - (seeds.length - index) * 60_000);
-      const updatedAt =
-        seed.status === "pending"
-          ? createdAt
-          : new Date(createdAt.getTime() + (seed.durationMs ?? 90_000));
-      const entity: TraceEntity = {
-        id: randomUUID(),
-        ...seed,
-        createdAt,
-        updatedAt,
-      };
-      this.traces.set(entity.id, entity);
-    });
-  }
-
   registerListener(listener: TracesListener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
