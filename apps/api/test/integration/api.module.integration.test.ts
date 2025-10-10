@@ -3,6 +3,7 @@ import { INestApplication } from "@nestjs/common";
 import type { ExecutionContext } from "@nestjs/common";
 import type { Request } from "express";
 import { Test } from "@nestjs/testing";
+import { WsAdapter } from "@nestjs/platform-ws";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ConfigService, type EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
@@ -31,6 +32,8 @@ const createExecutionContext = (request: Partial<Request>): ExecutionContext =>
     getHandler: () => ({}),
     getClass: () => ({}),
   }) as unknown as ExecutionContext;
+
+const WS_ADAPTER_PACKAGE = "@nestjs/platform-ws";
 
 describe("ApiModule integration", () => {
   let app: INestApplication;
@@ -110,6 +113,7 @@ describe("ApiModule integration", () => {
   } as unknown as EddieConfig;
 
   beforeEach(async () => {
+    process.env.NEST_DEFAULT_WS_ADAPTER = WS_ADAPTER_PACKAGE;
     const configServiceMock = {
       load: vi.fn().mockResolvedValue(config),
     } as unknown as ConfigService;
@@ -131,6 +135,7 @@ describe("ApiModule integration", () => {
       configure: vi.fn(),
       getLogger: vi.fn((scope?: string) => getScopedLogger(scope)),
       withBindings: vi.fn(() => getScopedLogger()),
+      registerListener: vi.fn(() => vi.fn()),
       reset: vi.fn(),
     } as unknown as LoggerService;
 
@@ -257,6 +262,7 @@ describe("ApiModule integration", () => {
       .compile();
 
     app = moduleRef.createNestApplication();
+    app.useWebSocketAdapter(new WsAdapter(app));
     await app.init();
 
     configService = configServiceMock;
@@ -264,6 +270,7 @@ describe("ApiModule integration", () => {
   });
 
   afterEach(async () => {
+    delete process.env.NEST_DEFAULT_WS_ADAPTER;
     await app?.close();
     vi.clearAllMocks();
   });
