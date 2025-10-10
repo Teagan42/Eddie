@@ -140,15 +140,38 @@ export class OrchestratorMetadataService {
     agent: AgentInvocationSnapshot
   ): ToolCallNodeDto[] {
     const nodes: ToolCallNodeDto[] = [];
-    const pending = new Map<string, { name?: string }>();
+    const pending = new Map<string, ToolCallNodeDto>();
 
     for (const message of agent.messages) {
-      if (!message.toolCallId) {
+      const toolCallId = message.toolCallId;
+      if (!toolCallId) {
         continue;
       }
 
       if (message.role === ChatMessageRole.Assistant) {
-        pending.set(message.toolCallId, { name: message.name });
+        const node = pending.get(toolCallId) ?? new ToolCallNodeDto();
+        node.id = toolCallId;
+        node.name =
+          node.name ??
+          message.name ??
+          this.extractToolName(message.content);
+        node.status = ToolCallStatusDto.Pending;
+        const payload = this.parseToolPayload(message.content);
+        node.metadata = {
+          ...(node.metadata ?? {}),
+          preview: payload.preview,
+          ...(toolCallId ? { toolCallId } : {}),
+          ...(node.metadata?.toolName
+            ? {}
+            : message.name
+            ? { toolName: message.name }
+            : {}),
+        };
+        node.children = node.children ?? [];
+        if (!pending.has(toolCallId)) {
+          nodes.push(node);
+        }
+        pending.set(toolCallId, node);
         continue;
       }
 
@@ -156,20 +179,43 @@ export class OrchestratorMetadataService {
         continue;
       }
 
+      const payload = this.parseToolPayload(message.content);
+      const existing = pending.get(toolCallId);
+      if (existing) {
+        existing.status = ToolCallStatusDto.Completed;
+        existing.name =
+          existing.name ??
+          message.name ??
+          this.extractToolName(message.content);
+        existing.metadata = {
+          ...(existing.metadata ?? {}),
+          preview: payload.preview,
+          ...(payload.isJson
+            ? { payload: payload.value }
+            : { command: message.content }),
+          ...(toolCallId ? { toolCallId } : {}),
+          ...(existing.metadata?.toolName
+            ? {}
+            : message.name
+            ? { toolName: message.name }
+            : {}),
+        };
+        pending.delete(toolCallId);
+        continue;
+      }
+
       const node = new ToolCallNodeDto();
-      node.id = message.toolCallId;
-      const pendingEntry = pending.get(message.toolCallId);
-      const resolvedToolName = pendingEntry?.name ?? message.name ?? null;
+      node.id = toolCallId;
+      const resolvedToolName = message.name ?? null;
       node.name =
         resolvedToolName ?? this.extractToolName(message.content);
       node.status = ToolCallStatusDto.Completed;
-      const payload = this.parseToolPayload(message.content);
       node.metadata = {
         preview: payload.preview,
         ...(payload.isJson
           ? { payload: payload.value }
           : { command: message.content }),
-        ...(message.toolCallId ? { toolCallId: message.toolCallId } : {}),
+        ...(toolCallId ? { toolCallId } : {}),
         ...(resolvedToolName ? { toolName: resolvedToolName } : {}),
       };
       node.children = [];

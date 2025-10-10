@@ -6,6 +6,7 @@ import type {
   ChatSessionDto,
 } from "../../../src/chat-sessions/dto/chat-session.dto";
 import { OrchestratorMetadataService } from "../../../src/orchestrator/orchestrator.service";
+import { ToolCallStatusDto } from "../../../src/orchestrator/dto/orchestrator-metadata.dto";
 
 describe("OrchestratorMetadataService", () => {
   it("includes tool call nodes when tool messages are present", () => {
@@ -158,5 +159,163 @@ describe("OrchestratorMetadataService", () => {
     const [childNode] = spawnNode?.children ?? [];
     expect(childNode?.id).toBe("call-bash");
     expect(childNode?.name).toBe("bash");
+  });
+
+  it("marks agent tool requests without responses as pending", () => {
+    const session: ChatSessionDto = {
+      id: "session-pending",
+      title: "Pending tool calls",
+      status: "active",
+      createdAt: new Date("2024-03-01T00:00:00.000Z").toISOString(),
+      updatedAt: new Date("2024-03-01T00:00:00.000Z").toISOString(),
+    };
+
+    const agentInvocations = [
+      {
+        id: "manager",
+        messages: [
+          {
+            role: ChatMessageRole.Assistant,
+            content: JSON.stringify({
+              schema: "eddie.tool.command.request.v1",
+              content: "List workspace files",
+            }),
+            name: "bash",
+            toolCallId: "call-pending",
+          },
+        ],
+        children: [],
+      },
+    ];
+
+    const chatSessions = {
+      getSession: () => session,
+      listMessages: () => [],
+      listAgentInvocations: () => agentInvocations,
+    } as unknown as ChatSessionsService;
+
+    const service = new OrchestratorMetadataService(chatSessions);
+
+    const metadata = service.getMetadata(session.id);
+    const [pendingNode] = metadata.toolInvocations;
+
+    expect(pendingNode?.status).toBe(ToolCallStatusDto.Pending);
+    expect(pendingNode?.metadata?.preview).toContain("List workspace files");
+    expect(pendingNode?.metadata?.toolName).toBe("bash");
+    expect(pendingNode?.metadata?.payload).toBeUndefined();
+  });
+
+  it("marks agent tool responses as completed when paired with tool output", () => {
+    const session: ChatSessionDto = {
+      id: "session-completed",
+      title: "Completed tool calls",
+      status: "active",
+      createdAt: new Date("2024-03-02T00:00:00.000Z").toISOString(),
+      updatedAt: new Date("2024-03-02T00:00:00.000Z").toISOString(),
+    };
+
+    const agentInvocations = [
+      {
+        id: "manager",
+        messages: [
+          {
+            role: ChatMessageRole.Assistant,
+            content: JSON.stringify({
+              schema: "eddie.tool.command.request.v1",
+              content: "List workspace files",
+            }),
+            name: "bash",
+            toolCallId: "call-complete",
+          },
+          {
+            role: ChatMessageRole.Tool,
+            content: JSON.stringify({
+              schema: "eddie.tool.command.result.v1",
+              content: "README.md\npackage.json",
+            }),
+            name: "bash",
+            toolCallId: "call-complete",
+          },
+        ],
+        children: [],
+      },
+    ];
+
+    const chatSessions = {
+      getSession: () => session,
+      listMessages: () => [],
+      listAgentInvocations: () => agentInvocations,
+    } as unknown as ChatSessionsService;
+
+    const service = new OrchestratorMetadataService(chatSessions);
+
+    const metadata = service.getMetadata(session.id);
+    const [completedNode] = metadata.toolInvocations;
+
+    expect(completedNode?.status).toBe(ToolCallStatusDto.Completed);
+    expect(completedNode?.metadata?.payload).toEqual({
+      schema: "eddie.tool.command.result.v1",
+      content: "README.md\npackage.json",
+    });
+  });
+
+  it("includes both pending and completed tool calls when mixed", () => {
+    const session: ChatSessionDto = {
+      id: "session-mixed",
+      title: "Mixed tool calls",
+      status: "active",
+      createdAt: new Date("2024-03-03T00:00:00.000Z").toISOString(),
+      updatedAt: new Date("2024-03-03T00:00:00.000Z").toISOString(),
+    };
+
+    const agentInvocations = [
+      {
+        id: "manager",
+        messages: [
+          {
+            role: ChatMessageRole.Assistant,
+            content: JSON.stringify({
+              schema: "eddie.tool.command.request.v1",
+              content: "List workspace files",
+            }),
+            name: "bash",
+            toolCallId: "call-pending",
+          },
+          {
+            role: ChatMessageRole.Assistant,
+            content: JSON.stringify({
+              schema: "eddie.tool.command.request.v1",
+              content: "Summarise README",
+            }),
+            name: "summarise",
+            toolCallId: "call-complete",
+          },
+          {
+            role: ChatMessageRole.Tool,
+            content: JSON.stringify({
+              schema: "eddie.tool.command.result.v1",
+              content: "README summary",
+            }),
+            name: "summarise",
+            toolCallId: "call-complete",
+          },
+        ],
+        children: [],
+      },
+    ];
+
+    const chatSessions = {
+      getSession: () => session,
+      listMessages: () => [],
+      listAgentInvocations: () => agentInvocations,
+    } as unknown as ChatSessionsService;
+
+    const service = new OrchestratorMetadataService(chatSessions);
+
+    const metadata = service.getMetadata(session.id);
+    const statuses = metadata.toolInvocations.map((node) => node.status);
+
+    expect(statuses).toContain(ToolCallStatusDto.Pending);
+    expect(statuses).toContain(ToolCallStatusDto.Completed);
   });
 });
