@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: workspace-matrix
     strategy:
-      matrix: ${{ fromJson(needs.workspace-matrix.outputs.lint) }}
+      matrix: ${{ fromJson(needs['workspace-matrix'].outputs.lint) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -75,7 +75,7 @@ jobs:
       - workspace-matrix
       - lint
     strategy:
-      matrix: ${{ fromJson(needs.workspace-matrix.outputs.build) }}
+      matrix: ${{ fromJson(needs['workspace-matrix'].outputs.build) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -119,7 +119,7 @@ jobs:
       - workspace-matrix
       - build
     strategy:
-      matrix: ${{ fromJson(needs.workspace-matrix.outputs.test) }}
+      matrix: ${{ fromJson(needs['workspace-matrix'].outputs.test) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
