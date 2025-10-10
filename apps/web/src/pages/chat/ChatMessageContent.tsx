@@ -1,5 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { ChatMessageDto } from "@eddie/api-client";
 import { cn } from "@/components/lib/utils";
 
@@ -110,7 +111,12 @@ export function ChatMessageContent({
       data-chat-role={messageRole}
       data-testid="chat-message-content"
     >
-      <ReactMarkdown components={markdownComponents}>{content}</ReactMarkdown>
+      <ReactMarkdown
+        components={markdownComponents}
+        remarkPlugins={[remarkGfm]}
+      >
+        {content}
+      </ReactMarkdown>
     </div>
   );
 }
