@@ -78,7 +78,7 @@ vi.mock("@/api/api-provider", () => ({
   }),
 }));
 
-function renderChatPage(): void {
+function renderChatPage(): QueryClient {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -90,10 +90,13 @@ function renderChatPage(): void {
       </QueryClientProvider>
     </Theme>
   );
+
+  return client;
 }
 
 describe("ChatPage tool call tree realtime updates", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
     traceCreatedHandler = null;
     traceUpdatedHandler = null;
@@ -156,5 +159,25 @@ describe("ChatPage tool call tree realtime updates", () => {
     });
 
     await waitFor(() => expect(getMetadataMock).toHaveBeenCalledTimes(3));
+  });
+
+  it("ignores trace events that do not include a session id", async () => {
+    const client = renderChatPage();
+    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
+
+    await waitFor(() =>
+      expect(typeof traceCreatedHandler).toBe("function")
+    );
+
+    traceCreatedHandler?.({
+      id: "trace-2",
+      name: "tool-call",
+      status: "running",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    expect(invalidateSpy).not.toHaveBeenCalled();
+    expect(getMetadataMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -359,6 +359,19 @@ export function ChatPage(): JSX.Element {
     [sessionsQuery.data]
   );
 
+  const invalidateOrchestratorMetadata = useCallback(
+    (sessionId?: string) => {
+      if (!sessionId) {
+        return;
+      }
+
+      queryClient.invalidateQueries({
+        queryKey: ["orchestrator-metadata", sessionId],
+      });
+    },
+    [queryClient]
+  );
+
   const applyChatUpdate = useCallback(
     (
       updater: (
@@ -461,21 +474,17 @@ export function ChatPage(): JSX.Element {
         );
       }),
       api.sockets.traces.onTraceCreated((trace) => {
-        queryClient.invalidateQueries({
-          queryKey: ["orchestrator-metadata", trace.sessionId],
-        });
+        invalidateOrchestratorMetadata(trace.sessionId);
       }),
       api.sockets.traces.onTraceUpdated((trace) => {
-        queryClient.invalidateQueries({
-          queryKey: ["orchestrator-metadata", trace.sessionId],
-        });
+        invalidateOrchestratorMetadata(trace.sessionId);
       }),
     ];
 
     return () => {
       unsubscribes.forEach((unsubscribe) => unsubscribe());
     };
-  }, [api, queryClient]);
+  }, [api, invalidateOrchestratorMetadata, queryClient]);
 
 
   const orchestratorQuery = useQuery({
