@@ -9,118 +9,44 @@ on:
       - "*"
 
 jobs:
+  workspace-matrix:
+    name: Generate workspace matrix
+    runs-on: ubuntu-latest
+    outputs:
+      lint: ${{ steps.export.outputs.lint }}
+      build: ${{ steps.export.outputs.build }}
+      test: ${{ steps.export.outputs.test }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-20.x-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        run: ./scripts/install.sh
+
+      - name: Build ci-support package
+        run: npm run build --workspace @eddie/ci-support
+
+      - name: Export workspace matrices
+        id: export
+        run: node packages/ci-support/scripts/export-matrix.cjs
+
   lint:
     name: Lint (${{ matrix.workspace.name }})
     runs-on: ubuntu-latest
+    needs: workspace-matrix
     strategy:
-      matrix:
-        node-version: [20.x]
-        workspace: &workspaces
-          - name: "@eddie/api"
-            path: apps/api
-            coverage: apps/api/coverage
-            coverage_artifact: coverage-eddie-api
-            dist: apps/api/dist
-            tsbuildinfo: apps/api/tsconfig.build.tsbuildinfo
-            tsconfig: apps/api/tsconfig.build.json
-          - name: "@eddie/web"
-            path: apps/web
-            coverage: apps/web/coverage
-            coverage_artifact: coverage-eddie-web
-            dist: apps/web/dist
-            tsbuildinfo: apps/web/tsconfig.tsbuildinfo
-            tsconfig: apps/web/tsconfig.json
-          - name: "@eddie/cli"
-            path: apps/cli
-            coverage: apps/cli/coverage
-            coverage_artifact: coverage-eddie-cli
-            dist: apps/cli/dist
-            tsbuildinfo: apps/cli/tsconfig.build.tsbuildinfo
-            tsconfig: apps/cli/tsconfig.build.json
-          - name: "@eddie/config"
-            path: packages/config
-            coverage: coverage/config
-            coverage_artifact: coverage-eddie-config
-            dist: packages/config/dist
-            tsbuildinfo: packages/config/tsconfig.build.tsbuildinfo
-            tsconfig: packages/config/tsconfig.build.json
-          - name: "@eddie/context"
-            path: packages/context
-            coverage: coverage/context
-            coverage_artifact: coverage-eddie-context
-            dist: packages/context/dist
-            tsbuildinfo: packages/context/tsconfig.build.tsbuildinfo
-            tsconfig: packages/context/tsconfig.build.json
-          - name: "@eddie/engine"
-            path: packages/engine
-            coverage: coverage/engine
-            coverage_artifact: coverage-eddie-engine
-            dist: packages/engine/dist
-            tsbuildinfo: packages/engine/tsconfig.build.tsbuildinfo
-            tsconfig: packages/engine/tsconfig.build.json
-          - name: "@eddie/hooks"
-            path: packages/hooks
-            coverage: coverage/hooks
-            coverage_artifact: coverage-eddie-hooks
-            dist: packages/hooks/dist
-            tsbuildinfo: packages/hooks/tsconfig.build.tsbuildinfo
-            tsconfig: packages/hooks/tsconfig.build.json
-          - name: "@eddie/io"
-            path: packages/io
-            coverage: coverage/io
-            coverage_artifact: coverage-eddie-io
-            dist: packages/io/dist
-            tsbuildinfo: packages/io/tsconfig.build.tsbuildinfo
-            tsconfig: packages/io/tsconfig.build.json
-          - name: "@eddie/mcp"
-            path: packages/mcp
-            coverage: coverage/mcp
-            coverage_artifact: coverage-eddie-mcp
-            dist: packages/mcp/dist
-            tsbuildinfo: packages/mcp/tsconfig.build.tsbuildinfo
-            tsconfig: packages/mcp/tsconfig.build.json
-          - name: "@eddie/providers"
-            path: packages/providers
-            coverage: coverage/providers
-            coverage_artifact: coverage-eddie-providers
-            dist: packages/providers/dist
-            tsbuildinfo: packages/providers/tsconfig.build.tsbuildinfo
-            tsconfig: packages/providers/tsconfig.build.json
-          - name: "@eddie/templates"
-            path: packages/templates
-            coverage: coverage/templates
-            coverage_artifact: coverage-eddie-templates
-            dist: packages/templates/dist
-            tsbuildinfo: packages/templates/tsconfig.build.tsbuildinfo
-            tsconfig: packages/templates/tsconfig.build.json
-          - name: "@eddie/tokenizers"
-            path: packages/tokenizers
-            coverage: coverage/tokenizers
-            coverage_artifact: coverage-eddie-tokenizers
-            dist: packages/tokenizers/dist
-            tsbuildinfo: packages/tokenizers/tsconfig.build.tsbuildinfo
-            tsconfig: packages/tokenizers/tsconfig.build.json
-          - name: "@eddie/tools"
-            path: packages/tools
-            coverage: coverage/tools
-            coverage_artifact: coverage-eddie-tools
-            dist: packages/tools/dist
-            tsbuildinfo: packages/tools/tsconfig.build.tsbuildinfo
-            tsconfig: packages/tools/tsconfig.build.json
-          - name: "@eddie/types"
-            path: packages/types
-            coverage: coverage/types
-            coverage_artifact: coverage-eddie-types
-            dist: packages/types/dist
-            tsbuildinfo: packages/types/tsconfig.build.tsbuildinfo
-            tsconfig: packages/types/tsconfig.build.json
-          - name: "@eddie/api-client"
-            path: packages/api-client
-            coverage: packages/api-client/coverage
-            coverage_artifact: coverage-eddie-api-client
-            dist: packages/api-client/dist
-            tsbuildinfo: packages/api-client/dist/tsconfig.tsbuildinfo
-            tsconfig: packages/api-client/tsconfig.build.json
+      matrix: ${{ fromJson(needs['workspace-matrix'].outputs.lint) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -145,11 +71,11 @@ jobs:
   build:
     name: Build (${{ matrix.workspace.name }})
     runs-on: ubuntu-latest
-    needs: lint
+    needs:
+      - workspace-matrix
+      - lint
     strategy:
-      matrix:
-        node-version: [20.x]
-        workspace: *workspaces
+      matrix: ${{ fromJson(needs['workspace-matrix'].outputs.build) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -177,9 +103,11 @@ jobs:
             ${{ matrix.workspace.tsbuildinfo }}
           key: ${{ runner.os }}-build-${{ matrix.workspace.name }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles(matrix.workspace.tsconfig) }}
 
-      - name: Build api-client dependency
-        if: matrix.workspace.name == '@eddie/web'
-        run: npm run build --workspace @eddie/api-client
+      - name: Run prebuild commands
+        if: ${{ matrix.workspace.prebuild }}
+        run: |
+          set -euo pipefail
+          ${{ join(matrix.workspace.prebuild, '\n          ') }}
 
       - name: Run build
         run: npm run build --workspace ${{ matrix.workspace.name }}
@@ -187,11 +115,11 @@ jobs:
   test:
     name: Test (${{ matrix.workspace.name }} @ Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
-    needs: build
+    needs:
+      - workspace-matrix
+      - build
     strategy:
-      matrix:
-        node-version: [20.x, 22.x]
-        workspace: *workspaces
+      matrix: ${{ fromJson(needs['workspace-matrix'].outputs.test) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -227,7 +155,7 @@ jobs:
         if: always() && matrix.node-version == '20.x' && steps.coverage-dir.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.workspace.coverage_artifact }}
+          name: ${{ matrix.workspace.coverageArtifact }}
           path: ${{ matrix.workspace.coverage }}
           if-no-files-found: error
 
