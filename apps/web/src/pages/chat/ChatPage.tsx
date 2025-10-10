@@ -71,6 +71,11 @@ const SIDEBAR_PANEL_CLASS =
 const MESSAGE_CONTAINER_CLASS =
   "space-y-3 rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur-xl";
 
+const ORCHESTRATOR_METADATA_QUERY_KEY = "orchestrator-metadata" as const;
+
+const getOrchestratorMetadataQueryKey = (sessionId: string | null) =>
+  [ORCHESTRATOR_METADATA_QUERY_KEY, sessionId] as const;
+
 type MessageRole = ChatMessageDto["role"];
 
 interface MessageRoleStyle {
@@ -360,14 +365,18 @@ export function ChatPage(): JSX.Element {
     [sessionsQuery.data]
   );
 
+  const selectedSessionIdRef = useRef<string | null>(null);
+
   const invalidateOrchestratorMetadata = useCallback(
     (sessionId?: string) => {
-      if (!sessionId) {
+      const targetSessionId = sessionId ?? selectedSessionIdRef.current;
+
+      if (!targetSessionId) {
         return;
       }
 
       queryClient.invalidateQueries({
-        queryKey: ["orchestrator-metadata", sessionId],
+        queryKey: getOrchestratorMetadataQueryKey(targetSessionId),
       });
     },
     [queryClient]
@@ -404,6 +413,8 @@ export function ChatPage(): JSX.Element {
     }
     return sessions[0]?.id ?? null;
   }, [preferences.chat?.selectedSessionId, sessions]);
+
+  selectedSessionIdRef.current = selectedSessionId ?? null;
 
   useEffect(() => {
     if (!preferences.chat?.selectedSessionId && sessions[0]?.id) {
@@ -495,7 +506,7 @@ export function ChatPage(): JSX.Element {
 
 
   const orchestratorQuery = useQuery({
-    queryKey: ["orchestrator-metadata", selectedSessionId],
+    queryKey: getOrchestratorMetadataQueryKey(selectedSessionId),
     enabled: Boolean(selectedSessionId),
     queryFn: () =>
       selectedSessionId
