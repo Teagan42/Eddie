@@ -1,7 +1,7 @@
 import { Module, type Provider } from "@nestjs/common";
 import { EngineModule } from "@eddie/engine";
 import { StreamRendererService } from "@eddie/io";
-import { ConfigService } from "@eddie/config";
+import { ConfigModule, ConfigService } from "@eddie/config";
 import { TracesModule } from "../traces/traces.module";
 import { LogsModule } from "../logs/logs.module";
 import { ChatSessionsService } from "./chat-sessions.service";
@@ -32,7 +32,7 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
 };
 
 @Module({
-  imports: [EngineModule, TracesModule, LogsModule],
+  imports: [EngineModule, TracesModule, LogsModule, ConfigModule],
   providers: [
     ChatSessionsService,
     ChatSessionsGateway,
