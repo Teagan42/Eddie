@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { OverviewHero } from "../components/OverviewHero";
+import { OverviewHero } from "../components";
 
 describe("OverviewHero", () => {
   it("renders mission copy and triggers theme toggle", async () => {

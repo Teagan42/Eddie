@@ -1,9 +1,9 @@
 import { ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Flex, Separator } from "@radix-ui/themes";
-import { ChatPage } from "./chat/ChatPage";
 import { OverviewPage } from "./OverviewPage";
-import { ConfigPage } from "./config/ConfigPage";
+import { ChatPage } from "./chat";
+import { ConfigPage } from "./config";
 import { useAuth } from "@/auth/auth-context";
 import { AppHeader, AuroraBackground, NavigationLink } from "@/components";
 

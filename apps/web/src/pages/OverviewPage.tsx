@@ -24,8 +24,8 @@ import { PaperPlaneIcon, PlusIcon, ReloadIcon } from '@radix-ui/react-icons';
 import { Panel } from "@/components";
 import { useAuth } from '@/auth/auth-context';
 import { useApi } from '@/api/api-provider';
-import { ChatSessionsPanel } from './components/ChatSessionsPanel';
-import { useChatSessionEvents } from './hooks/useChatSessionEvents';
+import { ChatSessionsPanel, OverviewAuthPanel, OverviewHero } from './components';
+import { useChatSessionEvents, useOverviewStats } from './hooks';
 import type {
   ChatMessageDto,
   ChatSessionDto,
@@ -34,9 +34,6 @@ import type {
   LogEntryDto,
   RuntimeConfigDto,
 } from '@eddie/api-client';
-import { OverviewHero } from './components/OverviewHero';
-import { OverviewAuthPanel } from './components/OverviewAuthPanel';
-import { useOverviewStats } from './hooks/useOverviewStats';
 
 type StatItem = {
   label: string;

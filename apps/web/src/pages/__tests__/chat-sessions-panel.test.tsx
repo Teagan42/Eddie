@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ChatSessionsPanel } from "../components/ChatSessionsPanel";
+import { ChatSessionsPanel } from "../components";
 import type { ChatSessionDto, ChatMessageDto } from "@eddie/api-client";
 import { vi } from "vitest";
 
