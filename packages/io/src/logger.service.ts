@@ -141,14 +141,12 @@ export class LoggerService {
     TCustomLevels extends string = never,
     TUseOnlyCustomLevels extends boolean = boolean
   >(logger: Logger<TCustomLevels, TUseOnlyCustomLevels>): Logger<TCustomLevels, TUseOnlyCustomLevels> {
-    const service = this;
-
     if ((logger as unknown as { __eddieWrapped?: boolean }).__eddieWrapped) {
       return logger;
     }
 
     const proxy = new Proxy(logger, {
-      get(target, property, receiver) {
+      get: (target, property, receiver) => {
         if (property === "__eddieWrapped") {
           return true;
         }
@@ -156,13 +154,13 @@ export class LoggerService {
         if (property === "child") {
           return (...args: Parameters<Logger["child"]>) => {
             const next = target.child(...args);
-            return service.wrapLogger(next);
+            return this.wrapLogger(next);
           };
         }
 
         if (
           typeof property === "string" &&
-          (service.logLevels as readonly string[]).includes(property)
+          (this.logLevels as readonly string[]).includes(property)
         ) {
           const original = Reflect.get(target, property, receiver);
           if (typeof original !== "function") {
@@ -170,7 +168,7 @@ export class LoggerService {
           }
 
           return (...args: unknown[]) => {
-            service.notify(property as LogLevel, args);
+            this.notify(property as LogLevel, args);
             return Reflect.apply(
               original as (...logArgs: unknown[]) => unknown,
               target,
