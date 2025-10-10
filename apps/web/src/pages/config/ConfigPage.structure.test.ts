@@ -70,4 +70,31 @@ describe("ConfigPage structure", () => {
     const bodyContent = source.slice(bodyStart, closingIndex);
     expect(bodyContent).toContain('Source path');
   });
+
+  it(
+    "styles guardrail warnings with Callout.Text asChild wrappers to avoid paragraph list nesting",
+    () => {
+      const source = readFileSync(
+        resolve(__dirname, "./ConfigPage.tsx"),
+        "utf8"
+      );
+
+      const guardrailStart = source.indexOf(
+        '{guardrailWarnings.length > 0 && !parseError ? ('
+      );
+      expect(guardrailStart).toBeGreaterThanOrEqual(0);
+
+      const guardrailEnd = source.indexOf(') : null}', guardrailStart);
+      expect(guardrailEnd).toBeGreaterThan(guardrailStart);
+
+      const guardrailBlock = source.slice(guardrailStart, guardrailEnd);
+
+      expect(guardrailBlock).toMatch(
+        /<Callout\.Text asChild>\s*<Text as="span" weight="medium">\s*Guardrails\s*<\/Text>\s*<\/Callout\.Text>/
+      );
+      expect(guardrailBlock).toMatch(
+        /guardrailWarnings\.map\(\(warning\) => \(\s*<Callout\.Text asChild key=\{warning\}>\s*<li>\{warning\}<\/li>\s*<\/Callout\.Text>\s*\)\)/
+      );
+    }
+  );
 });
