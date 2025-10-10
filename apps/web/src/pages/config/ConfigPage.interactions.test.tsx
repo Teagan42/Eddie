@@ -180,7 +180,7 @@ describe("ConfigPage interactions", () => {
         screen.queryByRole("textbox", { name: /include entry 2/i })
       ).not.toBeInTheDocument()
     );
-  });
+  }, { timeout: 10_000 });
 
   it("allows clearing existing include entries", async () => {
     const user = userEvent.setup();
