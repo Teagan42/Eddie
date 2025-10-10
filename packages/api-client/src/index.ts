@@ -445,7 +445,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
             );
           } catch (error) {
             const status = (error as { status?: number }).status;
-            if (status === 404) {
+            if (status === 404 || error instanceof TypeError) {
               return FALLBACK_PROVIDER_CATALOG;
             }
             throw error;

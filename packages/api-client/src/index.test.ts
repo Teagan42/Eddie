@@ -200,6 +200,24 @@ describe("createApiClient", () => {
     client.dispose();
   });
 
+  it("returns the fallback provider catalog when the request fails", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new TypeError("Failed to fetch"));
+
+    const client = createApiClient({
+      baseUrl: "https://example.test/api/",
+      websocketUrl: "ws://example.test/ws/",
+    });
+
+    await expect(client.http.providers.catalog()).resolves.toEqual(
+      FALLBACK_PROVIDER_CATALOG
+    );
+
+    fetchSpy.mockRestore();
+    client.dispose();
+  });
+
   it("propagates non-404 catalog errors", async () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
