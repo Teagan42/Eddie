@@ -18,6 +18,34 @@ interface TraceEntity {
   updatedAt: Date;
 }
 
+function deepClone<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => deepClone(item)) as unknown as T;
+  }
+  if (value instanceof Date) {
+    return new Date(value.getTime()) as unknown as T;
+  }
+  if (value && typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>).reduce(
+      (acc, [key, val]) => {
+        acc[key] = deepClone(val);
+        return acc;
+      },
+      {} as Record<string, unknown>
+    ) as unknown as T;
+  }
+  return value;
+}
+
+function cloneMetadata(
+  metadata?: Record<string, unknown>
+): Record<string, unknown> | undefined {
+  if (!metadata) {
+    return undefined;
+  }
+  return deepClone(metadata);
+}
+
 @Injectable()
 export class TracesService {
   private readonly traces = new Map<string, TraceEntity>();
@@ -54,6 +82,7 @@ export class TracesService {
       const entity: TraceEntity = {
         id: randomUUID(),
         ...seed,
+        metadata: cloneMetadata(seed.metadata),
         createdAt,
         updatedAt,
       };
@@ -73,7 +102,7 @@ export class TracesService {
       name: entity.name,
       status: entity.status,
       durationMs: entity.durationMs,
-      metadata: entity.metadata,
+      metadata: cloneMetadata(entity.metadata),
       createdAt: entity.createdAt.toISOString(),
       updatedAt: entity.updatedAt.toISOString(),
     };
@@ -113,7 +142,7 @@ export class TracesService {
       sessionId: partial.sessionId,
       status: partial.status ?? "pending",
       durationMs: partial.durationMs,
-      metadata: partial.metadata,
+      metadata: cloneMetadata(partial.metadata),
       createdAt: now,
       updatedAt: now,
     };
@@ -135,7 +164,7 @@ export class TracesService {
     }
     trace.status = status;
     trace.durationMs = durationMs;
-    trace.metadata = metadata ?? trace.metadata;
+    trace.metadata = metadata ? cloneMetadata(metadata) : trace.metadata;
     trace.updatedAt = new Date();
     const dto = this.toDto(trace);
     this.notifyUpdated(dto);
