@@ -9,6 +9,7 @@ import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
 import { LoggerService } from "@eddie/io";
 import { applyCorsConfig } from "./cors";
 import { ensureDefaultConfigRoot } from "./config-root";
+import { configureOpenApi } from "./openapi-config";
 
 function configureLogging(
   config: EddieConfig,
@@ -42,6 +43,8 @@ export async function bootstrap(): Promise<void> {
   configureLogging(config, loggerService);
   applyCorsConfig(app, config);
   app.flushLogs();
+
+  await configureOpenApi(app);
 
   const httpLogger = app.get(HttpLoggerMiddleware);
   app.use(httpLogger.use.bind(httpLogger));
