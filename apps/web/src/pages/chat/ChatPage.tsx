@@ -94,7 +94,7 @@ const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
       'border border-emerald-400/30 bg-gradient-to-br from-emerald-500/25 via-emerald-500/10 to-slate-900/60 text-emerald-50 shadow-[0_30px_60px_-35px_rgba(16,185,129,0.7)]',
     icon: PersonIcon,
     iconClassName: 'text-emerald-200',
-    contentClassName: 'whitespace-pre-wrap leading-relaxed text-emerald-50',
+    contentClassName: 'leading-relaxed text-white/95',
   },
   assistant: {
     label: 'Assistant',
@@ -104,7 +104,7 @@ const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
       'border border-sky-400/30 bg-gradient-to-br from-sky-500/20 via-sky-500/10 to-slate-900/60 text-sky-50 shadow-[0_30px_60px_-35px_rgba(56,189,248,0.6)]',
     icon: MagicWandIcon,
     iconClassName: 'text-sky-200',
-    contentClassName: 'whitespace-pre-wrap leading-relaxed text-sky-50',
+    contentClassName: 'leading-relaxed text-white/95',
   },
   system: {
     label: 'Command',
@@ -114,7 +114,7 @@ const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
       'border border-amber-400/30 bg-gradient-to-br from-amber-500/20 via-amber-500/10 to-slate-900/60 text-amber-50 shadow-[0_30px_60px_-35px_rgba(250,204,21,0.55)]',
     icon: GearIcon,
     iconClassName: 'text-amber-200',
-    contentClassName: 'whitespace-pre-wrap text-sm font-mono text-amber-100',
+    contentClassName: 'text-sm font-mono text-amber-50',
   },
 };
 
@@ -253,7 +253,7 @@ function CollapsiblePanel({
         </Box>
         <Tooltip content={collapsed ? 'Expand' : 'Collapse'}>
           <IconButton
-            variant="soft"
+            variant="solid"
             size="2"
             onClick={() => onToggle(id, !collapsed)}
             aria-label={collapsed ? 'Expand panel' : 'Collapse panel'}
@@ -1198,7 +1198,7 @@ export function ChatPage(): JSX.Element {
                           <ChatMessageContent
                             messageRole={message.role}
                             content={message.content}
-                            className={cn('text-sm text-slate-100', roleStyle.contentClassName)}
+                            className={cn('text-base text-white', roleStyle.contentClassName)}
                           />
                         </Box>
                       </Box>
@@ -1235,7 +1235,7 @@ export function ChatPage(): JSX.Element {
             </Flex>
           </Panel>
 
-          <div className="flex w-full flex-col gap-4 lg:w-80">
+          <div className="flex w-full flex-col gap-4 lg:w-[22rem] xl:w-[26rem] 2xl:w-[30rem]">
             <CollapsiblePanel
               id={PANEL_IDS.context}
               title="Context bundles"
