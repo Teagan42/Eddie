@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { randomUUID } from "crypto";
 import { TraceDto } from "./dto/trace.dto";
 
@@ -18,6 +22,105 @@ interface TraceEntity {
   updatedAt: Date;
 }
 
+const MAX_METADATA_DEPTH = 1_000;
+
+function deepClone<T>(value: T): T {
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+
+  if (value instanceof Date) {
+    return new Date(value.getTime()) as unknown as T;
+  }
+
+  const seen = new WeakMap<object, unknown>();
+
+  const createContainer = (
+    source: Record<string, unknown> | unknown[]
+  ): Record<string, unknown> | unknown[] =>
+    Array.isArray(source) ? new Array(source.length) : {};
+
+  const rootSource = value as Record<string, unknown> | unknown[];
+  const rootClone = createContainer(rootSource);
+  seen.set(value as object, rootClone);
+
+  const stack: Array<{
+    source: Record<string, unknown> | unknown[];
+    target: Record<string, unknown> | unknown[];
+    depth: number;
+  }> = [
+    {
+      source: rootSource,
+      target: rootClone,
+      depth: 0,
+    },
+  ];
+
+  while (stack.length > 0) {
+    const frame = stack.pop();
+    if (!frame) {
+      continue;
+    }
+    const { source, target, depth } = frame;
+
+    if (depth > MAX_METADATA_DEPTH) {
+      throw new BadRequestException(
+        "Trace metadata exceeds the supported nesting depth."
+      );
+    }
+
+    if (Array.isArray(source)) {
+      const arrayTarget = target as unknown[];
+      for (let index = 0; index < source.length; index += 1) {
+        arrayTarget[index] = cloneValue(source[index], depth + 1);
+      }
+    } else {
+      const objectTarget = target as Record<string, unknown>;
+      for (const [key, val] of Object.entries(source)) {
+        objectTarget[key] = cloneValue(val, depth + 1);
+      }
+    }
+  }
+
+  return rootClone as T;
+
+  function cloneValue(valueToClone: unknown, depth: number): unknown {
+    if (valueToClone === null || typeof valueToClone !== "object") {
+      return valueToClone;
+    }
+
+    if (valueToClone instanceof Date) {
+      return new Date(valueToClone.getTime());
+    }
+
+    if (seen.has(valueToClone as object)) {
+      throw new BadRequestException(
+        "Trace metadata cannot contain circular references."
+      );
+    }
+
+    const container = createContainer(
+      valueToClone as Record<string, unknown> | unknown[]
+    );
+    seen.set(valueToClone as object, container);
+    stack.push({
+      source: valueToClone as Record<string, unknown> | unknown[],
+      target: container,
+      depth,
+    });
+    return container;
+  }
+}
+
+function cloneMetadata(
+  metadata?: Record<string, unknown>
+): Record<string, unknown> | undefined {
+  if (!metadata) {
+    return undefined;
+  }
+  return deepClone(metadata);
+}
+
 @Injectable()
 export class TracesService {
   private readonly traces = new Map<string, TraceEntity>();
@@ -35,7 +138,7 @@ export class TracesService {
       name: entity.name,
       status: entity.status,
       durationMs: entity.durationMs,
-      metadata: entity.metadata,
+      metadata: cloneMetadata(entity.metadata),
       createdAt: entity.createdAt.toISOString(),
       updatedAt: entity.updatedAt.toISOString(),
     };
@@ -75,7 +178,7 @@ export class TracesService {
       sessionId: partial.sessionId,
       status: partial.status ?? "pending",
       durationMs: partial.durationMs,
-      metadata: partial.metadata,
+      metadata: cloneMetadata(partial.metadata),
       createdAt: now,
       updatedAt: now,
     };
@@ -97,7 +200,7 @@ export class TracesService {
     }
     trace.status = status;
     trace.durationMs = durationMs;
-    trace.metadata = metadata ?? trace.metadata;
+    trace.metadata = metadata ? cloneMetadata(metadata) : trace.metadata;
     trace.updatedAt = new Date();
     const dto = this.toDto(trace);
     this.notifyUpdated(dto);
