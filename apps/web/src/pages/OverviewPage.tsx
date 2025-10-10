@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
   useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
   type InfiniteData,
-} from "@tanstack/react-query";
+} from '@tanstack/react-query';
 import {
   Badge,
   Box,
@@ -18,14 +18,14 @@ import {
   Text,
   TextField,
   Skeleton,
-} from "@radix-ui/themes";
-import { ArrowUpRight, KeyRound, Sparkles, Waves } from "lucide-react";
-import { PaperPlaneIcon, PlusIcon, ReloadIcon } from "@radix-ui/react-icons";
-import { Panel } from "@/components/panel";
-import { useAuth } from "@/auth/auth-context";
-import { useApi } from "@/api/api-provider";
-import { ChatSessionsPanel } from "./components/ChatSessionsPanel";
-import { useChatSessionEvents } from "./hooks/useChatSessionEvents";
+} from '@radix-ui/themes';
+import { ArrowUpRight, KeyRound, Sparkles, Waves } from 'lucide-react';
+import { PaperPlaneIcon, PlusIcon, ReloadIcon } from '@radix-ui/react-icons';
+import { Panel } from '@/components/panel';
+import { useAuth } from '@/auth/auth-context';
+import { useApi } from '@/api/api-provider';
+import { ChatSessionsPanel } from './components/ChatSessionsPanel';
+import { useChatSessionEvents } from './hooks/useChatSessionEvents';
 import type {
   ChatMessageDto,
   ChatSessionDto,
@@ -33,10 +33,10 @@ import type {
   CreateChatSessionDto,
   LogEntryDto,
   RuntimeConfigDto,
-} from "@eddie/api-client";
-import { OverviewHero } from "./components/OverviewHero";
-import { OverviewAuthPanel } from "./components/OverviewAuthPanel";
-import { useOverviewStats } from "./hooks/useOverviewStats";
+} from '@eddie/api-client';
+import { OverviewHero } from './components/OverviewHero';
+import { OverviewAuthPanel } from './components/OverviewAuthPanel';
+import { useOverviewStats } from './hooks/useOverviewStats';
 
 type StatItem = {
   label: string;
@@ -71,22 +71,22 @@ export function OverviewPage(): JSX.Element {
   const { apiKey, setApiKey } = useAuth();
   const api = useApi();
   const queryClient = useQueryClient();
-  const [newSessionTitle, setNewSessionTitle] = useState<string>("");
+  const [newSessionTitle, setNewSessionTitle] = useState<string>('');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-  const [messageDraft, setMessageDraft] = useState<string>("");
+  const [messageDraft, setMessageDraft] = useState<string>('');
 
   const sessionsQuery = useQuery({
-    queryKey: ["chat-sessions"],
+    queryKey: ['chat-sessions'],
     queryFn: () => api.http.chatSessions.list(),
   });
 
   const tracesQuery = useQuery({
-    queryKey: ["traces"],
+    queryKey: ['traces'],
     queryFn: () => api.http.traces.list(),
   });
 
   const logsQuery = useInfiniteQuery({
-    queryKey: ["logs"],
+    queryKey: ['logs'],
     initialPageParam: 0,
     queryFn: ({ pageParam = 0 }) =>
       api.http.logs.list({ offset: pageParam, limit: LOGS_PAGE_SIZE }),
@@ -94,11 +94,11 @@ export function OverviewPage(): JSX.Element {
       lastPage.length === LOGS_PAGE_SIZE ? pages.length * LOGS_PAGE_SIZE : undefined,
   });
 
-  const logPages = logsQuery.data?.pages ?? [];
+  const logPages = useMemo(() => logsQuery.data?.pages ?? [], [logsQuery.data?.pages]);
   const logs = useMemo(() => logPages.flat(), [logPages]);
   const logCount = useMemo(
     () => logPages.reduce((total, page) => total + page.length, 0),
-    [logPages]
+    [logPages],
   );
 
   const loadMoreNodeRef = useRef<HTMLDivElement | null>(null);
@@ -113,40 +113,38 @@ export function OverviewPage(): JSX.Element {
       return;
     }
 
-    const observer = new IntersectionObserver((entries) => {
-      for (const entry of entries) {
-        if (
-          entry.isIntersecting &&
-          logsQuery.hasNextPage &&
-          !logsQuery.isFetchingNextPage
-        ) {
-          void logsQuery.fetchNextPage();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && logsQuery.hasNextPage && !logsQuery.isFetchingNextPage) {
+            void logsQuery.fetchNextPage();
+          }
         }
-      }
-    }, { rootMargin: "200px" });
+      },
+      { rootMargin: '200px' },
+    );
 
     observer.observe(target);
     observerRef.current = observer;
-  }, [logsQuery.fetchNextPage, logsQuery.hasNextPage, logsQuery.isFetchingNextPage]);
+  }, [logsQuery]);
 
-  const setLoadMoreRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      loadMoreNodeRef.current = node;
-      updateObserver();
-    },
-    [updateObserver]
-  );
+  function setLoadMoreRef(node: HTMLDivElement | null) {
+    loadMoreNodeRef.current = node;
+    updateObserver();
+  }
 
   const configQuery = useQuery({
-    queryKey: ["config"],
+    queryKey: ['config'],
     queryFn: () => api.http.config.get(),
   });
 
   const messagesQuery = useQuery({
-    queryKey: ["chat-sessions", selectedSessionId, "messages"],
+    queryKey: ['chat-sessions', selectedSessionId, 'messages'],
     enabled: Boolean(selectedSessionId),
     queryFn: () =>
-      selectedSessionId ? api.http.chatSessions.listMessages(selectedSessionId) : Promise.resolve([]),
+      selectedSessionId
+        ? api.http.chatSessions.listMessages(selectedSessionId)
+        : Promise.resolve([]),
   });
 
   const stats = useOverviewStats({
@@ -155,34 +153,37 @@ export function OverviewPage(): JSX.Element {
     logCount,
   });
 
-  const mergeLogsIntoCache = useCallback((incoming: LogEntryDto | LogEntryDto[]): void => {
-    const batch = Array.isArray(incoming) ? incoming : [incoming];
-    if (batch.length === 0) {
-      return;
-    }
-
-    queryClient.setQueryData<InfiniteData<LogEntryDto[]>>(["logs"], (current) => {
-      const existing = current?.pages.flat() ?? [];
-      const byId = new Map<string, LogEntryDto>();
-
-      for (const entry of existing) {
-        byId.set(entry.id, entry);
+  const mergeLogsIntoCache = useCallback(
+    (incoming: LogEntryDto | LogEntryDto[]): void => {
+      const batch = Array.isArray(incoming) ? incoming : [incoming];
+      if (batch.length === 0) {
+        return;
       }
 
-      for (const entry of batch) {
-        byId.set(entry.id, entry);
-      }
+      queryClient.setQueryData<InfiniteData<LogEntryDto[]>>(['logs'], (current) => {
+        const existing = current?.pages.flat() ?? [];
+        const byId = new Map<string, LogEntryDto>();
 
-      const sorted = Array.from(byId.values()).sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      );
+        for (const entry of existing) {
+          byId.set(entry.id, entry);
+        }
 
-      const pages = chunkLogs(sorted);
-      const pageParams = pages.map((_, index) => index * LOGS_PAGE_SIZE);
+        for (const entry of batch) {
+          byId.set(entry.id, entry);
+        }
 
-      return { pages, pageParams } satisfies InfiniteData<LogEntryDto[]>;
-    });
-  }, [queryClient]);
+        const sorted = Array.from(byId.values()).sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
+
+        const pages = chunkLogs(sorted);
+        const pageParams = pages.map((_, index) => index * LOGS_PAGE_SIZE);
+
+        return { pages, pageParams } satisfies InfiniteData<LogEntryDto[]>;
+      });
+    },
+    [queryClient],
+  );
 
   useEffect(() => {
     if (!selectedSessionId && sessionsQuery.data?.length) {
@@ -207,9 +208,9 @@ export function OverviewPage(): JSX.Element {
   const createSessionMutation = useMutation({
     mutationFn: (input: CreateChatSessionDto) => api.http.chatSessions.create(input),
     onSuccess: (session) => {
-      setNewSessionTitle("");
+      setNewSessionTitle('');
       setSelectedSessionId(session.id);
-      queryClient.invalidateQueries({ queryKey: ["chat-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
     },
   });
 
@@ -218,9 +219,9 @@ export function OverviewPage(): JSX.Element {
       await api.http.chatSessions.createMessage(input.sessionId, input.body);
     },
     onSuccess: (_, variables) => {
-      setMessageDraft("");
+      setMessageDraft('');
       queryClient.invalidateQueries({
-        queryKey: ["chat-sessions", variables.sessionId, "messages"],
+        queryKey: ['chat-sessions', variables.sessionId, 'messages'],
       });
     },
   });
@@ -233,9 +234,9 @@ export function OverviewPage(): JSX.Element {
   });
 
   const toggleThemeMutation = useMutation({
-    mutationFn: (theme: RuntimeConfigDto["theme"]) => api.http.config.update({ theme }),
+    mutationFn: (theme: RuntimeConfigDto['theme']) => api.http.config.update({ theme }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["config"] });
+      queryClient.invalidateQueries({ queryKey: ['config'] });
     },
   });
 
@@ -265,15 +266,16 @@ export function OverviewPage(): JSX.Element {
     createMessageMutation.mutate({
       sessionId: selectedSessionId,
       body: {
-        role: "user" as CreateChatMessageDto["role"],
+        role: 'user' as CreateChatMessageDto['role'],
         content: messageDraft.trim(),
       },
     });
   };
 
   const handleToggleTheme = (): void => {
-    const currentTheme = configQuery.data?.theme ?? "dark";
-    toggleThemeMutation.mutate(currentTheme === "dark" ? "light" : "dark");
+    const currentTheme = (configQuery.data?.theme ?? 'dark') as RuntimeConfigDto['theme'];
+    const nextTheme = (currentTheme === 'dark' ? 'light' : 'dark') as RuntimeConfigDto['theme'];
+    toggleThemeMutation.mutate(nextTheme);
   };
 
   return (
@@ -288,7 +290,7 @@ export function OverviewPage(): JSX.Element {
 
       <OverviewAuthPanel apiKey={apiKey} onApiKeyChange={setApiKey} />
 
-      <Grid columns={{ initial: "1", xl: "2" }} gap="6">
+      <Grid columns={{ initial: '1', xl: '2' }} gap="6">
         <ChatSessionsPanel
           sessions={sessionsQuery.data}
           selectedSessionId={selectedSessionId}
@@ -312,7 +314,10 @@ export function OverviewPage(): JSX.Element {
               Loading traces…
             </Text>
           ) : tracesQuery.data?.length ? (
-            <ScrollArea type="always" className="h-80 rounded-2xl border border-white/15 bg-slate-900/35 p-4">
+            <ScrollArea
+              type="always"
+              className="h-80 rounded-2xl border border-white/15 bg-slate-900/35 p-4"
+            >
               <Flex direction="column" gap="3">
                 {tracesQuery.data.map((trace) => (
                   <Flex
@@ -324,12 +329,12 @@ export function OverviewPage(): JSX.Element {
                       <Text size="2" weight="medium">
                         {trace.name}
                       </Text>
-                      <Badge color={trace.status === "failed" ? "red" : "grass"} variant="solid">
+                      <Badge color={trace.status === 'failed' ? 'red' : 'grass'} variant="solid">
                         {trace.status.toUpperCase()}
                       </Badge>
                     </Flex>
                     <Text size="1" color="gray">
-                      Duration: {trace.durationMs ? `${trace.durationMs}ms` : "pending"}
+                      Duration: {trace.durationMs ? `${trace.durationMs}ms` : 'pending'}
                     </Text>
                   </Flex>
                 ))}
@@ -343,7 +348,7 @@ export function OverviewPage(): JSX.Element {
         </Panel>
       </Grid>
 
-      <Grid columns={{ initial: "1", xl: "2" }} gap="6">
+      <Grid columns={{ initial: '1', xl: '2' }} gap="6">
         <Panel
           title="Logs"
           description="Live stream of structured telemetry entries"
@@ -364,7 +369,10 @@ export function OverviewPage(): JSX.Element {
               Loading logs…
             </Text>
           ) : logs.length ? (
-            <ScrollArea type="always" className="h-80 rounded-2xl border border-white/15 bg-slate-900/35 p-4">
+            <ScrollArea
+              type="always"
+              className="h-80 rounded-2xl border border-white/15 bg-slate-900/35 p-4"
+            >
               <Flex direction="column" gap="3">
                 {logs.map((entry) => (
                   <Flex
@@ -374,9 +382,13 @@ export function OverviewPage(): JSX.Element {
                   >
                     <Flex align="center" justify="between">
                       <Text size="1" color="gray">
-                        {new Date(entry.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                        {new Date(entry.createdAt).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                        })}
                       </Text>
-                      <Badge color={entry.level === "error" ? "red" : "grass"} variant="surface">
+                      <Badge color={entry.level === 'error' ? 'red' : 'grass'} variant="surface">
                         {entry.level.toUpperCase()}
                       </Badge>
                     </Flex>
@@ -441,8 +453,8 @@ export function OverviewPage(): JSX.Element {
                 {Object.entries(configQuery.data.features).map(([feature, enabled]) => (
                   <Badge
                     key={feature}
-                    variant={enabled ? "solid" : "soft"}
-                    color={enabled ? "grass" : "gray"}
+                    variant={enabled ? 'solid' : 'soft'}
+                    color={enabled ? 'grass' : 'gray'}
                     className="uppercase tracking-wide"
                   >
                     {feature}

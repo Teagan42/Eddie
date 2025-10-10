@@ -17,7 +17,6 @@ import { TracesService } from "../traces/traces.service";
 import type { TraceDto } from "../traces/dto/trace.dto";
 import { LogsService } from "../logs/logs.service";
 import type { LogEntryDto } from "../logs/dto/log-entry.dto";
-import { ToolsGateway } from '../tools/tools.gateway';
 
 const DEFAULT_ENGINE_FAILURE_MESSAGE =
     "Engine failed to respond. Check server logs for details.";

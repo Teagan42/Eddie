@@ -790,7 +790,7 @@ export function ChatPage(): JSX.Element {
     }
 
     scrollAnchorRef.current?.scrollIntoView({ block: 'end' });
-  }, [lastMessage?.content, lastMessage?.id, messages.length]);
+  }, [lastMessage, lastMessage?.content, lastMessage?.id, messages.length]);
 
   const handleSelectSession = useCallback(
     (sessionId: string) => {

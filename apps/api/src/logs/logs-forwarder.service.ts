@@ -179,17 +179,19 @@ export class LogsForwarderService implements OnModuleInit, OnModuleDestroy {
                 if (phase === "tool_call") {
                     try {
                         this.toolsGateway.emitToolCall(forwardPayload);
-                    } catch (err) {
+                    } catch {
                         // swallow errors
                     }
                 } else {
                     try {
                         this.toolsGateway.emitToolResult(forwardPayload);
-                    } catch (err) {
+                    } catch {
                         // swallow errors
                     }
                 }
-            } catch { }
+            } catch {
+                // swallow errors
+            }
         }
     }
 

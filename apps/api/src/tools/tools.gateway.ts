@@ -55,7 +55,9 @@ export class ToolsGateway implements OnModuleInit, OnModuleDestroy {
 
             // Tool call emitted (debug logging removed in cleanup)
             emitEvent(this.server, 'tool.call', safePayload);
-        } catch { }
+        } catch {
+            // swallow errors
+        }
     }
 
     emitToolResult(payload: unknown): void {
@@ -77,6 +79,8 @@ export class ToolsGateway implements OnModuleInit, OnModuleDestroy {
 
             // Tool result emitted (debug logging removed in cleanup)
             emitEvent(this.server, 'tool.result', safePayload);
-        } catch { }
+        } catch {
+            // swallow errors
+        }
     }
 }
