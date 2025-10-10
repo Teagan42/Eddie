@@ -14,4 +14,16 @@ describe("Panel", () => {
     expect(screen.getByText("An example panel")).toBeInTheDocument();
     expect(screen.getByText("Content")).toBeInTheDocument();
   });
+
+  it("does not constrain the content with a minimum height", () => {
+    render(
+      <Panel title="Example">
+        <span>Content</span>
+      </Panel>
+    );
+
+    const contentContainer = screen.getByText("Content").parentElement;
+
+    expect(contentContainer).not.toHaveClass("min-h-[6rem]");
+  });
 });
