@@ -1,9 +1,11 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { EngineService } from "@eddie/engine";
+import type { AgentInvocation } from "@eddie/engine";
 import type { ChatMessage } from "@eddie/types";
 import {
   ChatSessionsListener,
   ChatSessionsService,
+  type AgentInvocationSnapshot,
 } from "./chat-sessions.service";
 import { ChatMessageDto } from "./dto/chat-session.dto";
 import { ChatMessageRole, CreateChatMessageDto } from "./dto/create-chat-message.dto";
@@ -77,6 +79,9 @@ export class ChatSessionsEngineListener
         autoApprove: true,
         nonInteractive: true,
       });
+
+      const snapshots = this.snapshotAgentInvocations(result.agents);
+      this.chatSessions.saveAgentInvocations(message.sessionId, snapshots);
 
       const baseline = history.length + 2;
       const novelMessages = result.messages.slice(baseline);
@@ -222,5 +227,47 @@ export class ChatSessionsEngineListener
     };
 
     this.chatSessions.addMessage(sessionId, payload);
+  }
+
+  private snapshotAgentInvocations(
+    agents: AgentInvocation[]
+  ): AgentInvocationSnapshot[] {
+    if (!agents || agents.length === 0) {
+      return [];
+    }
+
+    const roots = agents.filter((agent) => !agent.parent);
+    return roots.map((agent) => this.snapshotInvocation(agent));
+  }
+
+  private snapshotInvocation(
+    agent: AgentInvocation
+  ): AgentInvocationSnapshot {
+    return {
+      id: agent.id,
+      messages: agent.messages.map((message) => ({
+        role: this.toChatMessageRole(message.role),
+        content: message.content,
+        ...(message.name ? { name: message.name } : {}),
+        ...(message.tool_call_id
+          ? { toolCallId: message.tool_call_id }
+          : {}),
+      })),
+      children: agent.children.map((child) => this.snapshotInvocation(child)),
+    };
+  }
+
+  private toChatMessageRole(role: ChatMessage["role"]): ChatMessageRole {
+    switch (role) {
+      case "assistant":
+        return ChatMessageRole.Assistant;
+      case "system":
+        return ChatMessageRole.System;
+      case "tool":
+        return ChatMessageRole.Tool;
+      case "user":
+      default:
+        return ChatMessageRole.User;
+    }
   }
 }

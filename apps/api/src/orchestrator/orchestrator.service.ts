@@ -1,5 +1,8 @@
 import { Injectable } from "@nestjs/common";
-import { ChatSessionsService } from "../chat-sessions/chat-sessions.service";
+import {
+  ChatSessionsService,
+  type AgentInvocationSnapshot,
+} from "../chat-sessions/chat-sessions.service";
 import { ChatMessageRole } from "../chat-sessions/dto/create-chat-message.dto";
 import {
   ContextBundleDto,
@@ -20,10 +23,18 @@ export class OrchestratorMetadataService {
 
     const session = this.chatSessions.getSession(sessionId);
     const messages = this.chatSessions.listMessages(sessionId);
+    const agentInvocations = this.chatSessions.listAgentInvocations(sessionId);
 
     const contextBundles = this.createContextBundles(sessionId, messages.length);
-    const toolInvocations = this.createToolInvocations(sessionId, messages);
-    const agentHierarchy = this.createAgentHierarchy(session.title, sessionId, messages);
+    const toolInvocations =
+      agentInvocations.length > 0
+        ? this.createToolInvocationsFromAgents(agentInvocations)
+        : this.createToolInvocationsFromMessages(sessionId, messages);
+    const agentHierarchy = this.createAgentHierarchy(
+      session.title,
+      sessionId,
+      messages,
+    );
 
     return {
       sessionId,
@@ -58,7 +69,7 @@ export class OrchestratorMetadataService {
     ];
   }
 
-  private createToolInvocations(
+  private createToolInvocationsFromMessages(
     sessionId: string,
     messages: ReturnType<ChatSessionsService["listMessages"]>
   ): ToolCallNodeDto[] {
@@ -95,6 +106,94 @@ export class OrchestratorMetadataService {
     });
   }
 
+  private createToolInvocationsFromAgents(
+    agents: AgentInvocationSnapshot[]
+  ): ToolCallNodeDto[] {
+    const nodes: ToolCallNodeDto[] = [];
+
+    for (const agent of agents) {
+      nodes.push(...this.collectAgentToolInvocations(agent));
+    }
+
+    return nodes;
+  }
+
+  private collectAgentToolInvocations(
+    agent: AgentInvocationSnapshot
+  ): ToolCallNodeDto[] {
+    const nodes = this.extractAgentToolInvocations(agent);
+
+    for (const child of agent.children) {
+      const childNodes = this.collectAgentToolInvocations(child);
+      const parent = this.findSpawnNodeForAgent(nodes, child.id);
+      if (parent) {
+        parent.children.push(...childNodes);
+      } else {
+        nodes.push(...childNodes);
+      }
+    }
+
+    return nodes;
+  }
+
+  private extractAgentToolInvocations(
+    agent: AgentInvocationSnapshot
+  ): ToolCallNodeDto[] {
+    const nodes: ToolCallNodeDto[] = [];
+    const pending = new Map<string, { name?: string }>();
+
+    for (const message of agent.messages) {
+      if (!message.toolCallId) {
+        continue;
+      }
+
+      if (message.role === ChatMessageRole.Assistant) {
+        pending.set(message.toolCallId, { name: message.name });
+        continue;
+      }
+
+      if (message.role !== ChatMessageRole.Tool) {
+        continue;
+      }
+
+      const node = new ToolCallNodeDto();
+      node.id = message.toolCallId;
+      const pendingEntry = pending.get(message.toolCallId);
+      const resolvedToolName = pendingEntry?.name ?? message.name ?? null;
+      node.name =
+        resolvedToolName ?? this.extractToolName(message.content);
+      node.status = ToolCallStatusDto.Completed;
+      const payload = this.parseToolPayload(message.content);
+      node.metadata = {
+        preview: payload.preview,
+        ...(payload.isJson
+          ? { payload: payload.value }
+          : { command: message.content }),
+        ...(message.toolCallId ? { toolCallId: message.toolCallId } : {}),
+        ...(resolvedToolName ? { toolName: resolvedToolName } : {}),
+      };
+      node.children = [];
+      nodes.push(node);
+    }
+
+    return nodes;
+  }
+
+  private findSpawnNodeForAgent(
+    nodes: ToolCallNodeDto[],
+    agentId: string
+  ): ToolCallNodeDto | null {
+    for (const node of nodes) {
+      const payload = node.metadata?.payload;
+      const childAgentId = this.extractAgentIdFromPayload(payload);
+      if (childAgentId === agentId) {
+        return node;
+      }
+    }
+
+    return null;
+  }
+
   private parseToolPayload(
     content: string
   ): { isJson: boolean; value: unknown; preview: string } {
@@ -113,6 +212,20 @@ export class OrchestratorMetadataService {
     } catch {
       return { isJson: false, value: trimmed, preview: trimmed.slice(0, 120) };
     }
+  }
+
+  private extractAgentIdFromPayload(value: unknown): string | null {
+    if (!value || typeof value !== "object") {
+      return null;
+    }
+
+    const metadata = (value as { metadata?: unknown }).metadata;
+    if (!metadata || typeof metadata !== "object") {
+      return null;
+    }
+
+    const agentId = (metadata as { agentId?: unknown }).agentId;
+    return typeof agentId === "string" ? agentId : null;
   }
 
   private extractPreviewFromObject(value: unknown): string | null {

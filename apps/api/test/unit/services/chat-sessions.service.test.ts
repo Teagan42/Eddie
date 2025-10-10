@@ -65,4 +65,45 @@ describe("ChatSessionsService", () => {
     expect((stored as Record<string, unknown>).toolCallId).toBe("call-1");
     expect((stored as Record<string, unknown>).name).toBe("bash");
   });
+
+  it("records agent invocation snapshots for orchestrator metadata", () => {
+    const service = new ChatSessionsService();
+    const session = service.createSession({ title: "Delegation" });
+
+    const snapshots = [
+      {
+        id: "manager",
+        messages: [
+          {
+            role: "assistant",
+            content: "",
+            name: "spawn_subagent",
+            toolCallId: "call-spawn",
+          },
+        ],
+        children: [
+          {
+            id: "writer",
+            messages: [
+              {
+                role: "tool",
+                content: "{}",
+                name: "spawn_subagent",
+                toolCallId: "call-spawn",
+              },
+            ],
+            children: [],
+          },
+        ],
+      },
+    ];
+
+    service.saveAgentInvocations(session.id, snapshots);
+
+    const stored = service.listAgentInvocations(session.id);
+    expect(stored).toEqual(snapshots);
+    expect(stored).not.toBe(snapshots);
+    expect(stored[0]).not.toBe(snapshots[0]);
+    expect(service.listAgentInvocations("unknown")).toEqual([]);
+  });
 });
