@@ -5,6 +5,7 @@
     "baseUrl": "./src",
     "paths": {
       "@/components/*": ["components/*"],
+      "@/vendor/*": ["vendor/*"],
       "@/config": ["config/env.ts"],
       "@/auth/*": ["auth/*"],
       "@/api/*": ["api/*"],

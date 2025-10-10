@@ -1,4 +1,4 @@
-import { cn } from "@/components/lib/utils";
+import { cn } from "@/vendor/lib/utils";
 
 interface AuroraBackgroundProps {
   className?: string;

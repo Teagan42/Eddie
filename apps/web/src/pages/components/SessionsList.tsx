@@ -1,6 +1,6 @@
 import { Flex, Heading, ScrollArea, Text } from "@radix-ui/themes";
 import type { ChatSessionDto } from "@eddie/api-client";
-import { cn } from "@/components/lib/utils";
+import { cn } from "@/vendor/lib/utils";
 
 export interface SessionsListProps {
   sessions: ChatSessionDto[] | undefined;
