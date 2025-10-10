@@ -1,10 +1,12 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
+import { ConfigService as NestConfigService } from "@nestjs/config";
 import fs from "fs/promises";
 import path from "path";
 
 const DEFAULT_CONFIG_ROOT = path.resolve(process.cwd(), "config");
 import yaml from "yaml";
 import { DEFAULT_CONFIG } from "./defaults";
+import { CONFIG_NAMESPACE } from "./config.namespace";
 import type {
   AgentProviderConfig,
   AgentsConfig,
@@ -48,6 +50,10 @@ const CONFIG_FILENAMES = [
  */
 @Injectable()
 export class ConfigService {
+  constructor(
+    @Optional() private readonly nestConfigService?: NestConfigService
+  ) {}
+
   async load(options: CliRuntimeOptions): Promise<EddieConfig> {
     const configPath = await this.resolveConfigPath(options);
     const fileConfig = configPath ? await this.readConfigFile(configPath) : {};
@@ -58,7 +64,8 @@ export class ConfigService {
     input: EddieConfigInput,
     options: CliRuntimeOptions = {}
   ): Promise<EddieConfig> {
-    const merged = this.mergeConfig(DEFAULT_CONFIG, input);
+    const baseConfig = this.resolveBaseConfig();
+    const merged = this.mergeConfig(baseConfig, input);
     if (merged.logging?.level) {
       merged.logLevel = merged.logging.level;
     } else if (merged.logLevel) {
@@ -84,6 +91,20 @@ export class ConfigService {
     this.validateConfig(finalConfig);
 
     return finalConfig;
+  }
+
+  private resolveBaseConfig(): EddieConfig {
+    const defaults = structuredClone(DEFAULT_CONFIG);
+    const namespaced = this.nestConfigService?.get<EddieConfig>(
+      CONFIG_NAMESPACE,
+      { infer: true }
+    );
+
+    if (!namespaced) {
+      return defaults;
+    }
+
+    return this.mergeConfig(defaults, namespaced as EddieConfigInput);
   }
 
   async readSnapshot(

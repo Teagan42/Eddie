@@ -1,8 +1,9 @@
 import fs from "fs/promises";
 import path from "path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ConfigService } from "../src/config.service";
+import { DEFAULT_CONFIG } from "../src/defaults";
 
 describe("ConfigService", () => {
   const cwd = process.cwd();
@@ -21,6 +22,41 @@ describe("ConfigService", () => {
     await fs.rm(repoConfigDir, { recursive: true, force: true });
     await fs.rm(overrideConfigDir, { recursive: true, force: true });
     delete process.env.CONFIG_ROOT;
+  });
+
+  describe("namespaced defaults", () => {
+    const ServiceCtor = ConfigService as unknown as new (
+      configService: {
+        get: ReturnType<typeof vi.fn>;
+      }
+    ) => ConfigService;
+
+    it("pulls defaults from the Nest config namespace when provided", async () => {
+      const defaults = structuredClone(DEFAULT_CONFIG);
+      defaults.api = {
+        ...(defaults.api ?? {}),
+        host: "192.0.2.10",
+        port: 7777,
+      };
+
+      const configService = {
+        get: vi.fn((key: string) => {
+          if (key === "eddie") {
+            return defaults;
+          }
+
+          return undefined;
+        }),
+      } as const;
+
+      const service = new ServiceCtor(configService);
+
+      const result = await service.compose({});
+
+      expect(configService.get).toHaveBeenCalledWith("eddie", { infer: true });
+      expect(result.api?.host).toBe("192.0.2.10");
+      expect(result.api?.port).toBe(7777);
+    });
   });
 
   describe("compose", () => {
