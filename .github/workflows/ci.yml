@@ -37,8 +37,20 @@ jobs:
       - name: Build ci-support package
         run: npm run build --workspace @eddie/ci-support
 
+      - name: Determine changed workspaces
+        id: changed
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          CHANGED=$(node packages/ci-support/scripts/detect-changed-workspaces.cjs "${BASE_SHA:-}" "${HEAD_SHA:-}")
+          echo "names=${CHANGED}" >> "$GITHUB_OUTPUT"
+
       - name: Export workspace matrices
         id: export
+        env:
+          CHANGED_WORKSPACES: ${{ steps.changed.outputs.names }}
         run: node packages/ci-support/scripts/export-matrix.cjs
 
   lint:
@@ -101,7 +113,9 @@ jobs:
           path: |
             ${{ matrix.workspace.dist }}
             ${{ matrix.workspace.tsbuildinfo }}
-          key: ${{ runner.os }}-build-${{ matrix.workspace.name }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles(matrix.workspace.tsconfig) }}
+          key: ${{ runner.os }}-build-${{ matrix.workspace.name }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ matrix.workspace.name }}-
 
       - name: Run prebuild commands
         if: ${{ matrix.workspace.prebuild }}
@@ -110,6 +124,7 @@ jobs:
           ${{ join(matrix.workspace.prebuild, '\n          ') }}
 
       - name: Run build
+        if: steps.restore-build.outputs.cache-hit != 'true'
         run: npm run build --workspace ${{ matrix.workspace.name }}
 
   test:

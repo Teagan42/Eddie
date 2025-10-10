@@ -4,10 +4,17 @@ const path = require("node:path");
 
 const { loadWorkspaceMatrix } = require("../dist");
 
+const changedEnv = process.env.CHANGED_WORKSPACES;
+const changedWorkspaces = changedEnv ? JSON.parse(changedEnv) : undefined;
+const options =
+  changedWorkspaces === undefined
+    ? undefined
+    : { changedWorkspaces: changedWorkspaces ?? [] };
+
 const matrices = {
-  lint: loadWorkspaceMatrix("lint"),
-  build: loadWorkspaceMatrix("build"),
-  test: loadWorkspaceMatrix("test"),
+  lint: loadWorkspaceMatrix("lint", options),
+  build: loadWorkspaceMatrix("build", options),
+  test: loadWorkspaceMatrix("test", options),
 };
 
 const outputPath = process.env.GITHUB_OUTPUT;

@@ -4,6 +4,7 @@ import {
   getWorkspaceByName,
   loadWorkspaceMatrix,
   loadWorkspaces,
+  selectWorkspaceNamesForPaths,
 } from "../index";
 
 const EXPECTED_NAMES = [
@@ -76,5 +77,51 @@ describe("loadWorkspaceMatrix", () => {
 
     expect(matrix["node-version"]).toEqual(["20.x", "22.x"]);
     expect(matrix.workspace.map((item) => item.name)).toContain("@eddie/api");
+  });
+
+  it("limits the matrix to apps and changed packages", () => {
+    const matrix = loadWorkspaceMatrix("lint", {
+      changedWorkspaces: ["@eddie/tools"],
+    });
+
+    expect(matrix.workspace.map((item) => item.name)).toEqual([
+      "@eddie/api",
+      "@eddie/web",
+      "@eddie/cli",
+      "@eddie/tools",
+    ]);
+  });
+
+  it("returns only apps when no packages changed", () => {
+    const matrix = loadWorkspaceMatrix("lint", { changedWorkspaces: [] });
+
+    expect(matrix.workspace.map((item) => item.name)).toEqual([
+      "@eddie/api",
+      "@eddie/web",
+      "@eddie/cli",
+    ]);
+  });
+});
+
+describe("selectWorkspaceNamesForPaths", () => {
+  it("includes all apps even when untouched", () => {
+    const names = selectWorkspaceNamesForPaths([
+      "packages/tools/src/index.ts",
+      "packages/context/src/index.ts",
+    ]);
+
+    expect(names).toEqual([
+      "@eddie/api",
+      "@eddie/web",
+      "@eddie/cli",
+      "@eddie/context",
+      "@eddie/tools",
+    ]);
+  });
+
+  it("returns only apps when changes do not map to a workspace", () => {
+    const names = selectWorkspaceNamesForPaths(["README.md", "docs/guide.md"]);
+
+    expect(names).toEqual(["@eddie/api", "@eddie/web", "@eddie/cli"]);
   });
 });

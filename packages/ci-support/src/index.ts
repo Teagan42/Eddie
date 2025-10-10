@@ -18,6 +18,10 @@ export type WorkspaceMatrix = {
   readonly workspace: readonly WorkspaceMetadata[];
 };
 
+export interface LoadWorkspaceMatrixOptions {
+  readonly changedWorkspaces?: readonly string[];
+}
+
 const cloneWorkspace = (workspace: WorkspaceMetadata): WorkspaceMetadata => ({
   ...workspace,
   prebuild: workspace.prebuild ? [...workspace.prebuild] : undefined,
@@ -26,6 +30,9 @@ const cloneWorkspace = (workspace: WorkspaceMetadata): WorkspaceMetadata => ({
 const workspaceCatalog: readonly WorkspaceMetadata[] = (workspacesJson as WorkspaceMetadata[]).map(
   cloneWorkspace
 );
+
+const isAppWorkspace = (workspace: WorkspaceMetadata): boolean =>
+  workspace.path.startsWith("apps/");
 
 const nodeVersions: Record<WorkspaceMatrixJob, readonly string[]> = {
   lint: ["20.x"],
@@ -46,7 +53,60 @@ export const getWorkspaceByName = (name: WorkspaceMetadata["name"]): WorkspaceMe
   return cloneWorkspace(workspace);
 };
 
-export const loadWorkspaceMatrix = (job: WorkspaceMatrixJob): WorkspaceMatrix => ({
+const selectWorkspaces = (
+  options?: LoadWorkspaceMatrixOptions
+): WorkspaceMetadata[] => {
+  const includeSet = options?.changedWorkspaces
+    ? new Set(options.changedWorkspaces)
+    : undefined;
+
+  return workspaceCatalog
+    .filter((workspace) => {
+      if (isAppWorkspace(workspace)) {
+        return true;
+      }
+
+      if (!includeSet) {
+        return true;
+      }
+
+      return includeSet.has(workspace.name);
+    })
+    .map(cloneWorkspace);
+};
+
+export const selectWorkspaceNamesForPaths = (
+  paths: readonly string[]
+): readonly string[] => {
+  const normalizedPaths = paths.map((item) => item.replaceAll("\\", "/"));
+  const selected = new Set<string>();
+
+  for (const workspace of workspaceCatalog) {
+    if (isAppWorkspace(workspace)) {
+      selected.add(workspace.name);
+      continue;
+    }
+
+    for (const filePath of normalizedPaths) {
+      if (
+        filePath === workspace.path ||
+        filePath.startsWith(`${workspace.path}/`)
+      ) {
+        selected.add(workspace.name);
+        break;
+      }
+    }
+  }
+
+  return workspaceCatalog
+    .map((workspace) => workspace.name)
+    .filter((name) => selected.has(name));
+};
+
+export const loadWorkspaceMatrix = (
+  job: WorkspaceMatrixJob,
+  options?: LoadWorkspaceMatrixOptions
+): WorkspaceMatrix => ({
   "node-version": [...nodeVersions[job]],
-  workspace: loadWorkspaces(),
+  workspace: selectWorkspaces(options),
 });
