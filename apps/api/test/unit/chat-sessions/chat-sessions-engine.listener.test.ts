@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EngineService, EngineResult } from "@eddie/engine";
 import { ChatSessionsEngineListener } from "../../../src/chat-sessions/chat-sessions-engine.listener";
 import { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
+import type { ChatSessionStreamRendererService } from "../../../src/chat-sessions/chat-session-stream-renderer.service";
 import { ChatMessageRole } from "../../../src/chat-sessions/dto/create-chat-message.dto";
 import type { ChatMessageDto } from "../../../src/chat-sessions/dto/chat-session.dto";
 import type { LogsService } from "../../../src/logs/logs.service";
@@ -23,7 +24,9 @@ describe("ChatSessionsEngineListener", () => {
   const registerListener = vi.fn();
   const listMessages = vi.fn();
   const addMessage = vi.fn();
+  const updateMessageContent = vi.fn();
   const saveAgentInvocations = vi.fn();
+  const capture = vi.fn();
   let engineRun: ReturnType<typeof vi.fn>;
   let tracesCreate: ReturnType<typeof vi.fn>;
   let tracesUpdateStatus: ReturnType<typeof vi.fn>;
@@ -35,12 +38,15 @@ describe("ChatSessionsEngineListener", () => {
     registerListener.mockReset();
     listMessages.mockReset();
     addMessage.mockReset();
+    updateMessageContent.mockReset();
     saveAgentInvocations.mockReset();
+    capture.mockReset();
 
     chatSessions = {
       registerListener,
       listMessages,
       addMessage,
+      updateMessageContent,
       saveAgentInvocations,
     } as unknown as ChatSessionsService;
 
@@ -69,11 +75,16 @@ describe("ChatSessionsEngineListener", () => {
       append: logsAppend,
     } as unknown as LogsService;
 
+    const streamRenderer = {
+      capture,
+    } as unknown as ChatSessionStreamRendererService;
+
     listener = new ChatSessionsEngineListener(
       chatSessions,
       engine,
       traces,
-      logs
+      logs,
+      streamRenderer
     );
   });
 
@@ -130,6 +141,19 @@ describe("ChatSessionsEngineListener", () => {
 
     engineRun.mockResolvedValue(engineResult);
 
+    capture.mockImplementation(async (_sessionId: string, handler: () => Promise<EngineResult>) => {
+      const result = await handler();
+      return {
+        result,
+        error: undefined,
+        state: {
+          sessionId: "session-1",
+          messageId: "assistant-1",
+          buffer: "Next steps",
+        },
+      };
+    });
+
     listener.onModuleInit();
 
     listener.onMessageCreated(newMessage);
@@ -145,10 +169,15 @@ describe("ChatSessionsEngineListener", () => {
       nonInteractive: true,
     });
 
-    expect(addMessage).toHaveBeenCalledWith("session-1", {
+    expect(addMessage).not.toHaveBeenCalledWith("session-1", {
       role: ChatMessageRole.Assistant,
       content: "Next steps",
     });
+    expect(updateMessageContent).toHaveBeenCalledWith(
+      "session-1",
+      "assistant-1",
+      "Next steps"
+    );
 
     expect(tracesCreate).toHaveBeenCalledWith({
       sessionId: "session-1",
@@ -199,15 +228,31 @@ describe("ChatSessionsEngineListener", () => {
     };
     tracesCreate.mockReturnValue(trace);
 
+    capture.mockImplementation(async (_sessionId: string, handler: () => Promise<EngineResult>) => {
+      const state = {
+        sessionId: "session-1",
+        messageId: "assistant-stream",
+        buffer: "Partial",
+      };
+
+      try {
+        const result = await handler();
+        return { result, error: undefined, state };
+      } catch (error) {
+        return { result: undefined, error, state };
+      }
+    });
+
     listener.onModuleInit();
     listener.onMessageCreated(message);
 
     await new Promise((resolve) => setImmediate(resolve));
 
-    expect(addMessage).toHaveBeenCalledWith("session-1", {
-      role: ChatMessageRole.Assistant,
-      content: "Engine failed to respond. Check server logs for details.",
-    });
+    expect(updateMessageContent).toHaveBeenCalledWith(
+      "session-1",
+      "assistant-stream",
+      "Engine failed to respond. Check server logs for details."
+    );
 
     expect(saveAgentInvocations).not.toHaveBeenCalled();
 

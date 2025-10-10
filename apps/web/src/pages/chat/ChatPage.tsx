@@ -453,12 +453,10 @@ export function ChatPage(): JSX.Element {
         queryClient.setQueryData<ChatMessageDto[]>(
           ["chat-session", message.sessionId, "messages"],
           (previous = []) => {
-            const hasMessage = previous.some(
-              (existing) => existing.id === message.id
-            );
-            const next = hasMessage
+            const exists = previous.some((existing) => existing.id === message.id);
+            const next = exists
               ? previous.map((existing) =>
-                  existing.id === message.id ? message : existing
+                  existing.id === message.id ? { ...existing, ...message } : existing
                 )
               : [...previous, message];
             return next.sort(

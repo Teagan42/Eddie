@@ -7,6 +7,7 @@ class ListenerSpy {
   created = 0;
   updated = 0;
   messages = 0;
+  messageUpdates = 0;
 
   onSessionCreated(): void {
     this.created += 1;
@@ -18,6 +19,10 @@ class ListenerSpy {
 
   onMessageCreated(): void {
     this.messages += 1;
+  }
+
+  onMessageUpdated(): void {
+    this.messageUpdates += 1;
   }
 }
 
@@ -105,5 +110,28 @@ describe("ChatSessionsService", () => {
     expect(stored).not.toBe(snapshots);
     expect(stored[0]).not.toBe(snapshots[0]);
     expect(service.listAgentInvocations("unknown")).toEqual([]);
+  });
+
+  it("updates message content without reordering sessions", () => {
+    const service = new ChatSessionsService();
+    const listener = new ListenerSpy();
+    service.registerListener(listener);
+
+    const session = service.createSession({ title: "Streaming" });
+    const { message } = service.addMessage(session.id, {
+      role: "assistant",
+      content: "Partial",
+    });
+
+    const updated = service.updateMessageContent(
+      session.id,
+      message.id,
+      "Final response"
+    );
+
+    expect(updated.content).toBe("Final response");
+    expect(listener.messageUpdates).toBe(1);
+    expect(listener.updated).toBe(1);
+    expect(service.listMessages(session.id)[0]?.content).toBe("Final response");
   });
 });

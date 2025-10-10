@@ -11,6 +11,7 @@ vi.mock("@/auth/auth-context", () => ({
 
 const logsList = vi.fn<[], Promise<LogEntryDto[]>>().mockResolvedValue([]);
 const registerLogListener = vi.fn();
+const registerMessageUpdated = vi.fn().mockReturnValue(() => {});
 
 vi.mock("@/api/api-provider", () => ({
   useApi: () => ({
@@ -60,7 +61,7 @@ vi.mock("@/api/api-provider", () => ({
         onSessionCreated: vi.fn().mockReturnValue(() => {}),
         onSessionUpdated: vi.fn().mockReturnValue(() => {}),
         onMessageCreated: vi.fn().mockReturnValue(() => {}),
-        onMessageUpdated: vi.fn().mockReturnValue(() => {}),
+        onMessageUpdated: registerMessageUpdated,
       },
       traces: {
         onTraceCreated: vi.fn().mockReturnValue(() => {}),
@@ -121,11 +122,16 @@ describe("OverviewPage log updates", () => {
   it("does not refetch logs when websocket entries arrive", async () => {
     logsList.mockClear();
     registerLogListener.mockClear();
+    registerMessageUpdated.mockClear();
 
     const { emitLog } = renderOverview();
 
     await waitFor(() => {
       expect(registerLogListener).toHaveBeenCalledTimes(1);
+    });
+
+    await waitFor(() => {
+      expect(registerMessageUpdated).toHaveBeenCalledTimes(1);
     });
 
     await waitFor(() => {
