@@ -6,8 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SwaggerModule } from "@nestjs/swagger";
 
 import { configureOpenApi } from "../../src/openapi-config";
-import { OpenApiModule } from "../../src/openapi.module";
-
 describe("configureOpenApi", () => {
   let app: INestApplication;
 
@@ -37,8 +35,7 @@ describe("configureOpenApi", () => {
           title: "Eddie API",
           version: "1.0.0",
         }),
-      }),
-      expect.objectContaining({ include: [OpenApiModule] })
+      })
     );
 
     const jsonResponse = await request(app.getHttpServer()).get(

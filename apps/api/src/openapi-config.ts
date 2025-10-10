@@ -1,8 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 
-import { OpenApiModule } from "./openapi.module";
-
 export function createOpenApiDocumentConfig() {
   return new DocumentBuilder()
     .setTitle("Eddie API")
@@ -19,9 +17,7 @@ export function createOpenApiDocumentConfig() {
 
 export async function configureOpenApi(app: INestApplication): Promise<void> {
   const config = createOpenApiDocumentConfig();
-  const document = SwaggerModule.createDocument(app, config, {
-    include: [OpenApiModule],
-  });
+  const document = SwaggerModule.createDocument(app, config);
 
   SwaggerModule.setup("openapi", app, document, {
     jsonDocumentUrl: "/openapi.json",
