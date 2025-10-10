@@ -106,8 +106,19 @@ describe("createApiClient", () => {
       },
     });
 
+    const messageUpdated = vi.fn();
+    const unsubscribeUpdate = client.sockets.chatSessions.onMessageUpdated(
+      messageUpdated
+    );
+    expect(chatChannel.on).toHaveBeenCalledWith(
+      "message.updated",
+      messageUpdated
+    );
+
     unsubscribe();
     expect(chatChannel.handlers.get("session.created")?.size ?? 0).toBe(0);
+    unsubscribeUpdate();
+    expect(chatChannel.handlers.get("message.updated")?.size ?? 0).toBe(0);
 
     client.updateAuth("secret");
 

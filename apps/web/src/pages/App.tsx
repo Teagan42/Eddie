@@ -228,6 +228,11 @@ export function App(): JSX.Element {
           queryKey: ["chat-sessions", message.sessionId, "messages"],
         })
       ),
+      api.sockets.chatSessions.onMessageUpdated((message) =>
+        queryClient.invalidateQueries({
+          queryKey: ["chat-sessions", message.sessionId, "messages"],
+        })
+      ),
       api.sockets.traces.onTraceCreated(() => queryClient.invalidateQueries({ queryKey: ["traces"] })),
       api.sockets.traces.onTraceUpdated(() => queryClient.invalidateQueries({ queryKey: ["traces"] })),
       api.sockets.logs.onLogCreated(() => queryClient.invalidateQueries({ queryKey: ["logs"] })),

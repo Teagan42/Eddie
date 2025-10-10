@@ -1,12 +1,16 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { EngineService } from "@eddie/engine";
-import type { AgentInvocation } from "@eddie/engine";
+import type { AgentInvocation, EngineResult } from "@eddie/engine";
 import type { ChatMessage } from "@eddie/types";
 import {
   ChatSessionsListener,
   ChatSessionsService,
   type AgentInvocationSnapshot,
 } from "./chat-sessions.service";
+import {
+  ChatSessionStreamRendererService,
+  StreamCaptureResult,
+} from "./chat-session-stream-renderer.service";
 import { ChatMessageDto } from "./dto/chat-session.dto";
 import { ChatMessageRole, CreateChatMessageDto } from "./dto/create-chat-message.dto";
 import { TracesService } from "../traces/traces.service";
@@ -28,7 +32,8 @@ export class ChatSessionsEngineListener
     private readonly chatSessions: ChatSessionsService,
     private readonly engine: EngineService,
     private readonly traces: TracesService,
-    private readonly logs: LogsService
+    private readonly logs: LogsService,
+    private readonly streamRenderer: ChatSessionStreamRendererService
   ) {}
 
   onModuleInit(): void {
@@ -56,6 +61,11 @@ export class ChatSessionsEngineListener
     void this.executeEngine(message);
   }
 
+  onMessageUpdated(message: ChatMessageDto): void {
+    void message;
+    // No engine side-effects for message updates.
+  }
+
   private shouldInvokeEngine(message: ChatMessageDto): boolean {
     return (
       message.role === ChatMessageRole.User ||
@@ -73,20 +83,34 @@ export class ChatSessionsEngineListener
       messageId: message.id,
     });
 
-    try {
-      const result = await this.engine.run(message.content, {
-        history,
-        autoApprove: true,
-        nonInteractive: true,
-      });
+    let capture: StreamCaptureResult<EngineResult> | undefined;
 
+    try {
+      capture = await this.streamRenderer.capture(message.sessionId, () =>
+        this.engine.run(message.content, {
+          history,
+          autoApprove: true,
+          nonInteractive: true,
+        })
+      );
+
+      if (capture.error) {
+        throw capture.error;
+      }
+
+      const result = capture.result!;
       const snapshots = this.snapshotAgentInvocations(result.agents);
       this.chatSessions.saveAgentInvocations(message.sessionId, snapshots);
 
       const baseline = history.length + 2;
       const novelMessages = result.messages.slice(baseline);
 
-      let responseCount = 0;
+      const streamedContent = capture.state.buffer.trim();
+      let streamedHandled =
+        !capture.state.messageId || streamedContent.length === 0;
+      let responseCount =
+        capture.state.messageId && streamedContent.length > 0 ? 1 : 0;
+
       for (const entry of novelMessages) {
         if (entry.role !== "assistant") {
           continue;
@@ -97,8 +121,27 @@ export class ChatSessionsEngineListener
           continue;
         }
 
+        if (!streamedHandled && capture.state.messageId) {
+          this.chatSessions.updateMessageContent(
+            message.sessionId,
+            capture.state.messageId,
+            content
+          );
+          streamedHandled = true;
+          continue;
+        }
+
         this.appendAssistantMessage(message.sessionId, content);
         responseCount += 1;
+      }
+
+      if (!streamedHandled && capture.state.messageId && streamedContent) {
+        this.chatSessions.updateMessageContent(
+          message.sessionId,
+          capture.state.messageId,
+          streamedContent
+        );
+        streamedHandled = true;
       }
 
       const duration = Date.now() - startedAt;
@@ -129,10 +172,18 @@ export class ChatSessionsEngineListener
         error: reason,
       });
 
-      this.appendAssistantMessage(
-        message.sessionId,
-        DEFAULT_ENGINE_FAILURE_MESSAGE
-      );
+      if (capture?.state.messageId) {
+        this.chatSessions.updateMessageContent(
+          message.sessionId,
+          capture.state.messageId,
+          DEFAULT_ENGINE_FAILURE_MESSAGE
+        );
+      } else {
+        this.appendAssistantMessage(
+          message.sessionId,
+          DEFAULT_ENGINE_FAILURE_MESSAGE
+        );
+      }
     }
   }
 

@@ -462,6 +462,24 @@ export function ChatPage(): JSX.Element {
           }
         );
       }),
+      api.sockets.chatSessions.onMessageUpdated((message) => {
+        queryClient.setQueryData<ChatMessageDto[]>(
+          ["chat-session", message.sessionId, "messages"],
+          (previous = []) => {
+            const exists = previous.some((existing) => existing.id === message.id);
+            const next = exists
+              ? previous.map((existing) =>
+                  existing.id === message.id ? { ...existing, ...message } : existing
+                )
+              : [...previous, message];
+
+            return next.sort(
+              (a, b) =>
+                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            );
+          }
+        );
+      }),
     ];
 
     return () => {
