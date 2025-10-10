@@ -163,6 +163,11 @@ export function OverviewPage(): JSX.Element {
           queryKey: ["chat-sessions", message.sessionId, "messages"],
         })
       ),
+      api.sockets.chatSessions.onMessageUpdated((message) =>
+        queryClient.invalidateQueries({
+          queryKey: ["chat-sessions", message.sessionId, "messages"],
+        })
+      ),
       api.sockets.traces.onTraceCreated(() => queryClient.invalidateQueries({ queryKey: ["traces"] })),
       api.sockets.traces.onTraceUpdated(() => queryClient.invalidateQueries({ queryKey: ["traces"] })),
       api.sockets.logs.onLogCreated((entry) => mergeLogsIntoCache(entry)),
