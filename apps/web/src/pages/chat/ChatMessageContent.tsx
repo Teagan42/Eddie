@@ -21,6 +21,8 @@ const TABLE_HEAD_CELL_CLASSES =
 const TABLE_CELL_CLASSES =
   "p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]";
 const TABLE_CAPTION_CLASSES = "mt-4 text-sm text-muted-foreground";
+const LIST_BASE_CLASSES = "my-4 list-outside space-y-2 pl-6";
+const LIST_ITEM_CLASSES = "leading-relaxed marker:text-slate-300";
 
 const markdownComponents: Components = {
   code({ inline, className, children, ...props }) {
@@ -89,6 +91,25 @@ const markdownComponents: Components = {
         {...props}
       />
     );
+  },
+  ul({ className, ...props }) {
+    return (
+      <ul
+        className={cn(LIST_BASE_CLASSES, "list-disc", className)}
+        {...props}
+      />
+    );
+  },
+  ol({ className, ...props }) {
+    return (
+      <ol
+        className={cn(LIST_BASE_CLASSES, "list-decimal", className)}
+        {...props}
+      />
+    );
+  },
+  li({ className, ...props }) {
+    return <li className={cn(LIST_ITEM_CLASSES, className)} {...props} />;
   },
 };
 
