@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Badge,
@@ -23,6 +29,7 @@ import {
   EyeOpenIcon,
   FileTextIcon,
   CheckIcon,
+  TrashIcon,
 } from "@radix-ui/react-icons";
 import Editor, { DiffEditor, useMonaco } from "@monaco-editor/react";
 import { configureMonacoYaml } from "monaco-yaml";
@@ -85,18 +92,6 @@ function parseInput(
   return parsed as EddieConfigInputDto;
 }
 
-function toMultiline(values?: string[]): string {
-  return values && values.length > 0 ? values.join("\n") : "";
-}
-
-function fromMultiline(value: string): string[] | undefined {
-  const entries = value
-    .split(/\r?\n/u)
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-  return entries.length > 0 ? entries : undefined;
-}
-
 function Section({
   title,
   description,
@@ -151,6 +146,14 @@ export function ConfigPage(): JSX.Element {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusVariant, setStatusVariant] = useState<"success" | "error" | null>(
     null
+  );
+  const [includeDraft, setIncludeDraft] = useState<string>("");
+  const [excludeDraft, setExcludeDraft] = useState<string>("");
+  const [systemPromptExpanded, setSystemPromptExpanded] = useState<boolean>(
+    false
+  );
+  const [managerPromptExpanded, setManagerPromptExpanded] = useState<boolean>(
+    false
   );
 
   const {
@@ -350,6 +353,167 @@ export function ConfigPage(): JSX.Element {
     effectiveInput.agents?.enableSubagents ??
     currentConfig?.agents?.enableSubagents ??
     false;
+
+  const providerOptions = useMemo(
+    () =>
+      providerCatalog.map((entry) => ({
+        value: entry.name,
+        label: entry.label ?? entry.name,
+      })),
+    [providerCatalog]
+  );
+  const includeEntries =
+    effectiveInput.context?.include ??
+    baselineInput.context?.include ??
+    currentConfig?.context?.include ??
+    [];
+  const excludeEntries =
+    effectiveInput.context?.exclude ??
+    baselineInput.context?.exclude ??
+    currentConfig?.context?.exclude ??
+    [];
+  const configuredTools = useMemo(() => {
+    const enabled = effectiveInput.tools?.enabled ?? [];
+    const disabled = effectiveInput.tools?.disabled ?? [];
+    const baselineEnabled = baselineInput.tools?.enabled ?? [];
+    const baselineDisabled = baselineInput.tools?.disabled ?? [];
+    const currentEnabled = currentConfig?.tools?.enabled ?? [];
+    const currentDisabled = currentConfig?.tools?.disabled ?? [];
+    return Array.from(
+      new Set([
+        ...baselineEnabled,
+        ...baselineDisabled,
+        ...currentEnabled,
+        ...currentDisabled,
+        ...enabled,
+        ...disabled,
+      ])
+    ).sort();
+  }, [
+    baselineInput.tools?.disabled,
+    baselineInput.tools?.enabled,
+    currentConfig?.tools?.disabled,
+    currentConfig?.tools?.enabled,
+    effectiveInput.tools?.disabled,
+    effectiveInput.tools?.enabled,
+  ]);
+  const logLevelOptions = useMemo(
+    () => ["silent", "info", "debug"],
+    []
+  );
+
+  useEffect(() => {
+    if (!systemPromptExpanded && (effectiveInput.systemPrompt?.trim() ?? "")) {
+      setSystemPromptExpanded(true);
+    }
+  }, [effectiveInput.systemPrompt, systemPromptExpanded]);
+
+  useEffect(() => {
+    const prompt = effectiveInput.agents?.manager?.prompt?.trim() ?? "";
+    if (!managerPromptExpanded && prompt) {
+      setManagerPromptExpanded(true);
+    }
+  }, [effectiveInput.agents?.manager?.prompt, managerPromptExpanded]);
+
+  const handleAddInclude = (): void => {
+    const trimmed = includeDraft.trim();
+    if (!trimmed) {
+      return;
+    }
+    const nextEntries = [...includeEntries, trimmed];
+    updateInput((draft) => {
+      draft.context = { ...(draft.context ?? {}) };
+      draft.context.include = nextEntries;
+    });
+    setIncludeDraft("");
+  };
+
+  const handleRemoveInclude = (index: number): void => {
+    const nextEntries = includeEntries.filter((_, idx) => idx !== index);
+    updateInput((draft) => {
+      draft.context = { ...(draft.context ?? {}) };
+      if (nextEntries.length > 0) {
+        draft.context.include = nextEntries;
+      } else {
+        delete draft.context.include;
+        if (Object.keys(draft.context).length === 0) {
+          delete draft.context;
+        }
+      }
+    });
+  };
+
+  const handleUpdateInclude = (index: number, value: string): void => {
+    const nextEntries = [...includeEntries];
+    nextEntries[index] = value;
+    updateInput((draft) => {
+      draft.context = { ...(draft.context ?? {}) };
+      draft.context.include = nextEntries;
+    });
+  };
+
+  const handleAddExclude = (): void => {
+    const trimmed = excludeDraft.trim();
+    if (!trimmed) {
+      return;
+    }
+    const nextEntries = [...excludeEntries, trimmed];
+    updateInput((draft) => {
+      draft.context = { ...(draft.context ?? {}) };
+      draft.context.exclude = nextEntries;
+    });
+    setExcludeDraft("");
+  };
+
+  const handleRemoveExclude = (index: number): void => {
+    const nextEntries = excludeEntries.filter((_, idx) => idx !== index);
+    updateInput((draft) => {
+      draft.context = { ...(draft.context ?? {}) };
+      if (nextEntries.length > 0) {
+        draft.context.exclude = nextEntries;
+      } else {
+        delete draft.context.exclude;
+        if (Object.keys(draft.context).length === 0) {
+          delete draft.context;
+        }
+      }
+    });
+  };
+
+  const handleUpdateExclude = (index: number, value: string): void => {
+    const nextEntries = [...excludeEntries];
+    nextEntries[index] = value;
+    updateInput((draft) => {
+      draft.context = { ...(draft.context ?? {}) };
+      draft.context.exclude = nextEntries;
+    });
+  };
+
+  const handleToggleTool = (toolId: string, enabled: boolean): void => {
+    updateInput((draft) => {
+      draft.tools = { ...(draft.tools ?? {}) };
+      const currentEnabled = new Set(
+        draft.tools.enabled ??
+          effectiveInput.tools?.enabled ??
+          currentConfig?.tools?.enabled ??
+          []
+      );
+      if (enabled) {
+        currentEnabled.add(toolId);
+      } else {
+        currentEnabled.delete(toolId);
+      }
+      const next = Array.from(currentEnabled).sort();
+      if (next.length > 0) {
+        draft.tools.enabled = next;
+      } else {
+        delete draft.tools.enabled;
+      }
+      if (Object.keys(draft.tools).length === 0) {
+        delete draft.tools;
+      }
+    });
+  };
 
   const handleFormatChange = (next: ConfigFileFormat): void => {
     if (mode === next) {
@@ -622,9 +786,12 @@ export function ConfigPage(): JSX.Element {
                     }
                   });
                 }}
-                disabled={providerCatalogQuery.isLoading && modelOptions.length === 0}
+                disabled={
+                  providerCatalogQuery.isLoading && modelOptions.length === 0
+                }
               >
                 <Select.Trigger
+                  aria-label="Model"
                   placeholder={currentConfig?.model ?? "Model identifier"}
                 />
                 <Select.Content>
@@ -640,47 +807,100 @@ export function ConfigPage(): JSX.Element {
                   ) : null}
                 </Select.Content>
               </Select.Root>
-              <TextArea
-                value={effectiveInput.systemPrompt ?? ""}
-                onChange={(event) =>
-                  updateInput((draft) => {
-                    const next = event.target.value || undefined;
-                    if (next) {
-                      draft.systemPrompt = next;
-                    } else {
-                      delete draft.systemPrompt;
-                    }
-                  })
+              <Button
+                size="2"
+                variant="surface"
+                onClick={() =>
+                  setSystemPromptExpanded((previous) => !previous)
                 }
-                placeholder={
-                  currentConfig?.systemPrompt ?? "System prompt used for orchestration"
-                }
-                minRows={3}
-              />
+              >
+                {systemPromptExpanded ? "Hide system prompt" : "Edit system prompt"}
+              </Button>
+              {systemPromptExpanded ? (
+                <TextArea
+                  aria-label="System prompt"
+                  value={effectiveInput.systemPrompt ?? ""}
+                  onChange={(event) =>
+                    updateInput((draft) => {
+                      const next = event.target.value || undefined;
+                      if (next) {
+                        draft.systemPrompt = next;
+                      } else {
+                        delete draft.systemPrompt;
+                      }
+                    })
+                  }
+                  placeholder={
+                    currentConfig?.systemPrompt ??
+                    "System prompt used for orchestration"
+                  }
+                  rows={3}
+                />
+              ) : null}
             </Flex>
             <Separator className="opacity-30" />
             <Flex direction="column" gap="3">
               <Text size="2" color="gray">
                 Provider configuration
               </Text>
-              <TextField.Root
-                value={effectiveInput.provider?.name ?? ""}
-                onChange={(event) =>
+              <Select.Root
+                value={selectedProviderName ?? ""}
+                onValueChange={(value) => {
+                  if (value === "__custom__") {
+                    const next = window.prompt(
+                      "Provider identifier",
+                      selectedProviderName ?? ""
+                    );
+                    const manual = next?.trim() ?? "";
+                    if (!manual) {
+                      return;
+                    }
+                    updateInput((draft) => {
+                      draft.provider = { ...(draft.provider ?? {}) };
+                      draft.provider.name = manual;
+                    });
+                    return;
+                  }
+                  if (value === "__clear__") {
+                    updateInput((draft) => {
+                      draft.provider = { ...(draft.provider ?? {}) };
+                      delete draft.provider.name;
+                      if (Object.keys(draft.provider).length === 0) {
+                        delete draft.provider;
+                      }
+                    });
+                    return;
+                  }
                   updateInput((draft) => {
                     draft.provider = { ...(draft.provider ?? {}) };
-                    const next = event.target.value || undefined;
-                    if (next) {
-                      draft.provider.name = next;
+                    if (value) {
+                      draft.provider.name = value;
                     } else {
                       delete draft.provider.name;
                     }
                     if (Object.keys(draft.provider).length === 0) {
                       delete draft.provider;
                     }
-                  })
-                }
-                placeholder={currentConfig?.provider?.name ?? "Provider"}
-              />
+                  });
+                }}
+              >
+                <Select.Trigger
+                  aria-label="Provider"
+                  placeholder={currentConfig?.provider?.name ?? "Provider"}
+                />
+                <Select.Content>
+                  {providerOptions.map((option) => (
+                    <Select.Item key={option.value} value={option.value}>
+                      {option.label}
+                    </Select.Item>
+                  ))}
+                  {providerOptions.length > 0 ? <Select.Separator /> : null}
+                  <Select.Item value="__custom__">Custom provider…</Select.Item>
+                  {selectedProviderName ? (
+                    <Select.Item value="__clear__">Clear provider</Select.Item>
+                  ) : null}
+                </Select.Content>
+              </Select.Root>
               <TextField.Root
                 value={effectiveInput.provider?.baseUrl ?? ""}
                 onChange={(event) =>
@@ -739,41 +959,106 @@ export function ConfigPage(): JSX.Element {
               }
               placeholder={currentConfig?.context?.baseDir ?? "Base directory"}
             />
-            <TextArea
-              value={toMultiline(effectiveInput.context?.include)}
-              onChange={(event) =>
-                updateInput((draft) => {
-                  draft.context = { ...(draft.context ?? {}) };
-                  const next = fromMultiline(event.target.value);
-                  if (next) {
-                    draft.context.include = next;
-                  } else {
-                    delete draft.context.include;
-                  }
-                })
-              }
-              placeholder={
-                currentConfig?.context?.include?.join("\n") ??
-                "src/**/*\nREADME.md"
-              }
-              minRows={3}
-            />
-            <TextArea
-              value={toMultiline(effectiveInput.context?.exclude)}
-              onChange={(event) =>
-                updateInput((draft) => {
-                  draft.context = { ...(draft.context ?? {}) };
-                  const next = fromMultiline(event.target.value);
-                  if (next) {
-                    draft.context.exclude = next;
-                  } else {
-                    delete draft.context.exclude;
-                  }
-                })
-              }
-              placeholder="Optional exclusion globs"
-              minRows={2}
-            />
+            <Flex direction="column" gap="2">
+              <Flex gap="2">
+                <TextField.Root
+                  value={includeDraft}
+                  onChange={(event) => setIncludeDraft(event.target.value)}
+                  placeholder="Add include pattern"
+                  aria-label="Add include pattern"
+                />
+                <Button
+                  variant="surface"
+                  onClick={handleAddInclude}
+                  disabled={includeDraft.trim().length === 0}
+                >
+                  Add include
+                </Button>
+              </Flex>
+              <Flex direction="column" gap="2">
+                {includeEntries.length === 0 ? (
+                  <Text size="2" color="gray">
+                    No include globs configured yet.
+                  </Text>
+                ) : (
+                  includeEntries.map((pattern, index) => {
+                    const inputId = `include-entry-${index + 1}`;
+                    return (
+                      <Flex key={`${pattern}-${index}`} gap="2" align="center">
+                        <label className="sr-only" htmlFor={inputId}>
+                          {`Include entry ${index + 1}`}
+                        </label>
+                        <TextField.Root
+                          id={inputId}
+                          value={pattern}
+                          onChange={(event) =>
+                            handleUpdateInclude(index, event.target.value)
+                          }
+                        />
+                        <IconButton
+                          variant="surface"
+                          color="red"
+                          aria-label={`Remove include entry ${index + 1}`}
+                          onClick={() => handleRemoveInclude(index)}
+                        >
+                          <TrashIcon />
+                        </IconButton>
+                      </Flex>
+                    );
+                  })
+                )}
+              </Flex>
+            </Flex>
+            <Flex direction="column" gap="2">
+              <Flex gap="2">
+                <TextField.Root
+                  value={excludeDraft}
+                  onChange={(event) => setExcludeDraft(event.target.value)}
+                  placeholder="Add exclude pattern"
+                  aria-label="Add exclude pattern"
+                />
+                <Button
+                  variant="surface"
+                  onClick={handleAddExclude}
+                  disabled={excludeDraft.trim().length === 0}
+                >
+                  Add exclude
+                </Button>
+              </Flex>
+              <Flex direction="column" gap="2">
+                {excludeEntries.length === 0 ? (
+                  <Text size="2" color="gray">
+                    No exclude globs configured yet.
+                  </Text>
+                ) : (
+                  excludeEntries.map((pattern, index) => {
+                    const inputId = `exclude-entry-${index + 1}`;
+                    return (
+                      <Flex key={`${pattern}-${index}`} gap="2" align="center">
+                        <label className="sr-only" htmlFor={inputId}>
+                          {`Exclude entry ${index + 1}`}
+                        </label>
+                        <TextField.Root
+                          id={inputId}
+                          value={pattern}
+                          onChange={(event) =>
+                            handleUpdateExclude(index, event.target.value)
+                          }
+                        />
+                        <IconButton
+                          variant="surface"
+                          color="red"
+                          aria-label={`Remove exclude entry ${index + 1}`}
+                          onClick={() => handleRemoveExclude(index)}
+                        >
+                          <TrashIcon />
+                        </IconButton>
+                      </Flex>
+                    );
+                  })
+                )}
+              </Flex>
+            </Flex>
           </Section>
 
           <Section
@@ -782,45 +1067,83 @@ export function ConfigPage(): JSX.Element {
           >
             <Flex align="center" gap="3">
               <Text size="2">Logging level</Text>
-              <TextField.Root
+              <Select.Root
                 value={effectiveInput.logging?.level ?? ""}
-                onChange={(event) =>
+                onValueChange={(value) => {
+                  if (value === "__clear__") {
+                    updateInput((draft) => {
+                      draft.logging = { ...(draft.logging ?? {}) };
+                      delete draft.logging.level;
+                      if (Object.keys(draft.logging).length === 0) {
+                        delete draft.logging;
+                      }
+                    });
+                    return;
+                  }
                   updateInput((draft) => {
                     draft.logging = { ...(draft.logging ?? {}) };
-                    const next = event.target.value || undefined;
-                    if (next) {
-                      draft.logging.level = next as never;
+                    if (value) {
+                      draft.logging.level = value as never;
                     } else {
                       delete draft.logging.level;
                     }
-                  })
-                }
-                placeholder={currentConfig?.logging?.level ?? "info"}
-              />
+                    if (Object.keys(draft.logging).length === 0) {
+                      delete draft.logging;
+                    }
+                  });
+                }}
+              >
+                <Select.Trigger
+                  aria-label="Log level"
+                  placeholder={currentConfig?.logging?.level ?? "info"}
+                />
+                <Select.Content>
+                  {logLevelOptions.map((level) => (
+                    <Select.Item key={level} value={level}>
+                      {level}
+                    </Select.Item>
+                  ))}
+                  {(effectiveInput.logging?.level ?? "") ? (
+                    <>
+                      <Select.Separator />
+                      <Select.Item value="__clear__">Clear log level</Select.Item>
+                    </>
+                  ) : null}
+                </Select.Content>
+              </Select.Root>
             </Flex>
             <Flex direction="column" gap="3">
               <Text size="2" color="gray">
                 Enabled tools
               </Text>
-              <TextArea
-                value={toMultiline(effectiveInput.tools?.enabled)}
-                onChange={(event) =>
-                  updateInput((draft) => {
-                    draft.tools = { ...(draft.tools ?? {}) };
-                    const next = fromMultiline(event.target.value);
-                    if (next) {
-                      draft.tools.enabled = next;
-                    } else {
-                      delete draft.tools.enabled;
-                    }
-                  })
-                }
-                placeholder={currentConfig?.tools?.enabled?.join("\n") ?? ""}
-                minRows={2}
-              />
+              {configuredTools.length === 0 ? (
+                <Text size="2" color="gray">
+                  No tools discovered from the current configuration.
+                </Text>
+              ) : (
+                configuredTools.map((toolId) => {
+                  const isEnabled =
+                    effectiveInput.tools?.enabled?.includes(toolId) ??
+                    currentConfig?.tools?.enabled?.includes(toolId) ??
+                    false;
+                  return (
+                    <Flex key={toolId} align="center" gap="3" justify="between">
+                      <Text size="2">{`${toolId} tool`}</Text>
+                      <Switch
+                        checked={isEnabled}
+                        aria-label={`${toolId} tool`}
+                        onCheckedChange={(checked) =>
+                          handleToggleTool(toolId, checked)
+                        }
+                      />
+                    </Flex>
+                  );
+                })
+              )}
               <Flex align="center" gap="3">
                 <Switch
                   checked={autoApproveChecked}
+                  aria-label="Auto-approve tool calls"
                   onCheckedChange={(checked) =>
                     updateInput((draft) => {
                       draft.tools = { ...(draft.tools ?? {}) };
@@ -837,43 +1160,84 @@ export function ConfigPage(): JSX.Element {
             title="Agents"
             description="Control routing and agent behaviour."
           >
-            <TextField.Root
+            <Select.Root
               value={effectiveInput.agents?.mode ?? ""}
-              onChange={(event) =>
+              onValueChange={(value) => {
+                if (value === "__clear__") {
+                  updateInput((draft) => {
+                    draft.agents = { ...(draft.agents ?? {}) };
+                    delete draft.agents.mode;
+                  });
+                  return;
+                }
                 updateInput((draft) => {
                   draft.agents = { ...(draft.agents ?? {}) };
-                  const next = event.target.value || undefined;
-                  if (next) {
-                    draft.agents.mode = next;
+                  if (value) {
+                    draft.agents.mode = value;
                   } else {
                     delete draft.agents.mode;
                   }
-                })
+                });
+              }}
+            >
+              <Select.Trigger
+                aria-label="Agent mode"
+                placeholder={currentConfig?.agents?.mode ?? "single"}
+              />
+              <Select.Content>
+                <Select.Item value="single">single</Select.Item>
+                <Select.Item value="router">router</Select.Item>
+                <Select.Item value="manager">manager</Select.Item>
+                {(effectiveInput.agents?.mode ?? "") ? (
+                  <>
+                    <Select.Separator />
+                    <Select.Item value="__clear__">Clear mode</Select.Item>
+                  </>
+                ) : null}
+              </Select.Content>
+            </Select.Root>
+            <Button
+              size="2"
+              variant="surface"
+              onClick={() =>
+                setManagerPromptExpanded((previous) => !previous)
               }
-              placeholder={currentConfig?.agents?.mode ?? "single"}
-            />
-            <TextArea
-              value={effectiveInput.agents?.manager?.prompt ?? ""}
-              onChange={(event) =>
-                updateInput((draft) => {
-                  draft.agents = { ...(draft.agents ?? {}) };
-                  draft.agents.manager = { ...(draft.agents.manager ?? {}) };
-                  const next = event.target.value || undefined;
-                  if (next) {
-                    draft.agents.manager.prompt = next;
-                  } else {
-                    delete draft.agents.manager.prompt;
-                  }
-                })
-              }
-              placeholder={
-                currentConfig?.agents?.manager?.prompt ?? "Manager prompt"
-              }
-              minRows={4}
-            />
+            >
+              {managerPromptExpanded
+                ? "Hide manager prompt"
+                : "Edit manager prompt"}
+            </Button>
+            {managerPromptExpanded ? (
+              <TextArea
+                aria-label="Manager prompt"
+                value={effectiveInput.agents?.manager?.prompt ?? ""}
+                onChange={(event) =>
+                  updateInput((draft) => {
+                    draft.agents = { ...(draft.agents ?? {}) };
+                    draft.agents.manager = {
+                      ...(draft.agents.manager ?? {}),
+                    };
+                    const next = event.target.value || undefined;
+                    if (next) {
+                      draft.agents.manager.prompt = next;
+                    } else {
+                      delete draft.agents.manager.prompt;
+                    }
+                    if (Object.keys(draft.agents.manager).length === 0) {
+                      delete draft.agents.manager;
+                    }
+                  })
+                }
+                placeholder={
+                  currentConfig?.agents?.manager?.prompt ?? "Manager prompt"
+                }
+                rows={4}
+              />
+            ) : null}
             <Flex align="center" gap="3">
               <Switch
                 checked={enableSubagentsChecked}
+                aria-label="Enable subagents"
                 onCheckedChange={(checked) =>
                   updateInput((draft) => {
                     draft.agents = { ...(draft.agents ?? {}) };
@@ -894,22 +1258,13 @@ export function ConfigPage(): JSX.Element {
                 <Badge color={isDirty ? "amber" : "jade"}>
                   {isDirty ? "Unsaved" : "Up to date"}
                 </Badge>
-                <Flex gap="2">
-                  <Button
-                    size="2"
-                    variant={mode === "yaml" ? "solid" : "surface"}
-                    onClick={() => handleFormatChange("yaml")}
-                  >
-                    YAML
-                  </Button>
-                  <Button
-                    size="2"
-                    variant={mode === "json" ? "solid" : "surface"}
-                    onClick={() => handleFormatChange("json")}
-                  >
-                    JSON
-                  </Button>
-                </Flex>
+                <Select.Root value={mode} onValueChange={handleFormatChange}>
+                  <Select.Trigger aria-label="Editor mode" />
+                  <Select.Content>
+                    <Select.Item value="yaml">YAML</Select.Item>
+                    <Select.Item value="json">JSON</Select.Item>
+                  </Select.Content>
+                </Select.Root>
               </Flex>
             }
           >
@@ -1082,3 +1437,4 @@ export function ConfigPage(): JSX.Element {
   </div>
   );
 }
+
