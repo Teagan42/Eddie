@@ -181,6 +181,11 @@ export interface LogsSocket {
   onLogCreated(handler: (entry: LogEntryDto) => void): Unsubscribe;
 }
 
+export interface LogsListOptions {
+  offset?: number;
+  limit?: number;
+}
+
 export interface ConfigSocket {
   onConfigUpdated(handler: (config: RuntimeConfigDto) => void): Unsubscribe;
 }
@@ -203,7 +208,7 @@ export interface ApiClient {
       get(id: string): Promise<TraceDto>;
     };
     logs: {
-      list(): Promise<LogEntryDto[]>;
+      list(params?: LogsListOptions): Promise<LogEntryDto[]>;
       emit(): Promise<LogEntryDto>;
     };
     config: {
@@ -387,7 +392,8 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         get: (id) => TracesService.tracesControllerGet(id),
       },
       logs: {
-        list: () => LogsService.logsControllerList(),
+        list: (params?: LogsListOptions) =>
+          LogsService.logsControllerList(params ?? {}),
         emit: () => LogsService.logsControllerEmit(),
       },
       config: {

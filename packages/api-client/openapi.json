@@ -278,7 +278,28 @@
     "/logs": {
       "get": {
         "operationId": "LogsController_list",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 50
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
