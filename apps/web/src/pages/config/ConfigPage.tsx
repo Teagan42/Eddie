@@ -498,16 +498,30 @@ export function ConfigPage(): JSX.Element {
           currentConfig?.tools?.enabled ??
           []
       );
+      const currentDisabled = new Set(
+        draft.tools.disabled ??
+          effectiveInput.tools?.disabled ??
+          currentConfig?.tools?.disabled ??
+          []
+      );
       if (enabled) {
         currentEnabled.add(toolId);
+        currentDisabled.delete(toolId);
       } else {
         currentEnabled.delete(toolId);
+        currentDisabled.add(toolId);
       }
-      const next = Array.from(currentEnabled).sort();
-      if (next.length > 0) {
-        draft.tools.enabled = next;
+      const nextEnabled = Array.from(currentEnabled).sort();
+      if (nextEnabled.length > 0) {
+        draft.tools.enabled = nextEnabled;
       } else {
         delete draft.tools.enabled;
+      }
+      const nextDisabled = Array.from(currentDisabled).sort();
+      if (nextDisabled.length > 0) {
+        draft.tools.disabled = nextDisabled;
+      } else {
+        delete draft.tools.disabled;
       }
       if (Object.keys(draft.tools).length === 0) {
         delete draft.tools;
