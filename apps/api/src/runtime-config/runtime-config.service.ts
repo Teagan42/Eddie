@@ -31,7 +31,16 @@ export class RuntimeConfigService {
   }
 
   update(partial: Partial<RuntimeConfigDto>): RuntimeConfigDto {
-    this.config = { ...this.config, ...partial };
+    const mergedFeatures =
+      partial.features !== undefined
+        ? { ...this.config.features, ...partial.features }
+        : this.config.features;
+
+    this.config = {
+      ...this.config,
+      ...partial,
+      features: mergedFeatures,
+    };
     for (const listener of this.listeners) {
       listener.onConfigChanged(this.config);
     }
