@@ -121,6 +121,35 @@ const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
   },
 };
 
+const DEFAULT_MESSAGE_ROLE_STYLE: MessageRoleStyle = {
+  label: "Message",
+  badgeColor: "gray",
+  align: "start",
+  cardClassName:
+    "border border-white/10 bg-slate-900/60 text-slate-100 shadow-[0_30px_60px_-35px_rgba(148,163,184,0.45)]",
+  icon: ChatBubbleIcon,
+  iconClassName: "text-slate-200",
+  contentClassName: "whitespace-pre-wrap leading-relaxed text-slate-50",
+};
+
+function resolveMessageRoleStyle(
+  role: ChatMessageDto["role"] | string | null | undefined
+): MessageRoleStyle {
+  if (typeof role === "string" && role in MESSAGE_ROLE_STYLES) {
+    return MESSAGE_ROLE_STYLES[role as MessageRole];
+  }
+
+  const normalizedLabel =
+    typeof role === "string" && role.trim().length > 0
+      ? `${role.charAt(0).toUpperCase()}${role.slice(1)}`
+      : "Message";
+
+  return {
+    ...DEFAULT_MESSAGE_ROLE_STYLE,
+    label: normalizedLabel,
+  };
+}
+
 function formatTime(value: string): string | null {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -990,7 +1019,7 @@ export function ChatPage(): JSX.Element {
                   </Text>
                 ) : (
                   messages.map((message) => {
-                    const roleStyle = MESSAGE_ROLE_STYLES[message.role];
+                    const roleStyle = resolveMessageRoleStyle(message.role);
                     const timestamp = formatTime(message.createdAt);
                     const Icon = roleStyle.icon;
                     const alignmentClass =
