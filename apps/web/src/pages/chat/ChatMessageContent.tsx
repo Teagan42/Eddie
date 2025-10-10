@@ -12,7 +12,9 @@ const INLINE_CODE_CLASSES =
 
 const markdownComponents: Components = {
   code({ inline, className, children, ...props }) {
-    if (inline) {
+    const isCodeBlock = !inline && className?.includes("language-");
+
+    if (!isCodeBlock) {
       return (
         <code className={cn(INLINE_CODE_CLASSES, className)} {...props}>
           {children}
