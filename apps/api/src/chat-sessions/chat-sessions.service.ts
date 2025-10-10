@@ -7,6 +7,19 @@ import {
 } from "./dto/create-chat-message.dto";
 import { ChatMessageDto, ChatSessionDto } from "./dto/chat-session.dto";
 
+export interface AgentInvocationMessageSnapshot {
+  role: ChatMessageRole;
+  content: string;
+  name?: string;
+  toolCallId?: string;
+}
+
+export interface AgentInvocationSnapshot {
+  id: string;
+  messages: AgentInvocationMessageSnapshot[];
+  children: AgentInvocationSnapshot[];
+}
+
 type ChatSessionStatus = "active" | "archived";
 
 interface ChatSessionEntity {
@@ -39,6 +52,7 @@ export class ChatSessionsService {
   private readonly sessions = new Map<string, ChatSessionEntity>();
   private readonly messages = new Map<string, ChatMessageEntity[]>();
   private readonly listeners = new Set<ChatSessionsListener>();
+  private readonly agentInvocations = new Map<string, AgentInvocationSnapshot[]>();
 
   registerListener(listener: ChatSessionsListener): () => void {
     this.listeners.add(listener);
@@ -66,6 +80,27 @@ export class ChatSessionsService {
       ...(entity.toolCallId ? { toolCallId: entity.toolCallId } : {}),
       ...(entity.name ? { name: entity.name } : {}),
     };
+  }
+
+  saveAgentInvocations(
+    sessionId: string,
+    invocations: AgentInvocationSnapshot[]
+  ): void {
+    this.ensureSessionExists(sessionId);
+    if (invocations.length === 0) {
+      this.agentInvocations.delete(sessionId);
+      return;
+    }
+    const cloned = invocations.map((invocation) => this.cloneInvocation(invocation));
+    this.agentInvocations.set(sessionId, cloned);
+  }
+
+  listAgentInvocations(sessionId: string): AgentInvocationSnapshot[] {
+    const stored = this.agentInvocations.get(sessionId);
+    if (!stored) {
+      return [];
+    }
+    return stored.map((invocation) => this.cloneInvocation(invocation));
   }
 
   private notifySessionCreated(session: ChatSessionDto): void {
@@ -176,5 +211,15 @@ export class ChatSessionsService {
     if (!this.sessions.has(id)) {
       throw new NotFoundException(`Chat session ${id} not found`);
     }
+  }
+
+  private cloneInvocation(
+    invocation: AgentInvocationSnapshot
+  ): AgentInvocationSnapshot {
+    return {
+      id: invocation.id,
+      messages: invocation.messages.map((message) => ({ ...message })),
+      children: invocation.children.map((child) => this.cloneInvocation(child)),
+    };
   }
 }

@@ -23,6 +23,7 @@ describe("ChatSessionsEngineListener", () => {
   const registerListener = vi.fn();
   const listMessages = vi.fn();
   const addMessage = vi.fn();
+  const saveAgentInvocations = vi.fn();
   let engineRun: ReturnType<typeof vi.fn>;
   let tracesCreate: ReturnType<typeof vi.fn>;
   let tracesUpdateStatus: ReturnType<typeof vi.fn>;
@@ -34,11 +35,13 @@ describe("ChatSessionsEngineListener", () => {
     registerListener.mockReset();
     listMessages.mockReset();
     addMessage.mockReset();
+    saveAgentInvocations.mockReset();
 
     chatSessions = {
       registerListener,
       listMessages,
       addMessage,
+      saveAgentInvocations,
     } as unknown as ChatSessionsService;
 
     engineRun = vi.fn();
@@ -178,6 +181,8 @@ describe("ChatSessionsEngineListener", () => {
         responseCount: 1,
       })
     );
+
+    expect(saveAgentInvocations).toHaveBeenCalledWith("session-1", []);
   });
 
   it("appends a failure message when the engine rejects", async () => {
@@ -203,6 +208,8 @@ describe("ChatSessionsEngineListener", () => {
       role: ChatMessageRole.Assistant,
       content: "Engine failed to respond. Check server logs for details.",
     });
+
+    expect(saveAgentInvocations).not.toHaveBeenCalled();
 
     expect(tracesUpdateStatus).toHaveBeenCalledWith(
       "trace-1",
