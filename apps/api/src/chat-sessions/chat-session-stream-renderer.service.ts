@@ -3,7 +3,7 @@ import { Injectable } from "@nestjs/common";
 import { StreamRendererService } from "@eddie/io";
 import type { StreamEvent } from "@eddie/types";
 import { ChatSessionsService } from "./chat-sessions.service";
-import { ChatMessageRole } from "./dto/create-chat-message.dto";
+import { ChatMessageRole, CreateChatMessageDto } from "./dto/create-chat-message.dto";
 import { ChatMessagesGateway } from "./chat-messages.gateway";
 import type { ChatMessageDto } from "./dto/chat-session.dto";
 
@@ -11,6 +11,7 @@ interface StreamState {
   sessionId: string;
   buffer: string;
   messageId?: string;
+  toolCallMessageIds: Record<string, string>;
 }
 
 export interface StreamCaptureResult<T> {
@@ -34,7 +35,11 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
     sessionId: string,
     handler: () => Promise<T>
   ): Promise<StreamCaptureResult<T>> {
-    const state: StreamState = { sessionId, buffer: "" };
+    const state: StreamState = {
+      sessionId,
+      buffer: "",
+      toolCallMessageIds: {},
+    };
     let result: T | undefined;
     let error: unknown;
 
@@ -68,6 +73,60 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
 
         state.buffer += event.text;
         this.upsertMessage(state);
+        break;
+      }
+      case "tool_call": {
+        if (!event.id) {
+          return;
+        }
+
+        if (state.toolCallMessageIds[event.id]) {
+          return;
+        }
+
+        const payload: CreateChatMessageDto = {
+          role: ChatMessageRole.Assistant,
+          content: "",
+          toolCallId: event.id,
+          ...(event.name ? { name: event.name } : {}),
+        };
+
+        const { message } = this.chatSessions.addMessage(state.sessionId, payload);
+        state.toolCallMessageIds[event.id] = message.id;
+        this.emitPartial(message);
+        break;
+      }
+      case "tool_result": {
+        if (!event.id) {
+          return;
+        }
+
+        const payload: Record<string, unknown> = {
+          schema: event.result.schema,
+          content: event.result.content,
+        };
+
+        if (event.result.data !== undefined) {
+          payload.data = event.result.data;
+        }
+
+        if (event.result.metadata !== undefined) {
+          payload.metadata = event.result.metadata;
+        }
+
+        const content = JSON.stringify(payload);
+        const messagePayload: CreateChatMessageDto = {
+          role: ChatMessageRole.Tool,
+          content,
+          toolCallId: event.id,
+          ...(event.name ? { name: event.name } : {}),
+        };
+
+        const { message } = this.chatSessions.addMessage(
+          state.sessionId,
+          messagePayload
+        );
+        this.emitPartial(message);
         break;
       }
       case "end": {
