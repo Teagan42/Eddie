@@ -71,6 +71,23 @@ export class LogsForwarderService implements OnModuleInit, OnModuleDestroy {
 
     let message = this.resolveMessage(messageSource, event.level);
 
+    if (context && messageSource === undefined) {
+      for (const key of ["msg", "message"]) {
+        const candidate = context[key];
+        if (candidate === undefined) {
+          continue;
+        }
+
+        message = this.resolveMessage(candidate, event.level);
+        delete context[key];
+        break;
+      }
+
+      if (Object.keys(context).length === 0) {
+        context = undefined;
+      }
+    }
+
     if (remaining.length > 0) {
       context = {
         ...(context ?? {}),

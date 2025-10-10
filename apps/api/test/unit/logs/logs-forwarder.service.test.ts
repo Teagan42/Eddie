@@ -96,6 +96,26 @@ describe("LogsForwarderService", () => {
     );
   });
 
+  it("derives the message from logger context payloads", () => {
+    forwarder.onModuleInit();
+
+    loggerListener?.({
+      level: "debug",
+      args: [
+        {
+          msg: "context message",
+          scope: "test",
+        },
+      ],
+    });
+
+    expect(logsAppend).toHaveBeenCalledWith(
+      "debug",
+      "context message",
+      expect.objectContaining({ scope: "test" })
+    );
+  });
+
   it("cleans up listeners on destroy", () => {
     forwarder.onModuleInit();
 
