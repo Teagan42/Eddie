@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { RuntimeConfigDto } from "./dto/runtime-config.dto";
+import { mergeRuntimeConfig, runtimeDefaults } from "./runtime.config";
 
 export interface RuntimeConfigListener {
   onConfigChanged(config: RuntimeConfigDto): void;
@@ -7,19 +9,18 @@ export interface RuntimeConfigListener {
 
 @Injectable()
 export class RuntimeConfigService {
-  private config: RuntimeConfigDto = {
-    apiUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000",
-    websocketUrl:
-      process.env.NEXT_PUBLIC_WEBSOCKET_URL ?? "ws://localhost:3000",
-    features: {
-      traces: true,
-      logs: true,
-      chat: true,
-    },
-    theme: "dark",
-  };
+  private config: RuntimeConfigDto;
 
   private readonly listeners = new Set<RuntimeConfigListener>();
+
+  constructor(private readonly configService: ConfigService) {
+    const configured = this.configService.get<RuntimeConfigDto>("runtime", {
+      infer: true,
+    });
+    this.config = this.cloneConfig(
+      mergeRuntimeConfig(runtimeDefaults, configured ?? undefined)
+    );
+  }
 
   registerListener(listener: RuntimeConfigListener): () => void {
     this.listeners.add(listener);
