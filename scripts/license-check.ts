@@ -155,22 +155,137 @@ export function collectLicenses(lockfilePath: string, options: CollectOptions = 
   });
 }
 
-function expandLicenseSet(license: string): string[] {
-  return license
-    .split(/(?:\s+AND\s+|\s+OR\s+|,)/i)
-    .map(token => token.replace(/[()]/g, '').trim())
-    .filter(Boolean);
+type LicenseExpression =
+  | { type: 'license'; value: string }
+  | { type: 'and' | 'or'; left: LicenseExpression; right: LicenseExpression };
+
+type LicenseToken = '(' | ')' | 'AND' | 'OR' | string;
+
+function tokenizeLicenseExpression(input: string): LicenseToken[] {
+  const tokens: LicenseToken[] = [];
+  const pattern = /\s*(\(|\)|AND|OR|,|[^()\s]+)\s*/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(input))) {
+    const raw = match[1];
+    if (!raw) {
+      continue;
+    }
+
+    if (raw === '(' || raw === ')') {
+      tokens.push(raw);
+      continue;
+    }
+
+    const upper = raw.toUpperCase();
+    if (upper === 'AND' || upper === 'OR') {
+      tokens.push(upper);
+      continue;
+    }
+
+    if (raw === ',') {
+      tokens.push('OR');
+      continue;
+    }
+
+    tokens.push(raw);
+  }
+
+  return tokens;
+}
+
+function parseLicenseExpression(input: string): LicenseExpression | undefined {
+  const tokens = tokenizeLicenseExpression(input);
+  let index = 0;
+
+  function peek(): LicenseToken | undefined {
+    return tokens[index];
+  }
+
+  function consume(): LicenseToken | undefined {
+    return tokens[index++];
+  }
+
+  function parsePrimary(): LicenseExpression | undefined {
+    const token = consume();
+    if (!token) {
+      return undefined;
+    }
+
+    if (token === '(') {
+      const expression = parseOr();
+      if (peek() === ')') {
+        consume();
+      }
+      return expression;
+    }
+
+    if (token === ')' || token === 'AND' || token === 'OR') {
+      return undefined;
+    }
+
+    return { type: 'license', value: token };
+  }
+
+  function parseAnd(): LicenseExpression | undefined {
+    let left = parsePrimary();
+    while (left && peek() === 'AND') {
+      consume();
+      const right = parsePrimary();
+      if (!right) {
+        return undefined;
+      }
+      left = { type: 'and', left, right };
+    }
+    return left;
+  }
+
+  function parseOr(): LicenseExpression | undefined {
+    let left = parseAnd();
+    while (left && peek() === 'OR') {
+      consume();
+      const right = parseAnd();
+      if (!right) {
+        return undefined;
+      }
+      left = { type: 'or', left, right };
+    }
+    return left;
+  }
+
+  return parseOr();
+}
+
+function isLicenseExpressionAllowed(
+  expression: LicenseExpression | undefined,
+  allowedSet: Set<string>,
+): boolean {
+  if (!expression) {
+    return false;
+  }
+
+  if (expression.type === 'license') {
+    return allowedSet.has(expression.value);
+  }
+
+  if (expression.type === 'and') {
+    return (
+      isLicenseExpressionAllowed(expression.left, allowedSet) &&
+      isLicenseExpressionAllowed(expression.right, allowedSet)
+    );
+  }
+
+  return (
+    isLicenseExpressionAllowed(expression.left, allowedSet) ||
+    isLicenseExpressionAllowed(expression.right, allowedSet)
+  );
 }
 
 export function assertLicensesAllowed(packages: PackageLicense[], allowed: Iterable<string>): void {
   const allowedSet = new Set(allowed);
   const disallowed = packages.filter(pkg => {
-    const licenses = expandLicenseSet(pkg.license);
-    if (licenses.length === 0) {
-      return true;
-    }
-
-    return licenses.some(part => !allowedSet.has(part));
+    const expression = parseLicenseExpression(pkg.license);
+    return !isLicenseExpressionAllowed(expression, allowedSet);
   });
 
   if (disallowed.length > 0) {

@@ -146,6 +146,40 @@ describe('assertLicensesAllowed', () => {
       ),
     ).not.toThrow();
   });
+
+  it('accepts SPDX expressions with OR when at least one option is permitted', () => {
+    expect(() =>
+      assertLicensesAllowed(
+        [
+          {
+            name: 'dual-licensed',
+            version: '3.0.0',
+            license: 'MIT OR GPL-3.0',
+            path: 'node_modules/dual-licensed',
+          },
+        ],
+        new Set(['MIT', 'ISC']),
+      ),
+    ).not.toThrow();
+  });
+
+  it('rejects SPDX expressions with OR when none of the options are permitted', () => {
+    expect(() =>
+      assertLicensesAllowed(
+        [
+          {
+            name: 'dual-licensed',
+            version: '3.0.0',
+            license: 'MIT OR GPL-3.0',
+            path: 'node_modules/dual-licensed',
+          },
+        ],
+        new Set(['Apache-2.0']),
+      ),
+    ).toThrowErrorMatchingInlineSnapshot(
+      `[Error: Found disallowed licenses:\n- dual-licensed@3.0.0 (MIT OR GPL-3.0)]`,
+    );
+  });
 });
 
 describe('renderNoticeMarkdown', () => {
