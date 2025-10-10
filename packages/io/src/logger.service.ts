@@ -137,7 +137,10 @@ export class LoggerService {
     return logger;
   }
 
-  private wrapLogger(logger: Logger): Logger {
+  private wrapLogger<
+    TCustomLevels extends string = never,
+    TUseOnlyCustomLevels extends boolean = boolean
+  >(logger: Logger<TCustomLevels, TUseOnlyCustomLevels>): Logger<TCustomLevels, TUseOnlyCustomLevels> {
     const service = this;
 
     if ((logger as unknown as { __eddieWrapped?: boolean }).__eddieWrapped) {
@@ -168,7 +171,11 @@ export class LoggerService {
 
           return (...args: unknown[]) => {
             service.notify(property as LogLevel, args);
-            return original.apply(target, args);
+            return Reflect.apply(
+              original as (...logArgs: unknown[]) => unknown,
+              target,
+              args
+            );
           };
         }
 
@@ -176,7 +183,7 @@ export class LoggerService {
       },
     });
 
-    return proxy as Logger;
+    return proxy as Logger<TCustomLevels, TUseOnlyCustomLevels>;
   }
 
   private notify(level: LogLevel, args: unknown[]): void {
