@@ -122,4 +122,23 @@ describe("ChatMessageContent", () => {
       "p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
     );
   });
+
+  it("renders paragraphs with compact spacing for readability", () => {
+    render(
+      <ChatMessageContent
+        messageRole="assistant"
+        content={"First paragraph.\n\nSecond paragraph."}
+      />
+    );
+
+    const firstParagraph = screen.getByText("First paragraph.");
+    const secondParagraph = screen.getByText("Second paragraph.");
+
+    expect(firstParagraph).toHaveClass(
+      "my-2 leading-6 first:mt-0 last:mb-0"
+    );
+    expect(secondParagraph).toHaveClass(
+      "my-2 leading-6 first:mt-0 last:mb-0"
+    );
+  });
 });
