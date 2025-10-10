@@ -1,9 +1,11 @@
 # Prompt and Context Templates
 
-Eddie uses [Nunjucks](https://mozilla.github.io/nunjucks/) (a Jinja-compatible
-engine) to render prompts and context resources at runtime. Templates can live in
-dedicated files or inline strings and support familiar Jinja syntax such as
-`{{ expression }}` and control blocks with `{% ... %}`.
+Eddie renders prompts and context resources with a Jinja templating engine. The
+runtime understands the full family of Jinja control structures—`{% set %}`,
+`{% if %}`, `{% for %}`, `{% include %}`, `{% extends %}`—so you can build
+layouts, partials, and inline snippets that mirror popular Python workflows.
+Templates can live in dedicated files or inline strings and use `{{ ... }}`
+expressions for dynamic values.
 
 ## Prompt Templates
 
@@ -44,7 +46,8 @@ This merged bag is available to system and user prompt templates, enabling rich
 contextualisation (for example `{{ context.text }}` or `{{ history | length }}`).
 
 If no template descriptor is present, inline prompt strings are still rendered
-with Nunjucks so you can use expressions directly inside configuration files.
+with the same Jinja engine so you can use expressions directly inside
+configuration files.
 
 ## Context Resources
 
