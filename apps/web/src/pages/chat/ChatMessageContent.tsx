@@ -23,8 +23,12 @@ const TABLE_CELL_CLASSES =
 const TABLE_CAPTION_CLASSES = "mt-4 text-sm text-muted-foreground";
 const LIST_BASE_CLASSES = "my-4 list-outside space-y-2 pl-6";
 const LIST_ITEM_CLASSES = "leading-relaxed marker:text-slate-300";
+const PARAGRAPH_CLASSES = "mb-2 last:mb-0 leading-relaxed";
 
 const markdownComponents: Components = {
+  p({ className, ...props }) {
+    return <p className={cn(PARAGRAPH_CLASSES, className)} {...props} />;
+  },
   code({ inline, className, children, ...props }) {
     const isCodeBlock = !inline && className?.includes("language-");
 

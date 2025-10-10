@@ -122,4 +122,22 @@ describe("ChatMessageContent", () => {
       "p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
     );
   });
+
+  it("reduces spacing between markdown paragraphs", () => {
+    render(
+      <ChatMessageContent
+        messageRole="assistant"
+        content={"First paragraph.\n\nSecond paragraph."}
+      />
+    );
+
+    const paragraphs = screen.getAllByText(/paragraph\./i, {
+      selector: "p",
+    });
+
+    expect(paragraphs).toHaveLength(2);
+    paragraphs.forEach((paragraph) => {
+      expect(paragraph).toHaveClass("mb-2 last:mb-0 leading-relaxed");
+    });
+  });
 });
