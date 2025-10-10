@@ -38,13 +38,11 @@ const VALUE_OPTIONS = new Map<string, ValueOptionKey>([
   ["--agent-mode", "agentMode"],
 ]);
 
-const BOOLEAN_OPTION_KEYS = [
-  "autoApprove",
-  "nonInteractive",
-  "disableSubagents",
-  "disableContext",
-] as const;
-type BooleanOptionKey = (typeof BOOLEAN_OPTION_KEYS)[number];
+type BooleanOptionKey =
+  | "autoApprove"
+  | "nonInteractive"
+  | "disableSubagents"
+  | "disableContext";
 const BOOLEAN_OPTIONS = new Map<string, BooleanOptionKey>([
   ["--auto-approve", "autoApprove"],
   ["--auto", "autoApprove"],
@@ -153,21 +151,55 @@ export function parseRuntimeOptionsFromArgv(argv: string[]): CliRuntimeOptions {
   return cloneOptions(accumulator);
 }
 
-function cloneOptions(options: Partial<CliRuntimeOptions>): CliRuntimeOptions {
+function cloneList(
+  values: readonly string[] | undefined,
+  dedupe: boolean,
+): string[] | undefined {
+  if (!values) {
+    return undefined;
+  }
+
+  if (values.length === 0) {
+    return [];
+  }
+
+  if (!dedupe) {
+    return [...values];
+  }
+
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const value of values) {
+    if (seen.has(value)) {
+      continue;
+    }
+
+    seen.add(value);
+    result.push(value);
+  }
+
+  return result;
+}
+
+function cloneOptions(
+  options: Partial<CliRuntimeOptions>,
+  dedupeLists = false,
+): CliRuntimeOptions {
   const { context, tools, disabledTools, ...rest } = options;
 
   return {
     ...rest,
-    context: context ? [...context] : undefined,
-    tools: tools ? [...tools] : undefined,
-    disabledTools: disabledTools ? [...disabledTools] : undefined,
+    context: cloneList(context, dedupeLists),
+    tools: cloneList(tools, dedupeLists),
+    disabledTools: cloneList(disabledTools, dedupeLists),
   };
 }
 
 let cachedOptions: CliRuntimeOptions | null = null;
 
 function cacheOptions(options: CliRuntimeOptions): void {
-  cachedOptions = cloneOptions(options);
+  cachedOptions = cloneOptions(options, true);
 }
 
 export function setRuntimeOptions(options: CliRuntimeOptions): void {

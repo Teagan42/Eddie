@@ -4,6 +4,7 @@ import {
   getRuntimeOptions,
   parseRuntimeOptionsFromArgv,
   resetRuntimeOptionsCache,
+  setRuntimeOptions,
 } from "../../../src/runtime-options";
 
 describe("parseRuntimeOptionsFromArgv", () => {
@@ -56,5 +57,19 @@ describe("getRuntimeOptions", () => {
     const options = getRuntimeOptions();
 
     expect(options).toEqual({});
+  });
+
+  it("deduplicates list options when runtime overrides are seeded directly", () => {
+    setRuntimeOptions({
+      context: ["src", "src", "docs"],
+      tools: ["lint", "lint", "format"],
+      disabledTools: ["write", "write", "lint"],
+    });
+
+    const options = getRuntimeOptions();
+
+    expect(options.context).toEqual(["src", "docs"]);
+    expect(options.tools).toEqual(["lint", "format"]);
+    expect(options.disabledTools).toEqual(["write", "lint"]);
   });
 });
