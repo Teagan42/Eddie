@@ -66,7 +66,7 @@ const TOOL_STATUS_COLORS: Record<ToolCallStatusDto, BadgeColor> = {
 const SIDEBAR_PANEL_CLASS =
   'relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-sky-500/12 via-slate-900/70 to-slate-900/40 shadow-[0_35px_65px_-45px_rgba(56,189,248,0.55)] backdrop-blur-xl';
 const MESSAGE_CONTAINER_CLASS =
-  'space-y-3 rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur-xl';
+  'space-y-3 rounded-2xl border border-white/10 bg-slate-950/70 p-5 backdrop-blur-xl';
 
 const ORCHESTRATOR_METADATA_QUERY_KEY = 'orchestrator-metadata' as const;
 
@@ -91,7 +91,7 @@ const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
     badgeColor: 'blue',
     align: 'end',
     cardClassName:
-      'border border-emerald-400/30 bg-gradient-to-br from-emerald-500/25 via-emerald-500/10 to-slate-900/60 text-emerald-50 shadow-[0_30px_60px_-35px_rgba(16,185,129,0.7)]',
+      'border border-emerald-400/30 bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-slate-950/70 text-emerald-50 shadow-[0_30px_60px_-35px_rgba(16,185,129,0.7)]',
     icon: PersonIcon,
     iconClassName: 'text-emerald-200',
     contentClassName: 'leading-relaxed text-white/95',
@@ -101,7 +101,7 @@ const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
     badgeColor: 'green',
     align: 'start',
     cardClassName:
-      'border border-sky-400/30 bg-gradient-to-br from-sky-500/20 via-sky-500/10 to-slate-900/60 text-sky-50 shadow-[0_30px_60px_-35px_rgba(56,189,248,0.6)]',
+      'border border-sky-400/30 bg-gradient-to-br from-sky-500/15 via-sky-500/5 to-slate-950/70 text-sky-50 shadow-[0_30px_60px_-35px_rgba(56,189,248,0.6)]',
     icon: MagicWandIcon,
     iconClassName: 'text-sky-200',
     contentClassName: 'leading-relaxed text-white/95',
@@ -111,7 +111,7 @@ const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
     badgeColor: 'purple',
     align: 'start',
     cardClassName:
-      'border border-amber-400/30 bg-gradient-to-br from-amber-500/20 via-amber-500/10 to-slate-900/60 text-amber-50 shadow-[0_30px_60px_-35px_rgba(250,204,21,0.55)]',
+      'border border-amber-400/30 bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-slate-950/70 text-amber-50 shadow-[0_30px_60px_-35px_rgba(250,204,21,0.55)]',
     icon: GearIcon,
     iconClassName: 'text-amber-200',
     contentClassName: 'text-sm font-mono text-amber-50',
