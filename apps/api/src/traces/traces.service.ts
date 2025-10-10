@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { randomUUID } from "crypto";
 import { TraceDto } from "./dto/trace.dto";
 
@@ -18,23 +22,94 @@ interface TraceEntity {
   updatedAt: Date;
 }
 
+const MAX_METADATA_DEPTH = 1_000;
+
 function deepClone<T>(value: T): T {
-  if (Array.isArray(value)) {
-    return value.map((item) => deepClone(item)) as unknown as T;
+  if (value === null || typeof value !== "object") {
+    return value;
   }
+
   if (value instanceof Date) {
     return new Date(value.getTime()) as unknown as T;
   }
-  if (value && typeof value === "object") {
-    return Object.entries(value as Record<string, unknown>).reduce(
-      (acc, [key, val]) => {
-        acc[key] = deepClone(val);
-        return acc;
-      },
-      {} as Record<string, unknown>
-    ) as unknown as T;
+
+  const seen = new WeakMap<object, unknown>();
+
+  const createContainer = (
+    source: Record<string, unknown> | unknown[]
+  ): Record<string, unknown> | unknown[] =>
+    Array.isArray(source) ? new Array(source.length) : {};
+
+  const rootSource = value as Record<string, unknown> | unknown[];
+  const rootClone = createContainer(rootSource);
+  seen.set(value as object, rootClone);
+
+  const stack: Array<{
+    source: Record<string, unknown> | unknown[];
+    target: Record<string, unknown> | unknown[];
+    depth: number;
+  }> = [
+    {
+      source: rootSource,
+      target: rootClone,
+      depth: 0,
+    },
+  ];
+
+  while (stack.length > 0) {
+    const frame = stack.pop();
+    if (!frame) {
+      continue;
+    }
+    const { source, target, depth } = frame;
+
+    if (depth > MAX_METADATA_DEPTH) {
+      throw new BadRequestException(
+        "Trace metadata exceeds the supported nesting depth."
+      );
+    }
+
+    if (Array.isArray(source)) {
+      const arrayTarget = target as unknown[];
+      for (let index = 0; index < source.length; index += 1) {
+        arrayTarget[index] = cloneValue(source[index], depth + 1);
+      }
+    } else {
+      const objectTarget = target as Record<string, unknown>;
+      for (const [key, val] of Object.entries(source)) {
+        objectTarget[key] = cloneValue(val, depth + 1);
+      }
+    }
   }
-  return value;
+
+  return rootClone as T;
+
+  function cloneValue(valueToClone: unknown, depth: number): unknown {
+    if (valueToClone === null || typeof valueToClone !== "object") {
+      return valueToClone;
+    }
+
+    if (valueToClone instanceof Date) {
+      return new Date(valueToClone.getTime());
+    }
+
+    if (seen.has(valueToClone as object)) {
+      throw new BadRequestException(
+        "Trace metadata cannot contain circular references."
+      );
+    }
+
+    const container = createContainer(
+      valueToClone as Record<string, unknown> | unknown[]
+    );
+    seen.set(valueToClone as object, container);
+    stack.push({
+      source: valueToClone as Record<string, unknown> | unknown[],
+      target: container,
+      depth,
+    });
+    return container;
+  }
 }
 
 function cloneMetadata(

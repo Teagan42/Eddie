@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { TracesService } from "../../../src/traces/traces.service";
 
@@ -25,5 +26,36 @@ describe("TracesService", () => {
 
     expect(fresh.metadata).toEqual({ stage: "ingest", nested: { value: 1 } });
     expect(fresh.metadata).not.toBe(created.metadata);
+  });
+
+  it("rejects circular metadata", () => {
+    const service = new TracesService();
+    const metadata: Record<string, unknown> = {};
+    metadata.self = metadata;
+
+    expect(() =>
+      service.create({
+        name: "circular",
+        metadata,
+      })
+    ).toThrow(BadRequestException);
+  });
+
+  it("rejects excessively deep metadata", () => {
+    const service = new TracesService();
+    const root: Record<string, unknown> = {};
+    let current = root;
+    for (let index = 0; index < 1_200; index += 1) {
+      const next: Record<string, unknown> = {};
+      current.next = next;
+      current = next;
+    }
+
+    expect(() =>
+      service.create({
+        name: "too-deep",
+        metadata: root,
+      })
+    ).toThrow(BadRequestException);
   });
 });
