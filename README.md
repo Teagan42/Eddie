@@ -257,6 +257,8 @@ npm test
 
 Vitest covers utilities such as secret redaction, provider wiring, and CLI behaviours, while ESLint enforces the shared Nest coding standards.
 
+`npm run lint` also runs a third-party license audit, failing if the checked-in `THIRD_PARTY_NOTICES.md` file needs regeneration. Regenerate the notices with `npm run licenses:write` whenever dependencies change.
+
 ## Documentation
 
 - [Adding MCP servers](docs/mcp-servers.md)
