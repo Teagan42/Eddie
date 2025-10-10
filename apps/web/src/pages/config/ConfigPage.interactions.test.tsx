@@ -182,6 +182,25 @@ describe("ConfigPage interactions", () => {
     );
   });
 
+  it("allows clearing existing include entries", async () => {
+    const user = userEvent.setup();
+    renderConfigPage();
+
+    expect(
+      await screen.findByRole("textbox", { name: /include entry 1/i })
+    ).toHaveValue("src/**/*");
+
+    await user.click(
+      await screen.findByRole("button", { name: /remove include entry 1/i })
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("textbox", { name: /include entry 1/i })
+      ).not.toBeInTheDocument()
+    );
+  });
+
   it("renders switches for each enabled tool", async () => {
     const user = userEvent.setup();
     renderConfigPage();

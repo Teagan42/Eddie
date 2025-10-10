@@ -420,34 +420,35 @@ export function ConfigPage(): JSX.Element {
     if (!trimmed) {
       return;
     }
-    const nextEntries = [...includeEntries, trimmed];
     updateInput((draft) => {
       draft.context = { ...(draft.context ?? {}) };
-      draft.context.include = nextEntries;
+      const current = Array.isArray(draft.context.include)
+        ? [...draft.context.include]
+        : [...includeEntries];
+      current.push(trimmed);
+      draft.context.include = current;
     });
     setIncludeDraft("");
   };
 
   const handleRemoveInclude = (index: number): void => {
-    const nextEntries = includeEntries.filter((_, idx) => idx !== index);
     updateInput((draft) => {
       draft.context = { ...(draft.context ?? {}) };
-      if (nextEntries.length > 0) {
-        draft.context.include = nextEntries;
-      } else {
-        delete draft.context.include;
-        if (Object.keys(draft.context).length === 0) {
-          delete draft.context;
-        }
-      }
+      const current = Array.isArray(draft.context.include)
+        ? [...draft.context.include]
+        : [...includeEntries];
+      const nextEntries = current.filter((_, idx) => idx !== index);
+      draft.context.include = nextEntries;
     });
   };
 
   const handleUpdateInclude = (index: number, value: string): void => {
-    const nextEntries = [...includeEntries];
-    nextEntries[index] = value;
     updateInput((draft) => {
       draft.context = { ...(draft.context ?? {}) };
+      const nextEntries = Array.isArray(draft.context.include)
+        ? [...draft.context.include]
+        : [...includeEntries];
+      nextEntries[index] = value;
       draft.context.include = nextEntries;
     });
   };
@@ -457,34 +458,35 @@ export function ConfigPage(): JSX.Element {
     if (!trimmed) {
       return;
     }
-    const nextEntries = [...excludeEntries, trimmed];
     updateInput((draft) => {
       draft.context = { ...(draft.context ?? {}) };
-      draft.context.exclude = nextEntries;
+      const current = Array.isArray(draft.context.exclude)
+        ? [...draft.context.exclude]
+        : [...excludeEntries];
+      current.push(trimmed);
+      draft.context.exclude = current;
     });
     setExcludeDraft("");
   };
 
   const handleRemoveExclude = (index: number): void => {
-    const nextEntries = excludeEntries.filter((_, idx) => idx !== index);
     updateInput((draft) => {
       draft.context = { ...(draft.context ?? {}) };
-      if (nextEntries.length > 0) {
-        draft.context.exclude = nextEntries;
-      } else {
-        delete draft.context.exclude;
-        if (Object.keys(draft.context).length === 0) {
-          delete draft.context;
-        }
-      }
+      const current = Array.isArray(draft.context.exclude)
+        ? [...draft.context.exclude]
+        : [...excludeEntries];
+      const nextEntries = current.filter((_, idx) => idx !== index);
+      draft.context.exclude = nextEntries;
     });
   };
 
   const handleUpdateExclude = (index: number, value: string): void => {
-    const nextEntries = [...excludeEntries];
-    nextEntries[index] = value;
     updateInput((draft) => {
       draft.context = { ...(draft.context ?? {}) };
+      const nextEntries = Array.isArray(draft.context.exclude)
+        ? [...draft.context.exclude]
+        : [...excludeEntries];
+      nextEntries[index] = value;
       draft.context.exclude = nextEntries;
     });
   };
