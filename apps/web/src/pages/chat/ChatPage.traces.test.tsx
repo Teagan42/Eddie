@@ -13,6 +13,36 @@ const getMetadataMock = vi.fn();
 let traceCreatedHandler: ((trace: TraceDto) => void) | null = null;
 let traceUpdatedHandler: ((trace: TraceDto) => void) | null = null;
 
+function createChatSessionsSocketsMock() {
+  return {
+    onSessionCreated: vi.fn().mockReturnValue(() => {}),
+    onSessionUpdated: vi.fn().mockReturnValue(() => {}),
+    onMessageCreated: vi.fn().mockReturnValue(() => {}),
+    onMessageUpdated: vi.fn().mockReturnValue(() => {}),
+  };
+}
+
+function createTracesSocketsMock() {
+  return {
+    onTraceCreated: vi.fn().mockImplementation((handler) => {
+      traceCreatedHandler = handler;
+      return () => {};
+    }),
+    onTraceUpdated: vi.fn().mockImplementation((handler) => {
+      traceUpdatedHandler = handler;
+      return () => {};
+    }),
+  };
+}
+
+const socketsMock: {
+  chatSessions: ReturnType<typeof createChatSessionsSocketsMock>;
+  traces?: ReturnType<typeof createTracesSocketsMock>;
+} = {
+  chatSessions: createChatSessionsSocketsMock(),
+  traces: createTracesSocketsMock(),
+};
+
 class ResizeObserverMock {
   observe(): void {}
   unobserve(): void {}
@@ -57,24 +87,7 @@ vi.mock("@/api/api-provider", () => ({
         catalog: catalogMock,
       },
     },
-    sockets: {
-      chatSessions: {
-        onSessionCreated: vi.fn().mockReturnValue(() => {}),
-        onSessionUpdated: vi.fn().mockReturnValue(() => {}),
-        onMessageCreated: vi.fn().mockReturnValue(() => {}),
-        onMessageUpdated: vi.fn().mockReturnValue(() => {}),
-      },
-      traces: {
-        onTraceCreated: vi.fn().mockImplementation((handler) => {
-          traceCreatedHandler = handler;
-          return () => {};
-        }),
-        onTraceUpdated: vi.fn().mockImplementation((handler) => {
-          traceUpdatedHandler = handler;
-          return () => {};
-        }),
-      },
-    },
+    sockets: socketsMock,
   }),
 }));
 
@@ -100,6 +113,9 @@ describe("ChatPage tool call tree realtime updates", () => {
     vi.clearAllMocks();
     traceCreatedHandler = null;
     traceUpdatedHandler = null;
+
+    socketsMock.chatSessions = createChatSessionsSocketsMock();
+    socketsMock.traces = createTracesSocketsMock();
 
     const now = new Date().toISOString();
     catalogMock.mockResolvedValue([
@@ -179,5 +195,18 @@ describe("ChatPage tool call tree realtime updates", () => {
 
     expect(invalidateSpy).not.toHaveBeenCalled();
     expect(getMetadataMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders when the trace socket provider is missing", async () => {
+    const originalTraces = socketsMock.traces;
+    delete socketsMock.traces;
+
+    try {
+      expect(() => renderChatPage()).not.toThrow();
+
+      await waitFor(() => expect(catalogMock).toHaveBeenCalledTimes(1));
+    } finally {
+      socketsMock.traces = originalTraces;
+    }
   });
 });

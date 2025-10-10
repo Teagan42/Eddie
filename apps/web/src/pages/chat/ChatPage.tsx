@@ -473,13 +473,19 @@ export function ChatPage(): JSX.Element {
           }
         );
       }),
-      api.sockets.traces.onTraceCreated((trace) => {
-        invalidateOrchestratorMetadata(trace.sessionId);
-      }),
-      api.sockets.traces.onTraceUpdated((trace) => {
-        invalidateOrchestratorMetadata(trace.sessionId);
-      }),
     ];
+
+    const traceSockets = api.sockets.traces;
+    if (traceSockets) {
+      unsubscribes.push(
+        traceSockets.onTraceCreated((trace) => {
+          invalidateOrchestratorMetadata(trace.sessionId);
+        }),
+        traceSockets.onTraceUpdated((trace) => {
+          invalidateOrchestratorMetadata(trace.sessionId);
+        })
+      );
+    }
 
     return () => {
       unsubscribes.forEach((unsubscribe) => unsubscribe());
