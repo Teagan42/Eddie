@@ -38,10 +38,16 @@ export function useChatMessagesRealtime(api: ApiClient): void {
       api.sockets.chatSessions.onMessageUpdated((message) => {
         updateMessageCache(queryClient, message);
       }),
-      api.sockets.chatMessages.onMessagePartial((message) => {
-        updateMessageCache(queryClient, message);
-      }),
     ];
+
+    const unsubscribePartial =
+      api.sockets.chatMessages?.onMessagePartial?.((message) => {
+        updateMessageCache(queryClient, message);
+      });
+
+    if (unsubscribePartial) {
+      unsubscribes.push(unsubscribePartial);
+    }
 
     return () => {
       unsubscribes.forEach((unsubscribe) => unsubscribe());
