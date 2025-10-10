@@ -1,7 +1,6 @@
 /* generated using openapi-typescript-codegen -- do no edit */
 /* istanbul ignore file */
 /* tslint:disable */
-/* eslint-disable */
 import type { RuntimeConfigDto } from '../models/RuntimeConfigDto';
 import type { UpdateRuntimeConfigDto } from '../models/UpdateRuntimeConfigDto';
 import type { CancelablePromise } from '../core/CancelablePromise';

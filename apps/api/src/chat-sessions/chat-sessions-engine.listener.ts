@@ -61,7 +61,8 @@ export class ChatSessionsEngineListener
     void this.executeEngine(message);
   }
 
-  onMessageUpdated(_message: ChatMessageDto): void {
+  onMessageUpdated(message: ChatMessageDto): void {
+    void message;
     // No engine side-effects for message updates.
   }
 

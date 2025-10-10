@@ -1,7 +1,6 @@
 /* generated using openapi-typescript-codegen -- do no edit */
 /* istanbul ignore file */
 /* tslint:disable */
-/* eslint-disable */
 import type { ChatMessageDto } from '../models/ChatMessageDto';
 import type { ChatSessionDto } from '../models/ChatSessionDto';
 import type { CreateChatMessageDto } from '../models/CreateChatMessageDto';
