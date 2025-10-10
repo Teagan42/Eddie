@@ -78,6 +78,36 @@ export interface EddieConfigPreviewDto {
   config: EddieConfigDto;
 }
 
+export interface ProviderCatalogEntryDto {
+  name: string;
+  label?: string;
+  models: string[];
+}
+
+export const FALLBACK_PROVIDER_CATALOG: ProviderCatalogEntryDto[] = [
+  {
+    name: "openai",
+    label: "OpenAI",
+    models: ["gpt-4o", "gpt-4o-mini"],
+  },
+  {
+    name: "anthropic",
+    label: "Anthropic Claude",
+    models: [
+      "claude-3-5-sonnet-latest",
+      "claude-3-5-haiku-latest",
+      "claude-3-opus-20240229",
+      "claude-3-sonnet-20240229",
+      "claude-3-haiku-20240307",
+    ],
+  },
+  {
+    name: "openai_compatible",
+    label: "OpenAI Compatible",
+    models: [],
+  },
+];
+
 export interface EddieConfigSourceDto {
   path: string | null;
   format: ConfigFileFormat;
@@ -217,6 +247,9 @@ export interface ApiClient {
       saveEddieConfig(
         payload: UpdateEddieConfigPayload
       ): Promise<EddieConfigSourceDto>;
+    };
+    providers: {
+      catalog(): Promise<ProviderCatalogEntryDto[]>;
     };
     preferences: {
       getLayout(): Promise<LayoutPreferencesDto>;
@@ -407,6 +440,21 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
             method: "PUT",
             body: JSON.stringify(payload),
           }),
+      },
+      providers: {
+        catalog: async () => {
+          try {
+            return await performRequest<ProviderCatalogEntryDto[]>(
+              "/providers/catalog"
+            );
+          } catch (error) {
+            const status = (error as { status?: number }).status;
+            if (status === 404 || error instanceof TypeError) {
+              return FALLBACK_PROVIDER_CATALOG;
+            }
+            throw error;
+          }
+        },
       },
       preferences: {
         async getLayout() {

@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
-import { createApiClient } from "./index";
+import {
+  FALLBACK_PROVIDER_CATALOG,
+  type ProviderCatalogEntryDto,
+  createApiClient,
+} from "./index";
 import { OpenAPI } from "./generated/core/OpenAPI";
 import { CreateChatMessageDto } from "./generated/models/CreateChatMessageDto";
 
@@ -85,12 +89,27 @@ describe("createApiClient", () => {
 
     const chatChannel = createdChannels[0]!;
     const sessionCreated = vi.fn();
-    const unsubscribe = client.sockets.chatSessions.onSessionCreated(
-      sessionCreated
-    );
+    const unsubscribeSessionCreated =
+      client.sockets.chatSessions.onSessionCreated(sessionCreated);
     expect(chatChannel.on).toHaveBeenCalledWith(
       "session.created",
       sessionCreated
+    );
+
+    const messageCreated = vi.fn();
+    const unsubscribeMessageCreated =
+      client.sockets.chatSessions.onMessageCreated(messageCreated);
+    expect(chatChannel.on).toHaveBeenCalledWith(
+      "message.created",
+      messageCreated
+    );
+
+    const messageUpdated = vi.fn();
+    const unsubscribeMessageUpdated =
+      client.sockets.chatSessions.onMessageUpdated(messageUpdated);
+    expect(chatChannel.on).toHaveBeenCalledWith(
+      "message.updated",
+      messageUpdated
     );
 
     chatChannel.emit.mockClear();
@@ -106,18 +125,11 @@ describe("createApiClient", () => {
       },
     });
 
-    const messageUpdated = vi.fn();
-    const unsubscribeUpdate = client.sockets.chatSessions.onMessageUpdated(
-      messageUpdated
-    );
-    expect(chatChannel.on).toHaveBeenCalledWith(
-      "message.updated",
-      messageUpdated
-    );
-
-    unsubscribe();
+    unsubscribeSessionCreated();
     expect(chatChannel.handlers.get("session.created")?.size ?? 0).toBe(0);
-    unsubscribeUpdate();
+    unsubscribeMessageCreated();
+    expect(chatChannel.handlers.get("message.created")?.size ?? 0).toBe(0);
+    unsubscribeMessageUpdated();
     expect(chatChannel.handlers.get("message.updated")?.size ?? 0).toBe(0);
 
     client.updateAuth("secret");
@@ -180,5 +192,98 @@ describe("createApiClient", () => {
     realtimeMock.mock.calls.forEach(([baseUrl]) => {
       expect(baseUrl).toBe("/api");
     });
+  });
+
+  it("returns the fallback provider catalog when the endpoint is missing", async () => {
+    const text = vi.fn().mockResolvedValue("Not Found");
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue({
+        status: 404,
+        ok: false,
+        headers: { get: () => null },
+        text,
+      } as never);
+
+    const client = createApiClient({
+      baseUrl: "https://example.test/api/",
+      websocketUrl: "ws://example.test/ws/",
+    });
+
+    await expect(client.http.providers.catalog()).resolves.toEqual(
+      FALLBACK_PROVIDER_CATALOG
+    );
+    expect(text).toHaveBeenCalledTimes(1);
+
+    fetchSpy.mockRestore();
+    client.dispose();
+  });
+
+  it("returns the fallback provider catalog when the request fails", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new TypeError("Failed to fetch"));
+
+    const client = createApiClient({
+      baseUrl: "https://example.test/api/",
+      websocketUrl: "ws://example.test/ws/",
+    });
+
+    await expect(client.http.providers.catalog()).resolves.toEqual(
+      FALLBACK_PROVIDER_CATALOG
+    );
+
+    fetchSpy.mockRestore();
+    client.dispose();
+  });
+
+  it("propagates non-404 catalog errors", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue({
+        status: 500,
+        ok: false,
+        headers: { get: () => null },
+        text: vi.fn().mockResolvedValue("Server error"),
+      } as never);
+
+    const client = createApiClient({
+      baseUrl: "https://example.test/api/",
+      websocketUrl: "ws://example.test/ws/",
+    });
+
+    await expect(client.http.providers.catalog()).rejects.toThrow(
+      /status 500/
+    );
+
+    fetchSpy.mockRestore();
+    client.dispose();
+  });
+
+  it("returns catalog responses from the server when available", async () => {
+    const payload: ProviderCatalogEntryDto[] = [
+      { name: "api-provider", label: "API Provider", models: ["model-a"] },
+    ];
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue({
+        status: 200,
+        ok: true,
+        headers: {
+          get: (key: string) =>
+            key === "content-type" ? "application/json" : null,
+        },
+        json: vi.fn().mockResolvedValue(payload),
+      } as never);
+
+    const client = createApiClient({
+      baseUrl: "https://example.test/api/",
+      websocketUrl: "ws://example.test/ws/",
+    });
+
+    await expect(client.http.providers.catalog()).resolves.toEqual(payload);
+
+    fetchSpy.mockRestore();
+    client.dispose();
   });
 });

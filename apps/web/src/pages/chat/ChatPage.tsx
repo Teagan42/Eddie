@@ -40,6 +40,7 @@ import type {
   CreateChatMessageDto,
   CreateChatSessionDto,
   OrchestratorMetadataDto,
+  ProviderCatalogEntryDto,
   ToolCallStatusDto,
 } from "@eddie/api-client";
 import { useApi } from "@/api/api-provider";
@@ -52,20 +53,6 @@ import {
   getSurfaceLayoutClasses,
   SURFACE_CONTENT_CLASS,
 } from "@/styles/surfaces";
-
-const PROVIDER_OPTIONS: Array<{ label: string; value: string }> = [
-  { label: "OpenAI", value: "openai" },
-  { label: "Anthropic", value: "anthropic" },
-  { label: "Vertex", value: "vertex" },
-  { label: "Custom", value: "custom" },
-];
-
-const MODEL_OPTIONS: Record<string, string[]> = {
-  openai: ["gpt-4o", "o1-mini", "o3-mini"],
-  anthropic: ["sonnet-3.5", "opus"],
-  vertex: ["gemini-2.0-pro", "gemini-1.5-flash"],
-  custom: ["manual"],
-};
 
 type BadgeColor = ComponentProps<typeof Badge>["color"];
 
@@ -472,7 +459,6 @@ export function ChatPage(): JSX.Element {
                   existing.id === message.id ? { ...existing, ...message } : existing
                 )
               : [...previous, message];
-
             return next.sort(
               (a, b) =>
                 new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
@@ -540,13 +526,56 @@ export function ChatPage(): JSX.Element {
     [preferences.chat?.templates]
   );
 
+  const providerCatalogQuery = useQuery<ProviderCatalogEntryDto[]>({
+    queryKey: ["providers", "catalog"],
+    queryFn: () => api.http.providers.catalog(),
+    staleTime: 300_000,
+  });
+
+  const providerCatalog = providerCatalogQuery.data ?? [];
+
   const activeSettings = selectedSessionId
     ? sessionSettings[selectedSessionId] ?? {}
     : {};
 
-  const selectedProvider = activeSettings.provider ?? PROVIDER_OPTIONS[0]?.value;
-  const availableModels = MODEL_OPTIONS[selectedProvider] ?? MODEL_OPTIONS.custom;
-  const selectedModel = activeSettings.model ?? availableModels[0];
+  const providerOptions = useMemo(() => {
+    const options = providerCatalog.map((entry) => ({
+      label: entry.label ?? entry.name,
+      value: entry.name,
+    }));
+    if (
+      activeSettings.provider &&
+      !options.some((option) => option.value === activeSettings.provider)
+    ) {
+      options.unshift({
+        label: activeSettings.provider,
+        value: activeSettings.provider,
+      });
+    }
+    return options;
+  }, [activeSettings.provider, providerCatalog]);
+
+  const selectedProvider =
+    activeSettings.provider ?? providerOptions[0]?.value ?? "";
+
+  const availableModels = useMemo(() => {
+    if (!selectedProvider) {
+      return [] as string[];
+    }
+    const entry = providerCatalog.find((item) => item.name === selectedProvider);
+    return entry?.models ?? [];
+  }, [providerCatalog, selectedProvider]);
+
+  const modelOptions = useMemo(() => {
+    const options = [...availableModels];
+    if (activeSettings.model && !options.includes(activeSettings.model)) {
+      options.unshift(activeSettings.model);
+    }
+    return options;
+  }, [activeSettings.model, availableModels]);
+
+  const selectedModel =
+    activeSettings.model ?? modelOptions[0] ?? "";
 
   const messages = messagesQuery.data ?? [];
   const orchestratorMetadata: OrchestratorMetadataDto | null =
@@ -580,16 +609,52 @@ export function ChatPage(): JSX.Element {
       if (!selectedSessionId) {
         return;
       }
+
+      let providerValue = value;
+      if (value === "__custom__") {
+        const next = window.prompt(
+          "Provider identifier",
+          activeSettings.provider ?? ""
+        );
+        providerValue = next?.trim() ?? "";
+        if (!providerValue) {
+          return;
+        }
+      }
+
+      const entry = providerCatalog.find(
+        (item) => item.name === providerValue
+      );
+      const models = entry?.models ?? [];
+      const nextModel = models.length
+        ? models.includes(activeSettings.model ?? "")
+          ? activeSettings.model
+          : models[0]
+        : activeSettings.model;
+
       applyChatUpdate((chat) => {
         const nextSettings = { ...(chat.sessionSettings ?? {}) };
-        nextSettings[selectedSessionId] = {
-          provider: value,
-          model: MODEL_OPTIONS[value]?.[0] ?? "manual",
-        };
+        const current = nextSettings[selectedSessionId] ?? {};
+        const updated = {
+          ...current,
+          provider: providerValue,
+        } as { provider: string; model?: string };
+        if (nextModel) {
+          updated.model = nextModel;
+        } else {
+          delete updated.model;
+        }
+        nextSettings[selectedSessionId] = updated;
         return { ...chat, sessionSettings: nextSettings };
       });
     },
-    [applyChatUpdate, selectedSessionId]
+    [
+      activeSettings.model,
+      activeSettings.provider,
+      applyChatUpdate,
+      providerCatalog,
+      selectedSessionId,
+    ]
   );
 
   const handleModelChange = useCallback(
@@ -597,16 +662,56 @@ export function ChatPage(): JSX.Element {
       if (!selectedSessionId) {
         return;
       }
+
+      if (value === "__custom__") {
+        const next = window.prompt(
+          "Model identifier",
+          selectedModel ?? ""
+        );
+        const manual = next?.trim() ?? "";
+        if (!manual) {
+          return;
+        }
+        applyChatUpdate((chat) => {
+          const nextSettings = { ...(chat.sessionSettings ?? {}) };
+          const current = nextSettings[selectedSessionId] ?? {};
+          nextSettings[selectedSessionId] = {
+            ...current,
+            provider: current.provider ?? selectedProvider,
+            model: manual,
+          };
+          return { ...chat, sessionSettings: nextSettings };
+        });
+        return;
+      }
+
+      if (value === "__clear__") {
+        applyChatUpdate((chat) => {
+          const nextSettings = { ...(chat.sessionSettings ?? {}) };
+          const current = nextSettings[selectedSessionId] ?? {};
+          const updated = { ...current } as { provider?: string; model?: string };
+          delete updated.model;
+          nextSettings[selectedSessionId] = updated;
+          return { ...chat, sessionSettings: nextSettings };
+        });
+        return;
+      }
+
       applyChatUpdate((chat) => {
         const nextSettings = { ...(chat.sessionSettings ?? {}) };
-        nextSettings[selectedSessionId] = {
-          provider: selectedProvider,
+        const current = nextSettings[selectedSessionId] ?? {};
+        const updated = {
+          ...current,
           model: value,
-        };
+        } as { provider?: string; model?: string };
+        if (!updated.provider && selectedProvider) {
+          updated.provider = selectedProvider;
+        }
+        nextSettings[selectedSessionId] = updated;
         return { ...chat, sessionSettings: nextSettings };
       });
     },
-    [applyChatUpdate, selectedProvider, selectedSessionId]
+    [applyChatUpdate, selectedModel, selectedProvider, selectedSessionId]
   );
 
   const handleTogglePanel = useCallback(
@@ -784,11 +889,15 @@ export function ChatPage(): JSX.Element {
                 >
                   <Select.Trigger placeholder="Provider" />
                   <Select.Content>
-                    {PROVIDER_OPTIONS.map((option) => (
+                    {providerOptions.map((option) => (
                       <Select.Item key={option.value} value={option.value}>
                         {option.label}
                       </Select.Item>
                     ))}
+                    {providerOptions.length > 0 ? <Select.Separator /> : null}
+                    <Select.Item value="__custom__">
+                      Custom provider…
+                    </Select.Item>
                   </Select.Content>
                 </Select.Root>
                 <Select.Root
@@ -798,11 +907,16 @@ export function ChatPage(): JSX.Element {
                 >
                   <Select.Trigger placeholder="Model" />
                   <Select.Content>
-                    {availableModels.map((model) => (
+                    {modelOptions.map((model) => (
                       <Select.Item key={model} value={model}>
                         {model}
                       </Select.Item>
                     ))}
+                    {modelOptions.length > 0 ? <Select.Separator /> : null}
+                    <Select.Item value="__custom__">Custom model…</Select.Item>
+                    {selectedModel ? (
+                      <Select.Item value="__clear__">Clear model</Select.Item>
+                    ) : null}
                   </Select.Content>
                 </Select.Root>
                 <Select.Root
