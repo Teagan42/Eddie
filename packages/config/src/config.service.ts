@@ -1032,9 +1032,10 @@ export class ConfigService {
       return;
     }
 
-    if (persistence.driver !== "memory" && persistence.driver !== "sqlite") {
+    const allowedDrivers = ["memory", "sqlite", "postgres", "mysql"];
+    if (!allowedDrivers.includes(persistence.driver)) {
       throw new Error(
-        "api.persistence.driver must be either 'memory' or 'sqlite'."
+        "api.persistence.driver must be one of 'memory', 'sqlite', 'postgres', or 'mysql'."
       );
     }
 
@@ -1053,6 +1054,22 @@ export class ConfigService {
       throw new Error(
         "api.persistence.sqlite.filename must be a string when provided."
       );
+    }
+
+    if (
+      typeof persistence.postgres !== "undefined" &&
+      !this.isPlainObject(persistence.postgres)
+    ) {
+      throw new Error(
+        "api.persistence.postgres must be an object when provided."
+      );
+    }
+
+    if (
+      typeof persistence.mysql !== "undefined" &&
+      !this.isPlainObject(persistence.mysql)
+    ) {
+      throw new Error("api.persistence.mysql must be an object when provided.");
     }
   }
 

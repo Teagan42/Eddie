@@ -14,6 +14,10 @@ import { ToolsModule } from "../tools/tools.module";
 import {
   CHAT_SESSIONS_REPOSITORY,
   InMemoryChatSessionsRepository,
+  MysqlChatSessionsRepository,
+  type MysqlChatSessionsRepositoryOptions,
+  PostgresChatSessionsRepository,
+  type PostgresChatSessionsRepositoryOptions,
   SqliteChatSessionsRepository,
 } from "./chat-sessions.repository";
 
@@ -22,12 +26,24 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
   useFactory: async (configService: ConfigService) => {
     const config = await configService.load({});
     const persistence = config.api?.persistence ?? { driver: "memory" };
-    if (persistence.driver === "sqlite") {
-      const filename =
-                persistence.sqlite?.filename ?? "data/chat-sessions.sqlite";
-      return new SqliteChatSessionsRepository({ filename });
+    switch (persistence.driver) {
+      case "sqlite": {
+        const filename =
+                  persistence.sqlite?.filename ?? "data/chat-sessions.sqlite";
+        return new SqliteChatSessionsRepository({ filename });
+      }
+      case "postgres":
+        return new PostgresChatSessionsRepository(
+          (persistence.postgres ?? {}) as PostgresChatSessionsRepositoryOptions
+        );
+      case "mysql":
+        return new MysqlChatSessionsRepository(
+          (persistence.mysql ?? {}) as MysqlChatSessionsRepositoryOptions
+        );
+      case "memory":
+      default:
+        return new InMemoryChatSessionsRepository();
     }
-    return new InMemoryChatSessionsRepository();
   },
   inject: [ ConfigService ],
 };

@@ -1,10 +1,23 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { randomUUID } from "crypto";
+import { OnModuleDestroy } from "@nestjs/common";
 import Database from "better-sqlite3";
 import type { Database as SqliteDatabase } from "better-sqlite3";
+import { Pool, type PoolConfig, type PoolClient } from "pg";
+import {
+  createPool as createMysqlPool,
+  type Pool as MysqlPool,
+  type PoolOptions as MysqlPoolOptions,
+  type RowDataPacket,
+  type ResultSetHeader,
+} from "mysql2/promise";
 
 import { ChatMessageRole } from "./dto/create-chat-message.dto";
+import {
+  createChatSessionsSchema,
+  type ChatSessionsRelationalSchema,
+} from "./chat-sessions.schema";
 
 export const CHAT_SESSIONS_REPOSITORY = Symbol("CHAT_SESSIONS_REPOSITORY");
 
@@ -56,27 +69,30 @@ export interface CreateChatMessageInput {
 }
 
 export interface ChatSessionsRepository {
-  listSessions(): ChatSessionRecord[];
-  getSessionById(id: string): ChatSessionRecord | undefined;
-  createSession(input: CreateChatSessionInput): ChatSessionRecord;
+  listSessions(): Promise<ChatSessionRecord[]>;
+  getSessionById(id: string): Promise<ChatSessionRecord | undefined>;
+  createSession(input: CreateChatSessionInput): Promise<ChatSessionRecord>;
   updateSessionStatus(
     id: string,
     status: ChatSessionStatus
-  ): ChatSessionRecord | undefined;
+  ): Promise<ChatSessionRecord | undefined>;
   appendMessage(
     input: CreateChatMessageInput
-  ): { message: ChatMessageRecord; session: ChatSessionRecord } | undefined;
-  listMessages(sessionId: string): ChatMessageRecord[];
+  ): Promise<
+    { message: ChatMessageRecord; session: ChatSessionRecord } | undefined
+  >;
+  listMessages(sessionId: string): Promise<ChatMessageRecord[]>;
   updateMessageContent(
     sessionId: string,
     messageId: string,
     content: string
-  ): ChatMessageRecord | undefined;
+  ): Promise<ChatMessageRecord | undefined>;
   saveAgentInvocations(
     sessionId: string,
     snapshots: AgentInvocationSnapshot[]
-  ): void;
-  listAgentInvocations(sessionId: string): AgentInvocationSnapshot[];
+  ): Promise<void>;
+  listAgentInvocations(sessionId: string): Promise<AgentInvocationSnapshot[]>;
+  onModuleDestroy?(): Promise<void> | void;
 }
 
 const cloneInvocation = (
@@ -106,18 +122,18 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     AgentInvocationSnapshot[]
   >();
 
-  listSessions(): ChatSessionRecord[] {
+  async listSessions(): Promise<ChatSessionRecord[]> {
     return Array.from(this.sessions.values())
       .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
       .map((session) => cloneSession(session));
   }
 
-  getSessionById(id: string): ChatSessionRecord | undefined {
+  async getSessionById(id: string): Promise<ChatSessionRecord | undefined> {
     const session = this.sessions.get(id);
     return session ? cloneSession(session) : undefined;
   }
 
-  createSession(input: CreateChatSessionInput): ChatSessionRecord {
+  async createSession(input: CreateChatSessionInput): Promise<ChatSessionRecord> {
     const now = new Date();
     const session: ChatSessionRecord = {
       id: randomUUID(),
@@ -132,10 +148,10 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     return cloneSession(session);
   }
 
-  updateSessionStatus(
+  async updateSessionStatus(
     id: string,
     status: ChatSessionStatus
-  ): ChatSessionRecord | undefined {
+  ): Promise<ChatSessionRecord | undefined> {
     const session = this.sessions.get(id);
     if (!session) {
       return undefined;
@@ -145,9 +161,11 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     return cloneSession(session);
   }
 
-  appendMessage(
+  async appendMessage(
     input: CreateChatMessageInput
-  ): { message: ChatMessageRecord; session: ChatSessionRecord } | undefined {
+  ): Promise<
+    { message: ChatMessageRecord; session: ChatSessionRecord } | undefined
+  > {
     const session = this.sessions.get(input.sessionId);
     if (!session) {
       return undefined;
@@ -175,7 +193,7 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     };
   }
 
-  listMessages(sessionId: string): ChatMessageRecord[] {
+  async listMessages(sessionId: string): Promise<ChatMessageRecord[]> {
     const collection = this.messages.get(sessionId) ?? [];
     return collection
       .slice()
@@ -183,11 +201,11 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
       .map((message) => cloneMessage(message));
   }
 
-  updateMessageContent(
+  async updateMessageContent(
     sessionId: string,
     messageId: string,
     content: string
-  ): ChatMessageRecord | undefined {
+  ): Promise<ChatMessageRecord | undefined> {
     const collection = this.messages.get(sessionId);
     if (!collection) {
       return undefined;
@@ -200,10 +218,10 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     return cloneMessage(message);
   }
 
-  saveAgentInvocations(
+  async saveAgentInvocations(
     sessionId: string,
     snapshots: AgentInvocationSnapshot[]
-  ): void {
+  ): Promise<void> {
     if (snapshots.length === 0) {
       this.agentInvocations.delete(sessionId);
       return;
@@ -212,7 +230,9 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     this.agentInvocations.set(sessionId, cloned);
   }
 
-  listAgentInvocations(sessionId: string): AgentInvocationSnapshot[] {
+  async listAgentInvocations(
+    sessionId: string
+  ): Promise<AgentInvocationSnapshot[]> {
     const stored = this.agentInvocations.get(sessionId);
     if (!stored) {
       return [];
@@ -224,6 +244,10 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
 export interface SqliteChatSessionsRepositoryOptions {
   filename: string;
 }
+
+export interface PostgresChatSessionsRepositoryOptions extends PoolConfig {}
+
+export interface MysqlChatSessionsRepositoryOptions extends MysqlPoolOptions {}
 
 interface ChatSessionRow {
   id: string;
@@ -263,8 +287,11 @@ const mapMessageRow = (row: ChatMessageRow): ChatMessageRecord => ({
   name: row.name ?? undefined,
 });
 
-export class SqliteChatSessionsRepository implements ChatSessionsRepository {
+export class SqliteChatSessionsRepository
+implements ChatSessionsRepository, OnModuleDestroy
+{
   private readonly db: SqliteDatabase;
+  private readonly schema: ChatSessionsRelationalSchema;
 
   constructor(options: SqliteChatSessionsRepositoryOptions) {
     if (options.filename !== ":memory:") {
@@ -276,10 +303,15 @@ export class SqliteChatSessionsRepository implements ChatSessionsRepository {
     this.db = new Database(options.filename);
     this.db.pragma("foreign_keys = ON");
     this.db.pragma("journal_mode = WAL");
+    this.schema = createChatSessionsSchema("sqlite");
     this.applyMigrations();
   }
 
-  listSessions(): ChatSessionRecord[] {
+  async onModuleDestroy(): Promise<void> {
+    this.db.close();
+  }
+
+  async listSessions(): Promise<ChatSessionRecord[]> {
     const rows = this.db
       .prepare<[], ChatSessionRow>(
         `SELECT id, title, description, status, created_at, updated_at
@@ -290,7 +322,7 @@ export class SqliteChatSessionsRepository implements ChatSessionsRepository {
     return rows.map(mapSessionRow);
   }
 
-  getSessionById(id: string): ChatSessionRecord | undefined {
+  async getSessionById(id: string): Promise<ChatSessionRecord | undefined> {
     const row = this.db
       .prepare<[string], ChatSessionRow>(
         `SELECT id, title, description, status, created_at, updated_at
@@ -301,7 +333,9 @@ export class SqliteChatSessionsRepository implements ChatSessionsRepository {
     return row ? mapSessionRow(row) : undefined;
   }
 
-  createSession(input: CreateChatSessionInput): ChatSessionRecord {
+  async createSession(
+    input: CreateChatSessionInput
+  ): Promise<ChatSessionRecord> {
     const now = new Date().toISOString();
     const id = randomUUID();
     this.db
@@ -310,13 +344,13 @@ export class SqliteChatSessionsRepository implements ChatSessionsRepository {
          VALUES (?, ?, ?, 'active', ?, ?)`
       )
       .run(id, input.title, input.description ?? null, now, now);
-    return this.getSessionById(id)!;
+    return (await this.getSessionById(id))!;
   }
 
-  updateSessionStatus(
+  async updateSessionStatus(
     id: string,
     status: ChatSessionStatus
-  ): ChatSessionRecord | undefined {
+  ): Promise<ChatSessionRecord | undefined> {
     const now = new Date().toISOString();
     const result = this.db
       .prepare(
@@ -328,12 +362,14 @@ export class SqliteChatSessionsRepository implements ChatSessionsRepository {
     if (result.changes === 0) {
       return undefined;
     }
-    return this.getSessionById(id)!;
+    return (await this.getSessionById(id))!;
   }
 
-  appendMessage(
+  async appendMessage(
     input: CreateChatMessageInput
-  ): { message: ChatMessageRecord; session: ChatSessionRecord } | undefined {
+  ): Promise<
+    { message: ChatMessageRecord; session: ChatSessionRecord } | undefined
+  > {
     const run = this.db.transaction((data: CreateChatMessageInput) => {
       const session = this.db
         .prepare<[string], ChatSessionRow>(
@@ -390,7 +426,7 @@ export class SqliteChatSessionsRepository implements ChatSessionsRepository {
     return run(input);
   }
 
-  listMessages(sessionId: string): ChatMessageRecord[] {
+  async listMessages(sessionId: string): Promise<ChatMessageRecord[]> {
     const rows = this.db
       .prepare<[string], ChatMessageRow>(
         `SELECT id, session_id, role, content, created_at, tool_call_id, name
@@ -402,11 +438,11 @@ export class SqliteChatSessionsRepository implements ChatSessionsRepository {
     return rows.map(mapMessageRow);
   }
 
-  updateMessageContent(
+  async updateMessageContent(
     sessionId: string,
     messageId: string,
     content: string
-  ): ChatMessageRecord | undefined {
+  ): Promise<ChatMessageRecord | undefined> {
     const result = this.db
       .prepare(
         `UPDATE chat_messages
@@ -427,10 +463,10 @@ export class SqliteChatSessionsRepository implements ChatSessionsRepository {
     return mapMessageRow(row);
   }
 
-  saveAgentInvocations(
+  async saveAgentInvocations(
     sessionId: string,
     snapshots: AgentInvocationSnapshot[]
-  ): void {
+  ): Promise<void> {
     if (snapshots.length === 0) {
       this.db
         .prepare(`DELETE FROM agent_invocations WHERE session_id = ?`)
@@ -442,14 +478,14 @@ export class SqliteChatSessionsRepository implements ChatSessionsRepository {
     );
     this.db
       .prepare(
-        `INSERT INTO agent_invocations (session_id, payload)
-         VALUES (?, ?)
-         ON CONFLICT(session_id) DO UPDATE SET payload = excluded.payload`
+        this.schema.agentInvocationsUpsert
       )
       .run(sessionId, payload);
   }
 
-  listAgentInvocations(sessionId: string): AgentInvocationSnapshot[] {
+  async listAgentInvocations(
+    sessionId: string
+  ): Promise<AgentInvocationSnapshot[]> {
     const row = this.db
       .prepare<[string], { payload: string }>(
         `SELECT payload FROM agent_invocations WHERE session_id = ?`
@@ -463,32 +499,480 @@ export class SqliteChatSessionsRepository implements ChatSessionsRepository {
   }
 
   private applyMigrations(): void {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS chat_sessions (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        description TEXT,
-        status TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      );
+    this.db.exec(this.schema.statements.join("\n"));
+  }
+}
 
-      CREATE TABLE IF NOT EXISTS chat_messages (
-        id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL,
-        role TEXT NOT NULL,
-        content TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        tool_call_id TEXT,
-        name TEXT,
-        FOREIGN KEY(session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
-      );
+interface PostgresChatSessionRow extends ChatSessionRow {}
 
-      CREATE TABLE IF NOT EXISTS agent_invocations (
-        session_id TEXT PRIMARY KEY,
-        payload TEXT NOT NULL,
-        FOREIGN KEY(session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
+interface PostgresChatMessageRow extends ChatMessageRow {}
+
+interface MysqlChatSessionRow extends ChatSessionRow, RowDataPacket {}
+
+interface MysqlChatMessageRow extends ChatMessageRow, RowDataPacket {}
+
+export class PostgresChatSessionsRepository
+implements ChatSessionsRepository, OnModuleDestroy
+{
+  private readonly pool: Pool;
+  private readonly schema: ChatSessionsRelationalSchema;
+  private readonly ready: Promise<void>;
+
+  constructor(options: PostgresChatSessionsRepositoryOptions) {
+    this.pool = new Pool(options);
+    this.schema = createChatSessionsSchema("postgres");
+    this.ready = this.applyMigrations();
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.pool.end();
+  }
+
+  private async applyMigrations(): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      for (const statement of this.schema.statements) {
+        await client.query(statement);
+      }
+    } finally {
+      client.release();
+    }
+  }
+
+  private async ensureReady(): Promise<void> {
+    await this.ready;
+  }
+
+  private async withClient<T>(
+    handler: (client: PoolClient) => Promise<T>
+  ): Promise<T> {
+    const client = await this.pool.connect();
+    try {
+      return await handler(client);
+    } finally {
+      client.release();
+    }
+  }
+
+  async listSessions(): Promise<ChatSessionRecord[]> {
+    await this.ensureReady();
+    const result = await this.pool.query<PostgresChatSessionRow>(
+      `SELECT id, title, description, status, created_at, updated_at
+       FROM chat_sessions
+       ORDER BY updated_at DESC`
+    );
+    return result.rows.map(mapSessionRow);
+  }
+
+  async getSessionById(id: string): Promise<ChatSessionRecord | undefined> {
+    await this.ensureReady();
+    const result = await this.pool.query<PostgresChatSessionRow>(
+      `SELECT id, title, description, status, created_at, updated_at
+       FROM chat_sessions
+       WHERE id = $1`,
+      [id]
+    );
+    const row = result.rows[0];
+    return row ? mapSessionRow(row) : undefined;
+  }
+
+  async createSession(
+    input: CreateChatSessionInput
+  ): Promise<ChatSessionRecord> {
+    await this.ensureReady();
+    const now = new Date().toISOString();
+    const id = randomUUID();
+    const result = await this.pool.query<PostgresChatSessionRow>(
+      `INSERT INTO chat_sessions (id, title, description, status, created_at, updated_at)
+       VALUES ($1, $2, $3, 'active', $4, $5)
+       RETURNING id, title, description, status, created_at, updated_at`,
+      [id, input.title, input.description ?? null, now, now]
+    );
+    return mapSessionRow(result.rows[0]!);
+  }
+
+  async updateSessionStatus(
+    id: string,
+    status: ChatSessionStatus
+  ): Promise<ChatSessionRecord | undefined> {
+    await this.ensureReady();
+    const now = new Date().toISOString();
+    const result = await this.pool.query<PostgresChatSessionRow>(
+      `UPDATE chat_sessions
+       SET status = $1, updated_at = $2
+       WHERE id = $3
+       RETURNING id, title, description, status, created_at, updated_at`,
+      [status, now, id]
+    );
+    const row = result.rows[0];
+    return row ? mapSessionRow(row) : undefined;
+  }
+
+  async appendMessage(
+    input: CreateChatMessageInput
+  ): Promise<
+    { message: ChatMessageRecord; session: ChatSessionRecord } | undefined
+  > {
+    await this.ensureReady();
+    return this.withClient(async (client) => {
+      await client.query("BEGIN");
+      try {
+        const sessionResult = await client.query<PostgresChatSessionRow>(
+          `SELECT id, title, description, status, created_at, updated_at
+           FROM chat_sessions
+           WHERE id = $1`,
+          [input.sessionId]
+        );
+        if (sessionResult.rowCount === 0) {
+          await client.query("ROLLBACK");
+          return undefined;
+        }
+
+        const now = new Date().toISOString();
+        const id = randomUUID();
+        const messageResult = await client.query<PostgresChatMessageRow>(
+          `INSERT INTO chat_messages (id, session_id, role, content, created_at, tool_call_id, name)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING id, session_id, role, content, created_at, tool_call_id, name`,
+          [
+            id,
+            input.sessionId,
+            input.role,
+            input.content,
+            now,
+            input.toolCallId ?? null,
+            input.name ?? null,
+          ]
+        );
+
+        const sessionUpdate = await client.query<PostgresChatSessionRow>(
+          `UPDATE chat_sessions
+           SET updated_at = $1
+           WHERE id = $2
+           RETURNING id, title, description, status, created_at, updated_at`,
+          [now, input.sessionId]
+        );
+
+        await client.query("COMMIT");
+
+        return {
+          message: mapMessageRow(messageResult.rows[0]!),
+          session: mapSessionRow(sessionUpdate.rows[0]!),
+        };
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      }
+    });
+  }
+
+  async listMessages(sessionId: string): Promise<ChatMessageRecord[]> {
+    await this.ensureReady();
+    const result = await this.pool.query<PostgresChatMessageRow>(
+      `SELECT id, session_id, role, content, created_at, tool_call_id, name
+       FROM chat_messages
+       WHERE session_id = $1
+       ORDER BY created_at ASC`,
+      [sessionId]
+    );
+    return result.rows.map(mapMessageRow);
+  }
+
+  async updateMessageContent(
+    sessionId: string,
+    messageId: string,
+    content: string
+  ): Promise<ChatMessageRecord | undefined> {
+    await this.ensureReady();
+    const result = await this.pool.query<PostgresChatMessageRow>(
+      `UPDATE chat_messages
+       SET content = $1
+       WHERE id = $2 AND session_id = $3
+       RETURNING id, session_id, role, content, created_at, tool_call_id, name`,
+      [content, messageId, sessionId]
+    );
+    const row = result.rows[0];
+    return row ? mapMessageRow(row) : undefined;
+  }
+
+  async saveAgentInvocations(
+    sessionId: string,
+    snapshots: AgentInvocationSnapshot[]
+  ): Promise<void> {
+    await this.ensureReady();
+    if (snapshots.length === 0) {
+      await this.pool.query(`DELETE FROM agent_invocations WHERE session_id = $1`, [
+        sessionId,
+      ]);
+      return;
+    }
+    const payload = JSON.stringify(
+      snapshots.map((snapshot) => cloneInvocation(snapshot))
+    );
+    await this.pool.query(this.schema.agentInvocationsUpsert, [
+      sessionId,
+      payload,
+    ]);
+  }
+
+  async listAgentInvocations(
+    sessionId: string
+  ): Promise<AgentInvocationSnapshot[]> {
+    await this.ensureReady();
+    const result = await this.pool.query<{ payload: unknown }>(
+      `SELECT payload FROM agent_invocations WHERE session_id = $1`,
+      [sessionId]
+    );
+    const row = result.rows[0];
+    if (!row || !row.payload) {
+      return [];
+    }
+    const raw =
+      typeof row.payload === "string"
+        ? JSON.parse(row.payload)
+        : row.payload;
+    const snapshots = Array.isArray(raw) ? raw : [];
+    return (snapshots as AgentInvocationSnapshot[]).map((snapshot) =>
+      cloneInvocation(snapshot)
+    );
+  }
+}
+
+export class MysqlChatSessionsRepository
+implements ChatSessionsRepository, OnModuleDestroy
+{
+  private readonly pool: MysqlPool;
+  private readonly schema: ChatSessionsRelationalSchema;
+  private readonly ready: Promise<void>;
+
+  constructor(options: MysqlChatSessionsRepositoryOptions) {
+    this.pool = createMysqlPool(options);
+    this.schema = createChatSessionsSchema("mysql");
+    this.ready = this.applyMigrations();
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.pool.end();
+  }
+
+  private async applyMigrations(): Promise<void> {
+    const connection = await this.pool.getConnection();
+    try {
+      for (const statement of this.schema.statements) {
+        await connection.query(statement);
+      }
+    } finally {
+      connection.release();
+    }
+  }
+
+  private async ensureReady(): Promise<void> {
+    await this.ready;
+  }
+
+  async listSessions(): Promise<ChatSessionRecord[]> {
+    await this.ensureReady();
+    const [rows] = await this.pool.query<MysqlChatSessionRow[]>(
+      `SELECT id, title, description, status, created_at, updated_at
+       FROM chat_sessions
+       ORDER BY updated_at DESC`
+    );
+    return rows.map(mapSessionRow);
+  }
+
+  async getSessionById(id: string): Promise<ChatSessionRecord | undefined> {
+    await this.ensureReady();
+    const [rows] = await this.pool.query<MysqlChatSessionRow[]>(
+      `SELECT id, title, description, status, created_at, updated_at
+       FROM chat_sessions
+       WHERE id = ?
+       LIMIT 1`,
+      [id]
+    );
+    const row = rows[0];
+    return row ? mapSessionRow(row) : undefined;
+  }
+
+  async createSession(
+    input: CreateChatSessionInput
+  ): Promise<ChatSessionRecord> {
+    await this.ensureReady();
+    const now = new Date();
+    const id = randomUUID();
+    await this.pool.execute<ResultSetHeader>(
+      `INSERT INTO chat_sessions (id, title, description, status, created_at, updated_at)
+       VALUES (?, ?, ?, 'active', ?, ?)`,
+      [id, input.title, input.description ?? null, now, now]
+    );
+    return (await this.getSessionById(id))!;
+  }
+
+  async updateSessionStatus(
+    id: string,
+    status: ChatSessionStatus
+  ): Promise<ChatSessionRecord | undefined> {
+    await this.ensureReady();
+    const now = new Date();
+    const [result] = await this.pool.execute<ResultSetHeader>(
+      `UPDATE chat_sessions
+       SET status = ?, updated_at = ?
+       WHERE id = ?`,
+      [status, now, id]
+    );
+    const { affectedRows } = result;
+    if (!affectedRows) {
+      return undefined;
+    }
+    return (await this.getSessionById(id))!;
+  }
+
+  async appendMessage(
+    input: CreateChatMessageInput
+  ): Promise<
+    { message: ChatMessageRecord; session: ChatSessionRecord } | undefined
+  > {
+    await this.ensureReady();
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [sessionRows] = await connection.query<MysqlChatSessionRow[]>(
+        `SELECT id, title, description, status, created_at, updated_at
+         FROM chat_sessions
+         WHERE id = ?
+         LIMIT 1`,
+        [input.sessionId]
       );
-    `);
+      if (sessionRows.length === 0) {
+        await connection.rollback();
+        return undefined;
+      }
+
+      const now = new Date();
+      const id = randomUUID();
+      await connection.execute<ResultSetHeader>(
+        `INSERT INTO chat_messages (id, session_id, role, content, created_at, tool_call_id, name)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          input.sessionId,
+          input.role,
+          input.content,
+          now,
+          input.toolCallId ?? null,
+          input.name ?? null,
+        ]
+      );
+      await connection.execute<ResultSetHeader>(
+        `UPDATE chat_sessions
+         SET updated_at = ?
+         WHERE id = ?`,
+        [now, input.sessionId]
+      );
+      const [messageRows] = await connection.query<MysqlChatMessageRow[]>(
+        `SELECT id, session_id, role, content, created_at, tool_call_id, name
+         FROM chat_messages
+         WHERE id = ?
+         LIMIT 1`,
+        [id]
+      );
+      const [updatedSessionRows] = await connection.query<MysqlChatSessionRow[]>(
+        `SELECT id, title, description, status, created_at, updated_at
+         FROM chat_sessions
+         WHERE id = ?
+         LIMIT 1`,
+        [input.sessionId]
+      );
+      await connection.commit();
+      return {
+        message: mapMessageRow(messageRows[0]!),
+        session: mapSessionRow(updatedSessionRows[0]!),
+      };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  async listMessages(sessionId: string): Promise<ChatMessageRecord[]> {
+    await this.ensureReady();
+    const [rows] = await this.pool.query<MysqlChatMessageRow[]>(
+      `SELECT id, session_id, role, content, created_at, tool_call_id, name
+       FROM chat_messages
+       WHERE session_id = ?
+       ORDER BY created_at ASC`,
+      [sessionId]
+    );
+    return rows.map(mapMessageRow);
+  }
+
+  async updateMessageContent(
+    sessionId: string,
+    messageId: string,
+    content: string
+  ): Promise<ChatMessageRecord | undefined> {
+    await this.ensureReady();
+    const [result] = await this.pool.execute<ResultSetHeader>(
+      `UPDATE chat_messages
+       SET content = ?
+       WHERE id = ? AND session_id = ?`,
+      [content, messageId, sessionId]
+    );
+    const { affectedRows } = result;
+    if (!affectedRows) {
+      return undefined;
+    }
+    const [rows] = await this.pool.query<MysqlChatMessageRow[]>(
+      `SELECT id, session_id, role, content, created_at, tool_call_id, name
+       FROM chat_messages
+       WHERE id = ?
+       LIMIT 1`,
+      [messageId]
+    );
+    const row = rows[0];
+    return row ? mapMessageRow(row) : undefined;
+  }
+
+  async saveAgentInvocations(
+    sessionId: string,
+    snapshots: AgentInvocationSnapshot[]
+  ): Promise<void> {
+    await this.ensureReady();
+    if (snapshots.length === 0) {
+      await this.pool.execute(`DELETE FROM agent_invocations WHERE session_id = ?`, [
+        sessionId,
+      ]);
+      return;
+    }
+    const payload = JSON.stringify(
+      snapshots.map((snapshot) => cloneInvocation(snapshot))
+    );
+    await this.pool.execute<ResultSetHeader>(this.schema.agentInvocationsUpsert, [
+      sessionId,
+      payload,
+    ]);
+  }
+
+  async listAgentInvocations(
+    sessionId: string
+  ): Promise<AgentInvocationSnapshot[]> {
+    await this.ensureReady();
+    const [rows] = await this.pool.query<
+      Array<{ payload: string | null } & RowDataPacket>
+    >(
+      `SELECT payload FROM agent_invocations WHERE session_id = ?
+       LIMIT 1`,
+      [sessionId]
+    );
+    const row = rows[0];
+    if (!row?.payload) {
+      return [];
+    }
+    const raw = JSON.parse(row.payload);
+    const snapshots = Array.isArray(raw) ? raw : [];
+    return (snapshots as AgentInvocationSnapshot[]).map((snapshot) =>
+      cloneInvocation(snapshot)
+    );
   }
 }

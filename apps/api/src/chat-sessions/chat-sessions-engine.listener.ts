@@ -75,7 +75,7 @@ implements ChatSessionsListener, OnModuleInit, OnModuleDestroy {
   }
 
   private async executeEngine(message: ChatMessageDto): Promise<void> {
-    const history = this.createHistory(message);
+    const history = await this.createHistory(message);
     const trace = this.createTrace(message);
     const startedAt = Date.now();
 
@@ -101,7 +101,7 @@ implements ChatSessionsListener, OnModuleInit, OnModuleDestroy {
 
       const result = capture.result!;
       const snapshots = this.snapshotAgentInvocations(result.agents);
-      this.chatSessions.saveAgentInvocations(message.sessionId, snapshots);
+      await this.chatSessions.saveAgentInvocations(message.sessionId, snapshots);
 
       const baseline = history.length + 2;
       const novelMessages = result.messages.slice(baseline);
@@ -123,7 +123,7 @@ implements ChatSessionsListener, OnModuleInit, OnModuleDestroy {
         }
 
         if (!streamedHandled && capture.state.messageId) {
-          this.chatSessions.updateMessageContent(
+          await this.chatSessions.updateMessageContent(
             message.sessionId,
             capture.state.messageId,
             content
@@ -132,12 +132,12 @@ implements ChatSessionsListener, OnModuleInit, OnModuleDestroy {
           continue;
         }
 
-        this.appendAssistantMessage(message.sessionId, content);
+        await this.appendAssistantMessage(message.sessionId, content);
         responseCount += 1;
       }
 
       if (!streamedHandled && capture.state.messageId && streamedContent) {
-        this.chatSessions.updateMessageContent(
+        await this.chatSessions.updateMessageContent(
           message.sessionId,
           capture.state.messageId,
           streamedContent
@@ -174,13 +174,13 @@ implements ChatSessionsListener, OnModuleInit, OnModuleDestroy {
       });
 
       if (capture?.state.messageId) {
-        this.chatSessions.updateMessageContent(
+        await this.chatSessions.updateMessageContent(
           message.sessionId,
           capture.state.messageId,
           DEFAULT_ENGINE_FAILURE_MESSAGE
         );
       } else {
-        this.appendAssistantMessage(
+        await this.appendAssistantMessage(
           message.sessionId,
           DEFAULT_ENGINE_FAILURE_MESSAGE
         );
@@ -260,9 +260,9 @@ implements ChatSessionsListener, OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private createHistory(message: ChatMessageDto): ChatMessage[] {
-    return this.chatSessions
-      .listMessages(message.sessionId)
+  private async createHistory(message: ChatMessageDto): Promise<ChatMessage[]> {
+    const messages = await this.chatSessions.listMessages(message.sessionId);
+    return messages
       .filter((entry) => entry.id !== message.id)
       .map<ChatMessage>((entry) => ({
         role: entry.role,
@@ -272,13 +272,16 @@ implements ChatSessionsListener, OnModuleInit, OnModuleDestroy {
       }));
   }
 
-  private appendAssistantMessage(sessionId: string, content: string): void {
+  private async appendAssistantMessage(
+    sessionId: string,
+    content: string
+  ): Promise<void> {
     const payload: CreateChatMessageDto = {
       role: ChatMessageRole.Assistant,
       content,
     };
 
-    this.chatSessions.addMessage(sessionId, payload);
+    await this.chatSessions.addMessage(sessionId, payload);
   }
 
   private snapshotAgentInvocations(

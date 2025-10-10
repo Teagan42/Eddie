@@ -56,15 +56,17 @@ export class ChatSessionsService {
     };
   }
 
-  saveAgentInvocations(
+  async saveAgentInvocations(
     sessionId: string,
     invocations: AgentInvocationSnapshot[]
-  ): void {
-    this.ensureSessionExists(sessionId);
-    this.repository.saveAgentInvocations(sessionId, invocations);
+  ): Promise<void> {
+    await this.ensureSessionExists(sessionId);
+    await this.repository.saveAgentInvocations(sessionId, invocations);
   }
 
-  listAgentInvocations(sessionId: string): AgentInvocationSnapshot[] {
+  listAgentInvocations(
+    sessionId: string
+  ): Promise<AgentInvocationSnapshot[]> {
     return this.repository.listAgentInvocations(sessionId);
   }
 
@@ -94,22 +96,21 @@ export class ChatSessionsService {
     }
   }
 
-  listSessions(): ChatSessionDto[] {
-    return this.repository
-      .listSessions()
-      .map((session) => this.toDto(session));
+  async listSessions(): Promise<ChatSessionDto[]> {
+    const sessions = await this.repository.listSessions();
+    return sessions.map((session) => this.toDto(session));
   }
 
-  getSession(id: string): ChatSessionDto {
-    const session = this.repository.getSessionById(id);
+  async getSession(id: string): Promise<ChatSessionDto> {
+    const session = await this.repository.getSessionById(id);
     if (!session) {
       throw new NotFoundException(`Chat session ${id} not found`);
     }
     return this.toDto(session);
   }
 
-  createSession(dto: CreateChatSessionDto): ChatSessionDto {
-    const entity = this.repository.createSession({
+  async createSession(dto: CreateChatSessionDto): Promise<ChatSessionDto> {
+    const entity = await this.repository.createSession({
       title: dto.title,
       description: dto.description,
     });
@@ -118,8 +119,8 @@ export class ChatSessionsService {
     return sessionDto;
   }
 
-  archiveSession(id: string): ChatSessionDto {
-    const session = this.repository.updateSessionStatus(id, "archived");
+  async archiveSession(id: string): Promise<ChatSessionDto> {
+    const session = await this.repository.updateSessionStatus(id, "archived");
     if (!session) {
       throw new NotFoundException(`Chat session ${id} not found`);
     }
@@ -128,18 +129,17 @@ export class ChatSessionsService {
     return dto;
   }
 
-  listMessages(sessionId: string): ChatMessageDto[] {
-    this.ensureSessionExists(sessionId);
-    return this.repository
-      .listMessages(sessionId)
-      .map((message) => this.messageToDto(message));
+  async listMessages(sessionId: string): Promise<ChatMessageDto[]> {
+    await this.ensureSessionExists(sessionId);
+    const messages = await this.repository.listMessages(sessionId);
+    return messages.map((message) => this.messageToDto(message));
   }
 
-  addMessage(
+  async addMessage(
     sessionId: string,
     dto: CreateChatMessageDto
-  ): { message: ChatMessageDto; session: ChatSessionDto } {
-    const result = this.repository.appendMessage({
+  ): Promise<{ message: ChatMessageDto; session: ChatSessionDto }> {
+    const result = await this.repository.appendMessage({
       sessionId,
       role: dto.role,
       content: dto.content,
@@ -156,9 +156,13 @@ export class ChatSessionsService {
     return { message: messageDto, session: sessionDto };
   }
 
-  updateMessageContent(sessionId: string, messageId: string, content: string): ChatMessageDto {
-    this.ensureSessionExists(sessionId);
-    const entity = this.repository.updateMessageContent(
+  async updateMessageContent(
+    sessionId: string,
+    messageId: string,
+    content: string
+  ): Promise<ChatMessageDto> {
+    await this.ensureSessionExists(sessionId);
+    const entity = await this.repository.updateMessageContent(
       sessionId,
       messageId,
       content
@@ -173,8 +177,8 @@ export class ChatSessionsService {
     return dto;
   }
 
-  private ensureSessionExists(id: string): void {
-    if (!this.repository.getSessionById(id)) {
+  private async ensureSessionExists(id: string): Promise<void> {
+    if (!(await this.repository.getSessionById(id))) {
       throw new NotFoundException(`Chat session ${id} not found`);
     }
   }

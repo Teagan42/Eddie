@@ -44,6 +44,11 @@ describe("ChatSessionsEngineListener", () => {
     saveAgentInvocations.mockReset();
     capture.mockReset();
 
+    listMessages.mockResolvedValue([]);
+    addMessage.mockResolvedValue(undefined);
+    updateMessageContent.mockResolvedValue(undefined);
+    saveAgentInvocations.mockResolvedValue(undefined);
+
     chatSessions = {
       registerListener,
       listMessages,
@@ -124,7 +129,7 @@ describe("ChatSessionsEngineListener", () => {
     ];
     const newMessage = createChatMessage({ id: "m-3" });
 
-    listMessages.mockReturnValue([...historyMessages, newMessage]);
+    listMessages.mockResolvedValue([...historyMessages, newMessage]);
 
     const trace: TraceDto = {
       id: "trace-success",
@@ -224,7 +229,7 @@ describe("ChatSessionsEngineListener", () => {
 
   it("appends a failure message when the engine rejects", async () => {
     const message = createChatMessage();
-    listMessages.mockReturnValue([message]);
+    listMessages.mockResolvedValue([message]);
     engineRun.mockRejectedValue(new Error("boom"));
 
     const trace: TraceDto = {

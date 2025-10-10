@@ -46,9 +46,33 @@ export interface ApiPersistenceSqliteConfig {
   filename?: string;
 }
 
+export interface ApiPersistencePostgresConfig {
+  connectionString?: string;
+  host?: string;
+  port?: number;
+  user?: string;
+  password?: string;
+  database?: string;
+  ssl?: boolean | Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface ApiPersistenceMysqlConfig {
+  uri?: string;
+  host?: string;
+  port?: number;
+  user?: string;
+  password?: string;
+  database?: string;
+  ssl?: boolean | Record<string, unknown>;
+  [key: string]: unknown;
+}
+
 export interface ApiPersistenceConfig {
-  driver: "memory" | "sqlite";
+  driver: "memory" | "sqlite" | "postgres" | "mysql";
   sqlite?: ApiPersistenceSqliteConfig;
+  postgres?: ApiPersistencePostgresConfig;
+  mysql?: ApiPersistenceMysqlConfig;
 }
 
 export interface ApiConfig {

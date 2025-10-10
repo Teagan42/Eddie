@@ -69,6 +69,42 @@ describe("ConfigService", () => {
         sqlite: { filename: "./tmp/chat.sqlite" },
       });
     });
+
+    it("accepts postgres persistence configuration", async () => {
+      const service = new ConfigService();
+
+      const result = await service.compose({
+        api: {
+          persistence: {
+            driver: "postgres",
+            postgres: { connectionString: "postgres://localhost/db" },
+          },
+        },
+      });
+
+      expect(result.api?.persistence).toEqual({
+        driver: "postgres",
+        postgres: { connectionString: "postgres://localhost/db" },
+      });
+    });
+
+    it("accepts mysql persistence configuration", async () => {
+      const service = new ConfigService();
+
+      const result = await service.compose({
+        api: {
+          persistence: {
+            driver: "mysql",
+            mysql: { uri: "mysql://root@localhost/db" },
+          },
+        },
+      });
+
+      expect(result.api?.persistence).toEqual({
+        driver: "mysql",
+        mysql: { uri: "mysql://root@localhost/db" },
+      });
+    });
   });
 
   describe("load", () => {

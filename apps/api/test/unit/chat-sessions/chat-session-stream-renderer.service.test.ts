@@ -4,17 +4,19 @@ import { ChatSessionStreamRendererService } from "../../../src/chat-sessions/cha
 import type { ChatMessagesGateway } from "../../../src/chat-sessions/chat-messages.gateway";
 import { InMemoryChatSessionsRepository } from "../../../src/chat-sessions/chat-sessions.repository";
 
+const flushMicrotasks = () => new Promise<void>((resolve) => setImmediate(resolve));
+
 describe("ChatSessionStreamRendererService", () => {
     let service: ChatSessionsService;
     let renderer: ChatSessionStreamRendererService;
     let sessionId: string;
     let gateway: ChatMessagesGateway;
 
-    beforeEach(() => {
+    beforeEach(async () => {
         service = new ChatSessionsService(new InMemoryChatSessionsRepository());
         gateway = { emitPartial: vi.fn() } as unknown as ChatMessagesGateway;
         renderer = new ChatSessionStreamRendererService(service, gateway);
-        sessionId = service.createSession({ title: "Stream" }).id;
+        sessionId = (await service.createSession({ title: "Stream" })).id;
     });
 
     it("creates and updates assistant messages from deltas", async () => {
@@ -29,7 +31,9 @@ describe("ChatSessionStreamRendererService", () => {
         expect(capture.result).toBe("ok");
         expect(capture.state.messageId).toBeDefined();
 
-        const messages = service.listMessages(sessionId);
+        await flushMicrotasks();
+
+        const messages = await service.listMessages(sessionId);
         expect(messages).toHaveLength(1);
         expect(messages[ 0 ]?.role).toBe("assistant");
         expect(messages[ 0 ]?.content).toBe("Hello world");
@@ -43,7 +47,8 @@ describe("ChatSessionStreamRendererService", () => {
 
         expect(capture.error).toBeUndefined();
         expect(capture.state.messageId).toBeUndefined();
-        expect(service.listMessages(sessionId)).toEqual([]);
+        await flushMicrotasks();
+        await expect(service.listMessages(sessionId)).resolves.toEqual([]);
     });
 
     it("preserves streamed content when the engine run fails", async () => {
@@ -54,7 +59,8 @@ describe("ChatSessionStreamRendererService", () => {
 
         expect(capture.error).toBeInstanceOf(Error);
         expect(capture.state.messageId).toBeDefined();
-        const messages = service.listMessages(sessionId);
+        await flushMicrotasks();
+        const messages = await service.listMessages(sessionId);
         expect(messages[ 0 ]?.content).toBe("Partial");
     });
     it("emits partial updates for assistant responses", async () => {
@@ -69,6 +75,7 @@ describe("ChatSessionStreamRendererService", () => {
             renderer.render({ type: "delta", text: " world" });
         });
 
+        await flushMicrotasks();
         expect(events).toEqual([ "Hello", "Hello world" ]);
     });
 
@@ -85,6 +92,7 @@ describe("ChatSessionStreamRendererService", () => {
             rendererWithTools.render({ type: "tool_result", name: "echo", result: { schema: "s1", content: "ok" }, id: "t1" } as any);
         });
 
+        await flushMicrotasks();
         expect((toolsGateway.emitToolCall as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(1);
         expect((toolsGateway.emitToolResult as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(1);
     });

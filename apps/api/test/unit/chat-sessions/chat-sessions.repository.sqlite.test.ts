@@ -34,52 +34,53 @@ describe("SqliteChatSessionsRepository", () => {
     }
   });
 
-  it("creates sessions and appends messages", () => {
-    const session = repository.createSession({ title: "Sqlite" });
-    const { message, session: updated } = repository.appendMessage({
+  it("creates sessions and appends messages", async () => {
+    const session = await repository.createSession({ title: "Sqlite" });
+    const { message, session: updated } = (await repository.appendMessage({
       sessionId: session.id,
       role: ChatMessageRole.User,
       content: "Hi",
-    })!;
+    }))!;
 
     expect(message.sessionId).toBe(session.id);
     expect(updated.updatedAt.getTime()).toBeGreaterThanOrEqual(
       session.createdAt.getTime()
     );
-    expect(repository.listMessages(session.id)).toEqual([
+    await expect(repository.listMessages(session.id)).resolves.toEqual([
       expect.objectContaining({ content: "Hi" }),
     ]);
   });
 
-  it("updates message content and preserves ordering", () => {
-    const session = repository.createSession({ title: "Updates" });
-    const first = repository.appendMessage({
+  it("updates message content and preserves ordering", async () => {
+    const session = await repository.createSession({ title: "Updates" });
+    const first = (await repository.appendMessage({
       sessionId: session.id,
       role: ChatMessageRole.User,
       content: "First",
-    })!.message;
-    repository.appendMessage({
+    }))!.message;
+    await repository.appendMessage({
       sessionId: session.id,
       role: ChatMessageRole.Assistant,
       content: "Second",
     });
 
-    const updated = repository.updateMessageContent(
+    const updated = await repository.updateMessageContent(
       session.id,
       first.id,
       "First - edited"
     );
 
     expect(updated?.content).toBe("First - edited");
-    expect(repository.listMessages(session.id).map((item) => item.content)).toEqual([
+    const contents = await repository.listMessages(session.id);
+    expect(contents.map((item) => item.content)).toEqual([
       "First - edited",
       "Second",
     ]);
   });
 
-  it("stores agent invocation snapshots", () => {
-    const session = repository.createSession({ title: "Invocations" });
-    repository.saveAgentInvocations(session.id, [
+  it("stores agent invocation snapshots", async () => {
+    const session = await repository.createSession({ title: "Invocations" });
+    await repository.saveAgentInvocations(session.id, [
       {
         id: "root",
         messages: [
@@ -104,7 +105,7 @@ describe("SqliteChatSessionsRepository", () => {
       },
     ]);
 
-    expect(repository.listAgentInvocations(session.id)).toEqual([
+    await expect(repository.listAgentInvocations(session.id)).resolves.toEqual([
       {
         id: "root",
         messages: [
@@ -129,8 +130,8 @@ describe("SqliteChatSessionsRepository", () => {
       },
     ]);
 
-    repository.saveAgentInvocations(session.id, []);
+    await repository.saveAgentInvocations(session.id, []);
 
-    expect(repository.listAgentInvocations(session.id)).toEqual([]);
+    await expect(repository.listAgentInvocations(session.id)).resolves.toEqual([]);
   });
 });

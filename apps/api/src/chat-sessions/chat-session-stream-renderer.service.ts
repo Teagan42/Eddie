@@ -12,6 +12,7 @@ interface StreamState {
     sessionId: string;
     buffer: string;
     messageId?: string;
+    pending?: Promise<void>;
 }
 
 export interface StreamCaptureResult<T> {
@@ -47,6 +48,16 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
       }
     });
 
+    if (state.pending) {
+      try {
+        await state.pending;
+      } catch (err) {
+        if (!error) {
+          error = err;
+        }
+      }
+    }
+
     return { result, error, state };
   }
 
@@ -54,18 +65,24 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
     const state = this.storage.getStore();
 
     if (state) {
-      this.handleEvent(state, event);
+      const previous = state.pending ?? Promise.resolve();
+      state.pending = previous
+        .catch(() => undefined)
+        .then(() => this.handleEvent(state, event));
     }
 
     super.render(event);
   }
 
-  private handleEvent(state: StreamState, event: StreamEvent): void {
+  private async handleEvent(
+    state: StreamState,
+    event: StreamEvent
+  ): Promise<void> {
     switch (event.type) {
       case "delta": {
         if (!event.text) return;
         state.buffer += event.text;
-        this.upsertMessage(state);
+        await this.upsertMessage(state);
         break;
       }
       case "tool_call": {
@@ -101,10 +118,10 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
       case "end": {
         if (!state.messageId) return;
         const content = state.buffer.trimEnd();
-        const message = this.chatSessions.updateMessageContent(
+        const message = await this.chatSessions.updateMessageContent(
           state.sessionId,
           state.messageId,
-          content,
+          content
         );
         this.emitPartial(message);
         break;
@@ -114,9 +131,9 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
     }
   }
 
-  private upsertMessage(state: StreamState): void {
+  private async upsertMessage(state: StreamState): Promise<void> {
     if (!state.messageId) {
-      const result = this.chatSessions.addMessage(state.sessionId, {
+      const result = await this.chatSessions.addMessage(state.sessionId, {
         role: ChatMessageRole.Assistant,
         content: state.buffer,
       });
@@ -126,10 +143,10 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
       return;
     }
 
-    const message = this.chatSessions.updateMessageContent(
+    const message = await this.chatSessions.updateMessageContent(
       state.sessionId,
       state.messageId,
-      state.buffer,
+      state.buffer
     );
     this.emitPartial(message);
   }
