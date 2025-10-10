@@ -44,7 +44,7 @@ export function Panel({
           </div>
           {actions ?? null}
         </header>
-        <div className="min-h-[6rem] flex-1 text-sm text-white/90">
+        <div className="flex-1 text-sm text-white/90">
           {children}
         </div>
       </div>
