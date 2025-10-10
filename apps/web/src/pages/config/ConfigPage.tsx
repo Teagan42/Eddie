@@ -745,16 +745,18 @@ export function ConfigPage(): JSX.Element {
           <Callout.Icon>
             <EyeOpenIcon />
           </Callout.Icon>
-          <Callout.Text>
-            <Flex direction="column" gap="2">
-              <Text weight="medium">Guardrails</Text>
-              <ul className="list-disc space-y-1 pl-6 text-sm">
-                {guardrailWarnings.map((warning) => (
-                  <li key={warning}>{warning}</li>
-                ))}
-              </ul>
-            </Flex>
-          </Callout.Text>
+          <Flex direction="column" gap="2">
+            <Callout.Text>
+              <Text as="span" weight="medium">
+                Guardrails
+              </Text>
+            </Callout.Text>
+            <ul className="list-disc space-y-1 pl-6 text-sm">
+              {guardrailWarnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </Flex>
         </Callout.Root>
       ) : null}
 
