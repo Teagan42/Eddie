@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { Theme } from "@radix-ui/themes";
 import type { TraceDto } from "@eddie/api-client";
 import { ChatPage } from "./ChatPage";
@@ -207,5 +207,30 @@ describe("ChatPage tool call tree realtime updates", () => {
     } finally {
       socketsMock.traces = originalTraces;
     }
+  });
+
+  it("stops traversing tool invocations when metadata includes a cycle", async () => {
+    const recursiveNode: any = {
+      id: "tool-1",
+      name: "browser",
+      status: "running",
+      metadata: {},
+      children: [],
+    };
+
+    recursiveNode.children = [recursiveNode];
+
+    getMetadataMock.mockResolvedValueOnce({
+      contextBundles: [],
+      toolInvocations: [recursiveNode],
+      agentHierarchy: [],
+    });
+
+    expect(() => renderChatPage()).not.toThrow();
+
+    await waitFor(() => expect(getMetadataMock).toHaveBeenCalled());
+
+    const toolLabels = await screen.findAllByText("browser");
+    expect(toolLabels).toHaveLength(1);
   });
 });

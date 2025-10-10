@@ -244,10 +244,30 @@ function ToolTree({ nodes }: { nodes: OrchestratorMetadataDto["toolInvocations"]
     );
   }
 
+  return <ToolTreeList nodes={nodes} visited={new Set()} path={[]} />;
+}
+
+function ToolTreeList({
+  nodes,
+  visited,
+  path,
+}: {
+  nodes: OrchestratorMetadataDto["toolInvocations"];
+  visited: Set<string>;
+  path: string[];
+}): JSX.Element {
   return (
     <ul className="space-y-3">
-      {nodes.map((node) => {
-        const statusColor = TOOL_STATUS_COLORS[node.status] ?? "gray";
+      {nodes.map((node, index) => {
+        const keySegment =
+          typeof node.id === "string" && node.id.trim().length > 0
+            ? node.id
+            : `index-${index}`;
+        const nodeKey = [...path, keySegment].join("/");
+        const statusKey =
+          typeof node.status === "string" ? (node.status as ToolCallStatusDto) : undefined;
+        const statusColor =
+          (statusKey ? TOOL_STATUS_COLORS[statusKey] : undefined) ?? "gray";
         const command =
           typeof node.metadata?.command === "string"
             ? node.metadata.command
@@ -259,10 +279,47 @@ function ToolTree({ nodes }: { nodes: OrchestratorMetadataDto["toolInvocations"]
           typeof node.metadata?.arguments === "string"
             ? node.metadata.arguments
             : null;
+        const children = Array.isArray(node.children) ? node.children : [];
+        const hasCycle =
+          typeof node.id === "string" && node.id.trim().length > 0
+            ? visited.has(node.id)
+            : false;
+        const toolLabel =
+          typeof node.name === "string" && node.name.trim().length > 0
+            ? node.name
+            : "Unnamed tool";
+
+        if (hasCycle) {
+          return (
+            <li
+              key={nodeKey}
+              className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4"
+            >
+              <Flex align="center" gap="2">
+                <Badge variant="soft" color="orange">
+                  Cycle
+                </Badge>
+                <Text size="1" color="gray">
+                  Cycle detected for tool invocation {toolLabel}. Skipping
+                  repeated branch.
+                </Text>
+              </Flex>
+            </li>
+          );
+        }
+
+        const nextVisited = new Set(visited);
+        if (typeof node.id === "string" && node.id.trim().length > 0) {
+          nextVisited.add(node.id);
+        }
+        const statusLabel =
+          typeof node.status === "string"
+            ? node.status.toUpperCase()
+            : "UNKNOWN";
 
         return (
           <li
-            key={node.id}
+            key={nodeKey}
             className="rounded-xl border border-muted/40 bg-muted/10 p-4"
           >
             <Flex align="center" justify="between" gap="3">
@@ -271,11 +328,11 @@ function ToolTree({ nodes }: { nodes: OrchestratorMetadataDto["toolInvocations"]
                   Tool
                 </Badge>
                 <Text weight="medium" className="font-mono text-sm">
-                  {node.name}
+                  {toolLabel}
                 </Text>
               </Flex>
               <Badge color={statusColor} variant="soft">
-                {node.status.toUpperCase()}
+                {statusLabel}
               </Badge>
             </Flex>
 
@@ -303,9 +360,19 @@ function ToolTree({ nodes }: { nodes: OrchestratorMetadataDto["toolInvocations"]
               ) : null}
             </Flex>
 
-            {node.children.length > 0 ? (
+            {children.length > 0 ? (
               <Box className="mt-3 border-l border-dashed border-muted/50 pl-3">
-                <ToolTree nodes={node.children} />
+                {hasCycle ? (
+                  <Text size="1" color="gray">
+                    Cycle detected. Skipping repeated tool invocation.
+                  </Text>
+                ) : (
+                  <ToolTreeList
+                    nodes={children}
+                    visited={nextVisited}
+                    path={[...path, keySegment]}
+                  />
+                )}
               </Box>
             ) : null}
           </li>
