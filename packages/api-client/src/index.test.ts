@@ -76,13 +76,14 @@ describe("createApiClient", () => {
     });
 
     expect(OpenAPI.BASE).toBe("https://example.test/api");
-    expect(realtimeMock).toHaveBeenCalledTimes(5);
+    expect(realtimeMock).toHaveBeenCalledTimes(6);
     expect(createdChannels.map((channel) => channel.namespace)).toEqual([
       "/chat-sessions",
       "/chat-messages",
       "/traces",
       "/logs",
       "/config",
+      "/tools",
     ]);
     createdChannels.forEach((channel) => {
       expect(channel.baseUrl).toBe("ws://example.test/ws");
@@ -222,7 +223,7 @@ describe("createApiClient", () => {
   it("normalizes relative websocket URLs", () => {
     createApiClient({ baseUrl: "/api", websocketUrl: "/api/" }).dispose();
 
-    expect(realtimeMock).toHaveBeenCalledTimes(5);
+  expect(realtimeMock).toHaveBeenCalledTimes(6);
     realtimeMock.mock.calls.forEach(([baseUrl]) => {
       expect(baseUrl).toBe("/api");
     });
