@@ -166,9 +166,21 @@ function cloneOptions(options: Partial<CliRuntimeOptions>): CliRuntimeOptions {
 
 let cachedOptions: CliRuntimeOptions | null = null;
 
+function cacheOptions(options: CliRuntimeOptions): void {
+  cachedOptions = cloneOptions(options);
+}
+
+export function setRuntimeOptions(options: CliRuntimeOptions): void {
+  cacheOptions(options);
+}
+
+export function setRuntimeOptionsFromArgv(argv: string[]): void {
+  cacheOptions(parseRuntimeOptionsFromArgv(argv));
+}
+
 export function getRuntimeOptions(): CliRuntimeOptions {
   if (!cachedOptions) {
-    cachedOptions = parseRuntimeOptionsFromArgv(process.argv.slice(2));
+    return {};
   }
 
   return cloneOptions(cachedOptions);

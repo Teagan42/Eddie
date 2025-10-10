@@ -10,7 +10,7 @@ import { LoggerService } from "@eddie/io";
 import { applyCorsConfig } from "./cors";
 import { ensureDefaultConfigRoot } from "./config-root";
 import { configureOpenApi } from "./openapi-config";
-import { getRuntimeOptions } from "./runtime-options";
+import { getRuntimeOptions, setRuntimeOptionsFromArgv } from "./runtime-options";
 
 function configureLogging(
   config: EddieConfig,
@@ -61,4 +61,19 @@ export async function bootstrap(): Promise<void> {
   await app.listen(port, host);
 }
 
-void bootstrap();
+function isRunningAsStandaloneProcess(): boolean {
+  const entry = process.argv[1];
+  if (!entry) {
+    return false;
+  }
+
+  const normalized = entry.replace(/\\/g, "/");
+  return (
+    normalized.includes("/apps/api/") && /\/main\.(js|ts)$/.test(normalized)
+  );
+}
+
+if (isRunningAsStandaloneProcess()) {
+  setRuntimeOptionsFromArgv(process.argv.slice(2));
+  void bootstrap();
+}
