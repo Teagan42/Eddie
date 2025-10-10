@@ -71,6 +71,34 @@ describe("ChatMessageContent", () => {
     );
   });
 
+  it("renders unordered lists with disc bullets", () => {
+    render(
+      <ChatMessageContent
+        messageRole="assistant"
+        content={"- first item\n- second item"}
+      />
+    );
+
+    const list = screen.getByRole("list");
+
+    expect(list).toHaveClass("my-4 list-disc list-outside space-y-2 pl-6");
+    expect(list.tagName).toBe("UL");
+  });
+
+  it("renders ordered lists with numeric markers", () => {
+    render(
+      <ChatMessageContent
+        messageRole="assistant"
+        content={"1. alpha\n2. beta"}
+      />
+    );
+
+    const list = screen.getByRole("list");
+
+    expect(list).toHaveClass("my-4 list-decimal list-outside space-y-2 pl-6");
+    expect(list.tagName).toBe("OL");
+  });
+
   it("applies data table styling to markdown tables", () => {
     render(
       <ChatMessageContent
