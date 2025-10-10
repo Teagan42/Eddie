@@ -15,6 +15,7 @@ async function generate(): Promise<void> {
     .addTag("Logs")
     .addTag("Runtime Config")
     .addTag("Config")
+    .addTag("Providers")
     .build();
   const document = SwaggerModule.createDocument(app, config);
   const outputPath = join(

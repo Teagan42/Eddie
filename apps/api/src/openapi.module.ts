@@ -4,6 +4,7 @@ import { TracesModule } from "./traces/traces.module";
 import { LogsModule } from "./logs/logs.module";
 import { RuntimeConfigModule } from "./runtime-config/runtime-config.module";
 import { ConfigEditorModule } from "./config-editor/config-editor.module";
+import { ProvidersModule } from "./providers/providers.module";
 import { HealthController } from "./controllers/health.controller";
 
 @Module({
@@ -13,6 +14,7 @@ import { HealthController } from "./controllers/health.controller";
     LogsModule,
     RuntimeConfigModule,
     ConfigEditorModule,
+    ProvidersModule,
   ],
   controllers: [HealthController],
 })
