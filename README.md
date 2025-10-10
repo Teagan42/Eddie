@@ -271,4 +271,4 @@ and build steps.
 
 ## License
 
-MIT © 2025 Teagan Glenn
+Licensed under the Business Source License 1.1 (change date 2029-01-01, change license Apache 2.0) © 2025 Teagan Glenn

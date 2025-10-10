@@ -1,21 +1,40 @@
-MIT License
+Business Source License 1.1
 
-Copyright (c) 2025 Teagan Glenn
+Licensor: Teagan Glenn
+Licensed Work: Eddie (the "Licensed Work")
+Change Date: 2029-01-01
+Change License: Apache License, Version 2.0
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Additional Use Grant: You may use, copy, and modify the Licensed Work free of charge for non-production and internal evaluation purposes. Any production, hosted, or revenue-generating use requires a separate commercial agreement with the Licensor.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Terms
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+The Licensor hereby grants you the right to copy, modify, create derivative works, redistribute, and make non-production use of the Licensed Work. The Licensor may make an Additional Use Grant, above, permitting limited production use.
+
+Effective on the Change Date, or the date specified in the Additional Use Grant, whichever comes first, the Licensed Work will be made available to you under the Change License, and the rights granted in this license will terminate.
+
+If your use of the Licensed Work does not comply with the Additional Use Grant, you must obtain a separate commercial license from the Licensor. Any attempt to circumvent the monetization terms or use the Licensed Work in production without such a license is prohibited and automatically terminates the rights granted in this license.
+
+You must preserve all legal notices and licensing information on any copies of the Licensed Work you make.
+
+You may not use the trademarks, service marks, or logos of the Licensor except as necessary to comply with the attribution requirement below.
+
+Attribution Requirement
+
+If you make the Licensed Work or a derivative work available to third parties, you must provide attribution to the Licensor that is reasonably prominent and is at least as visible as the attribution provided for any other third-party software.
+
+Disclaimer
+
+THE LICENSED WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OR CONDITION OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. THE LICENSOR DISCLAIMS ALL LIABILITY FOR DAMAGES, INCLUDING DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, ARISING OUT OF OR IN CONNECTION WITH THE LICENSED WORK OR THIS LICENSE, TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW.
+
+Termination
+
+Any use of the Licensed Work in violation of this license will automatically terminate your rights under this license. Upon termination, you must immediately cease use of the Licensed Work and destroy all copies in your possession or control.
+
+Governing Law
+
+This license will be governed by and interpreted in accordance with the laws of the jurisdiction in which the Licensor resides, without regard to its conflict-of-law principles.
+
+Contact
+
+For commercial licensing inquiries, please contact: licensing@teaganglenn.dev
