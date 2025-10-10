@@ -23,6 +23,7 @@ import { RuntimeConfigModule } from "./runtime-config/runtime-config.module";
 import { UserPreferencesModule } from "./user-preferences/user-preferences.module";
 import { OrchestratorModule } from "./orchestrator/orchestrator.module";
 import { ConfigEditorModule } from "./config-editor/config-editor.module";
+import { ProvidersModule } from "./providers/providers.module";
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { ConfigEditorModule } from "./config-editor/config-editor.module";
     ConfigEditorModule,
     UserPreferencesModule,
     OrchestratorModule,
+    ProvidersModule,
   ],
   controllers: [HealthController],
   providers: [
