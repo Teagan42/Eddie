@@ -38,4 +38,20 @@ export class ProviderFactoryService {
 
     return factory.create(config);
   }
+
+  async listModels(config: ProviderConfig): Promise<string[]> {
+    if (config.name === "noop") {
+      return [];
+    }
+
+    const factory = this.factories.find(
+      (candidate) => candidate.name === config.name
+    );
+
+    if (!factory) {
+      throw new Error(`Unknown provider: ${config.name}`);
+    }
+
+    return factory.listModels(config);
+  }
 }

@@ -173,7 +173,39 @@ export class OpenAICompatibleAdapterFactory
   readonly name = "openai_compatible";
 
   create(config: ProviderConfig): ProviderAdapter {
-    const adapterConfig: OpenAICompatConfig = {
+    return new OpenAICompatibleAdapter(this.toAdapterConfig(config));
+  }
+
+  async listModels(config: ProviderConfig): Promise<string[]> {
+    const adapterConfig = this.toAdapterConfig(config);
+    const baseUrl = (adapterConfig.baseUrl ?? "https://api.groq.com/v1").replace(/\/$/, "");
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${
+        adapterConfig.apiKey ?? process.env.OPENAI_API_KEY ?? ""
+      }`,
+      "Content-Type": "application/json",
+      ...adapterConfig.headers,
+    };
+
+    const response = await fetch(`${baseUrl}/models`, {
+      method: "GET",
+      headers,
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const body = (await response.json()) as { data?: Array<{ id?: unknown }> };
+    const data = Array.isArray(body.data) ? body.data : [];
+
+    return data
+      .map((item) => (typeof item?.id === "string" ? item.id : undefined))
+      .filter((id): id is string => typeof id === "string");
+  }
+
+  private toAdapterConfig(config: ProviderConfig): OpenAICompatConfig {
+    return {
       baseUrl: typeof config.baseUrl === "string" ? config.baseUrl : undefined,
       apiKey: typeof config.apiKey === "string" ? config.apiKey : undefined,
       headers:
@@ -181,8 +213,6 @@ export class OpenAICompatibleAdapterFactory
           ? (config.headers as Record<string, string>)
           : undefined,
     };
-
-    return new OpenAICompatibleAdapter(adapterConfig);
   }
 }
 
