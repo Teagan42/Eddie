@@ -1,7 +1,7 @@
 import { render, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 import type { ChatMessageDto, ChatSessionDto } from "@eddie/api-client";
-import { SessionDetail } from "../components/SessionDetail";
+import { SessionDetail } from "../components";
 
 class ResizeObserverMock {
   observe(): void {}

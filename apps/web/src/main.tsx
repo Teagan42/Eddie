@@ -2,7 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Theme } from "@radix-ui/themes";
-import { App } from "./pages/App";
+import { App } from "./pages";
 import { AuthProvider } from "./auth/auth-context";
 import { ApiProvider } from "./api/api-provider";
 import "@radix-ui/themes/styles.css";
