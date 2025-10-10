@@ -87,48 +87,49 @@ describe("createApiClient", () => {
       expect(channel.apiKey).toBeNull();
     });
 
-      const chatChannel = createdChannels[0]!;
-      const sessionCreated = vi.fn();
-      const unsubscribeSessionCreated =
-        client.sockets.chatSessions.onSessionCreated(sessionCreated);
-      expect(chatChannel.on).toHaveBeenCalledWith(
-        "session.created",
-        sessionCreated
-      );
+    const chatChannel = createdChannels[0]!;
+    const sessionCreated = vi.fn();
+    const unsubscribeSessionCreated =
+      client.sockets.chatSessions.onSessionCreated(sessionCreated);
+    expect(chatChannel.on).toHaveBeenCalledWith(
+      "session.created",
+      sessionCreated
+    );
 
-      const messageUpdated = vi.fn();
-      const unsubscribeMessageUpdated =
-        client.sockets.chatSessions.onMessageUpdated(messageUpdated);
-      expect(chatChannel.on).toHaveBeenCalledWith(
-        "message.updated",
-        messageUpdated
-      );
-
-      chatChannel.emit.mockClear();
-      client.sockets.chatSessions.emitMessage("session-1", {
-        role: CreateChatMessageDto.role.USER,
-        content: "hi",
-      });
-      expect(chatChannel.emit).toHaveBeenCalledWith("message.send", {
-        sessionId: "session-1",
-        message: {
-          role: CreateChatMessageDto.role.USER,
-          content: "hi",
-        },
-      });
+    const messageCreated = vi.fn();
+    const unsubscribeMessageCreated =
+      client.sockets.chatSessions.onMessageCreated(messageCreated);
+    expect(chatChannel.on).toHaveBeenCalledWith(
+      "message.created",
+      messageCreated
+    );
 
     const messageUpdated = vi.fn();
-    const unsubscribeUpdate = client.sockets.chatSessions.onMessageUpdated(
-      messageUpdated
-    );
+    const unsubscribeMessageUpdated =
+      client.sockets.chatSessions.onMessageUpdated(messageUpdated);
     expect(chatChannel.on).toHaveBeenCalledWith(
       "message.updated",
       messageUpdated
     );
 
-    unsubscribe();
+    chatChannel.emit.mockClear();
+    client.sockets.chatSessions.emitMessage("session-1", {
+      role: CreateChatMessageDto.role.USER,
+      content: "hi",
+    });
+    expect(chatChannel.emit).toHaveBeenCalledWith("message.send", {
+      sessionId: "session-1",
+      message: {
+        role: CreateChatMessageDto.role.USER,
+        content: "hi",
+      },
+    });
+
+    unsubscribeSessionCreated();
     expect(chatChannel.handlers.get("session.created")?.size ?? 0).toBe(0);
-    unsubscribeUpdate();
+    unsubscribeMessageCreated();
+    expect(chatChannel.handlers.get("message.created")?.size ?? 0).toBe(0);
+    unsubscribeMessageUpdated();
     expect(chatChannel.handlers.get("message.updated")?.size ?? 0).toBe(0);
 
     client.updateAuth("secret");
