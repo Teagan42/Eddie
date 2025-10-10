@@ -10,6 +10,8 @@ import {
   type ChatSessionsRepository,
 } from "./chat-sessions.repository";
 
+export type { AgentInvocationSnapshot } from "./chat-sessions.repository";
+
 export interface ChatSessionsListener {
   onSessionCreated(session: ChatSessionDto): void;
   onSessionUpdated(session: ChatSessionDto): void;

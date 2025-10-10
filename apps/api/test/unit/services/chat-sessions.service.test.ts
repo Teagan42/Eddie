@@ -1,8 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import {
+  ChatSessionsService,
+  type AgentInvocationSnapshot,
+} from "../../../src/chat-sessions/chat-sessions.service";
 import { CreateChatSessionDto } from "../../../src/chat-sessions/dto/create-chat-session.dto";
 import { CreateChatMessageDto } from "../../../src/chat-sessions/dto/create-chat-message.dto";
-import { InMemoryChatSessionsRepository } from "../../../src/chat-sessions/chat-sessions.repository";
+import {
+  InMemoryChatSessionsRepository,
+  type AgentInvocationSnapshot as RepositoryInvocationSnapshot,
+} from "../../../src/chat-sessions/chat-sessions.repository";
 
 class ListenerSpy {
   created = 0;
@@ -32,6 +38,12 @@ describe("ChatSessionsService", () => {
 
   beforeEach(() => {
     service = new ChatSessionsService(new InMemoryChatSessionsRepository());
+  });
+
+  it("exposes AgentInvocationSnapshot type to consumers", () => {
+    expectTypeOf<AgentInvocationSnapshot>().toMatchTypeOf<
+      RepositoryInvocationSnapshot
+    >();
   });
 
   it("creates sessions and notifies listeners", () => {
