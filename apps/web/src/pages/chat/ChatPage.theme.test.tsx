@@ -156,11 +156,11 @@ describe("ChatPage message surfaces", () => {
     const userCard = containersByRole.get("user");
     const assistantCard = containersByRole.get("assistant");
 
-    expect(userCard).toHaveClass("from-emerald-500/15");
+    expect(userCard).toHaveClass("from-emerald-500/25");
     expect(userCard).toHaveClass("via-emerald-500/5");
     expect(userCard).toHaveClass("to-slate-950/70");
 
-    expect(assistantCard).toHaveClass("from-sky-500/15");
+    expect(assistantCard).toHaveClass("from-sky-500/25");
     expect(assistantCard).toHaveClass("via-sky-500/5");
     expect(assistantCard).toHaveClass("to-slate-950/70");
   });
