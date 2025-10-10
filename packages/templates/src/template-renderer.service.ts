@@ -39,7 +39,7 @@ export class TemplateRendererService {
 
     let template = this.templateCache.get(cacheKey);
     if (!template) {
-      template = nunjucks.compile(source, env, absolutePath, true);
+      template = new nunjucks.Template(source, env, absolutePath, true);
       this.templateCache.set(cacheKey, template);
     }
 
@@ -54,8 +54,13 @@ export class TemplateRendererService {
   ): Promise<string> {
     const searchPaths = this.computeSearchPaths({ filename });
     const { env } = this.getEnvironment(searchPaths);
-    const options = filename ? { filename } : undefined;
-    const rendered = env.renderString(template, variables, options);
+    const templateInstance = new nunjucks.Template(
+      template,
+      env,
+      filename,
+      true
+    );
+    const rendered = templateInstance.render(variables);
     return rendered ?? "";
   }
 
