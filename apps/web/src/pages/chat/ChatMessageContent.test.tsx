@@ -55,4 +55,19 @@ describe("ChatMessageContent", () => {
       "mt-4 border-l-2 border-slate-500/80 pl-4 text-slate-200/90"
     );
   });
+
+  it("styles inline code distinctly from surrounding prose", () => {
+    render(
+      <ChatMessageContent
+        messageRole="assistant"
+        content="Use `pnpm install` to setup"
+      />
+    );
+
+    const inlineCode = screen.getByText("pnpm install", { selector: "code" });
+
+    expect(inlineCode).toHaveClass(
+      "rounded bg-slate-900/70 px-1 font-mono text-sm text-slate-100"
+    );
+  });
 });

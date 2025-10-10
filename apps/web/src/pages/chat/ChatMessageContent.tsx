@@ -7,12 +7,16 @@ const CODE_BLOCK_CONTAINER_CLASSES =
   "mt-4 overflow-x-auto rounded-lg bg-slate-900/70 p-4 font-mono text-sm";
 const BLOCKQUOTE_CLASSES =
   "mt-4 border-l-2 border-slate-500/80 pl-4 text-slate-200/90";
+const INLINE_CODE_CLASSES =
+  "rounded bg-slate-900/70 px-1 font-mono text-sm text-slate-100";
 
 const markdownComponents: Components = {
   code({ inline, className, children, ...props }) {
-    if (inline) {
+    const isCodeBlock = !inline && className?.includes("language-");
+
+    if (!isCodeBlock) {
       return (
-        <code className={className} {...props}>
+        <code className={cn(INLINE_CODE_CLASSES, className)} {...props}>
           {children}
         </code>
       );
