@@ -45,6 +45,7 @@ export interface ChatSessionsListener {
   onSessionCreated(session: ChatSessionDto): void;
   onSessionUpdated(session: ChatSessionDto): void;
   onMessageCreated(message: ChatMessageDto): void;
+  onMessageUpdated(message: ChatMessageDto): void;
 }
 
 @Injectable()
@@ -118,6 +119,14 @@ export class ChatSessionsService {
   private notifyMessageCreated(message: ChatMessageDto): void {
     for (const listener of this.listeners) {
       listener.onMessageCreated(message);
+    }
+  }
+
+  private notifyMessageUpdated(message: ChatMessageDto): void {
+    for (const listener of this.listeners) {
+      if (typeof listener.onMessageUpdated === "function") {
+        listener.onMessageUpdated(message);
+      }
     }
   }
 
@@ -205,6 +214,24 @@ export class ChatSessionsService {
     this.notifyMessageCreated(messageDto);
     this.notifySessionUpdated(sessionDto);
     return { message: messageDto, session: sessionDto };
+  }
+
+  updateMessageContent(sessionId: string, messageId: string, content: string): ChatMessageDto {
+    this.ensureSessionExists(sessionId);
+    const collection = this.messages.get(sessionId);
+    if (!collection) {
+      throw new NotFoundException(`No messages stored for session ${sessionId}`);
+    }
+
+    const entity = collection.find((item) => item.id === messageId);
+    if (!entity) {
+      throw new NotFoundException(`Message ${messageId} not found in session ${sessionId}`);
+    }
+
+    entity.content = content;
+    const dto = this.messageToDto(entity);
+    this.notifyMessageUpdated(dto);
+    return dto;
   }
 
   private ensureSessionExists(id: string): void {

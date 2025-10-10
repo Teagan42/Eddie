@@ -168,6 +168,7 @@ export interface ChatSessionsSocket {
   onSessionCreated(handler: (session: ChatSessionDto) => void): Unsubscribe;
   onSessionUpdated(handler: (session: ChatSessionDto) => void): Unsubscribe;
   onMessageCreated(handler: (message: ChatMessageDto) => void): Unsubscribe;
+  onMessageUpdated(handler: (message: ChatMessageDto) => void): Unsubscribe;
   emitMessage(sessionId: string, payload: CreateChatMessageDto): void;
 }
 
@@ -334,6 +335,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     },
     onMessageCreated(handler) {
       return chatChannel.on("message.created", handler);
+    },
+    onMessageUpdated(handler) {
+      return chatChannel.on("message.updated", handler);
     },
     emitMessage(sessionId, payload) {
       chatChannel.emit("message.send", { sessionId, message: payload });

@@ -53,6 +53,10 @@ export class ChatSessionsGateway
     emitEvent(this.server, "message.created", message);
   }
 
+  onMessageUpdated(message: ChatMessageDto): void {
+    emitEvent(this.server, "message.updated", message);
+  }
+
   @SubscribeMessage("message.send")
   @UsePipes(
     new ValidationPipe({
