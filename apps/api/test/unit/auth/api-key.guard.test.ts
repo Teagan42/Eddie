@@ -19,6 +19,19 @@ const createExecutionContext = (request: Partial<Request>): ExecutionContext =>
     getClass: () => ({}),
   }) as unknown as ExecutionContext;
 
+const createWsExecutionContext = (client: unknown): ExecutionContext =>
+  ({
+    getType: () => "ws",
+    switchToWs: () => ({
+      getClient: () => client,
+    }),
+    switchToHttp: () => ({
+      getRequest: () => ({}) as Request,
+    }),
+    getHandler: () => ({}),
+    getClass: () => ({}),
+  }) as unknown as ExecutionContext;
+
 describe("ApiKeyGuard", () => {
   const baseConfig = {
     logLevel: "info",
@@ -123,6 +136,61 @@ describe("ApiKeyGuard", () => {
 
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ path: "/secure", method: "POST", presented: false }),
+      "Rejected unauthenticated request"
+    );
+  });
+
+  it("accepts websocket connections presenting a configured api key", async () => {
+    const { guard } = await createGuard(baseConfig);
+
+    const client = {
+      handshake: {
+        headers: { "x-api-key": "config-key" },
+        query: {},
+      },
+    };
+
+    await expect(
+      guard.canActivate(createWsExecutionContext(client))
+    ).resolves.toBe(true);
+  });
+
+  it("rejects websocket connections missing an api key", async () => {
+    const { guard, logger } = await createGuard(baseConfig);
+
+    const client = {
+      handshake: {
+        headers: {},
+        query: {},
+      },
+    };
+
+    await expect(
+      guard.canActivate(createWsExecutionContext(client))
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ presented: false }),
+      "Rejected unauthenticated request"
+    );
+  });
+
+  it("rejects websocket connections presenting an invalid api key", async () => {
+    const { guard, logger } = await createGuard(baseConfig);
+
+    const client = {
+      handshake: {
+        headers: { "x-api-key": "unknown" },
+        query: {},
+      },
+    };
+
+    await expect(
+      guard.canActivate(createWsExecutionContext(client))
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ presented: true }),
       "Rejected unauthenticated request"
     );
   });

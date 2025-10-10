@@ -5,7 +5,6 @@ import {
   OnModuleInit,
   UnauthorizedException,
 } from "@nestjs/common";
-import type { Request } from "express";
 import { Reflector } from "@nestjs/core";
 import { ConfigService } from "@eddie/config";
 import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
@@ -13,10 +12,25 @@ import { ContextService } from "@eddie/context";
 import { InjectLogger } from "@eddie/io";
 import type { Logger } from "pino";
 import { IS_PUBLIC_KEY } from "./public.decorator";
+import type { Request } from "express";
 
 interface ContextSummary {
   files: number;
   totalBytes: number;
+}
+
+interface ApiKeyLookup {
+  getHeader(name: string): string | undefined;
+  getQuery(name: string): unknown;
+}
+
+interface WebSocketClient {
+  handshake?: {
+    headers?: Record<string, unknown>;
+    query?: Record<string, unknown>;
+    url?: string;
+  };
+  [key: string]: unknown;
 }
 
 @Injectable()
@@ -124,18 +138,18 @@ export class ApiKeyGuard implements CanActivate, OnModuleInit {
     await this.initPromise;
   }
 
-  private extractApiKey(request: Request): string | null {
-    const headerKey = request.get("x-api-key") ?? request.get("api-key");
+  private extractApiKeyFromLookup(lookup: ApiKeyLookup): string | null {
+    const headerKey = lookup.getHeader("x-api-key") ?? lookup.getHeader("api-key");
     if (headerKey?.trim()) {
       return headerKey.trim();
     }
 
-    const authHeader = request.get("authorization");
+    const authHeader = lookup.getHeader("authorization");
     if (authHeader?.toLowerCase().startsWith("bearer ")) {
       return authHeader.slice(7).trim() || null;
     }
 
-    const queryKey = request.query?.apiKey ?? request.query?.api_key;
+    const queryKey = lookup.getQuery("apiKey") ?? lookup.getQuery("api_key");
     if (typeof queryKey === "string" && queryKey.trim()) {
       return queryKey.trim();
     }
@@ -143,8 +157,62 @@ export class ApiKeyGuard implements CanActivate, OnModuleInit {
     return null;
   }
 
+  private rejectRequest(details: {
+    method: string;
+    path?: string | null;
+    presented: boolean;
+  }): never {
+    this.logger.warn(
+      {
+        ...details,
+        context: this.contextSummary,
+      },
+      "Rejected unauthenticated request"
+    );
+
+    throw new UnauthorizedException("Invalid or missing API key");
+  }
+
+  private extractApiKeyFromRequest(request: Request): string | null {
+    return this.extractApiKeyFromLookup({
+      getHeader: (name) => request.get(name) ?? undefined,
+      getQuery: (name) => request.query?.[name as keyof typeof request.query],
+    });
+  }
+
+  private extractApiKeyFromWebSocket(client: WebSocketClient): string | null {
+    const headers = client.handshake?.headers ?? {};
+    const query = client.handshake?.query ?? {};
+
+    const normaliseHeader = (name: string): string | undefined => {
+      const lowered = name.toLowerCase();
+      const direct = headers[name];
+      const value = direct ?? headers[lowered] ?? headers[name.toUpperCase()];
+
+      if (Array.isArray(value)) {
+        return value.find((item) => typeof item === "string") as string | undefined;
+      }
+
+      if (typeof value === "string") {
+        return value;
+      }
+
+      if (value != null) {
+        return String(value);
+      }
+
+      return undefined;
+    };
+
+    return this.extractApiKeyFromLookup({
+      getHeader: normaliseHeader,
+      getQuery: (name) => query[name],
+    });
+  }
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    if (context.getType() !== "http") {
+    const type = context.getType();
+    if (type !== "http" && type !== "ws") {
       return true;
     }
 
@@ -163,24 +231,34 @@ export class ApiKeyGuard implements CanActivate, OnModuleInit {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<Request>();
-    const apiKey = this.extractApiKey(request);
+    if (type === "http") {
+      const request = context.switchToHttp().getRequest<Request>();
+      const apiKey = this.extractApiKeyFromRequest(request);
 
-    if (apiKey && this.apiKeys.has(apiKey)) {
-      (request as Request & { apiKey?: string }).apiKey = apiKey;
-      return true;
-    }
+      if (apiKey && this.apiKeys.has(apiKey)) {
+        (request as Request & { apiKey?: string }).apiKey = apiKey;
+        return true;
+      }
 
-    this.logger.warn(
-      {
+      this.rejectRequest({
         method: request.method,
         path: request.originalUrl ?? request.url,
         presented: Boolean(apiKey),
-        context: this.contextSummary,
-      },
-      "Rejected unauthenticated request"
-    );
+      });
+    }
 
-    throw new UnauthorizedException("Invalid or missing API key");
+    const client = context.switchToWs().getClient<WebSocketClient>();
+    const apiKey = this.extractApiKeyFromWebSocket(client);
+
+    if (apiKey && this.apiKeys.has(apiKey)) {
+      (client as WebSocketClient & { apiKey?: string }).apiKey = apiKey;
+      return true;
+    }
+
+    this.rejectRequest({
+      method: "WS",
+      path: client.handshake?.url,
+      presented: Boolean(apiKey),
+    });
   }
 }
