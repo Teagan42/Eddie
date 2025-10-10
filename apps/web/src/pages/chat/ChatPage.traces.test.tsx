@@ -177,24 +177,23 @@ describe("ChatPage tool call tree realtime updates", () => {
     await waitFor(() => expect(getMetadataMock).toHaveBeenCalledTimes(3));
   });
 
-  it("ignores trace events that do not include a session id", async () => {
-    const client = renderChatPage();
-    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
+  it("refetches orchestrator metadata when trace events omit a session id", async () => {
+    renderChatPage();
 
+    await waitFor(() => expect(getMetadataMock).toHaveBeenCalledTimes(1));
     await waitFor(() =>
-      expect(typeof traceCreatedHandler).toBe("function")
+      expect(typeof traceUpdatedHandler).toBe("function")
     );
 
-    traceCreatedHandler?.({
+    traceUpdatedHandler?.({
       id: "trace-2",
       name: "tool-call",
-      status: "running",
+      status: "completed",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
 
-    expect(invalidateSpy).not.toHaveBeenCalled();
-    expect(getMetadataMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(getMetadataMock).toHaveBeenCalledTimes(2));
   });
 
   it("renders when the trace socket provider is missing", async () => {
