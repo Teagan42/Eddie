@@ -17,23 +17,23 @@ export enum ChatMessageRole {
 export class CreateChatMessageDto {
   @ApiProperty({ enum: ChatMessageRole, default: ChatMessageRole.User })
   @IsEnum(ChatMessageRole)
-  role: ChatMessageRole = ChatMessageRole.User;
+    role: ChatMessageRole = ChatMessageRole.User;
 
   @ApiProperty({ description: "Content of the chat message" })
   @IsString()
   @IsNotEmpty()
   @MaxLength(4000)
-  content!: string;
+    content!: string;
 
   @ApiPropertyOptional({
     description: "Identifier of the originating tool call",
   })
   @IsString()
   @IsOptional()
-  toolCallId?: string;
+    toolCallId?: string;
 
   @ApiPropertyOptional({ description: "Originating tool name" })
   @IsString()
   @IsOptional()
-  name?: string;
+    name?: string;
 }

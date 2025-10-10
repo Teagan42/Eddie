@@ -16,8 +16,8 @@ export function upsertMessage(
   const exists = messages.some((message) => message.id === next.id);
   const collection = exists
     ? messages.map((message) =>
-        message.id === next.id ? { ...message, ...next } : message
-      )
+      message.id === next.id ? { ...message, ...next } : message
+    )
     : [...messages, next];
 
   return collection.sort(

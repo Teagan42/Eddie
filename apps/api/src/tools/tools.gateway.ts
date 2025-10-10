@@ -10,77 +10,77 @@ import { emitEvent } from "../websocket/utils";
 @WebSocketGateway({ path: "/tools" })
 export class ToolsGateway implements OnModuleInit, OnModuleDestroy {
     @WebSocketServer()
-    private server!: Server;
+  private server!: Server;
 
     private safeStringify(value: unknown, maxLen = 2000): string | null {
+      try {
+        if (value === null || value === undefined) return null;
+        if (typeof value === 'string') return value.length > maxLen ? value.slice(0, maxLen) + '…' : value;
+        if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+        const str = JSON.stringify(value);
+        return str.length > maxLen ? str.slice(0, maxLen) + '…' : str;
+      } catch {
         try {
-            if (value === null || value === undefined) return null;
-            if (typeof value === 'string') return value.length > maxLen ? value.slice(0, maxLen) + '…' : value;
-            if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-            const str = JSON.stringify(value);
-            return str.length > maxLen ? str.slice(0, maxLen) + '…' : str;
+          return String(value);
         } catch {
-            try {
-                return String(value);
-            } catch {
-                return null;
-            }
+          return null;
         }
+      }
     }
 
     onModuleInit(): void {
-        // no-op: kept for symmetry with other gateways
+      // no-op: kept for symmetry with other gateways
     }
 
     onModuleDestroy(): void {
-        // no-op
+      // no-op
     }
 
     emitToolCall(payload: unknown): void {
-        try {
-            const safePayload = ((): unknown => {
-                if (!payload || typeof payload !== 'object') return payload;
-                const p = { ...(payload as Record<string, unknown>) } as Record<string, unknown>;
-                if ('arguments' in p) {
-                    p.arguments = this.safeStringify(p.arguments) as unknown;
-                }
-                if ('result' in p) {
-                    p.result = this.safeStringify(p.result) as unknown;
-                }
-                if (!('timestamp' in p) || !p.timestamp) {
-                    p.timestamp = new Date().toISOString();
-                }
-                return p;
-            })();
+      try {
+        const safePayload = ((): unknown => {
+          if (!payload || typeof payload !== 'object') return payload;
+          const p = { ...(payload as Record<string, unknown>) } as Record<string, unknown>;
+          if ('arguments' in p) {
+            p.arguments = this.safeStringify(p.arguments) as unknown;
+          }
+          if ('result' in p) {
+            p.result = this.safeStringify(p.result) as unknown;
+          }
+          if (!('timestamp' in p) || !p.timestamp) {
+            p.timestamp = new Date().toISOString();
+          }
+          return p;
+        })();
 
-            // Tool call emitted (debug logging removed in cleanup)
-            emitEvent(this.server, 'tool.call', safePayload);
-        } catch {
-            // swallow errors
-        }
+        // Tool call emitted (debug logging removed in cleanup)
+        emitEvent(this.server, 'tool.call', safePayload);
+      } catch {
+        // swallow errors
+      }
     }
 
     emitToolResult(payload: unknown): void {
-        try {
-            const safePayload = ((): unknown => {
-                if (!payload || typeof payload !== 'object') return payload;
-                const p = { ...(payload as Record<string, unknown>) } as Record<string, unknown>;
-                if ('arguments' in p) {
-                    p.arguments = this.safeStringify(p.arguments) as unknown;
-                }
-                if ('result' in p) {
-                    p.result = this.safeStringify(p.result) as unknown;
-                }
-                if (!('timestamp' in p) || !p.timestamp) {
-                    p.timestamp = new Date().toISOString();
-                }
-                return p;
-            })();
+      try {
+        const safePayload = ((): unknown => {
+          if (!payload || typeof payload !== 'object') return payload;
+          const p = { ...(payload as Record<string, unknown>) } as Record<string, unknown>;
+          if ('arguments' in p) {
+            p.arguments = this.safeStringify(p.arguments) as unknown;
+          }
+          if ('result' in p) {
+            p.result = this.safeStringify(p.result) as unknown;
+          }
+          if (!('timestamp' in p) || !p.timestamp) {
+            p.timestamp = new Date().toISOString();
+          }
+          return p;
+        })();
 
-            // Tool result emitted (debug logging removed in cleanup)
-            emitEvent(this.server, 'tool.result', safePayload);
-        } catch {
-            // swallow errors
-        }
+        // Tool result emitted (debug logging removed in cleanup)
+        emitEvent(this.server, 'tool.result', safePayload);
+      } catch {
+        // swallow errors
+      }
     }
 }

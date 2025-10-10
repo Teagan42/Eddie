@@ -3,43 +3,43 @@ import { ChatMessageRole } from "./create-chat-message.dto";
 
 export class ChatSessionDto {
   @ApiProperty({ description: "Unique identifier" })
-  id!: string;
+    id!: string;
 
   @ApiProperty({ description: "Human friendly title" })
-  title!: string;
+    title!: string;
 
   @ApiProperty({ description: "Optional description", required: false })
-  description?: string;
+    description?: string;
 
   @ApiProperty({ enum: ["active", "archived"], description: "Session status" })
-  status!: "active" | "archived";
+    status!: "active" | "archived";
 
   @ApiProperty({ description: "Creation timestamp (ISO string)" })
-  createdAt!: string;
+    createdAt!: string;
 
   @ApiProperty({ description: "Last update timestamp (ISO string)" })
-  updatedAt!: string;
+    updatedAt!: string;
 }
 
 export class ChatMessageDto {
   @ApiProperty({ description: "Unique identifier" })
-  id!: string;
+    id!: string;
 
   @ApiProperty({ description: "Owning session id" })
-  sessionId!: string;
+    sessionId!: string;
 
   @ApiProperty({ enum: ChatMessageRole, description: "Message role" })
-  role!: ChatMessageRole;
+    role!: ChatMessageRole;
 
   @ApiProperty({ description: "Message content" })
-  content!: string;
+    content!: string;
 
   @ApiProperty({ description: "Creation timestamp (ISO string)" })
-  createdAt!: string;
+    createdAt!: string;
 
   @ApiPropertyOptional({ description: "Identifier of the originating tool call" })
-  toolCallId?: string;
+    toolCallId?: string;
 
   @ApiPropertyOptional({ description: "Originating tool name" })
-  name?: string;
+    name?: string;
 }

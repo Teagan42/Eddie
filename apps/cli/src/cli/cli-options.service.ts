@@ -49,8 +49,8 @@ export class CliOptionsService {
       typeof options.autoApprove === "boolean"
         ? options.autoApprove
         : typeof options.auto === "boolean"
-        ? options.auto
-        : undefined;
+          ? options.auto
+          : undefined;
 
     const nonInteractive =
       typeof options.nonInteractive === "boolean"

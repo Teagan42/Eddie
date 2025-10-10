@@ -164,8 +164,8 @@ export class OrchestratorMetadataService {
           ...(node.metadata?.toolName
             ? {}
             : message.name
-            ? { toolName: message.name }
-            : {}),
+              ? { toolName: message.name }
+              : {}),
         };
         node.children = node.children ?? [];
         if (!pending.has(toolCallId)) {
@@ -197,8 +197,8 @@ export class OrchestratorMetadataService {
           ...(existing.metadata?.toolName
             ? {}
             : message.name
-            ? { toolName: message.name }
-            : {}),
+              ? { toolName: message.name }
+              : {}),
         };
         pending.delete(toolCallId);
         continue;

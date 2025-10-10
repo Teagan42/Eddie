@@ -15,7 +15,7 @@ import {
   path: "/config",
 })
 export class RuntimeConfigGateway
-  implements RuntimeConfigListener, OnModuleInit, OnModuleDestroy
+implements RuntimeConfigListener, OnModuleInit, OnModuleDestroy
 {
   @WebSocketServer()
   private server!: Server;

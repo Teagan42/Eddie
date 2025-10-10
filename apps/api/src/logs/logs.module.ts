@@ -7,9 +7,9 @@ import { LogsForwarderService } from "./logs-forwarder.service";
 import { ToolsModule } from "../tools/tools.module";
 
 @Module({
-    imports: [ IoModule, ToolsModule ],
-    providers: [ LogsService, LogsGateway, LogsForwarderService ],
-    controllers: [ LogsController ],
-    exports: [ LogsService ],
+  imports: [ IoModule, ToolsModule ],
+  providers: [ LogsService, LogsGateway, LogsForwarderService ],
+  controllers: [ LogsController ],
+  exports: [ LogsService ],
 })
 export class LogsModule { }

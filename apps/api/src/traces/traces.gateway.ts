@@ -12,7 +12,7 @@ import { TracesListener, TracesService } from "./traces.service";
   path: "/traces",
 })
 export class TracesGateway
-  implements TracesListener, OnModuleInit, OnModuleDestroy
+implements TracesListener, OnModuleInit, OnModuleDestroy
 {
   @WebSocketServer()
   private server!: Server;

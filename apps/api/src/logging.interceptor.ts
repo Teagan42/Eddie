@@ -14,7 +14,7 @@ import type { Logger } from "pino";
 
 @Injectable()
 export class RequestLoggingInterceptor
-  implements NestInterceptor, OnModuleInit
+implements NestInterceptor, OnModuleInit
 {
   private logBodies = false;
   private initPromise: Promise<void> | null = null;

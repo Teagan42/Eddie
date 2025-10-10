@@ -7,12 +7,12 @@ export class ConfigPreviewDto {
     type: "object",
     additionalProperties: true,
   })
-  input!: EddieConfigInput;
+    input!: EddieConfigInput;
 
   @ApiProperty({
     description: "Resolved Eddie configuration.",
     type: "object",
     additionalProperties: true,
   })
-  config!: EddieConfig;
+    config!: EddieConfig;
 }

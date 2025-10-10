@@ -526,9 +526,9 @@ export class ConfigService {
     const routing =
       input.routing || normalizedBase.routing
         ? {
-            ...(normalizedBase.routing ?? {}),
-            ...(input.routing ?? {}),
-          }
+          ...(normalizedBase.routing ?? {}),
+          ...(input.routing ?? {}),
+        }
         : undefined;
 
     const subagents =
@@ -597,38 +597,38 @@ export class ConfigService {
 
     const subagents = agents?.subagents
       ? agents.subagents.map((agent) => {
-          const cloned = { ...agent };
+        const cloned = { ...agent };
 
-          if (agent.promptTemplate) {
-            cloned.promptTemplate = { ...agent.promptTemplate };
-          }
+        if (agent.promptTemplate) {
+          cloned.promptTemplate = { ...agent.promptTemplate };
+        }
 
-          if (agent.defaultUserPromptTemplate) {
-            cloned.defaultUserPromptTemplate = {
-              ...agent.defaultUserPromptTemplate,
-            };
-          }
+        if (agent.defaultUserPromptTemplate) {
+          cloned.defaultUserPromptTemplate = {
+            ...agent.defaultUserPromptTemplate,
+          };
+        }
 
-          if (agent.variables) {
-            cloned.variables = { ...agent.variables };
-          }
+        if (agent.variables) {
+          cloned.variables = { ...agent.variables };
+        }
 
-          if (agent.resources) {
-            cloned.resources = agent.resources.map((resource) =>
-              this.cloneResourceConfig(resource)
-            );
-          }
+        if (agent.resources) {
+          cloned.resources = agent.resources.map((resource) =>
+            this.cloneResourceConfig(resource)
+          );
+        }
 
-          if (
-            agent.provider &&
+        if (
+          agent.provider &&
             typeof agent.provider === "object" &&
             !Array.isArray(agent.provider)
-          ) {
-            cloned.provider = { ...agent.provider };
-          }
+        ) {
+          cloned.provider = { ...agent.provider };
+        }
 
-          return cloned;
-        })
+        return cloned;
+      })
       : [];
 
     const routing =
@@ -687,19 +687,19 @@ export class ConfigService {
 
     const normalizedBase: ApiConfig = base
       ? {
-          ...base,
-          telemetry: base.telemetry ? { ...base.telemetry } : undefined,
-          validation: base.validation ? { ...base.validation } : undefined,
-          cache: base.cache ? { ...base.cache } : undefined,
-          auth: base.auth
-            ? {
-                ...base.auth,
-                apiKeys: base.auth.apiKeys
-                  ? [...base.auth.apiKeys]
-                  : base.auth.apiKeys,
-              }
-            : undefined,
-        }
+        ...base,
+        telemetry: base.telemetry ? { ...base.telemetry } : undefined,
+        validation: base.validation ? { ...base.validation } : undefined,
+        cache: base.cache ? { ...base.cache } : undefined,
+        auth: base.auth
+          ? {
+            ...base.auth,
+            apiKeys: base.auth.apiKeys
+              ? [...base.auth.apiKeys]
+              : base.auth.apiKeys,
+          }
+          : undefined,
+      }
       : {};
 
     if (!input) {
@@ -709,38 +709,38 @@ export class ConfigService {
     const telemetry =
       normalizedBase.telemetry || input.telemetry
         ? {
-            ...(normalizedBase.telemetry ?? {}),
-            ...(input.telemetry ?? {}),
-          }
+          ...(normalizedBase.telemetry ?? {}),
+          ...(input.telemetry ?? {}),
+        }
         : input.telemetry;
 
     const validation =
       normalizedBase.validation || input.validation
         ? {
-            ...(normalizedBase.validation ?? {}),
-            ...(input.validation ?? {}),
-          }
+          ...(normalizedBase.validation ?? {}),
+          ...(input.validation ?? {}),
+        }
         : input.validation;
 
     const cache =
       normalizedBase.cache || input.cache
         ? {
-            ...(normalizedBase.cache ?? {}),
-            ...(input.cache ?? {}),
-          }
+          ...(normalizedBase.cache ?? {}),
+          ...(input.cache ?? {}),
+        }
         : input.cache;
 
     const auth =
       normalizedBase.auth || input.auth
         ? {
-            ...(normalizedBase.auth ?? {}),
-            ...(input.auth ?? {}),
-            apiKeys: input.auth?.apiKeys
-              ? [...input.auth.apiKeys]
-              : normalizedBase.auth?.apiKeys
-                ? [...normalizedBase.auth.apiKeys]
-                : input.auth?.apiKeys,
-          }
+          ...(normalizedBase.auth ?? {}),
+          ...(input.auth ?? {}),
+          apiKeys: input.auth?.apiKeys
+            ? [...input.auth.apiKeys]
+            : normalizedBase.auth?.apiKeys
+              ? [...normalizedBase.auth.apiKeys]
+              : input.auth?.apiKeys,
+        }
         : input.auth;
 
     const host =

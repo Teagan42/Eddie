@@ -14,14 +14,14 @@ import type { RuntimeConfigDto } from "./generated/models/RuntimeConfigDto";
 import type { UpdateRuntimeConfigDto } from "./generated/models/UpdateRuntimeConfigDto";
 
 export type {
-    ChatSessionDto,
-    ChatMessageDto,
-    CreateChatSessionDto,
-    CreateChatMessageDto,
-    TraceDto,
-    LogEntryDto,
-    RuntimeConfigDto,
-    UpdateRuntimeConfigDto,
+  ChatSessionDto,
+  ChatMessageDto,
+  CreateChatSessionDto,
+  CreateChatMessageDto,
+  TraceDto,
+  LogEntryDto,
+  RuntimeConfigDto,
+  UpdateRuntimeConfigDto,
 };
 
 export type ConfigFileFormat = "yaml" | "json";
@@ -85,27 +85,27 @@ export interface ProviderCatalogEntryDto {
 }
 
 export const FALLBACK_PROVIDER_CATALOG: ProviderCatalogEntryDto[] = [
-    {
-        name: "openai",
-        label: "OpenAI",
-        models: [ "gpt-4o", "gpt-4o-mini" ],
-    },
-    {
-        name: "anthropic",
-        label: "Anthropic Claude",
-        models: [
-            "claude-3-5-sonnet-latest",
-            "claude-3-5-haiku-latest",
-            "claude-3-opus-20240229",
-            "claude-3-sonnet-20240229",
-            "claude-3-haiku-20240307",
-        ],
-    },
-    {
-        name: "openai_compatible",
-        label: "OpenAI Compatible",
-        models: [],
-    },
+  {
+    name: "openai",
+    label: "OpenAI",
+    models: [ "gpt-4o", "gpt-4o-mini" ],
+  },
+  {
+    name: "anthropic",
+    label: "Anthropic Claude",
+    models: [
+      "claude-3-5-sonnet-latest",
+      "claude-3-5-haiku-latest",
+      "claude-3-opus-20240229",
+      "claude-3-sonnet-20240229",
+      "claude-3-haiku-20240307",
+    ],
+  },
+  {
+    name: "openai_compatible",
+    label: "OpenAI Compatible",
+    models: [],
+  },
 ];
 
 export interface EddieConfigSourceDto {
@@ -284,256 +284,256 @@ export interface ApiClient {
 }
 
 function normalizeBaseUrl(url: string): string {
-    return url.replace(/\/$/u, "");
+  return url.replace(/\/$/u, "");
 }
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
-    const httpBase = normalizeBaseUrl(options.baseUrl);
-    const wsBase = normalizeBaseUrl(options.websocketUrl);
-    let currentApiKey = options.apiKey ?? null;
+  const httpBase = normalizeBaseUrl(options.baseUrl);
+  const wsBase = normalizeBaseUrl(options.websocketUrl);
+  let currentApiKey = options.apiKey ?? null;
 
-    const resolveHeaders = (): Record<string, string> =>
-        currentApiKey ? { "x-api-key": currentApiKey } : {};
+  const resolveHeaders = (): Record<string, string> =>
+    currentApiKey ? { "x-api-key": currentApiKey } : {};
 
-    const applyHttpAuth = (): void => {
-        OpenAPI.BASE = httpBase;
-        OpenAPI.WITH_CREDENTIALS = true;
-        if (currentApiKey) {
-            OpenAPI.TOKEN = currentApiKey;
-            OpenAPI.HEADERS = async () => ({ ...resolveHeaders() });
-        } else {
-            OpenAPI.TOKEN = undefined;
-            OpenAPI.HEADERS = undefined;
-        }
+  const applyHttpAuth = (): void => {
+    OpenAPI.BASE = httpBase;
+    OpenAPI.WITH_CREDENTIALS = true;
+    if (currentApiKey) {
+      OpenAPI.TOKEN = currentApiKey;
+      OpenAPI.HEADERS = async () => ({ ...resolveHeaders() });
+    } else {
+      OpenAPI.TOKEN = undefined;
+      OpenAPI.HEADERS = undefined;
+    }
+  };
+
+  applyHttpAuth();
+
+  const chatChannel = createRealtimeChannel(wsBase, "/chat-sessions", currentApiKey);
+  const chatMessagesChannel = createRealtimeChannel(wsBase, "/chat-messages", currentApiKey);
+  const tracesChannel = createRealtimeChannel(wsBase, "/traces", currentApiKey);
+  const logsChannel = createRealtimeChannel(wsBase, "/logs", currentApiKey);
+  const configChannel = createRealtimeChannel(wsBase, "/config", currentApiKey);
+  const toolsChannel = createRealtimeChannel(wsBase, "/tools", currentApiKey);
+
+  const channels: RealtimeChannel[] = [
+    chatChannel,
+    chatMessagesChannel,
+    tracesChannel,
+    logsChannel,
+    configChannel,
+    toolsChannel,
+  ];
+
+  const createDefaultPreferences = (): LayoutPreferencesDto => ({
+    chat: { collapsedPanels: {} },
+    updatedAt: new Date().toISOString(),
+  });
+
+  const performRequest = async <T>(
+    path: string,
+    init: RequestInit = {}
+  ): Promise<T> => {
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      ...resolveHeaders(),
     };
 
-    applyHttpAuth();
+    if (init.body !== undefined && !(init.body instanceof FormData)) {
+      headers[ "Content-Type" ] = "application/json";
+    }
 
-    const chatChannel = createRealtimeChannel(wsBase, "/chat-sessions", currentApiKey);
-    const chatMessagesChannel = createRealtimeChannel(wsBase, "/chat-messages", currentApiKey);
-    const tracesChannel = createRealtimeChannel(wsBase, "/traces", currentApiKey);
-    const logsChannel = createRealtimeChannel(wsBase, "/logs", currentApiKey);
-    const configChannel = createRealtimeChannel(wsBase, "/config", currentApiKey);
-    const toolsChannel = createRealtimeChannel(wsBase, "/tools", currentApiKey);
+    if (init.headers) {
+      Object.assign(headers, init.headers as Record<string, string>);
+    }
 
-    const channels: RealtimeChannel[] = [
-        chatChannel,
-        chatMessagesChannel,
-        tracesChannel,
-        logsChannel,
-        configChannel,
-        toolsChannel,
-    ];
-
-    const createDefaultPreferences = (): LayoutPreferencesDto => ({
-        chat: { collapsedPanels: {} },
-        updatedAt: new Date().toISOString(),
+    const response = await fetch(`${ httpBase }${ path }`, {
+      ...init,
+      headers,
     });
 
-    const performRequest = async <T>(
-        path: string,
-        init: RequestInit = {}
-    ): Promise<T> => {
-        const headers: Record<string, string> = {
-            Accept: "application/json",
-            ...resolveHeaders(),
-        };
+    if (response.status === 204) {
+      return undefined as T;
+    }
 
-        if (init.body !== undefined && !(init.body instanceof FormData)) {
-            headers[ "Content-Type" ] = "application/json";
+    if (!response.ok) {
+      const error = new Error(
+        `Request to ${ path } failed with status ${ response.status }`
+      );
+      (error as { status?: number; }).status = response.status;
+      (error as { body?: string; }).body = await response.text();
+      throw error;
+    }
+
+    if (response.headers.get("content-length") === "0") {
+      return undefined as T;
+    }
+
+    const contentType = response.headers.get("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      return (await response.json()) as T;
+    }
+
+    return (await response.text()) as T;
+  };
+
+  const chatSessionsSocket: ChatSessionsSocket = {
+    onSessionCreated(handler) {
+      return chatChannel.on("session.created", handler);
+    },
+    onSessionUpdated(handler) {
+      return chatChannel.on("session.updated", handler);
+    },
+    onMessageCreated(handler) {
+      return chatChannel.on("message.created", handler);
+    },
+    onMessageUpdated(handler) {
+      return chatChannel.on("message.updated", handler);
+    },
+    emitMessage(sessionId, payload) {
+      chatChannel.emit("message.send", { sessionId, message: payload });
+    },
+  };
+
+  const chatMessagesRealtime: ChatMessagesSocket = {
+    onMessagePartial(handler) {
+      return chatMessagesChannel.on("message.partial", handler);
+    },
+  };
+
+  const tracesRealtime: TracesSocket = {
+    onTraceCreated(handler) {
+      return tracesChannel.on("trace.created", handler);
+    },
+    onTraceUpdated(handler) {
+      return tracesChannel.on("trace.updated", handler);
+    },
+  };
+
+  const logsRealtime: LogsSocket = {
+    onLogCreated(handler) {
+      return logsChannel.on(
+        "logs.created",
+        (entries: LogEntryDto[] | LogEntryDto) => {
+          const batch = Array.isArray(entries) ? entries : [ entries ];
+          batch.forEach((entry) => handler(entry));
         }
+      );
+    },
+  };
 
-        if (init.headers) {
-            Object.assign(headers, init.headers as Record<string, string>);
-        }
+  const configRealtime: ConfigSocket = {
+    onConfigUpdated(handler) {
+      return configChannel.on("config.updated", handler);
+    },
+  };
 
-        const response = await fetch(`${ httpBase }${ path }`, {
-            ...init,
-            headers,
-        });
+  const toolsRealtime = {
+    onToolCall(handler: (payload: unknown) => void) {
+      return toolsChannel.on("tool.call", handler);
+    },
+    onToolResult(handler: (payload: unknown) => void) {
+      return toolsChannel.on("tool.result", handler);
+    },
+  };
 
-        if (response.status === 204) {
-            return undefined as T;
-        }
-
-        if (!response.ok) {
-            const error = new Error(
-                `Request to ${ path } failed with status ${ response.status }`
+  return {
+    http: {
+      chatSessions: {
+        list: () => ChatSessionsService.chatSessionsControllerList(),
+        create: (input) => ChatSessionsService.chatSessionsControllerCreate(input),
+        get: (id) => ChatSessionsService.chatSessionsControllerGet(id),
+        archive: (id) => ChatSessionsService.chatSessionsControllerArchive(id),
+        listMessages: (id) => ChatSessionsService.chatSessionsControllerListMessages(id),
+        createMessage: (id, input) =>
+          ChatSessionsService.chatSessionsControllerCreateMessage(id, input),
+      },
+      traces: {
+        list: () => TracesService.tracesControllerList(),
+        get: (id) => TracesService.tracesControllerGet(id),
+      },
+      logs: {
+        list: (params?: LogsListOptions) =>
+          LogsService.logsControllerList(params ?? {}),
+        emit: () => LogsService.logsControllerEmit(),
+      },
+      config: {
+        get: () => ConfigService.runtimeConfigControllerGet(),
+        update: (input) => ConfigService.runtimeConfigControllerUpdate(input),
+        getSchema: () =>
+          performRequest<EddieConfigSchemaDto>("/config/schema"),
+        loadEddieConfig: () =>
+          performRequest<EddieConfigSourceDto>("/config/editor"),
+        previewEddieConfig: (payload) =>
+          performRequest<EddieConfigPreviewDto>("/config/editor/preview", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          }),
+        saveEddieConfig: (payload) =>
+          performRequest<EddieConfigSourceDto>("/config/editor", {
+            method: "PUT",
+            body: JSON.stringify(payload),
+          }),
+      },
+      providers: {
+        catalog: async () => {
+          try {
+            return await performRequest<ProviderCatalogEntryDto[]>(
+              "/providers/catalog"
             );
-            (error as { status?: number; }).status = response.status;
-            (error as { body?: string; }).body = await response.text();
+          } catch (error) {
+            const status = (error as { status?: number; }).status;
+            if (status === 404 || error instanceof TypeError) {
+              return FALLBACK_PROVIDER_CATALOG;
+            }
             throw error;
-        }
-
-        if (response.headers.get("content-length") === "0") {
-            return undefined as T;
-        }
-
-        const contentType = response.headers.get("content-type") ?? "";
-        if (contentType.includes("application/json")) {
-            return (await response.json()) as T;
-        }
-
-        return (await response.text()) as T;
-    };
-
-    const chatSessionsSocket: ChatSessionsSocket = {
-        onSessionCreated(handler) {
-            return chatChannel.on("session.created", handler);
+          }
         },
-        onSessionUpdated(handler) {
-            return chatChannel.on("session.updated", handler);
-        },
-        onMessageCreated(handler) {
-            return chatChannel.on("message.created", handler);
-        },
-        onMessageUpdated(handler) {
-            return chatChannel.on("message.updated", handler);
-        },
-        emitMessage(sessionId, payload) {
-            chatChannel.emit("message.send", { sessionId, message: payload });
-        },
-    };
-
-    const chatMessagesRealtime: ChatMessagesSocket = {
-        onMessagePartial(handler) {
-            return chatMessagesChannel.on("message.partial", handler);
-        },
-    };
-
-    const tracesRealtime: TracesSocket = {
-        onTraceCreated(handler) {
-            return tracesChannel.on("trace.created", handler);
-        },
-        onTraceUpdated(handler) {
-            return tracesChannel.on("trace.updated", handler);
-        },
-    };
-
-    const logsRealtime: LogsSocket = {
-        onLogCreated(handler) {
-            return logsChannel.on(
-                "logs.created",
-                (entries: LogEntryDto[] | LogEntryDto) => {
-                    const batch = Array.isArray(entries) ? entries : [ entries ];
-                    batch.forEach((entry) => handler(entry));
-                }
+      },
+      preferences: {
+        async getLayout() {
+          try {
+            return await performRequest<LayoutPreferencesDto>(
+              "/user/preferences/layout"
             );
+          } catch (error) {
+            const status = (error as { status?: number; }).status;
+            if (status === 404) {
+              return createDefaultPreferences();
+            }
+            throw error;
+          }
         },
-    };
-
-    const configRealtime: ConfigSocket = {
-        onConfigUpdated(handler) {
-            return configChannel.on("config.updated", handler);
-        },
-    };
-
-    const toolsRealtime = {
-        onToolCall(handler: (payload: unknown) => void) {
-            return toolsChannel.on("tool.call", handler);
-        },
-        onToolResult(handler: (payload: unknown) => void) {
-            return toolsChannel.on("tool.result", handler);
-        },
-    };
-
-    return {
-        http: {
-            chatSessions: {
-                list: () => ChatSessionsService.chatSessionsControllerList(),
-                create: (input) => ChatSessionsService.chatSessionsControllerCreate(input),
-                get: (id) => ChatSessionsService.chatSessionsControllerGet(id),
-                archive: (id) => ChatSessionsService.chatSessionsControllerArchive(id),
-                listMessages: (id) => ChatSessionsService.chatSessionsControllerListMessages(id),
-                createMessage: (id, input) =>
-                    ChatSessionsService.chatSessionsControllerCreateMessage(id, input),
-            },
-            traces: {
-                list: () => TracesService.tracesControllerList(),
-                get: (id) => TracesService.tracesControllerGet(id),
-            },
-            logs: {
-                list: (params?: LogsListOptions) =>
-                    LogsService.logsControllerList(params ?? {}),
-                emit: () => LogsService.logsControllerEmit(),
-            },
-            config: {
-                get: () => ConfigService.runtimeConfigControllerGet(),
-                update: (input) => ConfigService.runtimeConfigControllerUpdate(input),
-                getSchema: () =>
-                    performRequest<EddieConfigSchemaDto>("/config/schema"),
-                loadEddieConfig: () =>
-                    performRequest<EddieConfigSourceDto>("/config/editor"),
-                previewEddieConfig: (payload) =>
-                    performRequest<EddieConfigPreviewDto>("/config/editor/preview", {
-                        method: "POST",
-                        body: JSON.stringify(payload),
-                    }),
-                saveEddieConfig: (payload) =>
-                    performRequest<EddieConfigSourceDto>("/config/editor", {
-                        method: "PUT",
-                        body: JSON.stringify(payload),
-                    }),
-            },
-            providers: {
-                catalog: async () => {
-                    try {
-                        return await performRequest<ProviderCatalogEntryDto[]>(
-                            "/providers/catalog"
-                        );
-                    } catch (error) {
-                        const status = (error as { status?: number; }).status;
-                        if (status === 404 || error instanceof TypeError) {
-                            return FALLBACK_PROVIDER_CATALOG;
-                        }
-                        throw error;
-                    }
-                },
-            },
-            preferences: {
-                async getLayout() {
-                    try {
-                        return await performRequest<LayoutPreferencesDto>(
-                            "/user/preferences/layout"
-                        );
-                    } catch (error) {
-                        const status = (error as { status?: number; }).status;
-                        if (status === 404) {
-                            return createDefaultPreferences();
-                        }
-                        throw error;
-                    }
-                },
-                updateLayout: (input) =>
-                    performRequest<LayoutPreferencesDto>("/user/preferences/layout", {
-                        method: "PUT",
-                        body: JSON.stringify(input ?? {}),
-                    }),
-            },
-            orchestrator: {
-                getMetadata: (sessionId) =>
-                    performRequest<OrchestratorMetadataDto>(
-                        sessionId
-                            ? `/orchestrator/metadata?sessionId=${ encodeURIComponent(sessionId) }`
-                            : "/orchestrator/metadata"
-                    ),
-            },
-        },
-        sockets: {
-            chatSessions: chatSessionsSocket,
-            chatMessages: chatMessagesRealtime,
-            traces: tracesRealtime,
-            logs: logsRealtime,
-            config: configRealtime,
-            tools: toolsRealtime,
-        },
-        updateAuth(nextApiKey) {
-            currentApiKey = nextApiKey ?? null;
-            applyHttpAuth();
-            channels.forEach((channel) => channel.updateAuth(currentApiKey));
-        },
-        dispose() {
-            channels.forEach((channel) => channel.close());
-        },
-    };
+        updateLayout: (input) =>
+          performRequest<LayoutPreferencesDto>("/user/preferences/layout", {
+            method: "PUT",
+            body: JSON.stringify(input ?? {}),
+          }),
+      },
+      orchestrator: {
+        getMetadata: (sessionId) =>
+          performRequest<OrchestratorMetadataDto>(
+            sessionId
+              ? `/orchestrator/metadata?sessionId=${ encodeURIComponent(sessionId) }`
+              : "/orchestrator/metadata"
+          ),
+      },
+    },
+    sockets: {
+      chatSessions: chatSessionsSocket,
+      chatMessages: chatMessagesRealtime,
+      traces: tracesRealtime,
+      logs: logsRealtime,
+      config: configRealtime,
+      tools: toolsRealtime,
+    },
+    updateAuth(nextApiKey) {
+      currentApiKey = nextApiKey ?? null;
+      applyHttpAuth();
+      channels.forEach((channel) => channel.updateAuth(currentApiKey));
+    },
+    dispose() {
+      channels.forEach((channel) => channel.close());
+    },
+  };
 }
