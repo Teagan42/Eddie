@@ -6,7 +6,6 @@ import {
   useState,
   type ComponentProps,
   type ComponentType,
-  type ReactNode,
 } from 'react';
 import {
   Badge,
@@ -24,8 +23,6 @@ import {
 } from '@radix-ui/themes';
 import {
   ChatBubbleIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
   GearIcon,
   MagicWandIcon,
   PaperPlaneIcon,
@@ -51,20 +48,12 @@ import { Panel } from "@/components/common";
 import { cn } from "@/vendor/lib/utils";
 import { ChatMessageContent } from './ChatMessageContent';
 import { getSurfaceLayoutClasses, SURFACE_CONTENT_CLASS } from '@/styles/surfaces';
-import { sortSessions, upsertMessage } from './chat-utils';
+import { summarizeObject, sortSessions, upsertMessage } from './chat-utils';
+import { AgentTree, CollapsiblePanel, ToolTree } from './components';
 import { useChatMessagesRealtime } from './useChatMessagesRealtime';
 
 type BadgeColor = ComponentProps<typeof Badge>['color'];
 
-const TOOL_STATUS_COLORS: Record<ToolCallStatusDto, BadgeColor> = {
-  pending: 'gray',
-  running: 'blue',
-  completed: 'green',
-  failed: 'red',
-};
-
-const SIDEBAR_PANEL_CLASS =
-  'relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-sky-500/12 via-slate-900/70 to-slate-900/40 shadow-[0_35px_65px_-45px_rgba(56,189,248,0.55)] backdrop-blur-xl';
 const MESSAGE_CONTAINER_CLASS =
   'space-y-3 rounded-2xl border border-white/10 bg-slate-950/70 p-5 backdrop-blur-xl';
 
@@ -125,22 +114,6 @@ function formatTime(value: string): string | null {
   }
 
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatDateTime(value: unknown): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date.toLocaleString([], {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
 }
 
 const PANEL_IDS = {
@@ -278,17 +251,6 @@ function mergeToolInvocationNodes(
   return result;
 }
 
-function summarizeObject(obj: unknown, maxLen = 200): string | null {
-  try {
-    if (obj == null) return null;
-    if (typeof obj === 'string') return obj.length > maxLen ? obj.slice(0, maxLen) + '…' : obj;
-    const s = JSON.stringify(obj);
-    return s.length > maxLen ? s.slice(0, maxLen) + '…' : s;
-  } catch {
-    return null;
-  }
-}
-
 function normalizeOrchestratorMetadata(
   input: OrchestratorMetadataDto | null | undefined,
 ): OrchestratorMetadataDto | null {
@@ -297,181 +259,6 @@ function normalizeOrchestratorMetadata(
   const toolInvocations = (input.toolInvocations ?? []).map((node) => normalizeToolInvocationNode(node));
 
   return { ...input, toolInvocations };
-}
-
-interface CollapsiblePanelProps {
-  id: string;
-  title: string;
-  description?: string;
-  collapsed: boolean;
-  onToggle: (id: string, collapsed: boolean) => void;
-  children: ReactNode;
-}
-
-function CollapsiblePanel({
-  id,
-  title,
-  description,
-  collapsed,
-  onToggle,
-  children,
-}: CollapsiblePanelProps): JSX.Element {
-  return (
-    <section className={`${SIDEBAR_PANEL_CLASS} flex flex-col gap-3 p-5 text-white`}>
-      <Flex align="center" justify="between" gap="3">
-        <Box>
-          <Heading as="h3" size="3">
-            {title}
-          </Heading>
-          {description ? (
-            <Text size="2" color="gray">
-              {description}
-            </Text>
-          ) : null}
-        </Box>
-        <Tooltip content={collapsed ? 'Expand' : 'Collapse'}>
-          <IconButton
-            variant="solid"
-            size="2"
-            onClick={() => onToggle(id, !collapsed)}
-            aria-label={collapsed ? 'Expand panel' : 'Collapse panel'}
-          >
-            {collapsed ? <ChevronRightIcon /> : <ChevronDownIcon />}
-          </IconButton>
-        </Tooltip>
-      </Flex>
-      {!collapsed ? <Box className="text-sm text-slate-200/90">{children}</Box> : null}
-    </section>
-  );
-}
-
-function ToolTree({ nodes }: { nodes: OrchestratorMetadataDto['toolInvocations'] }): JSX.Element {
-  if (nodes.length === 0) {
-    return (
-      <Text size="2" color="gray">
-        No tool calls recorded for this session yet.
-      </Text>
-    );
-  }
-
-  return (
-    <ul className="space-y-3">
-      {nodes.map((node) => {
-        const statusColor = TOOL_STATUS_COLORS[node.status] ?? 'gray';
-        const command =
-          typeof node.metadata?.command === 'string'
-            ? node.metadata.command
-            : typeof node.metadata?.preview === 'string'
-              ? node.metadata.preview
-              : null;
-        const executedAtRaw = node.metadata?.createdAt;
-        const executedAt = formatDateTime(executedAtRaw);
-        const executedAtDisplay = executedAt ?? '—';
-
-        const rawArgs = node.metadata?.arguments ?? node.metadata?.args ?? null;
-        const args =
-          rawArgs == null
-            ? '—'
-            : typeof rawArgs === 'string'
-              ? rawArgs
-              : (summarizeObject(rawArgs) ?? '—');
-
-        return (
-          <li key={node.id} className="rounded-xl border border-muted/40 bg-muted/10 p-4">
-            <Flex align="center" justify="between" gap="3">
-              <Flex align="center" gap="2">
-                <Badge variant="soft" color="gray">
-                  Tool
-                </Badge>
-                <Text weight="medium" className="font-mono text-sm">
-                  {node.name}
-                </Text>
-              </Flex>
-              <Badge color={statusColor} variant="soft">
-                {node.status.toUpperCase()}
-              </Badge>
-            </Flex>
-
-            {command ? (
-              <Box className="mt-3 rounded-md bg-background/80 p-3 font-mono text-xs text-foreground/80">
-                {command}
-              </Box>
-            ) : null}
-
-            <Flex align="center" justify="between" className="mt-3" gap="2">
-              <Text size="1" color="gray">
-                Captured {executedAtDisplay}
-              </Text>
-              <Text size="1" color="gray">
-                Args: {args}
-              </Text>
-            </Flex>
-
-            {node.children.length > 0 ? (
-              <Box className="mt-3 border-l border-dashed border-muted/50 pl-3">
-                <ToolTree nodes={node.children} />
-              </Box>
-            ) : null}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-function AgentTree({ nodes }: { nodes: OrchestratorMetadataDto['agentHierarchy'] }): JSX.Element {
-  if (nodes.length === 0) {
-    return (
-      <Text size="2" color="gray">
-        Orchestrator has not spawned any agents yet.
-      </Text>
-    );
-  }
-
-  return (
-    <ul className="space-y-3">
-      {nodes.map((node) => {
-        const providerLabel = node.provider ?? 'Unknown provider';
-        const modelLabel = node.model ?? 'Unknown model';
-        const depth = typeof node.depth === 'number' ? node.depth : null;
-        const messageCount =
-          typeof node.metadata?.messageCount === 'number' ? node.metadata.messageCount : null;
-
-        return (
-          <li key={node.id} className="rounded-xl border border-muted/40 bg-muted/5 p-4">
-            <Flex direction="column" gap="2">
-              <Flex align="center" gap="2">
-                <Text weight="medium">{node.name}</Text>
-                {depth !== null ? (
-                  <Badge variant="soft" color="gray">
-                    depth {depth}
-                  </Badge>
-                ) : null}
-              </Flex>
-              <Flex align="center" gap="2">
-                <Badge variant="soft" color="blue">
-                  {providerLabel}
-                </Badge>
-                <Badge variant="soft" color="gray">
-                  {modelLabel}
-                </Badge>
-              </Flex>
-              {messageCount !== null ? (
-                <Text size="1" color="gray">
-                  Messages observed: {messageCount}
-                </Text>
-              ) : null}
-              {node.children.length > 0 ? (
-                <Box className="border-l border-dashed border-muted/50 pl-3">
-                  <AgentTree nodes={node.children} />
-                </Box>
-              ) : null}
-            </Flex>
-          </li>
-        );
-      })}
-    </ul>
-  );
 }
 
 export function ChatPage(): JSX.Element {
