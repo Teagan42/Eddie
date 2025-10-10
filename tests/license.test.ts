@@ -18,4 +18,14 @@ describe('project licensing', () => {
     expect(licenseText).toContain('Business Source License 1.1');
     expect(licenseText).toContain('Additional Use Grant');
   });
+
+  it('attributes the Business Source License to ConstructorFleet L.L.C', () => {
+    const licenseText = readRootFile('./LICENSE');
+    expect(licenseText).toContain('Licensor: ConstructorFleet L.L.C');
+  });
+
+  it('documents ConstructorFleet L.L.C ownership in the README', () => {
+    const readmeText = readRootFile('./README.md');
+    expect(readmeText).toContain('© 2025 ConstructorFleet L.L.C');
+  });
 });
