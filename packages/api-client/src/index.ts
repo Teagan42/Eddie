@@ -172,6 +172,10 @@ export interface ChatSessionsSocket {
   emitMessage(sessionId: string, payload: CreateChatMessageDto): void;
 }
 
+export interface ChatMessagesSocket {
+  onMessagePartial(handler: (message: ChatMessageDto) => void): Unsubscribe;
+}
+
 export interface TracesSocket {
   onTraceCreated(handler: (trace: TraceDto) => void): Unsubscribe;
   onTraceUpdated(handler: (trace: TraceDto) => void): Unsubscribe;
@@ -228,6 +232,7 @@ export interface ApiClient {
   };
   sockets: {
     chatSessions: ChatSessionsSocket;
+    chatMessages: ChatMessagesSocket;
     traces: TracesSocket;
     logs: LogsSocket;
     config: ConfigSocket;
@@ -263,12 +268,14 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   applyHttpAuth();
 
   const chatChannel = createRealtimeChannel(wsBase, "/chat-sessions", currentApiKey);
+  const chatMessagesChannel = createRealtimeChannel(wsBase, "/chat-messages", currentApiKey);
   const tracesChannel = createRealtimeChannel(wsBase, "/traces", currentApiKey);
   const logsChannel = createRealtimeChannel(wsBase, "/logs", currentApiKey);
   const configChannel = createRealtimeChannel(wsBase, "/config", currentApiKey);
 
   const channels: RealtimeChannel[] = [
     chatChannel,
+    chatMessagesChannel,
     tracesChannel,
     logsChannel,
     configChannel,
@@ -341,6 +348,12 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     },
     emitMessage(sessionId, payload) {
       chatChannel.emit("message.send", { sessionId, message: payload });
+    },
+  };
+
+  const chatMessagesRealtime: ChatMessagesSocket = {
+    onMessagePartial(handler) {
+      return chatMessagesChannel.on("message.partial", handler);
     },
   };
 
@@ -439,6 +452,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     },
     sockets: {
       chatSessions: chatSessionsSocket,
+      chatMessages: chatMessagesRealtime,
       traces: tracesRealtime,
       logs: logsRealtime,
       config: configRealtime,

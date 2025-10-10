@@ -71,9 +71,10 @@ describe("createApiClient", () => {
     });
 
     expect(OpenAPI.BASE).toBe("https://example.test/api");
-    expect(realtimeMock).toHaveBeenCalledTimes(4);
+    expect(realtimeMock).toHaveBeenCalledTimes(5);
     expect(createdChannels.map((channel) => channel.namespace)).toEqual([
       "/chat-sessions",
+      "/chat-messages",
       "/traces",
       "/logs",
       "/config",
@@ -84,6 +85,7 @@ describe("createApiClient", () => {
     });
 
     const chatChannel = createdChannels[0]!;
+    const chatMessagesChannel = createdChannels[1]!;
     const sessionCreated = vi.fn();
     const unsubscribe = client.sockets.chatSessions.onSessionCreated(
       sessionCreated
@@ -115,10 +117,23 @@ describe("createApiClient", () => {
       messageUpdated
     );
 
+    const partialHandler = vi.fn();
+    const unsubscribePartial = client.sockets.chatMessages.onMessagePartial(
+      partialHandler
+    );
+    expect(chatMessagesChannel.on).toHaveBeenCalledWith(
+      "message.partial",
+      partialHandler
+    );
+
     unsubscribe();
     expect(chatChannel.handlers.get("session.created")?.size ?? 0).toBe(0);
     unsubscribeUpdate();
     expect(chatChannel.handlers.get("message.updated")?.size ?? 0).toBe(0);
+    unsubscribePartial();
+    expect(
+      chatMessagesChannel.handlers.get("message.partial")?.size ?? 0
+    ).toBe(0);
 
     client.updateAuth("secret");
 
@@ -145,7 +160,7 @@ describe("createApiClient", () => {
       websocketUrl: "ws://example.test/ws/",
     });
 
-    const logsChannel = createdChannels[2]!;
+    const logsChannel = createdChannels[3]!;
     const handler = vi.fn();
 
     const unsubscribe = client.sockets.logs.onLogCreated(handler);
@@ -176,7 +191,7 @@ describe("createApiClient", () => {
   it("normalizes relative websocket URLs", () => {
     createApiClient({ baseUrl: "/api", websocketUrl: "/api/" }).dispose();
 
-    expect(realtimeMock).toHaveBeenCalledTimes(4);
+    expect(realtimeMock).toHaveBeenCalledTimes(5);
     realtimeMock.mock.calls.forEach(([baseUrl]) => {
       expect(baseUrl).toBe("/api");
     });

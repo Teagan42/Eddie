@@ -52,6 +52,8 @@ import {
   getSurfaceLayoutClasses,
   SURFACE_CONTENT_CLASS,
 } from "@/styles/surfaces";
+import { sortSessions, upsertMessage } from "./chat-utils";
+import { useChatMessagesRealtime } from "./useChatMessagesRealtime";
 
 const PROVIDER_OPTIONS: Array<{ label: string; value: string }> = [
   { label: "OpenAI", value: "openai" },
@@ -160,15 +162,6 @@ const PANEL_IDS = {
 type ChatPreferences = NonNullable<LayoutPreferencesDto["chat"]>;
 
 type ComposerRole = CreateChatMessageDto["role"];
-
-function sortSessions(sessions: ChatSessionDto[]): ChatSessionDto[] {
-  return sessions
-    .slice()
-    .sort(
-      (a, b) =>
-        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-    );
-}
 
 interface CollapsiblePanelProps {
   id: string;
@@ -364,6 +357,7 @@ export function ChatPage(): JSX.Element {
   const api = useApi();
   const queryClient = useQueryClient();
   const { preferences, updatePreferences } = useLayoutPreferences();
+  useChatMessagesRealtime(api);
   const [composerValue, setComposerValue] = useState("");
   const [composerRole, setComposerRole] = useState<ComposerRole>("user");
   const [templateSelection, setTemplateSelection] = useState<string>("");
@@ -430,63 +424,6 @@ export function ChatPage(): JSX.Element {
         : Promise.resolve([]),
   });
 
-  useEffect(() => {
-    const unsubscribes = [
-      api.sockets.chatSessions.onSessionCreated((session) => {
-        queryClient.setQueryData<ChatSessionDto[]>(
-          ["chat-sessions"],
-          (previous = []) => sortSessions([session, ...previous.filter((item) => item.id !== session.id)])
-        );
-      }),
-      api.sockets.chatSessions.onSessionUpdated((session) => {
-        queryClient.setQueryData<ChatSessionDto[]>(
-          ["chat-sessions"],
-          (previous = []) =>
-            sortSessions([
-              session,
-              ...previous.filter((item) => item.id !== session.id),
-            ])
-        );
-      }),
-      api.sockets.chatSessions.onMessageCreated((message) => {
-        queryClient.setQueryData<ChatMessageDto[]>(
-          ["chat-session", message.sessionId, "messages"],
-          (previous = []) => {
-            const next = previous.some((existing) => existing.id === message.id)
-              ? previous
-              : [...previous, message];
-            return next.sort(
-              (a, b) =>
-                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-            );
-          }
-        );
-      }),
-      api.sockets.chatSessions.onMessageUpdated((message) => {
-        queryClient.setQueryData<ChatMessageDto[]>(
-          ["chat-session", message.sessionId, "messages"],
-          (previous = []) => {
-            const exists = previous.some((existing) => existing.id === message.id);
-            const next = exists
-              ? previous.map((existing) =>
-                  existing.id === message.id ? { ...existing, ...message } : existing
-                )
-              : [...previous, message];
-
-            return next.sort(
-              (a, b) =>
-                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-            );
-          }
-        );
-      }),
-    ];
-
-    return () => {
-      unsubscribes.forEach((unsubscribe) => unsubscribe());
-    };
-  }, [api, queryClient]);
-
   const orchestratorQuery = useQuery({
     queryKey: ["orchestrator-metadata", selectedSessionId],
     enabled: Boolean(selectedSessionId),
@@ -520,15 +457,7 @@ export function ChatPage(): JSX.Element {
       setComposerValue("");
       queryClient.setQueryData<ChatMessageDto[]>(
         ["chat-session", message.sessionId, "messages"],
-        (previous = []) => {
-          const next = previous.some((existing) => existing.id === message.id)
-            ? previous
-            : [...previous, message];
-          return next.sort(
-            (a, b) =>
-              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-          );
-        }
+        (previous = []) => upsertMessage(previous, message)
       );
     },
   });

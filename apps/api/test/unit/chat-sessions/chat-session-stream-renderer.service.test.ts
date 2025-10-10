@@ -1,15 +1,18 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
 import { ChatSessionStreamRendererService } from "../../../src/chat-sessions/chat-session-stream-renderer.service";
+import type { ChatMessagesGateway } from "../../../src/chat-sessions/chat-messages.gateway";
 
 describe("ChatSessionStreamRendererService", () => {
   let service: ChatSessionsService;
   let renderer: ChatSessionStreamRendererService;
   let sessionId: string;
+  let gateway: ChatMessagesGateway;
 
   beforeEach(() => {
     service = new ChatSessionsService();
-    renderer = new ChatSessionStreamRendererService(service);
+    gateway = { emitPartial: vi.fn() } as unknown as ChatMessagesGateway;
+    renderer = new ChatSessionStreamRendererService(service, gateway);
     sessionId = service.createSession({ title: "Stream" }).id;
   });
 
@@ -52,5 +55,20 @@ describe("ChatSessionStreamRendererService", () => {
     expect(capture.state.messageId).toBeDefined();
     const messages = service.listMessages(sessionId);
     expect(messages[0]?.content).toBe("Partial");
+  });
+
+  it("emits partial updates for assistant responses", async () => {
+    const events: string[] = [];
+    const emitPartialMock = gateway.emitPartial as unknown as ReturnType<typeof vi.fn>;
+    emitPartialMock.mockImplementation((message: { content: string }) =>
+      events.push(message.content)
+    );
+
+    await renderer.capture(sessionId, async () => {
+      renderer.render({ type: "delta", text: "Hello" });
+      renderer.render({ type: "delta", text: " world" });
+    });
+
+    expect(events).toEqual(["Hello", "Hello world"]);
   });
 });
