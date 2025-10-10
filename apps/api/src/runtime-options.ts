@@ -1,6 +1,25 @@
-import type { CliRuntimeOptions } from "@eddie/config";
+import type { CliRuntimeOptions, LogLevel } from "@eddie/config";
 
-const VALUE_OPTIONS = new Map<string, keyof CliRuntimeOptions>([
+const LOG_LEVEL_VALUES = new Set<LogLevel>(["silent", "info", "debug"]);
+
+const STRING_OPTION_KEYS = [
+  "config",
+  "model",
+  "provider",
+  "jsonlTrace",
+  "logFile",
+  "agentMode",
+] as const;
+type StringOptionKey = (typeof STRING_OPTION_KEYS)[number];
+const STRING_OPTION_SET = new Set<StringOptionKey>(STRING_OPTION_KEYS);
+
+const LIST_OPTION_KEYS = ["context", "tools", "disabledTools"] as const;
+type ListOptionKey = (typeof LIST_OPTION_KEYS)[number];
+const LIST_OPTION_SET = new Set<ListOptionKey>(LIST_OPTION_KEYS);
+
+type ValueOptionKey = StringOptionKey | ListOptionKey | "logLevel";
+
+const VALUE_OPTIONS = new Map<string, ValueOptionKey>([
   ["--config", "config"],
   ["-c", "config"],
   ["--context", "context"],
@@ -19,13 +38,59 @@ const VALUE_OPTIONS = new Map<string, keyof CliRuntimeOptions>([
   ["--agent-mode", "agentMode"],
 ]);
 
-const BOOLEAN_OPTIONS = new Map<string, keyof CliRuntimeOptions>([
+const BOOLEAN_OPTION_KEYS = [
+  "autoApprove",
+  "nonInteractive",
+  "disableSubagents",
+  "disableContext",
+] as const;
+type BooleanOptionKey = (typeof BOOLEAN_OPTION_KEYS)[number];
+const BOOLEAN_OPTIONS = new Map<string, BooleanOptionKey>([
   ["--auto-approve", "autoApprove"],
   ["--auto", "autoApprove"],
   ["--non-interactive", "nonInteractive"],
   ["--disable-subagents", "disableSubagents"],
   ["--no-context", "disableContext"],
 ]);
+
+function isListOptionKey(key: ValueOptionKey): key is ListOptionKey {
+  return LIST_OPTION_SET.has(key as ListOptionKey);
+}
+
+function isStringOptionKey(key: ValueOptionKey): key is StringOptionKey {
+  return STRING_OPTION_SET.has(key as StringOptionKey);
+}
+
+function isLogLevel(value: string): value is LogLevel {
+  return LOG_LEVEL_VALUES.has(value as LogLevel);
+}
+
+function mergeUniqueList(
+  existing: readonly string[] | undefined,
+  additions: readonly string[],
+): string[] {
+  if (additions.length === 0) {
+    return existing ? [...existing] : [];
+  }
+
+  if (!existing || existing.length === 0) {
+    return [...additions];
+  }
+
+  const seen = new Set(existing);
+  const result = [...existing];
+
+  for (const value of additions) {
+    if (seen.has(value)) {
+      continue;
+    }
+
+    seen.add(value);
+    result.push(value);
+  }
+
+  return result;
+}
 
 function normalizeList(value: string): string[] {
   return value
@@ -35,7 +100,7 @@ function normalizeList(value: string): string[] {
 }
 
 export function parseRuntimeOptionsFromArgv(argv: string[]): CliRuntimeOptions {
-  const accumulator: CliRuntimeOptions = {};
+  const accumulator: Partial<CliRuntimeOptions> = {};
 
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
@@ -45,7 +110,7 @@ export function parseRuntimeOptionsFromArgv(argv: string[]): CliRuntimeOptions {
 
     const booleanKey = BOOLEAN_OPTIONS.get(token);
     if (booleanKey) {
-      accumulator[booleanKey] = true as CliRuntimeOptions[typeof booleanKey];
+      accumulator[booleanKey] = true;
       continue;
     }
 
@@ -61,28 +126,41 @@ export function parseRuntimeOptionsFromArgv(argv: string[]): CliRuntimeOptions {
 
     i += 1;
 
-    if (optionKey === "context" || optionKey === "tools" || optionKey === "disabledTools") {
+    if (isListOptionKey(optionKey)) {
       const list = normalizeList(next);
       if (list.length === 0) {
         continue;
       }
-      const existing = (accumulator[optionKey] as string[] | undefined) ?? [];
-      accumulator[optionKey] = [...existing, ...list] as CliRuntimeOptions[typeof optionKey];
+      const existing = accumulator[optionKey];
+      const merged = mergeUniqueList(existing, list);
+      accumulator[optionKey] = merged;
       continue;
     }
 
-    accumulator[optionKey] = next as CliRuntimeOptions[typeof optionKey];
+    if (optionKey === "logLevel") {
+      if (!isLogLevel(next)) {
+        continue;
+      }
+      accumulator.logLevel = next;
+      continue;
+    }
+
+    if (isStringOptionKey(optionKey)) {
+      accumulator[optionKey] = next;
+    }
   }
 
   return cloneOptions(accumulator);
 }
 
-function cloneOptions(options: CliRuntimeOptions): CliRuntimeOptions {
+function cloneOptions(options: Partial<CliRuntimeOptions>): CliRuntimeOptions {
+  const { context, tools, disabledTools, ...rest } = options;
+
   return {
-    ...options,
-    context: options.context ? [...options.context] : undefined,
-    tools: options.tools ? [...options.tools] : undefined,
-    disabledTools: options.disabledTools ? [...options.disabledTools] : undefined,
+    ...rest,
+    context: context ? [...context] : undefined,
+    tools: tools ? [...tools] : undefined,
+    disabledTools: disabledTools ? [...disabledTools] : undefined,
   };
 }
 
