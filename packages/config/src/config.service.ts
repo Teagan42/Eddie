@@ -10,6 +10,7 @@ import type {
   AgentsConfig,
   AgentsConfigInput,
   ApiConfig,
+  ApiPersistenceConfig,
   CliRuntimeOptions,
   ContextConfig,
   ContextResourceConfig,
@@ -1024,6 +1025,37 @@ export class ConfigService {
     return typeof value === "object" && value !== null && !Array.isArray(value);
   }
 
+  private validateApiPersistence(
+    persistence: ApiPersistenceConfig | undefined
+  ): void {
+    if (!persistence) {
+      return;
+    }
+
+    if (persistence.driver !== "memory" && persistence.driver !== "sqlite") {
+      throw new Error(
+        "api.persistence.driver must be either 'memory' or 'sqlite'."
+      );
+    }
+
+    if (
+      typeof persistence.sqlite !== "undefined" &&
+      !this.isPlainObject(persistence.sqlite)
+    ) {
+      throw new Error("api.persistence.sqlite must be an object when provided.");
+    }
+
+    if (
+      persistence.sqlite &&
+      typeof persistence.sqlite.filename !== "undefined" &&
+      typeof persistence.sqlite.filename !== "string"
+    ) {
+      throw new Error(
+        "api.persistence.sqlite.filename must be a string when provided."
+      );
+    }
+  }
+
   private validateConfig(config: EddieConfig): void {
     this.validateToolsConfig(config.tools);
 
@@ -1036,6 +1068,7 @@ export class ConfigService {
 
     this.validateContextResources(config.context?.resources, "context.resources");
     this.validateProviderProfiles(config.providers);
+    this.validateApiPersistence(config.api?.persistence);
 
     const { agents } = config;
 

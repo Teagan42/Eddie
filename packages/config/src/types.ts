@@ -42,6 +42,15 @@ export interface ApiCorsConfig {
   maxAge?: number;
 }
 
+export interface ApiPersistenceSqliteConfig {
+  filename?: string;
+}
+
+export interface ApiPersistenceConfig {
+  driver: "memory" | "sqlite";
+  sqlite?: ApiPersistenceSqliteConfig;
+}
+
 export interface ApiConfig {
   host?: string;
   port?: number;
@@ -50,6 +59,7 @@ export interface ApiConfig {
   cache?: ApiCacheConfig;
   auth?: ApiAuthConfig;
   cors?: ApiCorsConfig;
+  persistence?: ApiPersistenceConfig;
 }
 
 export interface ProviderConfig {

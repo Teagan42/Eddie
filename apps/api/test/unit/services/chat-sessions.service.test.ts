@@ -1,7 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import {
+  ChatSessionsService,
+  type AgentInvocationSnapshot,
+} from "../../../src/chat-sessions/chat-sessions.service";
 import { CreateChatSessionDto } from "../../../src/chat-sessions/dto/create-chat-session.dto";
 import { CreateChatMessageDto } from "../../../src/chat-sessions/dto/create-chat-message.dto";
+import {
+  InMemoryChatSessionsRepository,
+  type AgentInvocationSnapshot as RepositoryInvocationSnapshot,
+} from "../../../src/chat-sessions/chat-sessions.repository";
 
 class ListenerSpy {
   created = 0;
@@ -27,8 +34,19 @@ class ListenerSpy {
 }
 
 describe("ChatSessionsService", () => {
+  let service: ChatSessionsService;
+
+  beforeEach(() => {
+    service = new ChatSessionsService(new InMemoryChatSessionsRepository());
+  });
+
+  it("exposes AgentInvocationSnapshot type to consumers", () => {
+    expectTypeOf<AgentInvocationSnapshot>().toMatchTypeOf<
+      RepositoryInvocationSnapshot
+    >();
+  });
+
   it("creates sessions and notifies listeners", () => {
-    const service = new ChatSessionsService();
     const listener = new ListenerSpy();
     service.registerListener(listener);
 
@@ -51,7 +69,6 @@ describe("ChatSessionsService", () => {
   });
 
   it("persists tool identifiers and names on stored messages", () => {
-    const service = new ChatSessionsService();
     const session = service.createSession({ title: "Tool capture" });
 
     const dto = {
@@ -72,7 +89,6 @@ describe("ChatSessionsService", () => {
   });
 
   it("records agent invocation snapshots for orchestrator metadata", () => {
-    const service = new ChatSessionsService();
     const session = service.createSession({ title: "Delegation" });
 
     const snapshots = [
@@ -113,7 +129,6 @@ describe("ChatSessionsService", () => {
   });
 
   it("updates message content without reordering sessions", () => {
-    const service = new ChatSessionsService();
     const listener = new ListenerSpy();
     service.registerListener(listener);
 

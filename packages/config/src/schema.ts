@@ -125,6 +125,24 @@ const API_CORS_SCHEMA: JSONSchema7 = {
   },
 };
 
+const API_PERSISTENCE_SQLITE_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    filename: { type: "string" },
+  },
+};
+
+const API_PERSISTENCE_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["driver"],
+  properties: {
+    driver: { enum: ["memory", "sqlite"] },
+    sqlite: API_PERSISTENCE_SQLITE_SCHEMA,
+  },
+};
+
 const API_CONFIG_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
@@ -136,6 +154,7 @@ const API_CONFIG_SCHEMA: JSONSchema7 = {
     cache: API_CACHE_SCHEMA,
     auth: API_AUTH_SCHEMA,
     cors: API_CORS_SCHEMA,
+    persistence: API_PERSISTENCE_SCHEMA,
   },
 };
 

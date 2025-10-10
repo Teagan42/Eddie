@@ -49,6 +49,25 @@ describe("ConfigService", () => {
 
       expect(result.api?.host).toBe("0.0.0.0");
       expect(result.api?.port).toBe(3000);
+      expect(result.api?.persistence?.driver).toBe("memory");
+    });
+
+    it("accepts sqlite persistence configuration", async () => {
+      const service = new ConfigService();
+
+      const result = await service.compose({
+        api: {
+          persistence: {
+            driver: "sqlite",
+            sqlite: { filename: "./tmp/chat.sqlite" },
+          },
+        },
+      });
+
+      expect(result.api?.persistence).toEqual({
+        driver: "sqlite",
+        sqlite: { filename: "./tmp/chat.sqlite" },
+      });
     });
   });
 
