@@ -42,6 +42,7 @@ export function ChatSessionsPanel({
 }: ChatSessionsPanelProps): JSX.Element {
   return (
     <Panel
+      className="h-full"
       title="Chat Sessions"
       description="Inspect and collaborate on control plane sessions"
       actions={
@@ -59,14 +60,15 @@ export function ChatSessionsPanel({
         </form>
       }
     >
-      <Grid columns={{ initial: "1", md: "2" }} gap="5">
+      <Grid columns={{ initial: "1", md: "2" }} gap="5" className="h-full auto-rows-[minmax(0,1fr)]">
         <SessionsList
           sessions={sessions}
           selectedSessionId={selectedSessionId}
           onSelectSession={onSelectSession}
+          className="h-full min-h-[20rem]"
         />
 
-        <Flex direction="column" gap="4">
+        <Flex direction="column" gap="4" className="h-full min-h-[20rem]">
           <SessionDetail
             session={activeSession}
             isLoading={isMessagesLoading}

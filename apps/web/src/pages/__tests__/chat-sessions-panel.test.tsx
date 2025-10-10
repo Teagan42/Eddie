@@ -122,4 +122,36 @@ describe("ChatSessionsPanel", () => {
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
+
+  it("stretches the session content to fill the panel height", () => {
+    const session = createSession();
+
+    const { container } = render(
+      <ChatSessionsPanel
+        sessions={[session]}
+        selectedSessionId={session.id}
+        onSelectSession={vi.fn()}
+        onCreateSession={vi.fn()}
+        newSessionTitle=""
+        onNewSessionTitleChange={vi.fn()}
+        isCreatingSession={false}
+        activeSession={session}
+        messages={[createMessage()]}
+        isMessagesLoading={false}
+        onSubmitMessage={vi.fn()}
+        messageDraft=""
+        onMessageDraftChange={vi.fn()}
+        isMessagePending={false}
+      />
+    );
+
+    const panel = container.querySelector("section");
+    expect(panel).toHaveClass("h-full");
+
+    const sessionsList = screen.getByTestId("sessions-scroll-area");
+    expect(sessionsList).toHaveClass("h-full");
+
+    const messagesList = screen.getByTestId("session-messages-scroll-area");
+    expect(messagesList).toHaveClass("flex-1");
+  });
 });
