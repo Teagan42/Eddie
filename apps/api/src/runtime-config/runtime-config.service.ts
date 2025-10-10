@@ -27,7 +27,7 @@ export class RuntimeConfigService {
   }
 
   get(): RuntimeConfigDto {
-    return this.config;
+    return this.cloneConfig(this.config);
   }
 
   update(partial: Partial<RuntimeConfigDto>): RuntimeConfigDto {
@@ -41,9 +41,17 @@ export class RuntimeConfigService {
       ...partial,
       features: mergedFeatures,
     };
+    const currentConfig = this.config;
     for (const listener of this.listeners) {
-      listener.onConfigChanged(this.config);
+      listener.onConfigChanged(this.cloneConfig(currentConfig));
     }
-    return this.config;
+    return this.cloneConfig(currentConfig);
+  }
+
+  private cloneConfig(config: RuntimeConfigDto): RuntimeConfigDto {
+    return {
+      ...config,
+      features: { ...config.features },
+    };
   }
 }
