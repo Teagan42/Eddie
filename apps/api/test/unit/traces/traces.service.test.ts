@@ -58,4 +58,10 @@ describe("TracesService", () => {
       })
     ).toThrow(BadRequestException);
   });
+
+  it("starts with no traces", () => {
+    const service = new TracesService();
+
+    expect(service.list()).toEqual([]);
+  });
 });

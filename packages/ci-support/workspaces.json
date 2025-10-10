@@ -1,0 +1,138 @@
+[
+  {
+    "name": "@eddie/api",
+    "path": "apps/api",
+    "coverage": "apps/api/coverage",
+    "coverageArtifact": "coverage-eddie-api",
+    "dist": "apps/api/dist",
+    "tsbuildinfo": "apps/api/tsconfig.build.tsbuildinfo",
+    "tsconfig": "apps/api/tsconfig.build.json"
+  },
+  {
+    "name": "@eddie/web",
+    "path": "apps/web",
+    "coverage": "apps/web/coverage",
+    "coverageArtifact": "coverage-eddie-web",
+    "dist": "apps/web/dist",
+    "tsbuildinfo": "apps/web/tsconfig.tsbuildinfo",
+    "tsconfig": "apps/web/tsconfig.json",
+    "prebuild": ["npm run build --workspace @eddie/api-client"]
+  },
+  {
+    "name": "@eddie/cli",
+    "path": "apps/cli",
+    "coverage": "apps/cli/coverage",
+    "coverageArtifact": "coverage-eddie-cli",
+    "dist": "apps/cli/dist",
+    "tsbuildinfo": "apps/cli/tsconfig.build.tsbuildinfo",
+    "tsconfig": "apps/cli/tsconfig.build.json"
+  },
+  {
+    "name": "@eddie/config",
+    "path": "packages/config",
+    "coverage": "coverage/config",
+    "coverageArtifact": "coverage-eddie-config",
+    "dist": "packages/config/dist",
+    "tsbuildinfo": "packages/config/tsconfig.build.tsbuildinfo",
+    "tsconfig": "packages/config/tsconfig.build.json"
+  },
+  {
+    "name": "@eddie/context",
+    "path": "packages/context",
+    "coverage": "coverage/context",
+    "coverageArtifact": "coverage-eddie-context",
+    "dist": "packages/context/dist",
+    "tsbuildinfo": "packages/context/tsconfig.build.tsbuildinfo",
+    "tsconfig": "packages/context/tsconfig.build.json"
+  },
+  {
+    "name": "@eddie/engine",
+    "path": "packages/engine",
+    "coverage": "coverage/engine",
+    "coverageArtifact": "coverage-eddie-engine",
+    "dist": "packages/engine/dist",
+    "tsbuildinfo": "packages/engine/tsconfig.build.tsbuildinfo",
+    "tsconfig": "packages/engine/tsconfig.build.json"
+  },
+  {
+    "name": "@eddie/hooks",
+    "path": "packages/hooks",
+    "coverage": "coverage/hooks",
+    "coverageArtifact": "coverage-eddie-hooks",
+    "dist": "packages/hooks/dist",
+    "tsbuildinfo": "packages/hooks/tsconfig.build.tsbuildinfo",
+    "tsconfig": "packages/hooks/tsconfig.build.json"
+  },
+  {
+    "name": "@eddie/io",
+    "path": "packages/io",
+    "coverage": "coverage/io",
+    "coverageArtifact": "coverage-eddie-io",
+    "dist": "packages/io/dist",
+    "tsbuildinfo": "packages/io/tsconfig.build.tsbuildinfo",
+    "tsconfig": "packages/io/tsconfig.build.json"
+  },
+  {
+    "name": "@eddie/mcp",
+    "path": "packages/mcp",
+    "coverage": "coverage/mcp",
+    "coverageArtifact": "coverage-eddie-mcp",
+    "dist": "packages/mcp/dist",
+    "tsbuildinfo": "packages/mcp/tsconfig.build.tsbuildinfo",
+    "tsconfig": "packages/mcp/tsconfig.build.json"
+  },
+  {
+    "name": "@eddie/providers",
+    "path": "packages/providers",
+    "coverage": "coverage/providers",
+    "coverageArtifact": "coverage-eddie-providers",
+    "dist": "packages/providers/dist",
+    "tsbuildinfo": "packages/providers/tsconfig.build.tsbuildinfo",
+    "tsconfig": "packages/providers/tsconfig.build.json"
+  },
+  {
+    "name": "@eddie/templates",
+    "path": "packages/templates",
+    "coverage": "coverage/templates",
+    "coverageArtifact": "coverage-eddie-templates",
+    "dist": "packages/templates/dist",
+    "tsbuildinfo": "packages/templates/tsconfig.build.tsbuildinfo",
+    "tsconfig": "packages/templates/tsconfig.build.json"
+  },
+  {
+    "name": "@eddie/tokenizers",
+    "path": "packages/tokenizers",
+    "coverage": "coverage/tokenizers",
+    "coverageArtifact": "coverage-eddie-tokenizers",
+    "dist": "packages/tokenizers/dist",
+    "tsbuildinfo": "packages/tokenizers/tsconfig.build.tsbuildinfo",
+    "tsconfig": "packages/tokenizers/tsconfig.build.json"
+  },
+  {
+    "name": "@eddie/tools",
+    "path": "packages/tools",
+    "coverage": "coverage/tools",
+    "coverageArtifact": "coverage-eddie-tools",
+    "dist": "packages/tools/dist",
+    "tsbuildinfo": "packages/tools/tsconfig.build.tsbuildinfo",
+    "tsconfig": "packages/tools/tsconfig.build.json"
+  },
+  {
+    "name": "@eddie/types",
+    "path": "packages/types",
+    "coverage": "coverage/types",
+    "coverageArtifact": "coverage-eddie-types",
+    "dist": "packages/types/dist",
+    "tsbuildinfo": "packages/types/tsconfig.build.tsbuildinfo",
+    "tsconfig": "packages/types/tsconfig.build.json"
+  },
+  {
+    "name": "@eddie/api-client",
+    "path": "packages/api-client",
+    "coverage": "packages/api-client/coverage",
+    "coverageArtifact": "coverage-eddie-api-client",
+    "dist": "packages/api-client/dist",
+    "tsbuildinfo": "packages/api-client/dist/tsconfig.tsbuildinfo",
+    "tsconfig": "packages/api-client/tsconfig.build.json"
+  }
+]
