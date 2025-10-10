@@ -8,9 +8,7 @@ const globals = require("globals");
 module.exports = [
   {
     ignores: [
-      "src/components/components/**/*",
-      "src/components/hooks/**/*",
-      "src/components/hooks/*",
+      "src/vendor/**/*",
     ],
   },
   ...baseConfig,
