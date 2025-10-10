@@ -1,0 +1,7 @@
+{% set questions_list = questions or [] %}
+{% if questions_list %}
+## Clarifying questions
+{% for question in questions_list %}
+- {{ question }}
+{% endfor %}
+{% endif %}

@@ -1,0 +1,33 @@
+<!DOCTYPE markdown>
+{% set layout_config = layout or {} %}
+{% set title = layout_config.title or 'Agent prompt' %}
+{% set audience = layout_config.audience or 'subagent' %}
+{% set instructions = layout_config.instructions or [] %}
+{% set footer = layout_config.footer or [] %}
+{% if title %}
+# {{ title }}
+{% endif %}
+
+{% if audience %}
+_Target audience: {{ audience }}_
+{% endif %}
+
+{% if instructions %}
+## Operating instructions
+{% for line in instructions %}
+- {{ line }}
+{% endfor %}
+{% endif %}
+
+{% include '../partials/run-context.jinja' %}
+
+{% block content %}
+<!-- Child template should provide body content -->
+{% endblock %}
+
+{% if footer %}
+---
+{% for line in footer %}
+- {{ line }}
+{% endfor %}
+{% endif %}

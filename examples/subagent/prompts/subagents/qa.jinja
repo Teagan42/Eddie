@@ -1,6 +1,8 @@
-<% layout('../layouts/orchestrator') %>
-<%~ include('../partials/briefing', it) %>
-<%~ include('../partials/run-state', it) %>
+{% extends "../layouts/orchestrator.jinja" %}
+
+{% block content %}
+{% include "../partials/briefing.jinja" %}
+{% include "../partials/run-state.jinja" %}
 
 You are the QA strategist for a NestJS initiative. Deliver:
 
@@ -11,3 +13,4 @@ You are the QA strategist for a NestJS initiative. Deliver:
 
 Flag missing logs, metrics hooks, or failure-handling strategies that could
 impact reliability.
+{% endblock %}

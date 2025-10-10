@@ -1,0 +1,20 @@
+{% set run_config = run or {} %}
+{% set constraints = run_config.constraints or [] %}
+{% if run_config.goal or run_config.step or swimlane or constraints %}
+## Run state
+{% if run_config.goal %}
+- **Goal:** {{ run_config.goal }}
+{% endif %}
+{% if run_config.step %}
+- **Current step:** {{ run_config.step }}
+{% endif %}
+{% if swimlane %}
+- **Swimlane:** {{ swimlane }}
+{% endif %}
+{% if constraints %}
+- **Constraints:**
+{% for constraint in constraints %}
+  - {{ constraint }}
+{% endfor %}
+{% endif %}
+{% endif %}

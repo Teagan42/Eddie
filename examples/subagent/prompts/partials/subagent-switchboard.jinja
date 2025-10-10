@@ -1,0 +1,10 @@
+{% set available = briefing.availableSubagents if briefing and briefing.availableSubagents else [] %}
+{% if available %}
+### Delegation options
+You can hand work to:
+{% for agent_id in available %}
+- **{{ agent_id }}** — match tasks aligned with the agent's swimlane.
+{% endfor %}
+{% else %}
+<!-- No subagents registered -->
+{% endif %}

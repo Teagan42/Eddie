@@ -1,0 +1,11 @@
+{% set servers = mcpServers or [] %}
+### MCP playbook
+{% if not servers %}
+- No remote servers configured. Stick to built-in tools.
+{% else %}
+{% for server in servers %}
+- `{{ server.id }}` — {{ server.nickname or server.name or "MCP source" }}
+  - Focus: {{ server.focus or "consult server docs" }}
+  - Before responding, consider what this server can add to the answer.
+{% endfor %}
+{% endif %}

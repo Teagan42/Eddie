@@ -1,0 +1,18 @@
+{% extends "./layouts/orchestrator.jinja" %}
+
+{% block content %}
+{% set cadence = cadence or 'Summarise progress' %}
+{% set checkpoints_list = checkpoints or [] %}
+Provide an update that matches the cadence: {{ cadence }}.
+
+{% if checkpoints_list %}
+Touch on the following checkpoints:
+{% for item in checkpoints_list %}
+- {{ item }}
+{% endfor %}
+{% else %}
+- Share what you accomplished.
+- Identify blockers or DI concerns.
+- Note next steps that should return to the manager.
+{% endif %}
+{% endblock %}

@@ -1,0 +1,19 @@
+{% set briefing_config = briefing or {} %}
+{% set guardrails = briefing_config.guardrails or [] %}
+{% set available = briefing_config.availableSubagents or [] %}
+{% set theme = briefing_config.theme or (context.backlogTheme if context and context.backlogTheme else None) %}
+{% if guardrails or available or theme %}
+## Briefing
+{% if guardrails %}
+- **Guardrails:**
+{% for item in guardrails %}
+  - {{ item }}
+{% endfor %}
+{% endif %}
+{% if available %}
+- **Available subagents:** {{ available | join(', ') }}
+{% endif %}
+{% if theme %}
+- **Backlog theme:** {{ theme }}
+{% endif %}
+{% endif %}

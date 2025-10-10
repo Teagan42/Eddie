@@ -1,0 +1,7 @@
+{% set integrations_list = integrations or [] %}
+{% if integrations_list %}
+### Connected surfaces
+{% for integration in integrations_list %}
+- {{ integration.name or integration.id }}: {{ integration.purpose or 'general support' }}
+{% endfor %}
+{% endif %}

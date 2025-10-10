@@ -13,24 +13,24 @@ let childTemplatePath: string;
 beforeAll(async () => {
   service = new TemplateRendererService();
   await fs.mkdir(tmpDir, { recursive: true });
-  templatePath = path.join(tmpDir, "message.eta");
+  templatePath = path.join(tmpDir, "message.jinja");
   await fs.writeFile(
     templatePath,
-    "Hello <%= name %> from <%= origin %>",
+    "Hello {{ name }} from {{ origin }}",
     "utf-8"
   );
 
-  layoutTemplatePath = path.join(tmpDir, "layout.eta");
+  layoutTemplatePath = path.join(tmpDir, "layout.jinja");
   await fs.writeFile(
     layoutTemplatePath,
-    "<h1><%= it.layout.title %></h1>\n<section>\n<%~ it.body %>\n</section>",
+    "<h1>{{ title }}</h1>\n<section>\n{% block content %}{% endblock %}\n</section>",
     "utf-8"
   );
 
-  childTemplatePath = path.join(tmpDir, "child.eta");
+  childTemplatePath = path.join(tmpDir, "child.jinja");
   await fs.writeFile(
     childTemplatePath,
-    "<% layout('./layout') %>\n<p><%= it.content %></p>",
+    "{% extends 'layout.jinja' %}\n{% block content %}\n<p>{{ content }}</p>\n{% endblock %}",
     "utf-8"
   );
 });
@@ -55,7 +55,7 @@ describe("TemplateRendererService", () => {
 
   it("renders inline templates", async () => {
     const output = await service.renderString(
-      "Task: <%= subject %> for <%= assignee %>",
+      "Task: {{ subject }} for {{ assignee }}",
       {
         subject: "Refactor",
         assignee: "Bob",
@@ -65,15 +65,15 @@ describe("TemplateRendererService", () => {
     expect(output).toBe("Task: Refactor for Bob");
   });
 
-  it("renders templates that use Eta layouts alongside layout variables", async () => {
+  it("renders templates that use Jinja inheritance", async () => {
     const output = await service.renderTemplate(
       {
         file: path.basename(childTemplatePath),
         baseDir: tmpDir,
       },
       {
-        layout: { title: "Session Briefing" },
         content: "Welcome to the session.",
+        title: "Session Briefing",
       }
     );
 

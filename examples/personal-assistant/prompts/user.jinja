@@ -1,0 +1,22 @@
+{% extends "./layouts/base.jinja" %}
+
+{% block content %}
+{% set response_config = response or {} %}
+{% set format = response_config.format or 'markdown' %}
+{% set sections = response_config.sections or [] %}
+Share what you need from Cosmic Concierge.
+
+Respond in {{ format }} so the assistant can slot your notes into the plan.
+{% if sections %}
+Organise the assistant's reply into:
+{% for section in sections %}
+- {{ section }}
+{% endfor %}
+{% endif %}
+
+Include:
+- Any environmental cues (lighting, temperature, noise).
+- Desired vibe or energy level.
+- Entertainment or automation requests that should hit Plex or Home-Assistant.
+- Follow-up reminders that belong in the Memory server.
+{% endblock %}

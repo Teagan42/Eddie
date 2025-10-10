@@ -1,0 +1,17 @@
+{% set focus_config = focus or {} %}
+{% set has_focus = focus_config.domain or (focus_config.priorities and focus_config.priorities|length) or (context and context.moduleHint) %}
+{% if has_focus %}
+## Focus
+{% if focus_config.domain %}
+- **Domain:** {{ focus_config.domain }}
+{% endif %}
+{% if focus_config.priorities %}
+- **Priorities:**
+{% for item in focus_config.priorities %}
+  - {{ item }}
+{% endfor %}
+{% endif %}
+{% if context and context.moduleHint %}
+- **Module hint:** {{ context.moduleHint }}
+{% endif %}
+{% endif %}

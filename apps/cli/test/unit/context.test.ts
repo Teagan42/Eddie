@@ -65,8 +65,8 @@ beforeAll(async () => {
     "utf-8"
   );
   await fs.writeFile(
-    path.join(tmpDir, "resource.eta"),
-    "Notes: <%= subject %>",
+    path.join(tmpDir, "resource.jinja"),
+    "Notes: {{ subject }}",
     "utf-8"
   );
 });
@@ -99,7 +99,7 @@ describe("packContext", () => {
           id: "notes",
           name: "Notes",
           template: {
-            file: "resource.eta",
+            file: "resource.jinja",
             baseDir: tmpDir,
           },
           variables: { subject: "Testing" },

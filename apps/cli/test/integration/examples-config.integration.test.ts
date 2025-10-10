@@ -19,14 +19,14 @@ const ensureTemplateAssets = async (descriptor: TemplateDescriptor) => {
 
   await fs.access(absolutePath);
   const source = await fs.readFile(absolutePath, "utf-8");
-  const referencePattern = /(?:layout|include)\(\s*(["'])([^"']+)\1/g;
+  const referencePattern = /{%\s*(?:extends|include)\s+(['"])([^'"]+)\1\s*%}/g;
   const dir = path.dirname(absolutePath);
 
   for (const match of source.matchAll(referencePattern)) {
     const reference = match[2];
     const candidate = path.resolve(
       dir,
-      path.extname(reference) ? reference : `${reference}.eta`
+      path.extname(reference) ? reference : `${reference}.jinja`
     );
     await fs.access(candidate);
   }
@@ -45,12 +45,12 @@ describe("documentation examples", () => {
     expect(config.context.baseDir).toBe("../..");
 
     const managerTemplate = config.agents.manager.promptTemplate;
-    expect(managerTemplate?.file).toBe("system.eta");
+    expect(managerTemplate?.file).toBe("system.jinja");
     expect(managerTemplate?.baseDir).toBe("./examples/standalone/prompts");
     await ensureTemplateAssets(managerTemplate!);
 
     const userTemplate = config.agents.manager.defaultUserPromptTemplate;
-    expect(userTemplate?.file).toBe("user.eta");
+    expect(userTemplate?.file).toBe("user.jinja");
     await ensureTemplateAssets(userTemplate!);
   });
 
@@ -67,7 +67,7 @@ describe("documentation examples", () => {
     expect(config.agents.routing?.confidenceThreshold).toBe(0.55);
 
     const managerTemplate = config.agents.manager.promptTemplate;
-    expect(managerTemplate?.file).toBe("manager.eta");
+    expect(managerTemplate?.file).toBe("manager.jinja");
     await ensureTemplateAssets(managerTemplate!);
 
     for (const subagent of config.agents.subagents) {
@@ -82,7 +82,7 @@ describe("documentation examples", () => {
     }
 
     const defaultUser = config.agents.manager.defaultUserPromptTemplate;
-    expect(defaultUser?.file).toBe("user.eta");
+    expect(defaultUser?.file).toBe("user.jinja");
     await ensureTemplateAssets(defaultUser!);
   });
 

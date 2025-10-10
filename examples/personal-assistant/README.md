@@ -20,6 +20,6 @@ coordinating across three MCP servers:
 - **memory** to recall recent conversations or saved preferences.
 - **plex** to curate entertainment recommendations.
 
-The Eta templates in `examples/personal-assistant/prompts/` showcase how you can
+The Jinja templates in `examples/personal-assistant/prompts/` showcase how you can
 combine a bespoke persona with structured guidance about which MCP resources to
 consult before answering.

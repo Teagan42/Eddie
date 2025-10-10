@@ -16,13 +16,13 @@ let factory: AgentInvocationFactory;
 beforeAll(async () => {
   await fs.mkdir(tmpDir, { recursive: true });
   await fs.writeFile(
-    path.join(tmpDir, "system.eta"),
-    "System (<%= agent.id %>): <%= role %>",
+    path.join(tmpDir, "system.jinja"),
+    "System ({{ agent.id }}): {{ role }}",
     "utf-8"
   );
   await fs.writeFile(
-    path.join(tmpDir, "user.eta"),
-    "User (<%= systemPrompt %>): <%= role %> - <%= prompt %>",
+    path.join(tmpDir, "user.jinja"),
+    "User ({{ systemPrompt }}): {{ role }} - {{ prompt }}",
     "utf-8"
   );
 
@@ -41,11 +41,11 @@ describe("AgentInvocationFactory", () => {
       id: "manager",
       systemPrompt: "fallback",
       systemPromptTemplate: {
-        file: "system.eta",
+        file: "system.jinja",
         baseDir: tmpDir,
       },
       userPromptTemplate: {
-        file: "user.eta",
+        file: "user.jinja",
         baseDir: tmpDir,
       },
       variables: { role: "architect" },
@@ -76,13 +76,13 @@ describe("AgentInvocationFactory", () => {
   it("renders inline prompts when templates are absent", async () => {
     const definition: AgentDefinition = {
       id: "manager",
-      systemPrompt: "Hello <%= agent.id %>",
+      systemPrompt: "Hello {{ agent.id }}",
     };
 
     const invocation = await factory.create(
       definition,
       {
-        prompt: "Do work as <%= role %>",
+        prompt: "Do work as {{ role }}",
         variables: { role: "tester" },
       }
     );

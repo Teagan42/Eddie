@@ -1,38 +1,50 @@
 import { Injectable } from "@nestjs/common";
 import fs from "fs/promises";
 import path from "path";
-import { Eta } from "eta";
+import nunjucks from "nunjucks";
 import type { TemplateDescriptor, TemplateVariables } from "./template.types";
 
 const DEFAULT_ENCODING: BufferEncoding = "utf-8";
+const INLINE_KEY = "<inline>";
+
+interface EnvironmentEntry {
+  key: string;
+  env: nunjucks.Environment;
+}
 
 @Injectable()
 export class TemplateRendererService {
-  private readonly engine = new Eta({
-    cache: true,
-    autoEscape: false,
-    useWith: true,
-  });
+  private readonly environments = new Map<string, nunjucks.Environment>();
+  private readonly templateCache = new Map<string, nunjucks.Template>();
 
   async renderTemplate(
     descriptor: TemplateDescriptor,
     variables: TemplateVariables = {}
   ): Promise<string> {
     const absolutePath = this.resolvePath(descriptor);
-    const source = await fs.readFile(absolutePath, {
-      encoding: descriptor.encoding ?? DEFAULT_ENCODING,
-    });
-    const mergedVariables = this.prepareVariables({
+    const encoding = descriptor.encoding ?? DEFAULT_ENCODING;
+    const source = await fs.readFile(absolutePath, { encoding });
+
+    const mergedVariables: TemplateVariables = {
       ...(descriptor.variables ?? {}),
       ...variables,
-    });
+    };
 
-    return this.renderStringInternal(
-      source,
-      mergedVariables,
-      absolutePath,
-      descriptor.baseDir
-    );
+    const searchPaths = this.computeSearchPaths({
+      baseDir: descriptor.baseDir,
+      filename: absolutePath,
+    });
+    const { env, key } = this.getEnvironment(searchPaths);
+    const cacheKey = `${key}:${absolutePath}`;
+
+    let template = this.templateCache.get(cacheKey);
+    if (!template) {
+      template = new nunjucks.Template(source, env, absolutePath, true);
+      this.templateCache.set(cacheKey, template);
+    }
+
+    const rendered = template.render(mergedVariables);
+    return rendered ?? "";
   }
 
   async renderString(
@@ -40,8 +52,16 @@ export class TemplateRendererService {
     variables: TemplateVariables = {},
     filename?: string
   ): Promise<string> {
-    const prepared = this.prepareVariables(variables);
-    return this.renderStringInternal(template, prepared, filename);
+    const searchPaths = this.computeSearchPaths({ filename });
+    const { env } = this.getEnvironment(searchPaths);
+    const templateInstance = new nunjucks.Template(
+      template,
+      env,
+      filename,
+      true
+    );
+    const rendered = templateInstance.render(variables);
+    return rendered ?? "";
   }
 
   private resolvePath(descriptor: TemplateDescriptor): string {
@@ -51,58 +71,39 @@ export class TemplateRendererService {
       : path.resolve(baseDir, descriptor.file);
   }
 
-  private prepareVariables(
-    variables: TemplateVariables = {}
-  ): TemplateVariables {
-    const clone: TemplateVariables & {
-      [Symbol.unscopables]?: Record<string, boolean>;
-    } = { ...variables };
-
-    if (Object.prototype.hasOwnProperty.call(clone, "layout")) {
-      const existing = clone[Symbol.unscopables] ?? {};
-      clone[Symbol.unscopables] = { ...existing, layout: true };
+  private computeSearchPaths(options: {
+    baseDir?: string;
+    filename?: string;
+  }): string[] {
+    const paths = new Set<string>();
+    if (options.baseDir) {
+      paths.add(path.resolve(options.baseDir));
     }
-
-    return clone;
+    if (options.filename) {
+      paths.add(path.resolve(path.dirname(options.filename)));
+    }
+    if (!paths.size) {
+      paths.add(process.cwd());
+    }
+    return Array.from(paths);
   }
 
-  private async renderStringInternal(
-    template: string,
-    variables: TemplateVariables,
-    filename?: string,
-    baseDir?: string
-  ): Promise<string> {
-    const viewsRoot = baseDir
-      ? path.resolve(baseDir)
-      : filename
-        ? path.dirname(filename)
-        : process.cwd();
-
-    const previousViews = this.engine.config.views;
-    this.engine.config.views = viewsRoot;
-
-    try {
-      if (filename) {
-        const cacheKey = `@${filename}`;
-        const cached = this.engine.templatesAsync.get(cacheKey);
-        if (!cached) {
-          const compiled = this.engine.compile(template, {
-            async: true,
-            filepath: filename,
-          });
-          this.engine.templatesAsync.define(cacheKey, compiled);
-        }
-
-        const rendered = await this.engine.renderAsync(cacheKey, variables, {
-          filepath: filename,
-        });
-        return rendered ?? "";
-      }
-
-      const rendered = await this.engine.renderStringAsync(template, variables);
-      return rendered ?? "";
-    } finally {
-      this.engine.config.views = previousViews;
+  private getEnvironment(searchPaths: string[]): EnvironmentEntry {
+    const key = searchPaths.length
+      ? searchPaths.join("|")
+      : INLINE_KEY;
+    let env = this.environments.get(key);
+    if (!env) {
+      const loader = new nunjucks.FileSystemLoader(searchPaths, {
+        noCache: false,
+        watch: false,
+      });
+      env = new nunjucks.Environment(loader, {
+        autoescape: false,
+      });
+      this.environments.set(key, env);
     }
+
+    return { key, env };
   }
 }

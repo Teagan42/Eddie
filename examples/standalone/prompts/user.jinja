@@ -1,0 +1,19 @@
+{% extends "./layouts/base.jinja" %}
+
+{% block content %}
+{% set response_config = response or {} %}
+{% set format = response_config.format or 'markdown' %}
+{% set sections = response_config.sections or [] %}
+You are preparing the next action plan for the developer.
+
+Provide the findings in {{ format }}.
+{% if sections %}
+Organise the response with the following sections:
+{% for section in sections %}
+- {{ section }}
+{% endfor %}
+{% endif %}
+
+When referencing files, prefer module-relative paths and describe why each
+observation matters for DI, guards, or testing readiness.
+{% endblock %}
