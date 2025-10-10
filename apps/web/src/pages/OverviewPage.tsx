@@ -1,5 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+} from "@tanstack/react-query";
 import {
   Badge,
   Box,
@@ -11,6 +17,7 @@ import {
   Separator,
   Text,
   TextField,
+  Skeleton,
 } from "@radix-ui/themes";
 import { ArrowUpRight, KeyRound, Sparkles, Waves } from "lucide-react";
 import { PaperPlaneIcon, PlusIcon, ReloadIcon } from "@radix-ui/react-icons";
@@ -43,6 +50,23 @@ interface SessionFormState {
   description: string;
 }
 
+const LOGS_PAGE_SIZE = 50;
+const MAX_LOG_PAGES = 4;
+
+function chunkLogs(entries: LogEntryDto[]): LogEntryDto[][] {
+  const limited = entries.slice(-LOGS_PAGE_SIZE * MAX_LOG_PAGES);
+  if (limited.length === 0) {
+    return [[]];
+  }
+
+  const pages: LogEntryDto[][] = [];
+  for (let index = 0; index < limited.length; index += LOGS_PAGE_SIZE) {
+    pages.push(limited.slice(index, index + LOGS_PAGE_SIZE));
+  }
+
+  return pages;
+}
+
 export function OverviewPage(): JSX.Element {
   const { apiKey, setApiKey } = useAuth();
   const api = useApi();
@@ -61,10 +85,57 @@ export function OverviewPage(): JSX.Element {
     queryFn: () => api.http.traces.list(),
   });
 
-  const logsQuery = useQuery({
+  const logsQuery = useInfiniteQuery({
     queryKey: ["logs"],
-    queryFn: () => api.http.logs.list(),
+    initialPageParam: 0,
+    queryFn: ({ pageParam = 0 }) =>
+      api.http.logs.list({ offset: pageParam, limit: LOGS_PAGE_SIZE }),
+    getNextPageParam: (lastPage, pages) =>
+      lastPage.length === LOGS_PAGE_SIZE ? pages.length * LOGS_PAGE_SIZE : undefined,
   });
+
+  const logPages = logsQuery.data?.pages ?? [];
+  const logs = useMemo(() => logPages.flat(), [logPages]);
+  const logCount = useMemo(
+    () => logPages.reduce((total, page) => total + page.length, 0),
+    [logPages]
+  );
+
+  const loadMoreNodeRef = useRef<HTMLDivElement | null>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  const updateObserver = useCallback(() => {
+    observerRef.current?.disconnect();
+
+    const target = loadMoreNodeRef.current;
+    if (!target) {
+      observerRef.current = null;
+      return;
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (
+          entry.isIntersecting &&
+          logsQuery.hasNextPage &&
+          !logsQuery.isFetchingNextPage
+        ) {
+          void logsQuery.fetchNextPage();
+        }
+      }
+    }, { rootMargin: "200px" });
+
+    observer.observe(target);
+    observerRef.current = observer;
+  }, [logsQuery.fetchNextPage, logsQuery.hasNextPage, logsQuery.isFetchingNextPage]);
+
+  const setLoadMoreRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      loadMoreNodeRef.current = node;
+      updateObserver();
+    },
+    [updateObserver]
+  );
 
   const configQuery = useQuery({
     queryKey: ["config"],
@@ -81,7 +152,7 @@ export function OverviewPage(): JSX.Element {
   const stats = useOverviewStats({
     sessionCount: sessionsQuery.data?.length,
     traceCount: tracesQuery.data?.length,
-    logCount: logsQuery.data?.length,
+    logCount,
   });
 
   const mergeLogsIntoCache = useCallback((incoming: LogEntryDto | LogEntryDto[]): void => {
@@ -90,25 +161,26 @@ export function OverviewPage(): JSX.Element {
       return;
     }
 
-    queryClient.setQueryData<LogEntryDto[]>(["logs"], (current = []) => {
-      if (current.length === 0) {
-        return batch;
-      }
+    queryClient.setQueryData<InfiniteData<LogEntryDto[]>>(["logs"], (current) => {
+      const existing = current?.pages.flat() ?? [];
+      const byId = new Map<string, LogEntryDto>();
 
-      const next = [...current];
-      const indexById = new Map(current.map((entry, index) => [entry.id, index]));
+      for (const entry of existing) {
+        byId.set(entry.id, entry);
+      }
 
       for (const entry of batch) {
-        const existingIndex = indexById.get(entry.id);
-        if (existingIndex !== undefined) {
-          next[existingIndex] = entry;
-        } else {
-          indexById.set(entry.id, next.length);
-          next.push(entry);
-        }
+        byId.set(entry.id, entry);
       }
 
-      return next;
+      const sorted = Array.from(byId.values()).sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+
+      const pages = chunkLogs(sorted);
+      const pageParams = pages.map((_, index) => index * LOGS_PAGE_SIZE);
+
+      return { pages, pageParams } satisfies InfiniteData<LogEntryDto[]>;
     });
   }, [queryClient]);
 
@@ -124,6 +196,13 @@ export function OverviewPage(): JSX.Element {
     mergeLogsIntoCache,
     selectedSessionId,
   });
+
+  useEffect(() => {
+    updateObserver();
+    return () => {
+      observerRef.current?.disconnect();
+    };
+  }, [logs.length, updateObserver]);
 
   const createSessionMutation = useMutation({
     mutationFn: (input: CreateChatSessionDto) => api.http.chatSessions.create(input),
@@ -284,10 +363,10 @@ export function OverviewPage(): JSX.Element {
             <Text size="2" color="gray">
               Loading logs…
             </Text>
-          ) : logsQuery.data?.length ? (
+          ) : logs.length ? (
             <ScrollArea type="always" className="h-80 rounded-2xl border border-white/15 bg-slate-900/35 p-4">
               <Flex direction="column" gap="3">
-                {logsQuery.data.map((entry) => (
+                {logs.map((entry) => (
                   <Flex
                     key={entry.id}
                     direction="column"
@@ -304,6 +383,13 @@ export function OverviewPage(): JSX.Element {
                     <Text size="2">{entry.message}</Text>
                   </Flex>
                 ))}
+                {logsQuery.isFetchingNextPage && (
+                  <Flex data-testid="logs-loading-skeleton" direction="column" gap="2">
+                    <Skeleton height="48px" />
+                    <Skeleton height="48px" />
+                  </Flex>
+                )}
+                <div ref={setLoadMoreRef} />
               </Flex>
             </ScrollArea>
           ) : (

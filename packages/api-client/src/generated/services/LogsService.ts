@@ -11,10 +11,20 @@ export class LogsService {
      * @returns LogEntryDto
      * @throws ApiError
      */
-    public static logsControllerList(): CancelablePromise<Array<LogEntryDto>> {
+    public static logsControllerList({
+        offset = 0,
+        limit = 50,
+    }: {
+        offset?: number;
+        limit?: number;
+    } = {}): CancelablePromise<Array<LogEntryDto>> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/logs',
+            query: {
+                offset,
+                limit,
+            },
         });
     }
     /**

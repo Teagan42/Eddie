@@ -2,6 +2,13 @@ import { Injectable } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import { LogEntryDto } from "./dto/log-entry.dto";
 
+export const MAX_LOG_ENTRIES = 200;
+
+interface ListLogsOptions {
+  offset?: number;
+  limit?: number;
+}
+
 export interface LogsListener {
   onLogCreated(entry: LogEntryDto): void;
 }
@@ -40,10 +47,14 @@ export class LogsService {
     }
   }
 
-  list(): LogEntryDto[] {
+  list(options: ListLogsOptions = {}): LogEntryDto[] {
+    const offset = Math.max(0, options.offset ?? 0);
+    const limit = Math.max(0, options.limit ?? 50);
+
     return this.logs
       .slice()
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+      .slice(offset, offset + limit)
       .map((entry) => this.toDto(entry));
   }
 
@@ -60,6 +71,9 @@ export class LogsService {
       createdAt: new Date(),
     };
     this.logs.push(entity);
+    if (this.logs.length > MAX_LOG_ENTRIES) {
+      this.logs.splice(0, this.logs.length - MAX_LOG_ENTRIES);
+    }
     const dto = this.toDto(entity);
     this.notify(dto);
     return dto;

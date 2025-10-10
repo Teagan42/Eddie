@@ -7,6 +7,7 @@ import {
 } from "./index";
 import { OpenAPI } from "./generated/core/OpenAPI";
 import { CreateChatMessageDto } from "./generated/models/CreateChatMessageDto";
+import { LogsService } from "./generated/services/LogsService";
 
 vi.mock("./realtime", () => ({ createRealtimeChannel: vi.fn() }));
 
@@ -182,6 +183,24 @@ describe("createApiClient", () => {
     unsubscribe();
     expect(logsChannel.handlers.get("logs.created")?.size ?? 0).toBe(0);
 
+    client.dispose();
+  });
+
+  it("passes pagination parameters to the logs HTTP client", () => {
+    const listSpy = vi
+      .spyOn(LogsService, "logsControllerList")
+      .mockResolvedValue([]);
+
+    const client = createApiClient({
+      baseUrl: "https://example.test/api/",
+      websocketUrl: "ws://example.test/ws/",
+    });
+
+    client.http.logs.list({ offset: 40, limit: 20 });
+
+    expect(listSpy).toHaveBeenCalledWith({ offset: 40, limit: 20 });
+
+    listSpy.mockRestore();
     client.dispose();
   });
 
