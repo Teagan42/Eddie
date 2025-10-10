@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState, type ComponentType, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentType,
+  type FormEvent,
+} from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -26,6 +33,7 @@ import type {
   ChatSessionDto,
   CreateChatMessageDto,
   CreateChatSessionDto,
+  LogEntryDto,
   RuntimeConfigDto,
 } from "@eddie/api-client";
 
@@ -103,6 +111,34 @@ export function OverviewPage(): JSX.Element {
     [logsQuery.data?.length, sessionsQuery.data?.length, tracesQuery.data?.length]
   );
 
+  const mergeLogsIntoCache = useCallback((incoming: LogEntryDto | LogEntryDto[]): void => {
+    const batch = Array.isArray(incoming) ? incoming : [incoming];
+    if (batch.length === 0) {
+      return;
+    }
+
+    queryClient.setQueryData<LogEntryDto[]>(["logs"], (current = []) => {
+      if (current.length === 0) {
+        return batch;
+      }
+
+      const next = [...current];
+      const indexById = new Map(current.map((entry, index) => [entry.id, index]));
+
+      for (const entry of batch) {
+        const existingIndex = indexById.get(entry.id);
+        if (existingIndex !== undefined) {
+          next[existingIndex] = entry;
+        } else {
+          indexById.set(entry.id, next.length);
+          next.push(entry);
+        }
+      }
+
+      return next;
+    });
+  }, [queryClient]);
+
   useEffect(() => {
     if (!selectedSessionId && sessionsQuery.data?.length) {
       setSelectedSessionId(sessionsQuery.data[0]?.id ?? null);
@@ -129,14 +165,14 @@ export function OverviewPage(): JSX.Element {
       ),
       api.sockets.traces.onTraceCreated(() => queryClient.invalidateQueries({ queryKey: ["traces"] })),
       api.sockets.traces.onTraceUpdated(() => queryClient.invalidateQueries({ queryKey: ["traces"] })),
-      api.sockets.logs.onLogCreated(() => queryClient.invalidateQueries({ queryKey: ["logs"] })),
+      api.sockets.logs.onLogCreated((entry) => mergeLogsIntoCache(entry)),
       api.sockets.config.onConfigUpdated(() => queryClient.invalidateQueries({ queryKey: ["config"] })),
     ];
 
     return () => {
       subscriptions.forEach((unsubscribe) => unsubscribe());
     };
-  }, [api, queryClient, selectedSessionId]);
+  }, [api, mergeLogsIntoCache, queryClient, selectedSessionId]);
 
   const createSessionMutation = useMutation({
     mutationFn: (input: CreateChatSessionDto) => api.http.chatSessions.create(input),
@@ -161,8 +197,8 @@ export function OverviewPage(): JSX.Element {
 
   const emitLogMutation = useMutation({
     mutationFn: () => api.http.logs.emit(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["logs"] });
+    onSuccess: (entry) => {
+      mergeLogsIntoCache(entry);
     },
   });
 
