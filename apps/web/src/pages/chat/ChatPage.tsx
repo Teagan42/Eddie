@@ -519,7 +519,10 @@ export function ChatPage(): JSX.Element {
     staleTime: 300_000,
   });
 
-  const providerCatalog = providerCatalogQuery.data ?? [];
+  const providerCatalog = useMemo(
+    () => providerCatalogQuery.data ?? [],
+    [providerCatalogQuery.data]
+  );
 
   const activeSettings = selectedSessionId
     ? sessionSettings[selectedSessionId] ?? {}

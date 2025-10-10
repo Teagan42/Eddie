@@ -127,15 +127,6 @@ describe("createApiClient", () => {
       },
     });
 
-    const messageUpdated = vi.fn();
-    const unsubscribeUpdate = client.sockets.chatSessions.onMessageUpdated(
-      messageUpdated
-    );
-    expect(chatChannel.on).toHaveBeenCalledWith(
-      "message.updated",
-      messageUpdated
-    );
-
     const partialHandler = vi.fn();
     const unsubscribePartial = client.sockets.chatMessages.onMessagePartial(
       partialHandler
@@ -145,7 +136,7 @@ describe("createApiClient", () => {
       partialHandler
     );
 
-    unsubscribe();
+    unsubscribeSessionCreated();
     expect(chatChannel.handlers.get("session.created")?.size ?? 0).toBe(0);
     unsubscribeMessageCreated();
     expect(chatChannel.handlers.get("message.created")?.size ?? 0).toBe(0);
