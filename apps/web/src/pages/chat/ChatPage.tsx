@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ComponentProps,
   type ComponentType,
@@ -570,6 +571,16 @@ export function ChatPage(): JSX.Element {
   const messages = messagesQuery.data ?? [];
   const orchestratorMetadata: OrchestratorMetadataDto | null =
     orchestratorQuery.data ?? null;
+  const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
+  const lastMessage = messages[messages.length - 1] ?? null;
+
+  useEffect(() => {
+    if (!lastMessage) {
+      return;
+    }
+
+    scrollAnchorRef.current?.scrollIntoView({ block: "end" });
+  }, [lastMessage?.content, lastMessage?.id, messages.length]);
 
   const handleSelectSession = useCallback(
     (sessionId: string) => {
@@ -1001,6 +1012,11 @@ export function ChatPage(): JSX.Element {
                     );
                   })
                 )}
+                <div
+                  ref={scrollAnchorRef}
+                  data-testid="chat-scroll-anchor"
+                  aria-hidden="true"
+                />
               </Flex>
             </ScrollArea>
 
