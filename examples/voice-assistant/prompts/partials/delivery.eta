@@ -1,0 +1,22 @@
+<%
+  const delivery = it.delivery || {};
+  const tempo = delivery.tempo ?? "steady";
+  const clarityTips = Array.isArray(delivery.clarityTips) ? delivery.clarityTips : [];
+  const warmups = Array.isArray(delivery.warmups) ? delivery.warmups : [];
+%>
+### Delivery notes
+- Tempo: <%= tempo %>
+<% if (warmups.length) { %>
+- Opening beats:
+<% warmups.forEach((line) => { %>
+  - <%= line %>
+<% }) %>
+<% } %>
+<% if (clarityTips.length) { %>
+- Clarity checklist:
+<% clarityTips.forEach((tip) => { %>
+  - <%= tip %>
+<% }) %>
+<% } %>
+
+Remember to acknowledge the wake word "<%= it.context?.variables?.wakeWord ?? 'Hey assistant' %>" when appropriate.

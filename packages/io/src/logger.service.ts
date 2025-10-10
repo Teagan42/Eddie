@@ -4,29 +4,59 @@ import path from "path";
 import pino, { type Logger, type LoggerOptions } from "pino";
 import type { LoggingConfig, LoggingDestination } from "@eddie/config";
 
+type LogLevel = "fatal" | "error" | "warn" | "info" | "debug" | "trace";
+
+export interface LoggerEvent {
+  level: LogLevel;
+  args: unknown[];
+}
+
+export type LoggerListener = (event: LoggerEvent) => void;
+
 @Injectable()
 export class LoggerService {
   private rootLogger: Logger | null = null;
+  private rawLogger: Logger | null = null;
   private cachedSignature = "";
+  private readonly listeners = new Set<LoggerListener>();
+  private readonly logLevels: LogLevel[] = [
+    "fatal",
+    "error",
+    "warn",
+    "info",
+    "debug",
+    "trace",
+  ];
+
+  registerListener(listener: LoggerListener): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
 
   configure(config?: LoggingConfig): Logger {
     const signature = this.computeSignature(config);
     if (this.rootLogger && signature === this.cachedSignature) {
       return this.rootLogger;
     }
-    this.rootLogger = this.buildLogger(config);
+    const rawLogger = this.buildLogger(config);
+    this.rawLogger = rawLogger;
+    this.rootLogger = this.wrapLogger(rawLogger);
     this.cachedSignature = signature;
     return this.rootLogger;
   }
 
   getLogger(scope?: string): Logger {
     if (!this.rootLogger) {
-      this.rootLogger = this.buildLogger();
+      const rawLogger = this.buildLogger();
+      this.rawLogger = rawLogger;
+      this.rootLogger = this.wrapLogger(rawLogger);
     }
     if (!scope) {
       return this.rootLogger;
     }
-    return this.rootLogger.child({ scope });
+    const base = this.rawLogger ?? this.rootLogger;
+    const child = base.child({ scope });
+    return this.wrapLogger(child);
   }
 
   withBindings(bindings: Record<string, unknown>): Logger {
@@ -35,6 +65,7 @@ export class LoggerService {
 
   reset(): void {
     this.rootLogger = null;
+    this.rawLogger = null;
     this.cachedSignature = "";
   }
 
@@ -102,6 +133,65 @@ export class LoggerService {
     }
 
     const destStream = transport ? undefined : this.prepareDestination(destination);
-    return destStream ? pino(options, destStream) : pino(options);
+    const logger = destStream ? pino(options, destStream) : pino(options);
+    return logger;
+  }
+
+  private wrapLogger<
+    TCustomLevels extends string = never,
+    TUseOnlyCustomLevels extends boolean = boolean
+  >(logger: Logger<TCustomLevels, TUseOnlyCustomLevels>): Logger<TCustomLevels, TUseOnlyCustomLevels> {
+    if ((logger as unknown as { __eddieWrapped?: boolean }).__eddieWrapped) {
+      return logger;
+    }
+
+    const proxy = new Proxy(logger, {
+      get: (target, property, receiver) => {
+        if (property === "__eddieWrapped") {
+          return true;
+        }
+
+        if (property === "child") {
+          return (...args: Parameters<Logger["child"]>) => {
+            const next = target.child(...args);
+            return this.wrapLogger(next);
+          };
+        }
+
+        if (
+          typeof property === "string" &&
+          (this.logLevels as readonly string[]).includes(property)
+        ) {
+          const original = Reflect.get(target, property, receiver);
+          if (typeof original !== "function") {
+            return original;
+          }
+
+          return (...args: unknown[]) => {
+            this.notify(property as LogLevel, args);
+            return Reflect.apply(
+              original as (...logArgs: unknown[]) => unknown,
+              target,
+              args
+            );
+          };
+        }
+
+        return Reflect.get(target, property, receiver);
+      },
+    });
+
+    return proxy as Logger<TCustomLevels, TUseOnlyCustomLevels>;
+  }
+
+  private notify(level: LogLevel, args: unknown[]): void {
+    if (this.listeners.size === 0) {
+      return;
+    }
+
+    const event: LoggerEvent = { level, args };
+    for (const listener of this.listeners) {
+      listener(event);
+    }
   }
 }

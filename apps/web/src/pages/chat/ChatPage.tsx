@@ -47,6 +47,7 @@ import { useLayoutPreferences } from "@/hooks/useLayoutPreferences";
 import type { LayoutPreferencesDto } from "@eddie/api-client";
 import { cn } from "@/components/lib/utils";
 import { Panel } from "@/components/panel";
+import { ChatMessageContent } from "./ChatMessageContent";
 import {
   getSurfaceLayoutClasses,
   SURFACE_CONTENT_CLASS,
@@ -865,13 +866,14 @@ export function ChatPage(): JSX.Element {
                               </Tooltip>
                             ) : null}
                           </Flex>
-                          <Box
-                            className={`text-sm text-slate-100 ${
-                              roleStyle.contentClassName ?? ""
-                            }`}
-                          >
-                            {message.content}
-                          </Box>
+                          <ChatMessageContent
+                            messageRole={message.role}
+                            content={message.content}
+                            className={cn(
+                              "text-sm text-slate-100",
+                              roleStyle.contentClassName
+                            )}
+                          />
                         </Box>
                       </Box>
                     );
