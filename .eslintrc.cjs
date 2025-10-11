@@ -13,5 +13,6 @@ module.exports = {
   ignorePatterns: ["dist", "apps/**/dist", "node_modules"],
   rules: {
     "@typescript-eslint/no-explicit-any": "off",
+    indent: ["error", 2, { SwitchCase: 1 }],
   },
 };
