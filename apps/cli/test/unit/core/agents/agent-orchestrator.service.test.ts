@@ -293,6 +293,10 @@ describe("AgentOrchestratorService", () => {
         { type: "delta", text: "worker response" },
         { type: "end" },
       ]),
+      createStream([
+        { type: "delta", text: "manager ack" },
+        { type: "end" },
+      ]),
     ]);
 
     const hookBus = new HookBus();

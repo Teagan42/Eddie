@@ -38,7 +38,8 @@
     "reflect-metadata": "^0.2.2",
     "tiktoken-node": "^0.0.7",
     "undici": "^7.16.0",
-    "yaml": "^2.6.0"
+    "yaml": "^2.6.0",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@nestjs/testing": "^11.1.6",
