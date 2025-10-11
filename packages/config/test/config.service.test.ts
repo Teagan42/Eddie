@@ -2,8 +2,12 @@ import fs from "fs/promises";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { Test } from "@nestjs/testing";
+
 import { ConfigService } from "../src/config.service";
 import { DEFAULT_CONFIG } from "../src/defaults";
+import { eddieConfig } from "../src/config.namespace";
+import type { EddieConfig } from "../src/types";
 
 describe("ConfigService", () => {
   const cwd = process.cwd();
@@ -26,6 +30,7 @@ describe("ConfigService", () => {
 
   describe("namespaced defaults", () => {
     const ServiceCtor = ConfigService as unknown as new (
+      defaults: EddieConfig | undefined,
       configService: {
         get: ReturnType<typeof vi.fn>;
       }
@@ -49,13 +54,39 @@ describe("ConfigService", () => {
         }),
       } as const;
 
-      const service = new ServiceCtor(configService);
+      const service = new ServiceCtor(undefined, configService);
 
       const result = await service.compose({});
 
       expect(configService.get).toHaveBeenCalledWith("eddie", { infer: true });
       expect(result.api?.host).toBe("192.0.2.10");
       expect(result.api?.port).toBe(7777);
+    });
+  });
+
+  describe("providers", () => {
+    it("merges defaults exposed by the namespaced provider", async () => {
+      const defaults = structuredClone(DEFAULT_CONFIG);
+      defaults.api = {
+        ...(defaults.api ?? {}),
+        host: "192.0.2.50",
+      };
+
+      const moduleRef = await Test.createTestingModule({
+        providers: [
+          ConfigService,
+          {
+            provide: eddieConfig.KEY,
+            useValue: defaults,
+          },
+        ],
+      }).compile();
+
+      const service = moduleRef.get(ConfigService);
+
+      const result = await service.compose({});
+
+      expect(result.api?.host).toBe("192.0.2.50");
     });
   });
 
