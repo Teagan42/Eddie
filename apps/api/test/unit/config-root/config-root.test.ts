@@ -33,6 +33,7 @@ describe("ensureDefaultConfigRoot", () => {
   it("ensures the default config root before bootstrapping the API", async () => {
     const ensureMock = vi.fn().mockReturnValue("mock-root");
     const loadMock = vi.fn().mockResolvedValue({ api: {} });
+    const getSnapshotMock = vi.fn().mockResolvedValue({ api: {} });
     const configureMock = vi.fn();
     const configureOpenApiMock = vi.fn().mockResolvedValue(undefined);
     const applyCorsMock = vi.fn();
@@ -42,6 +43,10 @@ describe("ensureDefaultConfigRoot", () => {
 
     class ConfigServiceStub {
       load = loadMock;
+    }
+
+    class ConfigStoreStub {
+      getSnapshot = getSnapshotMock;
     }
 
     class LoggerServiceStub {
@@ -101,6 +106,7 @@ describe("ensureDefaultConfigRoot", () => {
       return {
         ...actual,
         ConfigService: ConfigServiceStub,
+        ConfigStore: ConfigStoreStub,
       };
     });
 
