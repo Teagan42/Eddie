@@ -7,6 +7,8 @@ import {
 const stubs = vi.hoisted(() => ({
   loadMock: vi.fn(),
   ensureMock: vi.fn(),
+  getSnapshotMock: vi.fn(),
+  setSnapshotMock: vi.fn(),
   configureOpenApiMock: vi.fn(),
   applyCorsMock: vi.fn(),
   useMock: vi.fn(),
@@ -17,6 +19,11 @@ const stubs = vi.hoisted(() => ({
 
 class ConfigServiceStub {
   load = stubs.loadMock;
+}
+
+class ConfigStoreStuf {
+  setSnapshot = stubs.setSnapshotMock;
+  getSnapshot = stubs.getSnapshotMock;
 }
 
 class LoggerServiceStub {
@@ -50,6 +57,7 @@ vi.mock(
   () => ({
     ConfigModule: class {},
     ConfigService: ConfigServiceStub,
+    ConfigStore: 
   }),
   { virtual: true },
 );
