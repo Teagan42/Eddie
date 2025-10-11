@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
+import type { StreamEvent } from "@eddie/types";
+import {
+  ChatSessionsService,
+  type ChatSessionsListener,
+} from "../../../src/chat-sessions/chat-sessions.service";
 import { ChatSessionStreamRendererService } from "../../../src/chat-sessions/chat-session-stream-renderer.service";
 import { InMemoryChatSessionsRepository } from "../../../src/chat-sessions/chat-sessions.repository";
 import type { ChatSessionEventsService } from "../../../src/chat-sessions/chat-session-events.service";
@@ -9,14 +13,33 @@ describe("ChatSessionStreamRendererService", () => {
     let renderer: ChatSessionStreamRendererService;
     let sessionId: string;
     let events: ChatSessionEventsService;
+    let eventMocks: {
+      emitPartial: ReturnType<typeof vi.fn>;
+      emitToolCall: ReturnType<typeof vi.fn>;
+      emitToolResult: ReturnType<typeof vi.fn>;
+    };
+    const captureActivity = (): Array<{ sessionId: string; state: string }> => {
+      const events: Array<{ sessionId: string; state: string }> = [];
+      service.registerListener({
+        onSessionCreated: () => {},
+        onSessionUpdated: () => {},
+        onMessageCreated: () => {},
+        onMessageUpdated: () => {},
+        onAgentActivity: (event: { sessionId: string; state: string }) => {
+          events.push(event);
+        },
+      } as unknown as ChatSessionsListener);
+      return events;
+    };
 
     beforeEach(() => {
         service = new ChatSessionsService(new InMemoryChatSessionsRepository());
-        events = {
+        eventMocks = {
             emitPartial: vi.fn(),
             emitToolCall: vi.fn(),
             emitToolResult: vi.fn(),
-        } as unknown as ChatSessionEventsService;
+        };
+        events = eventMocks as unknown as ChatSessionEventsService;
         renderer = new ChatSessionStreamRendererService(service, events);
         sessionId = service.createSession({ title: "Stream" }).id;
     });
@@ -63,7 +86,7 @@ describe("ChatSessionStreamRendererService", () => {
     });
     it("emits partial updates for assistant responses", async () => {
         const partialEvents: string[] = [];
-        const emitPartialMock = events.emitPartial as unknown as ReturnType<typeof vi.fn>;
+        const emitPartialMock = eventMocks.emitPartial;
         emitPartialMock.mockImplementation((message: { content: string; }) =>
             partialEvents.push(message.content)
         );
@@ -76,21 +99,113 @@ describe("ChatSessionStreamRendererService", () => {
         expect(partialEvents).toEqual([ "Hello", "Hello world" ]);
     });
 
-    it("emits tool events via ToolsGateway", async () => {
-        const toolEvents = {
-            emitPartial: vi.fn(),
-            emitToolCall: vi.fn(),
-            emitToolResult: vi.fn(),
-        } as unknown as ChatSessionEventsService;
+  it("emits tool events through the events service", async () => {
+      const toolCall: StreamEvent = {
+        type: "tool_call",
+        name: "echo",
+        arguments: { text: "hi" },
+        id: "t1",
+      };
+      const toolResult: StreamEvent = {
+        type: "tool_result",
+        name: "echo",
+        result: { schema: "s1", content: "ok" },
+        id: "t1",
+      };
+      await renderer.capture(sessionId, async () => {
+          renderer.render(toolCall);
+          renderer.render(toolResult);
+      });
 
-        const rendererWithTools = new ChatSessionStreamRendererService(service, toolEvents);
+      expect(eventMocks.emitToolCall).toHaveBeenCalledWith(
+          expect.objectContaining({ sessionId, name: "echo", id: "t1" })
+      );
+      expect(eventMocks.emitToolResult).toHaveBeenCalledWith(
+          expect.objectContaining({ sessionId, name: "echo", id: "t1" })
+      );
+  });
 
-        await rendererWithTools.capture(sessionId, async () => {
-            rendererWithTools.render({ type: "tool_call", name: "echo", arguments: { text: "hi" }, id: "t1" } as any);
-            rendererWithTools.render({ type: "tool_result", name: "echo", result: { schema: "s1", content: "ok" }, id: "t1" } as any);
-        });
+  it("annotates tool events with consistent timestamps", async () => {
+    vi.useFakeTimers();
+    const now = new Date("2024-01-01T00:00:00.000Z");
+    vi.setSystemTime(now);
 
-        expect((toolEvents.emitToolCall as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalled();
-        expect((toolEvents.emitToolResult as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalled();
+    const toolCall: StreamEvent = {
+      type: "tool_call",
+      name: "echo",
+      arguments: { text: "hi" },
+      id: "call-1",
+    };
+    const toolResult: StreamEvent = {
+      type: "tool_result",
+      name: "echo",
+      result: { schema: "s1", content: "ok" },
+      id: "call-1",
+    };
+
+    await renderer.capture(sessionId, async () => {
+      renderer.render(toolCall);
+      renderer.render(toolResult);
     });
+
+    expect(eventMocks.emitToolCall).toHaveBeenCalledWith(
+      expect.objectContaining({ timestamp: now.toISOString() })
+    );
+    expect(eventMocks.emitToolResult).toHaveBeenCalledWith(
+      expect.objectContaining({ timestamp: now.toISOString() })
+    );
+
+    vi.useRealTimers();
+  });
+
+  it("announces agent activity transitions for stream events", async () => {
+    const events = captureActivity();
+
+    await renderer.capture(sessionId, async () => {
+      renderer.render({ type: "delta", text: "Hello" });
+      renderer.render({
+        type: "tool_call",
+        name: "echo",
+        arguments: { text: "hi" },
+        id: "call-1",
+      });
+      renderer.render({
+        type: "tool_result",
+        name: "echo",
+        result: { schema: "s1", content: "ok" },
+        id: "call-1",
+      });
+      renderer.render({ type: "end" });
+    });
+
+    expect(
+      events.map(({ sessionId: id, state }) => ({ sessionId: id, state }))
+    ).toEqual([
+      { sessionId, state: "thinking" },
+      { sessionId, state: "tool" },
+      { sessionId, state: "thinking" },
+      { sessionId, state: "idle" },
+    ]);
+  });
+
+  it("emits error activity for error and notification events", async () => {
+    const events = captureActivity();
+
+    await renderer.capture(sessionId, async () => {
+      renderer.render({ type: "delta", text: "Hi" });
+      renderer.render({
+        type: "notification",
+        payload: "Tool failed",
+        metadata: { severity: "error" },
+      });
+      renderer.render({ type: "error", message: "boom" });
+    });
+
+    expect(
+      events.map(({ sessionId: id, state }) => ({ sessionId: id, state }))
+    ).toEqual([
+      { sessionId, state: "thinking" },
+      { sessionId, state: "error" },
+    ]);
+  });
 });

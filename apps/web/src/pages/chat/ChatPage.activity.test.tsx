@@ -9,7 +9,9 @@ const listMessagesMock = vi.fn();
 const getMetadataMock = vi.fn();
 const catalogMock = vi.fn();
 
-let toolCallHandler: ((payload: unknown) => void) | null = null;
+let agentActivityHandler:
+  | ((payload: { sessionId: string; state: string }) => void)
+  | null = null;
 
 class ResizeObserverMock {
   observe(): void {}
@@ -19,6 +21,11 @@ class ResizeObserverMock {
 
 Object.defineProperty(globalThis, "ResizeObserver", {
   value: ResizeObserverMock,
+});
+
+Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
+  value: vi.fn(),
+  configurable: true,
 });
 
 vi.mock("@/hooks/useLayoutPreferences", () => ({
@@ -61,15 +68,14 @@ vi.mock("@/api/api-provider", () => ({
         onSessionUpdated: vi.fn().mockReturnValue(() => {}),
         onMessageCreated: vi.fn().mockReturnValue(() => {}),
         onMessageUpdated: vi.fn().mockReturnValue(() => {}),
-        onAgentActivity: vi.fn().mockReturnValue(() => {}),
+        onAgentActivity: vi.fn(
+          (handler: (payload: { sessionId: string; state: string }) => void) => {
+            agentActivityHandler = handler;
+            return () => {};
+          }
+        ),
       },
-      tools: {
-        onToolCall: vi.fn((handler: (payload: unknown) => void) => {
-          toolCallHandler = handler;
-          return () => {};
-        }),
-        onToolResult: vi.fn().mockReturnValue(() => {}),
-      },
+      tools: undefined,
     },
   }),
 }));
@@ -78,12 +84,43 @@ vi.mock("./useChatMessagesRealtime", () => ({
   useChatMessagesRealtime: vi.fn(),
 }));
 
-describe("ChatPage tool metadata merging", () => {
+function renderChatPage(): QueryClient {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  render(
+    <Theme>
+      <QueryClientProvider client={client}>
+        <ChatPage />
+      </QueryClientProvider>
+    </Theme>
+  );
+
+  return client;
+}
+
+const expectIndicatorText = async (pattern: RegExp) => {
+  await waitFor(() => {
+    expect(screen.getByTestId("agent-activity-indicator")).toHaveTextContent(
+      pattern
+    );
+  });
+};
+
+const waitForSessionsLoaded = async () => {
+  await waitFor(() => {
+    expect(listSessionsMock).toHaveBeenCalled();
+  });
+};
+
+describe("ChatPage agent activity indicator", () => {
+  const timestamp = new Date().toISOString();
+
   beforeEach(() => {
     vi.clearAllMocks();
-    toolCallHandler = null;
+    agentActivityHandler = null;
 
-    const timestamp = new Date().toISOString();
     listSessionsMock.mockResolvedValue([
       {
         id: "session-1",
@@ -104,65 +141,59 @@ describe("ChatPage tool metadata merging", () => {
     });
   });
 
-  it("keeps existing metadata when snapshot provides null fields", async () => {
-    const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+  it("reflects agent activity events for the active session", async () => {
+    renderChatPage();
+
+    await waitFor(() => {
+      expect(agentActivityHandler).toBeTypeOf("function");
     });
 
-    render(
-      <Theme>
-        <QueryClientProvider client={client}>
-          <ChatPage />
-        </QueryClientProvider>
-      </Theme>
-    );
-
-    await waitFor(() => expect(listSessionsMock).toHaveBeenCalledTimes(1));
-    expect(toolCallHandler).toBeTypeOf("function");
+    await waitForSessionsLoaded();
 
     await act(async () => {
-      toolCallHandler?.({
-        sessionId: "session-1",
-        id: "call-1",
-        name: "search",
-        status: "running",
-        arguments: "query: cats",
-      });
+      agentActivityHandler?.({ sessionId: "session-1", state: "thinking" });
     });
 
-    await waitFor(() => {
-      expect(screen.getByText("Args: query: cats")).toBeInTheDocument();
-    });
-
-    getMetadataMock.mockResolvedValueOnce({
-      sessionId: "session-1",
-      contextBundles: [],
-      agentHierarchy: [],
-      toolInvocations: [
-        {
-          id: "call-1",
-          name: "search",
-          status: "running",
-          metadata: {
-            arguments: null,
-          },
-          children: [],
-        },
-      ],
-    });
+    await expectIndicatorText(/agent is thinking/i);
 
     await act(async () => {
-      await client.refetchQueries({
-        queryKey: ["orchestrator-metadata", "session-1"],
-      });
+      agentActivityHandler?.({ sessionId: "session-1", state: "tool" });
+    });
+
+    await expectIndicatorText(/calling tools/i);
+
+    await act(async () => {
+      agentActivityHandler?.({ sessionId: "session-1", state: "error" });
+    });
+
+    await expectIndicatorText(/agent run failed/i);
+
+    await act(async () => {
+      agentActivityHandler?.({ sessionId: "session-1", state: "idle" });
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Args: query: cats")).toBeInTheDocument();
+      expect(
+        screen.queryByTestId("agent-activity-indicator")
+      ).not.toBeInTheDocument();
     });
+  });
+
+  it("ignores activity events from other sessions", async () => {
+    renderChatPage();
 
     await waitFor(() => {
-      expect(screen.queryByText("Args: —")).not.toBeInTheDocument();
+      expect(agentActivityHandler).toBeTypeOf("function");
     });
+
+    await waitForSessionsLoaded();
+
+    await act(async () => {
+      agentActivityHandler?.({ sessionId: "session-2", state: "thinking" });
+    });
+
+    await expect(
+      screen.findByText(/agent is thinking/i, undefined, { timeout: 100 })
+    ).rejects.toThrow();
   });
 });

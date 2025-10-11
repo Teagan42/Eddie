@@ -12,11 +12,20 @@ import {
 
 export type { AgentInvocationSnapshot } from "./chat-sessions.repository";
 
+export type AgentActivityState = "idle" | "thinking" | "tool" | "error";
+
+export interface AgentActivityEvent {
+  sessionId: string;
+  state: AgentActivityState;
+  timestamp: string;
+}
+
 export interface ChatSessionsListener {
   onSessionCreated(session: ChatSessionDto): void;
   onSessionUpdated(session: ChatSessionDto): void;
   onMessageCreated(message: ChatMessageDto): void;
   onMessageUpdated(message: ChatMessageDto): void;
+  onAgentActivity?(event: AgentActivityEvent): void;
 }
 
 @Injectable()
@@ -90,6 +99,14 @@ export class ChatSessionsService {
     for (const listener of this.listeners) {
       if (typeof listener.onMessageUpdated === "function") {
         listener.onMessageUpdated(message);
+      }
+    }
+  }
+
+  private notifyAgentActivity(event: AgentActivityEvent): void {
+    for (const listener of this.listeners) {
+      if (typeof listener.onAgentActivity === "function") {
+        listener.onAgentActivity(event);
       }
     }
   }
@@ -171,6 +188,15 @@ export class ChatSessionsService {
     const dto = this.messageToDto(entity);
     this.notifyMessageUpdated(dto);
     return dto;
+  }
+
+  setAgentActivity(sessionId: string, state: AgentActivityState): void {
+    this.ensureSessionExists(sessionId);
+    this.notifyAgentActivity({
+      sessionId,
+      state,
+      timestamp: new Date().toISOString(),
+    });
   }
 
   private ensureSessionExists(id: string): void {

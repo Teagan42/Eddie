@@ -66,6 +66,7 @@ vi.mock("@/api/api-provider", () => ({
         onSessionUpdated: vi.fn().mockReturnValue(() => {}),
         onMessageCreated: vi.fn().mockReturnValue(() => {}),
         onMessageUpdated: registerMessageUpdated,
+        onAgentActivity: vi.fn().mockReturnValue(() => {}),
       },
       traces: {
         onTraceCreated: vi.fn().mockReturnValue(() => {}),

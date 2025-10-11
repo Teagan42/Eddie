@@ -19,6 +19,7 @@ function createChatSessionsSocketsMock() {
     onSessionUpdated: vi.fn().mockReturnValue(() => {}),
     onMessageCreated: vi.fn().mockReturnValue(() => {}),
     onMessageUpdated: vi.fn().mockReturnValue(() => {}),
+    onAgentActivity: vi.fn().mockReturnValue(() => {}),
   };
 }
 

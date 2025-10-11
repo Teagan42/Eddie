@@ -2,7 +2,10 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { Injectable } from "@nestjs/common";
 import { StreamRendererService } from "@eddie/io";
 import type { StreamEvent } from "@eddie/types";
-import { ChatSessionsService } from "./chat-sessions.service";
+import {
+  ChatSessionsService,
+  type AgentActivityState,
+} from "./chat-sessions.service";
 import { ChatMessageRole } from "./dto/create-chat-message.dto";
 import type { ChatMessageDto } from "./dto/chat-session.dto";
 import { ChatSessionEventsService } from "./chat-session-events.service";
@@ -11,6 +14,7 @@ interface StreamState {
     sessionId: string;
     buffer: string;
     messageId?: string;
+    activity: AgentActivityState;
 }
 
 export interface StreamCaptureResult<T> {
@@ -33,11 +37,12 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
     sessionId: string,
     handler: () => Promise<T>,
   ): Promise<StreamCaptureResult<T>> {
-    const state: StreamState = { sessionId, buffer: "" };
+    const state: StreamState = { sessionId, buffer: "", activity: "idle" };
     let result: T | undefined;
     let error: unknown;
 
     await this.storage.run(state, async () => {
+      this.updateActivity(state, "thinking");
       try {
         result = await handler();
       } catch (err) {
@@ -63,27 +68,29 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
       case "delta": {
         if (!event.text) return;
         state.buffer += event.text;
+        this.updateActivity(state, "thinking");
         this.upsertMessage(state);
         break;
       }
       case "tool_call": {
-        this.events.emitToolCall({
-          sessionId: state.sessionId,
-          id: event.id ?? undefined,
-          name: event.name,
-          arguments: event.arguments ?? null,
-          timestamp: new Date().toISOString(),
-        });
+        this.updateActivity(state, "tool");
+        this.emitToolCallEvent(state, event);
         break;
       }
       case "tool_result": {
-        this.events.emitToolResult({
-          sessionId: state.sessionId,
-          id: event.id ?? undefined,
-          name: event.name,
-          result: event.result ?? null,
-          timestamp: new Date().toISOString(),
-        });
+        this.updateActivity(state, "thinking");
+        this.emitToolResultEvent(state, event);
+        break;
+      }
+      case "notification": {
+        const metadata = event.metadata as { severity?: string } | undefined;
+        if (metadata?.severity === "error") {
+          this.updateActivity(state, "error");
+        }
+        break;
+      }
+      case "error": {
+        this.updateActivity(state, "error");
         break;
       }
       case "end": {
@@ -95,6 +102,7 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
           content,
         );
         this.emitPartial(message);
+        this.updateActivity(state, "idle");
         break;
       }
       default:
@@ -124,5 +132,39 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
 
   private emitPartial(message: ChatMessageDto | undefined): void {
     if (message) this.events.emitPartial(message);
+  }
+
+  private emitToolCallEvent(
+    state: StreamState,
+    event: Extract<StreamEvent, { type: "tool_call" }>,
+  ): void {
+    this.events.emitToolCall({
+      sessionId: state.sessionId,
+      id: event.id ?? undefined,
+      name: event.name,
+      arguments: event.arguments ?? null,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  private emitToolResultEvent(
+    state: StreamState,
+    event: Extract<StreamEvent, { type: "tool_result" }>,
+  ): void {
+    this.events.emitToolResult({
+      sessionId: state.sessionId,
+      id: event.id ?? undefined,
+      name: event.name,
+      result: event.result ?? null,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  private updateActivity(state: StreamState, next: AgentActivityState): void {
+    if (state.activity === next) {
+      return;
+    }
+    state.activity = next;
+    this.chatSessions.setAgentActivity(state.sessionId, next);
   }
 }

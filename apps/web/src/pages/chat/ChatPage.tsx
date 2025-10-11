@@ -31,6 +31,7 @@ import {
   ReloadIcon,
   RocketIcon,
 } from '@radix-ui/react-icons';
+import { AgentActivityIndicator, type AgentActivityState } from './AgentActivityIndicator';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ChatMessageDto,
@@ -271,6 +272,9 @@ export function ChatPage(): JSX.Element {
   const defaultComposerRole = 'user' as ComposerRole;
   const [composerRole, setComposerRole] = useState<ComposerRole>(defaultComposerRole);
   const [templateSelection, setTemplateSelection] = useState<string>('');
+  const [agentStreamActivity, setAgentStreamActivity] = useState<
+    Exclude<AgentActivityState, 'sending'>
+  >('idle');
 
   const sessionsQuery = useQuery({
     queryKey: ['chat-sessions'],
@@ -280,6 +284,7 @@ export function ChatPage(): JSX.Element {
   const sessions = useMemo(() => sortSessions(sessionsQuery.data ?? []), [sessionsQuery.data]);
 
   const selectedSessionIdRef = useRef<string | null>(null);
+  const agentActivitySessionRef = useRef<string | null>(null);
   const toolInvocationCacheRef = useRef<Map<string, ToolInvocationNode[]>>(new Map());
 
   const invalidateOrchestratorMetadata = useCallback(
@@ -346,6 +351,33 @@ export function ChatPage(): JSX.Element {
         ? api.http.chatSessions.listMessages(selectedSessionId)
         : Promise.resolve([]),
   });
+
+  useEffect(() => {
+    const normalizedSessionId = selectedSessionId ?? null;
+    if (agentActivitySessionRef.current !== normalizedSessionId) {
+      agentActivitySessionRef.current = normalizedSessionId;
+      setAgentStreamActivity('idle');
+    }
+
+    const unsubscribe = api.sockets.chatSessions.onAgentActivity((activity) => {
+      if (!activity || activity.sessionId !== selectedSessionId) {
+        return;
+      }
+
+      if (
+        activity.state === 'idle' ||
+        activity.state === 'thinking' ||
+        activity.state === 'tool' ||
+        activity.state === 'error'
+      ) {
+        setAgentStreamActivity(activity.state);
+      }
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [api, selectedSessionId]);
 
   useEffect(() => {
     const unsubscribes = [
@@ -651,6 +683,17 @@ export function ChatPage(): JSX.Element {
   const orchestratorMetadata: OrchestratorMetadataDto | null = orchestratorQuery.data ?? null;
   const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
   const lastMessage = messages[messages.length - 1] ?? null;
+  const agentActivityState = useMemo<AgentActivityState>(() => {
+    if (sendMessageMutation.isPending) {
+      return 'sending';
+    }
+
+    if (sendMessageMutation.isError) {
+      return 'error';
+    }
+
+    return agentStreamActivity;
+  }, [agentStreamActivity, sendMessageMutation.isError, sendMessageMutation.isPending]);
 
   useEffect(() => {
     if (!lastMessage) {
@@ -1078,6 +1121,7 @@ export function ChatPage(): JSX.Element {
             </ScrollArea>
 
             <Flex direction="column" gap="3">
+              <AgentActivityIndicator state={agentActivityState} />
               <SegmentedControl.Root
                 value={composerRole}
                 onValueChange={(value) => setComposerRole(value as ComposerRole)}
