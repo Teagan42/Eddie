@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
+import { resolveCliRuntimeOptionsFromEnv } from "@eddie/config";
 import { AppModule } from "./app.module";
 import { CliRunnerService } from "./cli/cli-runner.service";
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.createApplicationContext(AppModule);
+  const runtimeOptions = resolveCliRuntimeOptionsFromEnv(process.env);
+  const app = await NestFactory.createApplicationContext(
+    AppModule.forRoot(runtimeOptions),
+  );
 
   let exitCode = 0;
 
