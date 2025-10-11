@@ -8,9 +8,10 @@ import { ChatSessionsService } from "./chat-sessions.service";
 import { ChatSessionsController } from "./chat-sessions.controller";
 import { ChatSessionsGateway } from "./chat-sessions.gateway";
 import { ChatSessionsEngineListener } from "./chat-sessions-engine.listener";
-import { ChatSessionStreamRendererService } from "./chat-session-stream-renderer.service";
 import { ChatMessagesGateway } from "./chat-messages.gateway";
 import { ToolsModule } from "../tools/tools.module";
+import { ChatSessionStreamRendererService } from "./chat-session-stream-renderer.service";
+import { ChatSessionEventsService } from "./chat-session-events.service";
 import {
   CHAT_SESSIONS_REPOSITORY,
   InMemoryChatSessionsRepository,
@@ -38,6 +39,7 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
     ChatSessionsService,
     ChatSessionsGateway,
     ChatMessagesGateway,
+    ChatSessionEventsService,
     ChatSessionsEngineListener,
     CHAT_SESSIONS_REPOSITORY_PROVIDER,
     {

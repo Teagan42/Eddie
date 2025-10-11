@@ -24,3 +24,19 @@ export function upsertMessage(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 }
+
+export function summarizeObject(obj: unknown, maxLen = 200): string | null {
+  try {
+    if (obj == null) return null;
+    if (typeof obj === "string") {
+      return obj.length > maxLen ? obj.slice(0, maxLen) + "…" : obj;
+    }
+
+    const serialized = JSON.stringify(obj);
+    return serialized.length > maxLen
+      ? serialized.slice(0, maxLen) + "…"
+      : serialized;
+  } catch {
+    return null;
+  }
+}

@@ -7,9 +7,8 @@ import {
   type AgentActivityState,
 } from "./chat-sessions.service";
 import { ChatMessageRole } from "./dto/create-chat-message.dto";
-import { ChatMessagesGateway } from "./chat-messages.gateway";
-import { ToolsGateway } from "../tools/tools.gateway";
 import type { ChatMessageDto } from "./dto/chat-session.dto";
+import { ChatSessionEventsService } from "./chat-session-events.service";
 
 interface StreamState {
     sessionId: string;
@@ -29,8 +28,7 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
   private readonly storage = new AsyncLocalStorage<StreamState>();
   constructor(
         private readonly chatSessions: ChatSessionsService,
-        private readonly messagesGateway: ChatMessagesGateway,
-        private readonly toolsGateway?: ToolsGateway,
+        private readonly events: ChatSessionEventsService,
   ) {
     super();
   }
@@ -155,7 +153,7 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
   }
 
   private emitPartial(message: ChatMessageDto | undefined): void {
-    if (message) this.messagesGateway.emitPartial(message);
+    if (message) this.events.emitPartial(message);
   }
 
   private updateActivity(state: StreamState, next: AgentActivityState): void {
