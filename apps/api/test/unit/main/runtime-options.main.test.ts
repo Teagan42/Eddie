@@ -54,12 +54,17 @@ vi.mock("@nestjs/platform-ws", () => ({
 
 vi.mock(
   "@eddie/config",
-  () => ({
-    ConfigModule: class {},
-    ConfigService: ConfigServiceStub,
-    ConfigStore: ConfigStoreStub,
-  }),
-  { virtual: true },
+  async () => {
+    const actual = await vi.importActual<typeof import("@eddie/config")>(
+      "@eddie/config",
+    );
+    return {
+      ...actual,
+      ConfigModule: class {},
+      ConfigService: ConfigServiceStub,
+      ConfigStore: ConfigStoreStub,
+    };
+  },
 );
 
 vi.mock(
@@ -96,10 +101,16 @@ describe("bootstrap runtime options", () => {
     resetRuntimeOptionsCache();
     vi.clearAllMocks();
 
+    stubs.getSnapshotMock.mockReturnValue({ api: {} });
+
     stubs.createMock.mockResolvedValue({
       enableShutdownHooks: vi.fn(),
       useWebSocketAdapter: vi.fn(),
       get: (token: unknown) => {
+        if (token === ConfigStoreStub) {
+          return new ConfigStoreStub();
+        }
+
         if (token === ConfigServiceStub) {
           return new ConfigServiceStub();
         }

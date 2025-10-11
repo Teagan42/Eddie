@@ -11,7 +11,7 @@ const configStoreProvider: Provider = {
   useFactory: async (configService: ConfigService) => {
     const store = new ConfigStore();
     configService.bindStore(store);
-    await configService.compose({});
+    await configService.load({});
     return store;
   },
   inject: [ConfigService],
