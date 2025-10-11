@@ -141,3 +141,71 @@ describe("ConfigService API persistence validation", () => {
     );
   });
 });
+
+describe("ConfigService transcript compactor configuration", () => {
+  it("applies transcript compactor options from the config file", async () => {
+    const { service } = createService();
+
+    const composed = await service.compose({
+      transcript: {
+        compactor: {
+          strategy: "simple",
+          maxMessages: 120,
+          keepLast: 40,
+        },
+      } as any,
+    });
+
+    expect(composed.transcript?.compactor).toMatchObject({
+      strategy: "simple",
+      maxMessages: 120,
+      keepLast: 40,
+    });
+  });
+
+  it("retains per-agent transcript overrides separately from global config", async () => {
+    const { service } = createService();
+
+    const composed = await service.compose({
+      transcript: {
+        compactor: {
+          strategy: "simple",
+          maxMessages: 80,
+        },
+      } as any,
+      agents: {
+        manager: {
+          transcript: {
+            compactor: {
+              strategy: "token_budget",
+              tokenBudget: 2048,
+            },
+          },
+        },
+        subagents: [
+          {
+            id: "worker",
+            transcript: {
+              compactor: {
+                strategy: "simple",
+                maxMessages: 20,
+                keepLast: 5,
+              },
+            },
+          },
+        ],
+      } as any,
+    });
+
+    expect(composed.transcript?.compactor?.strategy).toBe("simple");
+    expect(composed.agents.manager.transcript?.compactor?.strategy).toBe(
+      "token_budget",
+    );
+    expect(
+      composed.agents.subagents[0]?.transcript?.compactor?.maxMessages,
+    ).toBe(20);
+    expect(
+      composed.agents.subagents[0]?.transcript?.compactor?.keepLast,
+    ).toBe(5);
+  });
+});

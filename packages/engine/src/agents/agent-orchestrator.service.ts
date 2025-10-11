@@ -55,7 +55,7 @@ export interface AgentRuntimeOptions {
     tracePath?: string;
     sessionId?: string;
     traceAppend?: boolean;
-    transcriptCompactor?: TranscriptCompactor;
+    transcriptCompactor?: TranscriptCompactorSelector;
 }
 
 export interface AgentRunRequest extends AgentInvocationOptions {
@@ -79,6 +79,13 @@ export interface TranscriptCompactor {
     ): Promise<TranscriptCompactionPlan | null | undefined> |
         TranscriptCompactionPlan | null | undefined;
 }
+
+export type TranscriptCompactorSelector =
+    | TranscriptCompactor
+    | ((
+        invocation: AgentInvocation,
+        descriptor: AgentRuntimeDescriptor
+    ) => TranscriptCompactor | null | undefined);
 
 @Injectable()
 export class AgentOrchestratorService {
@@ -1093,7 +1100,16 @@ export class AgentOrchestratorService {
     iteration: number,
     lifecycle: AgentLifecyclePayload
   ): Promise<void> {
-    const compactor = runtime.transcriptCompactor;
+    const selector = runtime.transcriptCompactor;
+    if (!selector) {
+      return;
+    }
+
+    const descriptor = this.getInvocationDescriptor(invocation);
+    const compactor =
+            typeof selector === "function"
+              ? selector(invocation, descriptor) ?? undefined
+              : selector;
     if (!compactor) {
       return;
     }
