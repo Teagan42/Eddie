@@ -1,6 +1,6 @@
-import { Injectable, Optional } from "@nestjs/common";
-import type { ChatMessagesGateway } from "./chat-messages.gateway";
-import type { ToolsGateway } from "../tools/tools.gateway";
+import { forwardRef, Inject, Injectable } from "@nestjs/common";
+import { ChatMessagesGateway } from "./chat-messages.gateway";
+import { ToolsGateway } from "../tools/tools.gateway";
 import type { ChatMessageDto } from "./dto/chat-session.dto";
 
 export interface ChatSessionToolCallEvent {
@@ -22,9 +22,9 @@ export interface ChatSessionToolResultEvent {
 @Injectable()
 export class ChatSessionEventsService {
   constructor(
-        private readonly messagesGateway: ChatMessagesGateway,
-        @Optional() private readonly toolsGateway?: ToolsGateway,
-  ) {}
+    @Inject(forwardRef(() => ChatMessagesGateway)) private readonly messagesGateway: ChatMessagesGateway,
+    @Inject(forwardRef(() => ToolsGateway)) private readonly toolsGateway?: ToolsGateway,
+  ) { }
 
   emitPartial(message: ChatMessageDto): void {
     try {
