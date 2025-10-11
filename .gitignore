@@ -142,3 +142,4 @@ vite.config.ts.timestamp-*
 
 .eddie*
 agent_work/
+agent_work/**
