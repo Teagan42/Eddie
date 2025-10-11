@@ -4,6 +4,7 @@ import type {
   StreamEvent,
   ToolResult,
 } from "@eddie/types";
+import type { TemplateVariables } from "@eddie/templates";
 import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
 
 /**
@@ -16,7 +17,7 @@ import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
  * 5. `beforeAgentStart`
  * 6. `preCompact` (per iteration, when transcript compaction is planned)
  * 7. `beforeModelCall` (per iteration)
- * 8. `preToolUse` → `postToolUse` (per tool call, when not vetoed)
+ * 8. `preToolUse` → `beforeSpawnSubagent` (per `spawn_subagent` call) → `postToolUse`
  * 9. `notification` (streamed provider notices)
  * 10. `onError` (provider stream errors) and `onAgentError` (tool/model failures)
  * 11. `stop` (per iteration completion)
@@ -36,6 +37,7 @@ export const HOOK_EVENTS = {
   beforeModelCall: "beforeModelCall",
   preCompact: "preCompact",
   preToolUse: "preToolUse",
+  beforeSpawnSubagent: "beforeSpawnSubagent",
   postToolUse: "postToolUse",
   notification: "notification",
   onError: "onError",
@@ -214,6 +216,56 @@ export interface AgentToolResultPayload extends AgentLifecyclePayload {
   result: ToolResult;
 }
 
+export interface SpawnSubagentTargetMetadata {
+  name?: string;
+  description?: string;
+  routingThreshold?: number;
+  profileId?: string;
+}
+
+export interface SpawnSubagentTargetSummary {
+  id: string;
+  model: string;
+  provider: string;
+  metadata?: SpawnSubagentTargetMetadata;
+}
+
+export interface SpawnSubagentRequest {
+  agentId: string;
+  prompt: string;
+  variables?: TemplateVariables;
+  context?: PackedContext;
+  metadata?: Record<string, unknown>;
+}
+
+export interface SpawnSubagentDelegateOptions {
+  agentId: string;
+  prompt: string;
+  variables?: TemplateVariables;
+  context?: PackedContext;
+}
+
+export interface SpawnSubagentDelegateResult {
+  prompt: string;
+  messages: ChatMessage[];
+  target: SpawnSubagentTargetSummary;
+}
+
+export interface SpawnSubagentOverride {
+  prompt?: string;
+  variables?: TemplateVariables;
+  context?: PackedContext;
+}
+
+export interface SpawnSubagentHookPayload extends AgentLifecyclePayload {
+  event: Extract<StreamEvent, { type: "tool_call" }>;
+  request: SpawnSubagentRequest;
+  target: SpawnSubagentTargetSummary;
+  spawn: (
+    options: SpawnSubagentDelegateOptions
+  ) => Promise<SpawnSubagentDelegateResult>;
+}
+
 /**
  * Payload for {@link HOOK_EVENTS.onError}, emitted when the provider stream
  * surfaces an error during an iteration.
@@ -277,6 +329,7 @@ export type HookEventMap = {
   [HOOK_EVENTS.beforeModelCall]: AgentIterationPayload;
   [HOOK_EVENTS.preCompact]: AgentTranscriptCompactionPayload;
   [HOOK_EVENTS.preToolUse]: AgentToolCallPayload;
+  [HOOK_EVENTS.beforeSpawnSubagent]: SpawnSubagentHookPayload;
   [HOOK_EVENTS.postToolUse]: AgentToolResultPayload;
   [HOOK_EVENTS.notification]: AgentNotificationPayload;
   [HOOK_EVENTS.onError]: AgentStreamErrorPayload;
@@ -301,6 +354,21 @@ export interface HookDispatchResult<K extends HookEventName> {
   results: HookListenerResult<K>[];
   blocked?: HookBlockResponse;
   error?: unknown;
+}
+
+export function isSpawnSubagentOverride(
+  value: unknown
+): value is SpawnSubagentOverride {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  return (
+    Object.prototype.hasOwnProperty.call(candidate, "prompt") ||
+    Object.prototype.hasOwnProperty.call(candidate, "variables") ||
+    Object.prototype.hasOwnProperty.call(candidate, "context")
+  );
 }
 
 export function blockHook(reason?: string): HookBlockResponse {

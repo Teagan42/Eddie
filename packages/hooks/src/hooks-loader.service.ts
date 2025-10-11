@@ -43,6 +43,7 @@ export class HooksLoaderService {
       SessionEnd: HOOK_EVENTS.sessionEnd,
       PreCompact: HOOK_EVENTS.preCompact,
       PreToolUse: HOOK_EVENTS.preToolUse,
+      BeforeSpawnSubagent: HOOK_EVENTS.beforeSpawnSubagent,
       PostToolUse: HOOK_EVENTS.postToolUse,
       Notification: HOOK_EVENTS.notification,
       Stop: HOOK_EVENTS.stop,

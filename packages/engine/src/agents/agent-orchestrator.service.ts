@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type { Logger } from "pino";
 import { JsonlWriterService, StreamRendererService } from "@eddie/io";
-import { HOOK_EVENTS } from "@eddie/hooks";
+import { HOOK_EVENTS, isSpawnSubagentOverride } from "@eddie/hooks";
 import type { HookBus } from "@eddie/hooks";
 import type {
   AgentLifecyclePayload,
@@ -10,8 +10,17 @@ import type {
   HookDispatchResult,
   HookEventMap,
   HookEventName,
+  SpawnSubagentDelegateOptions,
+  SpawnSubagentDelegateResult,
+  SpawnSubagentHookPayload,
+  SpawnSubagentTargetSummary,
 } from "@eddie/hooks";
-import type { StreamEvent, ToolResult, ToolSchema } from "@eddie/types";
+import type {
+  PackedContext,
+  StreamEvent,
+  ToolResult,
+  ToolSchema,
+} from "@eddie/types";
 import type { AgentDefinition } from "./agent-definition";
 import {
   AgentInvocation,
@@ -359,10 +368,117 @@ export class AgentOrchestratorService {
       "Spawning configured subagent"
     );
 
-    const child = await invocation.spawn(descriptor.definition, {
+    const lifecycle = this.createLifecyclePayload(invocation);
+    const toSummary = (
+      target: AgentRuntimeDescriptor
+    ): SpawnSubagentTargetSummary => ({
+      id: target.id,
+      model: target.model,
+      provider: target.provider.name,
+      metadata: target.metadata,
+    });
+
+    const spawnForHook = async (
+      options: SpawnSubagentDelegateOptions
+    ): Promise<SpawnSubagentDelegateResult> => {
+      const targetDescriptor = runtime.catalog.getAgent(options.agentId);
+      if (!targetDescriptor) {
+        throw new Error(
+          `Hook attempted to spawn unknown agent "${ options.agentId }".`
+        );
+      }
+
+      runtime.logger.debug(
+        {
+          agent: invocation.id,
+          delegatedTo: targetDescriptor.id,
+          toolCallId: event.id,
+          hook: HOOK_EVENTS.beforeSpawnSubagent,
+        },
+        "Hook spawning intermediary subagent"
+      );
+
+      const spawned = await invocation.spawn(targetDescriptor.definition, {
+        prompt: options.prompt,
+        variables: options.variables,
+        context: options.context,
+      });
+
+      return {
+        prompt: spawned.prompt,
+        messages: spawned.messages,
+        target: toSummary(targetDescriptor),
+      };
+    };
+
+    const hookPayload: SpawnSubagentHookPayload = {
+      ...lifecycle,
+      event,
+      request: {
+        agentId: args.agent,
+        prompt: args.prompt,
+        variables: args.variables,
+        metadata: args.metadata,
+      },
+      target: toSummary(descriptor),
+      spawn: spawnForHook,
+    };
+
+    const hookDispatch = await this.dispatchHookOrThrow(
+      runtime,
+      invocation,
+      HOOK_EVENTS.beforeSpawnSubagent,
+      hookPayload
+    );
+
+    if (hookDispatch.blocked) {
+      const reason =
+        hookDispatch.blocked.reason ??
+        "Subagent delegation blocked by hook.";
+
+      runtime.logger.warn(
+        {
+          agent: invocation.id,
+          delegatedTo: descriptor.id,
+          toolCallId: event.id,
+          reason,
+        },
+        "Subagent spawn vetoed by hook"
+      );
+
+      return {
+        schema: SPAWN_TOOL_RESULT_SCHEMA,
+        content: reason,
+        data: {
+          agentId: descriptor.id,
+          messageCount: 0,
+          prompt: args.prompt,
+          blocked: true,
+        },
+        metadata: {
+          agentId: descriptor.id,
+          model: descriptor.model,
+          provider: descriptor.provider.name,
+          parentAgentId: parentDescriptor.id,
+          blocked: true,
+        },
+      };
+    }
+
+    const overrides = this.applySpawnOverrides(hookDispatch, {
       prompt: args.prompt,
       variables: args.variables,
     });
+
+    const spawnOptions: AgentInvocationOptions = {
+      prompt: overrides.prompt,
+      variables: overrides.variables,
+      ...(overrides.contextProvided && overrides.context
+        ? { context: overrides.context }
+        : {}),
+    };
+
+    const child = await invocation.spawn(descriptor.definition, spawnOptions);
 
     const finalMessage = child.messages.at(-1);
     const content =
@@ -396,15 +512,19 @@ export class AgentOrchestratorService {
     const data: Record<string, unknown> = {
       agentId: descriptor.id,
       messageCount: child.messages.length,
-      prompt: args.prompt,
+      prompt: overrides.prompt,
     };
 
     if (finalMessage?.content) {
       data.finalMessage = finalMessage.content;
     }
 
-    if (args.variables && Object.keys(args.variables).length > 0) {
-      data.variables = args.variables;
+    if (overrides.variables && Object.keys(overrides.variables).length > 0) {
+      data.variables = overrides.variables;
+    }
+
+    if (overrides.contextProvided && overrides.context) {
+      data.context = overrides.context;
     }
 
     return {
@@ -417,6 +537,42 @@ export class AgentOrchestratorService {
 
   private isPlainObject(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  private applySpawnOverrides(
+    dispatch: HookDispatchResult<(typeof HOOK_EVENTS)["beforeSpawnSubagent"]>,
+    defaults: { prompt: string; variables?: TemplateVariables }
+  ): {
+    prompt: string;
+    variables?: TemplateVariables;
+    context?: PackedContext;
+    contextProvided: boolean;
+  } {
+    let prompt = defaults.prompt;
+    let variables = defaults.variables;
+    let context: PackedContext | undefined;
+    let contextProvided = false;
+
+    for (const result of dispatch.results) {
+      if (!isSpawnSubagentOverride(result)) {
+        continue;
+      }
+
+      if (Object.hasOwn(result, "prompt") && result.prompt !== undefined) {
+        prompt = result.prompt;
+      }
+
+      if (Object.hasOwn(result, "variables")) {
+        variables = result.variables;
+      }
+
+      if (Object.hasOwn(result, "context")) {
+        context = result.context;
+        contextProvided = true;
+      }
+    }
+
+    return { prompt, variables, context, contextProvided };
   }
 
   /**
