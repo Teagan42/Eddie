@@ -24,6 +24,9 @@ interface BuildOptions {
 const joinRelativePath = (base: string, segment: string) =>
   base ? `${base}/${segment}` : segment;
 
+const toPosix = (value: string) =>
+  path.sep === "/" ? value : value.split(path.sep).join("/");
+
 const normalizeRootDisplay = (value: string) =>
   value.length === 0 ? "." : value;
 
@@ -51,12 +54,7 @@ async function buildTreeEntries(
     if (dirent.isDirectory()) {
       const entries =
         depth < options.maxDepth
-          ? await buildTreeEntries(
-              childAbsolute,
-              childRelative,
-              depth + 1,
-              options,
-            )
+          ? await buildTreeEntries(childAbsolute, childRelative, depth + 1, options)
           : [];
       results.push({
         name: dirent.name,
@@ -149,13 +147,15 @@ export const getFolderTreeStructureTool: ToolDefinition = {
     const requestedPath = String(args.path ?? ".");
     const rootDisplay = normalizeRootDisplay(requestedPath);
     const absolute = path.resolve(ctx.cwd, requestedPath);
+    const workspaceRelative = path.relative(ctx.cwd, absolute);
+    const initialRelative = workspaceRelative ? toPosix(workspaceRelative) : "";
     const maxDepth =
       typeof args.maxDepth === "number" && Number.isFinite(args.maxDepth)
         ? Math.max(0, Math.floor(args.maxDepth))
         : Number.POSITIVE_INFINITY;
     const includeHidden = Boolean(args.includeHidden);
 
-    const entries = await buildTreeEntries(absolute, "", 0, {
+    const entries = await buildTreeEntries(absolute, initialRelative, 0, {
       includeHidden,
       maxDepth,
     });
