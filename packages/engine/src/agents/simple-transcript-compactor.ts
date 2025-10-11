@@ -14,13 +14,14 @@ import type {
 export class SimpleTranscriptCompactor implements TranscriptCompactor {
   constructor(private readonly maxMessages = 300, private readonly keepLast = 50) {}
 
-  plan(invocation: AgentInvocation, _iteration: number): TranscriptCompactionPlan | null {
+  plan(invocation: AgentInvocation, iteration: number): TranscriptCompactionPlan | null {
+    void iteration;
     const total = invocation.messages.length;
     if (total <= this.maxMessages) {
       return null;
     }
 
-    const targetKeep = Math.max(this.keepLast, Math.floor(this.maxMessages / 3));
+    const targetKeep = this.computeTargetKeep();
     const overLimit = total - this.maxMessages;
     const maxRemovable = Math.max(0, total - targetKeep);
     const removableCount = Math.min(overLimit, maxRemovable);
@@ -60,5 +61,12 @@ export class SimpleTranscriptCompactor implements TranscriptCompactor {
         return { removedMessages: removed };
       },
     };
+  }
+
+  private computeTargetKeep(): number {
+    return Math.min(
+      this.maxMessages,
+      Math.max(this.keepLast, Math.floor(this.maxMessages / 3))
+    );
   }
 }

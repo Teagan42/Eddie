@@ -25,4 +25,33 @@ describe("SimpleTranscriptCompactor", () => {
 
     expect(plan).toBeNull();
   });
+
+  it("compacts when keepLast exceeds the max message limit", () => {
+    const compactor = new SimpleTranscriptCompactor(5, 10);
+    const invocation = buildInvocation([
+      message("system", "system"),
+      message("user", "m1"),
+      message("assistant", "m2"),
+      message("user", "m3"),
+      message("assistant", "m4"),
+      message("user", "m5"),
+      message("assistant", "m6"),
+      message("user", "m7"),
+    ]);
+
+    const plan = compactor.plan(invocation, 0);
+
+    expect(plan).not.toBeNull();
+    const result = plan!.apply();
+
+    expect(result).toEqual({ removedMessages: 3 });
+    expect(invocation.messages).toHaveLength(5);
+    expect(invocation.messages[0]?.role).toBe("system");
+    expect(invocation.messages.slice(1).map((msg) => msg.content)).toEqual([
+      "m4",
+      "m5",
+      "m6",
+      "m7",
+    ]);
+  });
 });
