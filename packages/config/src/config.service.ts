@@ -11,6 +11,7 @@ import { MODULE_OPTIONS_TOKEN } from './config.const';
 import { eddieConfig } from "./config.namespace";
 import { ConfigStore } from './config.store';
 import { DEFAULT_CONFIG } from "./defaults";
+import { resolveCliRuntimeOptionsFromEnv } from "./runtime-env";
 import type {
   AgentProviderConfig,
   AgentsConfig,
@@ -90,7 +91,11 @@ export class ConfigService implements OnApplicationBootstrap {
     @Inject(eddieConfig.KEY)
     private readonly defaultsProvider?: ConfigType<typeof eddieConfig>,
   ) {
-    this.moduleOptions = moduleOptions ?? {};
+    const envOptions = resolveCliRuntimeOptionsFromEnv(process.env);
+    this.moduleOptions = {
+      ...envOptions,
+      ...(moduleOptions ?? {}),
+    };
   }
 
   async onApplicationBootstrap() {

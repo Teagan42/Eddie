@@ -7,6 +7,7 @@ import { eddieConfig } from "./config.namespace";
 import { ConfigService } from "./config.service";
 import { ConfigWatcher } from "./config-watcher";
 import { ConfigStore } from './config.store';
+import { initialConfigProvider } from "./initial-config.provider";
 import type { CliRuntimeOptions } from "./types";
 import { ConfigurableModuleClass, MODULE_OPTIONS_TOKEN } from './config.const';
 
@@ -14,7 +15,7 @@ import { ConfigurableModuleClass, MODULE_OPTIONS_TOKEN } from './config.const';
 @Global()
 @Module({
   imports: [NestConfigModule.forFeature(eddieConfig)],
-  providers: [ConfigService, ConfigWatcher, ConfigStore],
+  providers: [ConfigService, ConfigWatcher, initialConfigProvider, ConfigStore],
   exports: [ConfigService, ConfigStore, ConfigWatcher, NestConfigModule],
 })
 export class ConfigModule extends ConfigurableModuleClass {
