@@ -1,41 +1,42 @@
 import { describe, expect, it, vi } from "vitest";
-import { ChatSessionEventsService } from "../../../src/chat-sessions/chat-session-events.service";
+import type { ChatMessageDto } from "../../../src/chat-sessions/dto/chat-session.dto";
+import { ChatMessagePartialEvent, ChatMessagePartialEventHandler } from "../../../src/chat-sessions/events";
+import { ChatSessionToolCallEvent, ChatSessionToolCallEventHandler, ChatSessionToolResultEvent, ChatSessionToolResultEventHandler } from "../../../src/chat-sessions/events";
 import type { ChatMessagesGateway } from "../../../src/chat-sessions/chat-messages.gateway";
 import type { ToolsGateway } from "../../../src/tools/tools.gateway";
-import type { ChatMessageDto } from "../../../src/chat-sessions/dto/chat-session.dto";
 
-describe("ChatSessionEventsService", () => {
-    const sampleMessage = { id: "m1" } as unknown as ChatMessageDto;
+describe("ChatMessagePartialEventHandler", () => {
+  it("forwards partial message payloads through the gateway", () => {
+    const gateway = { emitPartial: vi.fn() } as unknown as ChatMessagesGateway;
+    const handler = new ChatMessagePartialEventHandler(gateway);
+    const message = { id: "m1" } as ChatMessageDto;
 
-    it("emits partial messages through the chat messages gateway", () => {
-        const gateway = { emitPartial: vi.fn() } as unknown as ChatMessagesGateway;
-        const events = new ChatSessionEventsService(gateway);
+    handler.handle(new ChatMessagePartialEvent(message));
 
-        events.emitPartial(sampleMessage);
+    expect((gateway.emitPartial as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(message);
+  });
+});
 
-        expect((gateway.emitPartial as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(sampleMessage);
-    });
+describe("ChatSessionToolCallEventHandler", () => {
+  it("forwards tool call payloads through the tools gateway", () => {
+    const gateway = { emitToolCall: vi.fn() } as unknown as ToolsGateway;
+    const handler = new ChatSessionToolCallEventHandler(gateway);
+    const payload = { sessionId: "s1" } as ChatSessionToolCallEvent["payload"];
 
-    it("emits tool events when the tools gateway is provided", () => {
-        const gateway = { emitPartial: vi.fn() } as unknown as ChatMessagesGateway;
-        const tools = { emitToolCall: vi.fn(), emitToolResult: vi.fn() } as unknown as ToolsGateway;
-        const events = new ChatSessionEventsService(gateway, tools);
+    handler.handle(new ChatSessionToolCallEvent(payload));
 
-        const callPayload = { sessionId: "s1" };
-        const resultPayload = { sessionId: "s1", result: "ok" };
+    expect((gateway.emitToolCall as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(payload);
+  });
+});
 
-        events.emitToolCall(callPayload);
-        events.emitToolResult(resultPayload);
+describe("ChatSessionToolResultEventHandler", () => {
+  it("forwards tool result payloads through the tools gateway", () => {
+    const gateway = { emitToolResult: vi.fn() } as unknown as ToolsGateway;
+    const handler = new ChatSessionToolResultEventHandler(gateway);
+    const payload = { sessionId: "s1" } as ChatSessionToolResultEvent["payload"];
 
-        expect((tools.emitToolCall as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(callPayload);
-        expect((tools.emitToolResult as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(resultPayload);
-    });
+    handler.handle(new ChatSessionToolResultEvent(payload));
 
-    it("ignores tool events when the tools gateway is absent", () => {
-        const gateway = { emitPartial: vi.fn() } as unknown as ChatMessagesGateway;
-        const events = new ChatSessionEventsService(gateway);
-
-        expect(() => events.emitToolCall({})).not.toThrow();
-        expect(() => events.emitToolResult({})).not.toThrow();
-    });
+    expect((gateway.emitToolResult as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(payload);
+  });
 });
