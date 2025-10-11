@@ -21,7 +21,7 @@ class ConfigServiceStub {
   load = stubs.loadMock;
 }
 
-class ConfigStoreStuf {
+class ConfigStoreStub {
   setSnapshot = stubs.setSnapshotMock;
   getSnapshot = stubs.getSnapshotMock;
 }
@@ -57,7 +57,7 @@ vi.mock(
   () => ({
     ConfigModule: class {},
     ConfigService: ConfigServiceStub,
-    ConfigStore: 
+    ConfigStore: ConfigStoreStub,
   }),
   { virtual: true },
 );
