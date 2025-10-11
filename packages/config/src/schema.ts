@@ -152,6 +152,8 @@ const API_PERSISTENCE_SQL_DRIVER_SCHEMA: JSONSchema7 = {
   required: ["connection"],
   properties: {
     connection: API_PERSISTENCE_SQL_CONNECTION_SCHEMA,
+    url: { type: "string" },
+    ssl: { type: "boolean" },
   },
 };
 
