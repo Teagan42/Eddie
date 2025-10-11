@@ -34,7 +34,13 @@
       "@eddie/tools": ["packages/tools/src"],
       "@eddie/tools/*": ["packages/tools/src/*"],
       "@eddie/types": ["packages/types/src"],
-      "@eddie/types/*": ["packages/types/src/*"]
+      "@eddie/types/*": ["packages/types/src/*"],
+      "@modelcontextprotocol/sdk": [
+        "node_modules/@modelcontextprotocol/sdk/dist/cjs/index"
+      ],
+      "@modelcontextprotocol/sdk/*": [
+        "node_modules/@modelcontextprotocol/sdk/dist/cjs/*"
+      ]
     }
   }
 }

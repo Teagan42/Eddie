@@ -3,41 +3,50 @@ import { Buffer } from "buffer";
 import type {
   MCPToolSourceConfig,
   MCPAuthConfig,
+  MCPStreamableHttpReconnectionConfig,
 } from "@eddie/config";
 import type {
   DiscoveredMcpResource,
   DiscoveredMcpPrompt,
   McpPromptDefinition,
   McpPromptDescription,
+  McpPromptMessage,
+  McpPromptArgument,
   McpResourceDescription,
   McpToolDescription,
   McpToolSourceDiscovery,
 } from "./types";
 import type { ToolDefinition, ToolResult, ToolCallArguments } from "@eddie/types";
-import {
-  Client,
-  type ClientCapabilities,
-} from "@modelcontextprotocol/sdk/client/index.js";
+import { Client } from "@modelcontextprotocol/sdk/client";
 import {
   StreamableHTTPClientTransport,
   type StreamableHTTPClientTransportOptions,
-} from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+  type StreamableHTTPReconnectionOptions,
+} from "@modelcontextprotocol/sdk/client/streamableHttp";
 import {
   SSEClientTransport,
   type SSEClientTransportOptions,
-} from "@modelcontextprotocol/sdk/client/sse.js";
-import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
+} from "@modelcontextprotocol/sdk/client/sse";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport";
 import {
   CompatibilityCallToolResultSchema,
   ErrorCode,
   McpError,
   type CallToolResult,
+  type ClientCapabilities,
   type CompatibilityCallToolResult,
-} from "@modelcontextprotocol/sdk/types.js";
+} from "@modelcontextprotocol/sdk/types";
 
 type CallToolResultLike = CallToolResult | CompatibilityCallToolResult;
 
 type ClientExecutor<T> = (client: Client) => Promise<T>;
+
+const STREAMABLE_HTTP_DEFAULT_RECONNECTION: StreamableHTTPReconnectionOptions = {
+  maxReconnectionDelay: 30000,
+  initialReconnectionDelay: 1000,
+  reconnectionDelayGrowFactor: 1.5,
+  maxRetries: 2,
+};
 
 @Injectable()
 export class McpToolSourceService {
@@ -107,7 +116,8 @@ export class McpToolSourceService {
 
   private async listTools(client: Client): Promise<McpToolDescription[]> {
     const result = await client.listTools();
-    return (result.tools ?? []).map((tool) => ({
+    const tools = (result.tools ?? []) as McpToolDescription[];
+    return tools.map((tool) => ({
       ...tool,
       inputSchema: structuredClone(tool.inputSchema),
       outputSchema: tool.outputSchema
@@ -118,7 +128,8 @@ export class McpToolSourceService {
 
   private async listResources(client: Client): Promise<McpResourceDescription[]> {
     const result = await client.listResources();
-    return (result.resources ?? []).map((resource) => ({
+    const resources = (result.resources ?? []) as McpResourceDescription[];
+    return resources.map((resource) => ({
       ...resource,
       metadata: resource.metadata ? structuredClone(resource.metadata) : undefined,
     }));
@@ -153,18 +164,20 @@ export class McpToolSourceService {
     name: string
   ): Promise<McpPromptDefinition> {
     const result = await client.getPrompt({ name });
-    const prompt = result.prompt;
+    const prompt = result.prompt as McpPromptDefinition;
+    const promptArguments = (prompt.arguments ?? []) as McpPromptArgument[];
+    const promptMessages = (prompt.messages ?? []) as McpPromptMessage[];
     return {
       name: prompt.name,
       description: prompt.description,
-      arguments: prompt.arguments?.map((argument) => ({
+      arguments: promptArguments.map((argument) => ({
         ...argument,
         schema:
           argument.schema !== undefined
             ? structuredClone(argument.schema)
             : undefined,
       })),
-      messages: (prompt.messages ?? []).map((message) => ({
+      messages: promptMessages.map((message) => ({
         ...message,
         content: structuredClone(message.content ?? []),
       })),
@@ -281,7 +294,7 @@ export class McpToolSourceService {
 
     if ("metadata" in (payload as Record<string, unknown>)) {
       const metadata = (payload as { metadata?: unknown }).metadata;
-      if (metadata !== undefined) {
+      if (this.isRecord(metadata)) {
         normalized.metadata = structuredClone(metadata);
       }
     }
@@ -396,7 +409,6 @@ export class McpToolSourceService {
 
     if (transportConfig?.type === "sse") {
       const options: SSEClientTransportOptions = {
-        eventSourceInit: { headers },
         requestInit: { headers },
       };
       return new SSEClientTransport(url, options);
@@ -411,14 +423,37 @@ export class McpToolSourceService {
         options.sessionId = transportConfig.sessionId;
       }
 
-      if (transportConfig.reconnection) {
-        options.reconnectionOptions = {
-          ...transportConfig.reconnection,
-        };
+      const reconnectionOptions = this.buildReconnectionOptions(
+        transportConfig.reconnection
+      );
+      if (reconnectionOptions) {
+        options.reconnectionOptions = reconnectionOptions;
       }
     }
 
     return new StreamableHTTPClientTransport(url, options);
+  }
+
+  private buildReconnectionOptions(
+    overrides: MCPStreamableHttpReconnectionConfig | undefined
+  ): StreamableHTTPReconnectionOptions | undefined {
+    if (!overrides) {
+      return undefined;
+    }
+
+    return {
+      maxReconnectionDelay:
+        overrides.maxReconnectionDelay ??
+        STREAMABLE_HTTP_DEFAULT_RECONNECTION.maxReconnectionDelay,
+      initialReconnectionDelay:
+        overrides.initialReconnectionDelay ??
+        STREAMABLE_HTTP_DEFAULT_RECONNECTION.initialReconnectionDelay,
+      reconnectionDelayGrowFactor:
+        overrides.reconnectionDelayGrowFactor ??
+        STREAMABLE_HTTP_DEFAULT_RECONNECTION.reconnectionDelayGrowFactor,
+      maxRetries:
+        overrides.maxRetries ?? STREAMABLE_HTTP_DEFAULT_RECONNECTION.maxRetries,
+    };
   }
 
   private buildHeaders(source: MCPToolSourceConfig): Record<string, string> {
@@ -456,6 +491,10 @@ export class McpToolSourceService {
       default:
         return "";
     }
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
   }
 
   private isPromptsNotSupportedError(error: unknown): boolean {

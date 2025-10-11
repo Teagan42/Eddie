@@ -19,7 +19,7 @@ const clientInstance = {
   callTool: callToolMock,
 };
 
-vi.mock("@modelcontextprotocol/sdk/client/index.js", () => ({
+vi.mock("@modelcontextprotocol/sdk/client", () => ({
   Client: vi.fn(() => clientInstance),
 }));
 
@@ -30,7 +30,7 @@ const streamableHttpTransportMock = vi.hoisted(() =>
   }))
 );
 
-vi.mock("@modelcontextprotocol/sdk/client/streamableHttp.js", () => ({
+vi.mock("@modelcontextprotocol/sdk/client/streamableHttp", () => ({
   StreamableHTTPClientTransport: streamableHttpTransportMock,
 }));
 
@@ -41,7 +41,7 @@ const sseTransportMock = vi.hoisted(() =>
   }))
 );
 
-vi.mock("@modelcontextprotocol/sdk/client/sse.js", () => ({
+vi.mock("@modelcontextprotocol/sdk/client/sse", () => ({
   SSEClientTransport: sseTransportMock,
 }));
 
@@ -82,5 +82,40 @@ describe("McpToolSourceService", () => {
 
     expect(sseTransportMock).toHaveBeenCalledTimes(1);
     expect(streamableHttpTransportMock).not.toHaveBeenCalled();
+  });
+
+  it("omits metadata when tool results report a null metadata payload", async () => {
+    const service = new McpToolSourceService();
+    const config = {
+      id: "metadata-source",
+      type: "mcp",
+      url: "https://example.com/mcp",
+    } as unknown as MCPToolSourceConfig;
+
+    listToolsMock.mockResolvedValue({
+      tools: [
+        {
+          name: "echo",
+          description: "Echo tool",
+          inputSchema: { type: "object" },
+        },
+      ],
+    });
+
+    callToolMock.mockResolvedValueOnce({
+      schema: "test.schema",
+      content: "ok",
+      metadata: null,
+    });
+
+    const { tools } = await service.collectTools([config]);
+    expect(tools).toHaveLength(1);
+
+    const result = await tools[0].handler({});
+
+    expect(result).toEqual({
+      schema: "test.schema",
+      content: "ok",
+    });
   });
 });
