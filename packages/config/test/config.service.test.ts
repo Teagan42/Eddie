@@ -136,6 +136,106 @@ describe("ConfigService", () => {
         sqlite: { filename: "./tmp/chat.sqlite" },
       });
     });
+
+    describe.each([
+      [
+        "postgres",
+        {
+          host: "198.51.100.11",
+          port: 5432,
+          database: "eddie_agents",
+          user: "postgres_operator",
+          password: "pg-secret",
+        },
+      ],
+      [
+        "mysql",
+        {
+          host: "198.51.100.12",
+          port: 3306,
+          database: "eddie_agents",
+          user: "mysql_operator",
+          password: "mysql-secret",
+        },
+      ],
+      [
+        "mariadb",
+        {
+          host: "198.51.100.13",
+          port: 3307,
+          database: "eddie_agents",
+          user: "maria_operator",
+          password: "maria-secret",
+        },
+      ],
+    ])(
+      "preserves %s connection configuration when provided",
+      (driver, connection) => {
+        it("keeps the connection block intact", async () => {
+          const service = new ConfigService();
+
+          const result = await service.compose({
+            api: {
+              persistence: {
+                driver,
+                [driver]: {
+                  connection,
+                },
+              } as unknown,
+            },
+          });
+
+          expect(result.api?.persistence).toMatchObject({
+            driver,
+            [driver]: {
+              connection,
+            },
+          });
+        });
+      }
+    );
+
+    it("requires connection details when configuring postgres persistence", async () => {
+      const service = new ConfigService();
+
+      await expect(
+        service.compose({
+          api: {
+            persistence: {
+              driver: "postgres",
+              postgres: {},
+            },
+          },
+        })
+      ).rejects.toThrow(
+        "api.persistence.postgres.connection must be provided when using the postgres driver."
+      );
+    });
+
+    it("rejects non-numeric postgres connection ports", async () => {
+      const service = new ConfigService();
+
+      await expect(
+        service.compose({
+          api: {
+            persistence: {
+              driver: "postgres",
+              postgres: {
+                connection: {
+                  host: "198.51.100.50",
+                  port: "not-a-number" as unknown as number,
+                  database: "eddie_agents",
+                  user: "postgres_operator",
+                  password: "pg-secret",
+                },
+              },
+            },
+          },
+        })
+      ).rejects.toThrow(
+        "api.persistence.postgres.connection.port must be a number."
+      );
+    });
   });
 
   describe("load", () => {
