@@ -85,4 +85,20 @@ describe("ConfigStore", () => {
 
     await moduleRef.close();
   });
+
+  it("does not emit when setting an identical snapshot", () => {
+    const store = new ConfigStore();
+
+    let emissions = 0;
+    const subscription = store.changes$.pipe(skip(1)).subscribe(() => {
+      emissions += 1;
+    });
+
+    const snapshot = store.getSnapshot();
+    store.setSnapshot(structuredClone(snapshot));
+
+    expect(emissions).toBe(0);
+
+    subscription.unsubscribe();
+  });
 });
