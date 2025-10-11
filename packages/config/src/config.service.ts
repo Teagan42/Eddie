@@ -1,16 +1,16 @@
-import { forwardRef, Inject, Injectable, OnApplicationBootstrap, OnModuleInit, Optional } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, OnApplicationBootstrap, Optional } from "@nestjs/common";
 import {
   ConfigType,
 } from "@nestjs/config";
 import fs from "fs/promises";
 import path from "path";
-
-const DEFAULT_CONFIG_ROOT = path.resolve(process.cwd(), "config");
-import yaml from "yaml";
-import { DEFAULT_CONFIG } from "./defaults";
-import { eddieConfig } from "./config.namespace";
 import { Subject } from "rxjs";
+import yaml from "yaml";
 import { z } from "zod";
+import { MODULE_OPTIONS_TOKEN } from './config.const';
+import { eddieConfig } from "./config.namespace";
+import { ConfigStore } from './config.store';
+import { DEFAULT_CONFIG } from "./defaults";
 import type {
   AgentProviderConfig,
   AgentsConfig,
@@ -28,8 +28,8 @@ import type {
   ProviderProfileConfig,
   ToolsConfig,
 } from "./types";
-import { MODULE_OPTIONS_TOKEN } from './config.const';
-import { ConfigStore } from './config.store';
+
+const DEFAULT_CONFIG_ROOT = path.resolve(process.cwd(), "config");
 
 export type ConfigFileFormat = "yaml" | "json";
 
