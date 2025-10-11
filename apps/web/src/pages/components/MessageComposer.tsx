@@ -1,4 +1,4 @@
-import type { FormEventHandler } from "react";
+import type { FormEventHandler, KeyboardEvent } from "react";
 import { Button, Flex, Text, TextArea } from "@radix-ui/themes";
 import { PaperPlaneIcon } from "@radix-ui/react-icons";
 
@@ -16,6 +16,42 @@ export function MessageComposer({ disabled, value, onChange, onSubmit }: Message
     "pointer-events-none absolute -bottom-10 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-sky-500/20 blur-3xl",
   ];
 
+  const submitForm = (form: HTMLFormElement) => {
+    if (typeof form.requestSubmit === "function") {
+      form.requestSubmit();
+
+      return;
+    }
+
+    form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+
+    const hasModifier = event.metaKey || event.ctrlKey || event.altKey;
+
+    if (!hasModifier) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (disabled) {
+      return;
+    }
+
+    const form = event.currentTarget.form;
+
+    if (!form) {
+      return;
+    }
+
+    submitForm(form);
+  };
+
   return (
     <form
       onSubmit={onSubmit}
@@ -30,6 +66,7 @@ export function MessageComposer({ disabled, value, onChange, onSubmit }: Message
             placeholder="Send a message"
             value={value}
             onChange={(event) => onChange(event.target.value)}
+            onKeyDown={handleKeyDown}
             disabled={disabled}
             rows={3}
             variant="soft"
