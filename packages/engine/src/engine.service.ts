@@ -7,6 +7,7 @@ import type {
   CliRuntimeOptions,
   EddieConfig,
   ProviderConfig,
+  TranscriptCompactorConfig,
 } from "@eddie/config";
 import { ConfigService, ConfigStore, hasRuntimeOverrides } from "@eddie/config";
 import { ContextService } from "@eddie/context";
@@ -29,14 +30,20 @@ import type {
   ToolDefinition,
 } from "@eddie/types";
 import { TokenizerService } from "@eddie/tokenizers";
-import { AgentOrchestratorService } from "./agents/agent-orchestrator.service";
+import {
+  AgentOrchestratorService,
+  type AgentRuntimeOptions,
+  type TranscriptCompactor,
+  type TranscriptCompactorSelector,
+} from "./agents/agent-orchestrator.service";
 import type { AgentDefinition } from "./agents/agent-definition";
 import type { AgentInvocation } from "./agents/agent-invocation";
-import type { AgentRuntimeOptions } from "./agents/agent-orchestrator.service";
 import type { AgentRuntimeCatalog, AgentRuntimeDescriptor } from "./agents/agent-runtime.types";
 import type { Logger } from "pino";
 import { McpToolSourceService } from "@eddie/mcp";
 import type { DiscoveredMcpResource } from "@eddie/mcp";
+import { SimpleTranscriptCompactor } from "./agents/simple-transcript-compactor";
+import { TokenBudgetCompactor } from "./agents/token-budget-compactor";
 
 export interface EngineOptions extends CliRuntimeOptions {
     history?: ChatMessage[];
@@ -193,6 +200,7 @@ export class EngineService {
         autoApprove: options.autoApprove ?? cfg.tools?.autoApprove,
         nonInteractive: options.nonInteractive ?? false,
       });
+      const transcriptCompactor = this.resolveTranscriptCompactor(cfg);
 
       const runtime: AgentRuntimeOptions = {
         catalog,
@@ -202,6 +210,7 @@ export class EngineService {
         logger,
         tracePath,
         traceAppend: cfg.output?.jsonlAppend ?? true,
+        transcriptCompactor,
       };
       // Attach sessionId so trace writes include it
       (runtime as any).sessionId = sessionId;
@@ -519,6 +528,78 @@ export class EngineService {
     const model = modelOverride ?? profileModel ?? cfg.model;
 
     return { providerConfig, model, profileId };
+  }
+
+  private resolveTranscriptCompactor(
+    cfg: EddieConfig,
+  ): TranscriptCompactorSelector | undefined {
+    const globalConfig = cfg.transcript?.compactor;
+    const perAgent = new Map<string, TranscriptCompactor>();
+    const register = (id: string, config?: TranscriptCompactorConfig): void => {
+      if (!config) {
+        return;
+      }
+      perAgent.set(id, this.createTranscriptCompactor(config, id));
+    };
+
+    register("manager", cfg.agents.manager.transcript?.compactor);
+
+    for (const subagent of cfg.agents.subagents) {
+      register(subagent.id, subagent.transcript?.compactor);
+    }
+
+    const globalCompactor = globalConfig
+      ? this.createTranscriptCompactor(globalConfig, "global")
+      : undefined;
+
+    if (perAgent.size === 0) {
+      return globalCompactor;
+    }
+
+    return (invocation, descriptor) => {
+      const agentId = descriptor?.id ?? invocation.definition.id;
+      return perAgent.get(agentId) ?? globalCompactor ?? null;
+    };
+  }
+
+  private createTranscriptCompactor(
+    config: TranscriptCompactorConfig,
+    agentId: string,
+  ): TranscriptCompactor {
+    if (config.strategy === "simple") {
+      return new SimpleTranscriptCompactor(
+        config.maxMessages,
+        config.keepLast,
+      );
+    }
+
+    if (config.strategy === "token_budget") {
+      if (
+        typeof config.tokenBudget !== "number" ||
+        Number.isNaN(config.tokenBudget) ||
+        config.tokenBudget <= 0
+      ) {
+        throw new Error(
+          `Transcript compactor for ${agentId} requires a positive tokenBudget value.`,
+        );
+      }
+
+      const keepTail =
+        typeof config.keepTail === "number" ? config.keepTail : undefined;
+      const hardFloor =
+        typeof config.hardFloor === "number" ? config.hardFloor : undefined;
+
+      return new TokenBudgetCompactor(
+        config.tokenBudget,
+        keepTail,
+        undefined,
+        hardFloor,
+      );
+    }
+
+    throw new Error(
+      `Unsupported transcript compactor strategy "${(config as { strategy?: unknown }).strategy}" for ${agentId}.`,
+    );
   }
 
   private cloneProviderConfig(config: ProviderConfig): ProviderConfig {

@@ -485,6 +485,44 @@ const TOKENIZER_CONFIG_SCHEMA: JSONSchema7 = {
   },
 };
 
+const TRANSCRIPT_COMPACTOR_SIMPLE_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["strategy"],
+  properties: {
+    strategy: { const: "simple" },
+    maxMessages: { type: "integer", minimum: 1 },
+    keepLast: { type: "integer", minimum: 0 },
+  },
+};
+
+const TRANSCRIPT_COMPACTOR_TOKEN_BUDGET_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["strategy", "tokenBudget"],
+  properties: {
+    strategy: { const: "token_budget" },
+    tokenBudget: { type: "integer", minimum: 1 },
+    keepTail: { type: "integer", minimum: 0 },
+    hardFloor: { type: "integer", minimum: 1 },
+  },
+};
+
+const TRANSCRIPT_COMPACTOR_SCHEMA: JSONSchema7 = {
+  oneOf: [
+    TRANSCRIPT_COMPACTOR_SIMPLE_SCHEMA,
+    TRANSCRIPT_COMPACTOR_TOKEN_BUDGET_SCHEMA,
+  ],
+};
+
+const TRANSCRIPT_CONFIG_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    compactor: TRANSCRIPT_COMPACTOR_SCHEMA,
+  },
+};
+
 export const EDDIE_CONFIG_SCHEMA: JSONSchema7 = {
   $id: EDDIE_CONFIG_SCHEMA_ID,
   $schema: "http://json-schema.org/draft-07/schema#",
@@ -515,6 +553,7 @@ export const EDDIE_CONFIG_SCHEMA: JSONSchema7 = {
     hooks: HOOKS_CONFIG_SCHEMA,
     tokenizer: TOKENIZER_CONFIG_SCHEMA,
     agents: AGENTS_CONFIG_SCHEMA,
+    transcript: TRANSCRIPT_CONFIG_SCHEMA,
   },
 };
 
@@ -549,6 +588,7 @@ export const EDDIE_CONFIG_INPUT_SCHEMA: JSONSchema7 = {
       ...AGENTS_CONFIG_SCHEMA,
       required: [],
     },
+    transcript: TRANSCRIPT_CONFIG_SCHEMA,
   },
 };
 

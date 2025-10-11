@@ -27,6 +27,7 @@ import type {
   ProviderConfig,
   ProviderProfileConfig,
   ToolsConfig,
+  TranscriptConfig,
 } from "./types";
 
 const DEFAULT_CONFIG_ROOT = path.resolve(process.cwd(), "config");
@@ -456,6 +457,10 @@ export class ConfigService implements OnApplicationBootstrap {
       logLevel: effectiveLevel,
       systemPrompt,
       agents: mergedAgents,
+      transcript: this.mergeTranscriptConfig(
+        base.transcript,
+        input.transcript,
+      ),
     };
   }
 
@@ -508,6 +513,7 @@ export class ConfigService implements OnApplicationBootstrap {
       ...config,
       provider: this.cloneProviderConfig(config.provider),
       providers: this.mergeProviders(undefined, config.providers),
+      transcript: this.cloneTranscriptConfig(config.transcript),
     };
 
     if (options.provider) {
@@ -628,6 +634,11 @@ export class ConfigService implements OnApplicationBootstrap {
       ...(input.manager ?? {}),
     };
 
+    manager.transcript = this.mergeTranscriptConfig(
+      normalizedBase.manager.transcript,
+      input.manager?.transcript,
+    );
+
     const promptProvided =
       input?.manager !== undefined &&
       Object.prototype.hasOwnProperty.call(input.manager, "prompt");
@@ -672,6 +683,30 @@ export class ConfigService implements OnApplicationBootstrap {
     );
   }
 
+  private mergeTranscriptConfig(
+    base: TranscriptConfig | undefined,
+    input: TranscriptConfig | undefined,
+  ): TranscriptConfig | undefined {
+    if (!base && !input) {
+      return undefined;
+    }
+
+    const normalizedBase = this.cloneTranscriptConfig(base);
+
+    if (!input?.compactor) {
+      return normalizedBase;
+    }
+
+    const merged: TranscriptConfig = {
+      compactor: {
+        ...(normalizedBase?.compactor ?? {}),
+        ...input.compactor,
+      },
+    };
+
+    return merged;
+  }
+
   private ensureAgentsShape(
     agents: AgentsConfig | undefined,
     fallbackPrompt: string
@@ -698,6 +733,10 @@ export class ConfigService implements OnApplicationBootstrap {
       manager.resources = manager.resources.map((resource) =>
         this.cloneResourceConfig(resource)
       );
+    }
+
+    if (manager.transcript) {
+      manager.transcript = this.cloneTranscriptConfig(manager.transcript);
     }
 
     if (
@@ -744,6 +783,10 @@ export class ConfigService implements OnApplicationBootstrap {
           cloned.provider = { ...agent.provider };
         }
 
+        if (agent.transcript) {
+          cloned.transcript = this.cloneTranscriptConfig(agent.transcript);
+        }
+
         return cloned;
       })
       : [];
@@ -763,6 +806,21 @@ export class ConfigService implements OnApplicationBootstrap {
           ? agents.enableSubagents
           : true,
     };
+  }
+
+  private cloneTranscriptConfig(
+    config: TranscriptConfig | undefined,
+  ): TranscriptConfig | undefined {
+    if (!config) {
+      return undefined;
+    }
+
+    const cloned: TranscriptConfig = {};
+    if (config.compactor) {
+      cloned.compactor = { ...config.compactor };
+    }
+
+    return cloned;
   }
 
   private cloneProviderConfig(config: ProviderConfig): ProviderConfig {

@@ -998,4 +998,67 @@ describe("AgentOrchestratorService", () => {
     expect(preCompactEvents[0]?.reason).toBe("token_budget");
     expect(removedCount).toBe(1);
   });
+
+  it("selects agent-specific transcript compactors from runtime selector", async () => {
+    const provider = new MockProvider([
+      createStream([
+        { type: "delta", text: "manager" },
+        { type: "end" },
+      ]),
+      createStream([
+        { type: "delta", text: "worker" },
+        { type: "end" },
+      ]),
+    ]);
+
+    const managerCompactor: TranscriptCompactor = {
+      plan: vi.fn(async () => null),
+    };
+    const workerCompactor: TranscriptCompactor = {
+      plan: vi.fn(async () => null),
+    };
+
+    const selector = vi.fn((invocation: { definition: { id: string } }) =>
+      invocation.definition.id === "worker"
+        ? workerCompactor
+        : managerCompactor
+    );
+
+    const runtime = baseRuntime(provider, {
+      transcriptCompactor: selector as unknown as TranscriptCompactor,
+    });
+
+    const manager = await orchestrator.runAgent(
+      {
+        definition: {
+          id: "manager",
+          systemPrompt: "coordinate",
+        },
+        prompt: "delegate work",
+        context: contextSlice("root"),
+      },
+      runtime,
+    );
+
+    await manager.spawn(
+      {
+        id: "worker",
+        systemPrompt: "execute",
+      },
+      {
+        prompt: "do task",
+        context: contextSlice("slice"),
+      },
+    );
+
+    expect(selector).toHaveBeenCalled();
+    expect(managerCompactor.plan).toHaveBeenCalledWith(
+      expect.objectContaining({ definition: expect.objectContaining({ id: "manager" }) }),
+      expect.any(Number),
+    );
+    expect(workerCompactor.plan).toHaveBeenCalledWith(
+      expect.objectContaining({ definition: expect.objectContaining({ id: "worker" }) }),
+      expect.any(Number),
+    );
+  });
 });

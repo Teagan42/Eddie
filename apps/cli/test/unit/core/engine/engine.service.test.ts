@@ -5,6 +5,8 @@ import type { SessionMetadata } from "@eddie/hooks";
 import {
   AgentInvocation,
   EngineService,
+  SimpleTranscriptCompactor,
+  TokenBudgetCompactor,
   type AgentOrchestratorService,
   type AgentRunRequest,
   type AgentRuntimeCatalog,
@@ -411,6 +413,91 @@ describe("EngineService agent catalog", () => {
     expect(descriptor.metadata?.description).toBe(
       "Review responses for accuracy"
     );
+  });
+});
+
+describe("EngineService transcript compactor configuration", () => {
+  it("attaches a simple transcript compactor from global config", async () => {
+    const harness = createEngineHarness();
+    (harness.config as any).transcript = {
+      compactor: {
+        strategy: "simple",
+        maxMessages: 3,
+        keepLast: 1,
+      },
+    };
+    harness.store.setSnapshot(harness.config);
+
+    const result = await harness.engine.run("Global compactor");
+
+    const runtime = harness.fakeOrchestrator.lastRuntime;
+    expect(runtime?.transcriptCompactor).toBeInstanceOf(SimpleTranscriptCompactor);
+
+    const compactor = runtime?.transcriptCompactor as SimpleTranscriptCompactor;
+    const invocation = result.agents[0];
+    invocation.messages.push({ role: "assistant", content: "first" });
+    invocation.messages.push({ role: "user", content: "second" });
+    invocation.messages.push({ role: "assistant", content: "third" });
+
+    const plan = compactor.plan(invocation, 2);
+    expect(plan?.reason).toContain("limit 3");
+  });
+
+  it("applies per-agent transcript compactor overrides", async () => {
+    const harness = createEngineHarness();
+    harness.config.agents.enableSubagents = true;
+    harness.config.agents.subagents = [
+      { id: "worker", prompt: "assist" } as any,
+      { id: "reviewer", prompt: "check" } as any,
+    ];
+    (harness.config as any).transcript = {
+      compactor: {
+        strategy: "simple",
+        maxMessages: 4,
+      },
+    };
+    (harness.config.agents.manager as any).transcript = {
+      compactor: {
+        strategy: "token_budget",
+        tokenBudget: 12,
+        keepTail: 2,
+      },
+    };
+    (harness.config.agents.subagents[0] as any).transcript = {
+      compactor: {
+        strategy: "simple",
+        maxMessages: 2,
+        keepLast: 1,
+      },
+    };
+    harness.store.setSnapshot(harness.config);
+
+    await harness.engine.run("Override compactor");
+
+    const runtime = harness.fakeOrchestrator.lastRuntime;
+    const selector = runtime?.transcriptCompactor;
+    expect(typeof selector).toBe("function");
+
+    const managerDescriptor = runtime?.catalog.getManager();
+    const managerCompactor = (selector as any)(
+      { definition: { id: "manager" } },
+      managerDescriptor,
+    );
+    expect(managerCompactor).toBeInstanceOf(TokenBudgetCompactor);
+
+    const workerDescriptor = runtime?.catalog.getAgent("worker");
+    const workerCompactor = (selector as any)(
+      { definition: { id: "worker" } },
+      workerDescriptor,
+    );
+    expect(workerCompactor).toBeInstanceOf(SimpleTranscriptCompactor);
+
+    const reviewerDescriptor = runtime?.catalog.getAgent("reviewer");
+    const reviewerCompactor = (selector as any)(
+      { definition: { id: "reviewer" } },
+      reviewerDescriptor,
+    );
+    expect(reviewerCompactor).toBeInstanceOf(SimpleTranscriptCompactor);
   });
 });
 

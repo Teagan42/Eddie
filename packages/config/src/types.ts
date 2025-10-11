@@ -151,6 +151,7 @@ export interface AgentManagerConfig {
   resources?: ContextResourceConfig[];
   model?: string;
   provider?: AgentProviderConfig;
+  transcript?: TranscriptConfig;
   [key: string]: unknown;
 }
 
@@ -167,6 +168,7 @@ export interface AgentDefinitionConfig {
   routingThreshold?: number;
   model?: string;
   provider?: AgentProviderConfig;
+  transcript?: TranscriptConfig;
   [key: string]: unknown;
 }
 
@@ -184,6 +186,29 @@ export interface AgentsConfig {
   enableSubagents: boolean;
 }
 
+export type TranscriptCompactorStrategy = "simple" | "token_budget";
+
+export interface SimpleTranscriptCompactorConfig {
+  strategy: "simple";
+  maxMessages?: number;
+  keepLast?: number;
+}
+
+export interface TokenBudgetTranscriptCompactorConfig {
+  strategy: "token_budget";
+  tokenBudget: number;
+  keepTail?: number;
+  hardFloor?: number;
+}
+
+export type TranscriptCompactorConfig =
+  | SimpleTranscriptCompactorConfig
+  | TokenBudgetTranscriptCompactorConfig;
+
+export interface TranscriptConfig {
+  compactor?: TranscriptCompactorConfig;
+}
+
 export interface EddieConfig {
   model: string;
   provider: ProviderConfig;
@@ -198,6 +223,7 @@ export interface EddieConfig {
   hooks?: HooksConfig;
   tokenizer?: TokenizerConfig;
   agents: AgentsConfig;
+  transcript?: TranscriptConfig;
 }
 
 export interface EddieConfigInput {
@@ -214,6 +240,7 @@ export interface EddieConfigInput {
   hooks?: Partial<HooksConfig>;
   tokenizer?: Partial<TokenizerConfig>;
   agents?: AgentsConfigInput;
+  transcript?: TranscriptConfig;
 }
 
 export interface AgentsConfigInput {

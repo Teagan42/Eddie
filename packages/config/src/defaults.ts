@@ -86,4 +86,5 @@ export const DEFAULT_CONFIG: EddieConfig = {
     },
     enableSubagents: true,
   },
+  transcript: {},
 };
