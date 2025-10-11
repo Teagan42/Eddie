@@ -1,5 +1,7 @@
 import "reflect-metadata";
+import path from "path";
 import { describe, it, expect, vi } from "vitest";
+import type { SessionMetadata } from "@eddie/hooks";
 import {
   AgentInvocation,
   EngineService,
@@ -186,6 +188,34 @@ function createEngineHarness(
 }
 
 describe("EngineService hooks", () => {
+  it("assigns trace path using timestamp and session id", async () => {
+    const harness = createEngineHarness();
+    harness.config.output = { jsonlTrace: ".eddie/trace.jsonl" };
+    harness.store.setSnapshot(harness.config);
+
+    const sessions: SessionMetadata[] = [];
+    harness.hookBus.on(HOOK_EVENTS.sessionStart, (payload) => {
+      sessions.push(payload.metadata);
+    });
+
+    const result = await harness.engine.run("Trace naming run");
+
+    const metadata = sessions[0];
+    expect(metadata?.tracePath).toBeDefined();
+    expect(result.tracePath).toBe(metadata?.tracePath);
+
+    const tracePath = metadata?.tracePath ?? "";
+    expect(tracePath).not.toBe(path.resolve(".eddie/trace.jsonl"));
+    expect(path.dirname(tracePath)).toBe(path.resolve(".eddie"));
+
+    const fileName = path.basename(tracePath);
+    expect(fileName.endsWith(".jsonl")).toBe(true);
+
+    const [timestamp, sessionFragment] = fileName.split("_");
+    expect(timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d{3}Z$/);
+    expect(sessionFragment).toBe(`${metadata?.id}.jsonl`);
+  });
+
   it("emits session lifecycle hooks with metadata", async () => {
     const harness = createEngineHarness();
     const events: Array<{ event: string; payload: any }> = [];
