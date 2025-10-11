@@ -17,9 +17,7 @@ import { getRuntimeOptions } from "./runtime-options";
 import { Subscription } from "rxjs";
 
 @Injectable()
-export class ApiValidationPipe
-  implements PipeTransform, OnModuleInit, OnModuleDestroy
-{
+export class ApiValidationPipe implements PipeTransform, OnModuleInit, OnModuleDestroy {
   private delegate: ValidationPipe | null = null;
   private initPromise: Promise<void> | null = null;
   private subscription: Subscription | null = null;

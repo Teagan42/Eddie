@@ -79,6 +79,7 @@ interface EngineHarness {
   fakeOrchestrator: FakeAgentOrchestrator;
   contextPackSpy: ReturnType<typeof vi.fn>;
   store: ConfigStore;
+  configService: ConfigService & { load: ReturnType<typeof vi.fn> };
 }
 
 function createEngineHarness(
@@ -119,7 +120,7 @@ function createEngineHarness(
       store.setSnapshot(config);
       return config;
     }),
-  } as unknown as ConfigService;
+  };
 
   const contextPackSpy = vi.fn(async () => context);
   const contextService = {
@@ -158,7 +159,7 @@ function createEngineHarness(
   }
 
   const engine = new EngineService(
-    configService,
+    configService as unknown as ConfigService,
     store,
     contextService,
     providerFactory,
@@ -178,6 +179,9 @@ function createEngineHarness(
     fakeOrchestrator,
     contextPackSpy,
     store,
+    configService: configService as unknown as ConfigService & {
+      load: ReturnType<typeof vi.fn>;
+    },
   };
 }
 
@@ -376,6 +380,19 @@ describe("EngineService agent catalog", () => {
     expect(descriptor.metadata?.name).toBe("Reviewer");
     expect(descriptor.metadata?.description).toBe(
       "Review responses for accuracy"
+    );
+  });
+});
+
+describe("EngineService runtime overrides", () => {
+  it("loads configuration when auto-approve flag is provided", async () => {
+    const harness = createEngineHarness();
+
+    await harness.engine.run("Override run", { autoApprove: true });
+
+    expect(harness.configService.load).toHaveBeenCalledTimes(1);
+    expect(harness.configService.load).toHaveBeenCalledWith(
+      expect.objectContaining({ autoApprove: true })
     );
   });
 });

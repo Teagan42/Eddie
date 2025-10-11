@@ -24,9 +24,7 @@ interface ContextSummary {
 
 @Catch()
 @Injectable()
-export class ApiHttpExceptionFilter
-  implements ExceptionFilter, OnModuleInit, OnModuleDestroy
-{
+export class ApiHttpExceptionFilter implements ExceptionFilter, OnModuleInit, OnModuleDestroy {
   private includeStackInResponse = false;
   private contextSummary: ContextSummary | null = null;
   private initPromise: Promise<void> | null = null;

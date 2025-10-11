@@ -30,9 +30,7 @@ interface CacheEntry {
 }
 
 @Injectable()
-export class ApiCacheInterceptor
-  implements NestInterceptor, OnModuleInit, OnModuleDestroy
-{
+export class ApiCacheInterceptor implements NestInterceptor, OnModuleInit, OnModuleDestroy {
   private readonly cache = new Map<string, CacheEntry>();
   private enabled = true;
   private ttlMs = 0;

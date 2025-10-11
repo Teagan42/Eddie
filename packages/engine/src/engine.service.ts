@@ -282,13 +282,9 @@ export class EngineService {
     return this.configStore.getSnapshot();
   }
 
-  private extractRuntimeOverrides(
-    options: EngineOptions
-  ): CliRuntimeOptions {
-    const { history: _history, autoApprove: _autoApprove, nonInteractive: _nonInteractive, ...remaining } =
-      options;
-
-    return remaining as CliRuntimeOptions;
+  private extractRuntimeOverrides({ history, ...overrides }: EngineOptions): CliRuntimeOptions {
+    void history;
+    return overrides;
   }
 
   private applyMcpResourcesToContext(
