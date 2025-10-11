@@ -19,7 +19,7 @@ import type {
   AgentsConfigInput,
   ApiConfig,
   ApiPersistenceConfig,
-  ApiPersistenceSqlDriverConfig,
+  ApiPersistenceSqlConfig,
   CliRuntimeOptions,
   ContextConfig,
   ContextResourceConfig,
@@ -1111,7 +1111,7 @@ export class ConfigService {
   private ensureSqlPersistenceConfig(
     driver: SqlDriver,
     config: unknown
-  ): ApiPersistenceSqlDriverConfig {
+  ): ApiPersistenceSqlConfig {
     if (!this.isPlainObject(config)) {
       throw new Error(
         `api.persistence.${driver} must be an object when using the ${driver} driver.`
@@ -1124,8 +1124,10 @@ export class ConfigService {
       );
     }
 
-    const { connection, ...rest } = config as {
+    const { connection, url, ssl, ...rest } = config as {
       connection: unknown;
+      url?: unknown;
+      ssl?: unknown;
       [key: string]: unknown;
     };
 
@@ -1151,10 +1153,35 @@ export class ConfigService {
       throw new Error(`${connectionPath}${pathSuffix} ${message}`);
     }
 
-    return {
+    const optionalPrimitives: Array<
+      [value: unknown, type: "string" | "boolean", property: "url" | "ssl"]
+    > = [
+      [url, "string", "url"],
+      [ssl, "boolean", "ssl"],
+    ];
+
+    for (const [value, expectedType, property] of optionalPrimitives) {
+      if (typeof value !== "undefined" && typeof value !== expectedType) {
+        throw new Error(
+          `api.persistence.${driver}.${property} must be a ${expectedType} when provided.`
+        );
+      }
+    }
+
+    const validated: ApiPersistenceSqlConfig = {
       ...rest,
       connection: result.data,
-    } as ApiPersistenceSqlDriverConfig;
+    };
+
+    if (typeof url !== "undefined") {
+      validated.url = url;
+    }
+
+    if (typeof ssl !== "undefined") {
+      validated.ssl = ssl;
+    }
+
+    return validated;
   }
 
   private validateApiPersistence(
