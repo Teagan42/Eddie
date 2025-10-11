@@ -4,3 +4,4 @@ export * from "./config.namespace";
 export * from "./defaults";
 export * from "./types";
 export * from "./schema";
+export * from "./hot-config.store";

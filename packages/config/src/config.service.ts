@@ -10,6 +10,7 @@ const DEFAULT_CONFIG_ROOT = path.resolve(process.cwd(), "config");
 import yaml from "yaml";
 import { DEFAULT_CONFIG } from "./defaults";
 import { CONFIG_NAMESPACE, eddieConfig } from "./config.namespace";
+import { ConfigStore } from "./hot-config.store";
 import type {
   AgentProviderConfig,
   AgentsConfig,
@@ -53,6 +54,8 @@ const CONFIG_FILENAMES = [
  */
 @Injectable()
 export class ConfigService {
+  private configStore?: ConfigStore;
+
   constructor(
     @Optional()
     @Inject(eddieConfig.KEY)
@@ -63,6 +66,10 @@ export class ConfigService {
       true
     >
   ) {}
+
+  bindStore(store: ConfigStore): void {
+    this.configStore = store;
+  }
 
   async load(options: CliRuntimeOptions): Promise<EddieConfig> {
     const configPath = await this.resolveConfigPath(options);
@@ -99,6 +106,8 @@ export class ConfigService {
     };
 
     this.validateConfig(finalConfig);
+
+    this.configStore?.setSnapshot(finalConfig);
 
     return finalConfig;
   }
@@ -216,6 +225,8 @@ export class ConfigService {
 
     await fs.mkdir(path.dirname(destination), { recursive: true });
     await fs.writeFile(destination, serialized, "utf-8");
+
+    this.configStore?.setSnapshot(config);
 
     return {
       path: destination,
