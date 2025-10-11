@@ -69,4 +69,51 @@ describe("SummarizingTranscriptCompactor", () => {
       { role: "user", content: "u4" },
     ]);
   });
+
+  it("preserves inline system messages when summarizing oldest window", async () => {
+    const summarizer = vi.fn().mockResolvedValue("summarized inline");
+    const compactor = new SummarizingTranscriptCompactor(
+      summarizer,
+      6,
+      3,
+      "Conversation Summary"
+    );
+
+    const invocation = {
+      messages: [
+        { role: "system", content: "system" },
+        { role: "user", content: "u1" },
+        { role: "system", content: "inline system" },
+        { role: "assistant", content: "a1" },
+        { role: "user", content: "u2" },
+        { role: "assistant", content: "a2" },
+        { role: "user", content: "u3" },
+      ],
+    } as unknown as AgentInvocation;
+
+    const plan = compactor.plan(invocation, 1);
+
+    expect(plan).not.toBeNull();
+    expect(plan?.reason).toContain("summarize 3 oldest messages");
+    expect(plan?.reason).toContain("iteration 1");
+
+    const result = await plan!.apply();
+
+    expect(summarizer).toHaveBeenCalledWith([
+      { role: "user", content: "u1" },
+      { role: "assistant", content: "a1" },
+      { role: "user", content: "u2" },
+    ]);
+    expect(result).toEqual({ removedMessages: 2 });
+    expect(invocation.messages).toEqual([
+      { role: "system", content: "system" },
+      { role: "system", content: "inline system" },
+      {
+        role: "assistant",
+        content: "Conversation Summary:\n\nsummarized inline",
+      },
+      { role: "assistant", content: "a2" },
+      { role: "user", content: "u3" },
+    ]);
+  });
 });

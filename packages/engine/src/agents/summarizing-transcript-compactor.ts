@@ -1,15 +1,14 @@
+import type { ChatMessage } from "@eddie/types";
 import type {
-  AgentInvocation,
   TranscriptCompactionPlan,
   TranscriptCompactionResult,
   TranscriptCompactor,
 } from "./agent-orchestrator.service";
+import type { AgentInvocation } from "./agent-invocation";
 
 export class SummarizingTranscriptCompactor implements TranscriptCompactor {
   constructor(
-    private readonly summarizer: (
-      msgs: AgentInvocation["messages"]
-    ) => Promise<string>,
+    private readonly summarizer: (msgs: ChatMessage[]) => Promise<string>,
     private readonly maxMessages = 600,
     private readonly windowSize = 250,
     private readonly label = "Summary of previous conversation"
@@ -43,28 +42,84 @@ export class SummarizingTranscriptCompactor implements TranscriptCompactor {
       return null;
     }
 
-    const reason = this.buildReason(take, iteration);
+    const { messages: windowMessages, lastNonSystemIndex } = this.collectWindow(
+      invocation.messages,
+      firstNonSystemIndex,
+      plannedTake
+    );
+    if (windowMessages.length === 0) {
+      return null;
+    }
+
+    const reason = this.buildReason(windowMessages.length, iteration);
 
     return {
       reason,
       apply: async (): Promise<TranscriptCompactionResult> => {
-        const slice = invocation.messages.slice(
+        const preservedSystems = this.extractSystems(
+          invocation.messages,
           firstNonSystemIndex,
-          firstNonSystemIndex + take
+          lastNonSystemIndex
         );
-        const summary = await this.summarizer(slice);
+        const summary = await this.summarizer(windowMessages);
 
-        invocation.messages.splice(firstNonSystemIndex, take, {
-          role: "assistant",
-          content: `${this.label}:\n\n${summary}`,
-        });
+        invocation.messages.splice(
+          firstNonSystemIndex,
+          lastNonSystemIndex - firstNonSystemIndex + 1,
+          ...preservedSystems,
+          this.buildSummaryMessage(summary)
+        );
 
-        return { removedMessages: take - 1 };
+        return { removedMessages: windowMessages.length - 1 };
       },
     };
   }
 
   private buildReason(take: number, iteration: number): string {
     return `summarize ${take} oldest messages into 1 summary (limit ${this.maxMessages}, iteration ${iteration})`;
+  }
+
+  private collectWindow(
+    messages: ChatMessage[],
+    startIndex: number,
+    plannedTake: number
+  ): { messages: ChatMessage[]; lastNonSystemIndex: number } {
+    const collected: ChatMessage[] = [];
+    let index = startIndex;
+    let lastNonSystemIndex = startIndex - 1;
+
+    while (index < messages.length && collected.length < plannedTake) {
+      const message = messages[index];
+
+      if (message.role !== "system") {
+        collected.push(message);
+        lastNonSystemIndex = index;
+      }
+
+      index += 1;
+    }
+
+    return { messages: collected, lastNonSystemIndex };
+  }
+
+  private extractSystems(
+    messages: ChatMessage[],
+    start: number,
+    end: number
+  ): ChatMessage[] {
+    if (end < start) {
+      return [];
+    }
+
+    return messages
+      .slice(start, end + 1)
+      .filter((message) => message.role === "system");
+  }
+
+  private buildSummaryMessage(summary: string): ChatMessage {
+    return {
+      role: "assistant",
+      content: `${this.label}:\n\n${summary}`,
+    };
   }
 }
