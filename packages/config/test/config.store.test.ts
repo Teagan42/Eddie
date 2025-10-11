@@ -48,6 +48,22 @@ describe("ConfigStore", () => {
     await moduleRef.close();
   });
 
+  it("applies CLI runtime overrides provided via module registration", async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [
+        ConfigModule.registerAsync({
+          useFactory: async () => ({ logLevel: "debug" as const }),
+        }),
+      ],
+    }).compile();
+
+    const store = moduleRef.get(ConfigStore);
+
+    expect(store.getSnapshot().logLevel).toBe("debug");
+
+    await moduleRef.close();
+  });
+
   it("updates the snapshot when compose succeeds", async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [ConfigModule],
