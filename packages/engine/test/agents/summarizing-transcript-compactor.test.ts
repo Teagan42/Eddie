@@ -47,6 +47,7 @@ describe("SummarizingTranscriptCompactor", () => {
 
     expect(plan).not.toBeNull();
     expect(plan?.reason).toContain("summarize 3 oldest messages");
+    expect(plan?.reason).toContain("iteration 0");
 
     const result = await plan!.apply();
 

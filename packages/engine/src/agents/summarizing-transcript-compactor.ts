@@ -17,7 +17,7 @@ export class SummarizingTranscriptCompactor implements TranscriptCompactor {
 
   plan(
     invocation: AgentInvocation,
-    _iteration: number
+    iteration: number
   ): TranscriptCompactionPlan | null {
     const total = invocation.messages.length;
     if (total <= this.maxMessages) {
@@ -43,7 +43,7 @@ export class SummarizingTranscriptCompactor implements TranscriptCompactor {
       return null;
     }
 
-    const reason = `summarize ${take} oldest messages into 1 summary (limit ${this.maxMessages})`;
+    const reason = this.buildReason(take, iteration);
 
     return {
       reason,
@@ -62,5 +62,9 @@ export class SummarizingTranscriptCompactor implements TranscriptCompactor {
         return { removedMessages: take - 1 };
       },
     };
+  }
+
+  private buildReason(take: number, iteration: number): string {
+    return `summarize ${take} oldest messages into 1 summary (limit ${this.maxMessages}, iteration ${iteration})`;
   }
 }
