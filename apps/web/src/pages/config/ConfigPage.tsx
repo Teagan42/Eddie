@@ -703,127 +703,532 @@ export function ConfigPage(): JSX.Element {
           </Flex>
         </Panel>
 
-      {statusMessage ? (
-        <Callout.Root
-          color={statusVariant === "error" ? "red" : "jade"}
-          className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
-        >
-          <Callout.Icon>
-            <CheckIcon />
-          </Callout.Icon>
-          <Callout.Text>{statusMessage}</Callout.Text>
-        </Callout.Root>
-      ) : null}
-
-      {parseError ? (
-        <Callout.Root
-          color="red"
-          className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
-        >
-          <Callout.Icon>
-            <MixerHorizontalIcon />
-          </Callout.Icon>
-          <Callout.Text>{parseError}</Callout.Text>
-        </Callout.Root>
-      ) : null}
-
-      {previewError ? (
-        <Callout.Root
-          color="amber"
-          className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
-        >
-          <Callout.Icon>
-            <MixerHorizontalIcon />
-          </Callout.Icon>
-          <Callout.Text>{previewError}</Callout.Text>
-        </Callout.Root>
-      ) : null}
-
-      {guardrailWarnings.length > 0 && !parseError ? (
-        <Callout.Root
-          color="amber"
-          className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
-        >
-          <Callout.Icon>
-            <EyeOpenIcon />
-          </Callout.Icon>
-          <Flex direction="column" gap="2">
-            <Callout.Text asChild>
-              <Text as="span" weight="medium">
-                Guardrails
-              </Text>
-            </Callout.Text>
-            <ul className="list-disc space-y-1 pl-6 text-sm">
-              {guardrailWarnings.map((warning) => (
-                <Callout.Text asChild key={warning}>
-                  <li>{warning}</li>
-                </Callout.Text>
-              ))}
-            </ul>
-          </Flex>
-        </Callout.Root>
-      ) : null}
-
-      <Flex
-        direction={{ initial: "column", lg: "row" }}
-        gap="6"
-        align="start"
-      >
-        <Flex direction="column" gap="5" className="w-full lg:w-1/2">
-          <Section
-            title="Identity"
-            description="Configure providers, models, and system prompts."
+        {statusMessage ? (
+          <Callout.Root
+            color={statusVariant === "error" ? "red" : "jade"}
+            className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
           >
-            <Flex direction="column" gap="3">
-              <Select.Root
-                value={selectedModel}
-                onValueChange={(value) => {
-                  if (value === "__custom__") {
-                    const next = window.prompt(
-                      "Model identifier",
-                      selectedModel ?? ""
-                    );
-                    const manual = next?.trim() ?? "";
-                    if (!manual) {
+            <Callout.Icon>
+              <CheckIcon />
+            </Callout.Icon>
+            <Callout.Text>{statusMessage}</Callout.Text>
+          </Callout.Root>
+        ) : null}
+
+        {parseError ? (
+          <Callout.Root
+            color="red"
+            className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
+          >
+            <Callout.Icon>
+              <MixerHorizontalIcon />
+            </Callout.Icon>
+            <Callout.Text>{parseError}</Callout.Text>
+          </Callout.Root>
+        ) : null}
+
+        {previewError ? (
+          <Callout.Root
+            color="amber"
+            className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
+          >
+            <Callout.Icon>
+              <MixerHorizontalIcon />
+            </Callout.Icon>
+            <Callout.Text>{previewError}</Callout.Text>
+          </Callout.Root>
+        ) : null}
+
+        {guardrailWarnings.length > 0 && !parseError ? (
+          <Callout.Root
+            color="amber"
+            className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
+          >
+            <Callout.Icon>
+              <EyeOpenIcon />
+            </Callout.Icon>
+            <Flex direction="column" gap="2">
+              <Callout.Text asChild>
+                <Text as="span" weight="medium">
+                Guardrails
+                </Text>
+              </Callout.Text>
+              <ul className="list-disc space-y-1 pl-6 text-sm">
+                {guardrailWarnings.map((warning) => (
+                  <Callout.Text asChild key={warning}>
+                    <li>{warning}</li>
+                  </Callout.Text>
+                ))}
+              </ul>
+            </Flex>
+          </Callout.Root>
+        ) : null}
+
+        <Flex
+          direction={{ initial: "column", lg: "row" }}
+          gap="6"
+          align="start"
+        >
+          <Flex direction="column" gap="5" className="w-full lg:w-1/2">
+            <Section
+              title="Identity"
+              description="Configure providers, models, and system prompts."
+            >
+              <Flex direction="column" gap="3">
+                <Select.Root
+                  value={selectedModel}
+                  onValueChange={(value) => {
+                    if (value === "__custom__") {
+                      const next = window.prompt(
+                        "Model identifier",
+                        selectedModel ?? ""
+                      );
+                      const manual = next?.trim() ?? "";
+                      if (!manual) {
+                        return;
+                      }
+                      updateInput((draft) => {
+                        draft.model = manual;
+                      });
+                      return;
+                    }
+                    if (value === "__clear__") {
+                      updateInput((draft) => {
+                        delete draft.model;
+                      });
                       return;
                     }
                     updateInput((draft) => {
-                      draft.model = manual;
+                      if (value) {
+                        draft.model = value;
+                      } else {
+                        delete draft.model;
+                      }
                     });
-                    return;
+                  }}
+                  disabled={
+                    providerCatalogQuery.isLoading && modelOptions.length === 0
                   }
+                >
+                  <Select.Trigger
+                    aria-label="Model"
+                    placeholder={currentConfig?.model ?? "Model identifier"}
+                  />
+                  <Select.Content>
+                    {modelOptions.map((model) => (
+                      <Select.Item key={model} value={model}>
+                        {model}
+                      </Select.Item>
+                    ))}
+                    {modelOptions.length > 0 ? <Select.Separator /> : null}
+                    <Select.Item value="__custom__">Custom model…</Select.Item>
+                    {selectedModel ? (
+                      <Select.Item value="__clear__">Clear model</Select.Item>
+                    ) : null}
+                  </Select.Content>
+                </Select.Root>
+                <Button
+                  size="2"
+                  variant="surface"
+                  onClick={() =>
+                    setSystemPromptExpanded((previous) => !previous)
+                  }
+                >
+                  {systemPromptExpanded ? "Hide system prompt" : "Edit system prompt"}
+                </Button>
+                {systemPromptExpanded ? (
+                  <TextArea
+                    aria-label="System prompt"
+                    value={effectiveInput.systemPrompt ?? ""}
+                    onChange={(event) =>
+                      updateInput((draft) => {
+                        const next = event.target.value || undefined;
+                        if (next) {
+                          draft.systemPrompt = next;
+                        } else {
+                          delete draft.systemPrompt;
+                        }
+                      })
+                    }
+                    placeholder={
+                      currentConfig?.systemPrompt ??
+                    "System prompt used for orchestration"
+                    }
+                    rows={3}
+                  />
+                ) : null}
+              </Flex>
+              <Separator className="opacity-30" />
+              <Flex direction="column" gap="3">
+                <Text size="2" color="gray">
+                Provider configuration
+                </Text>
+                <Select.Root
+                  value={selectedProviderName ?? ""}
+                  onValueChange={(value) => {
+                    if (value === "__custom__") {
+                      const next = window.prompt(
+                        "Provider identifier",
+                        selectedProviderName ?? ""
+                      );
+                      const manual = next?.trim() ?? "";
+                      if (!manual) {
+                        return;
+                      }
+                      updateInput((draft) => {
+                        draft.provider = { ...(draft.provider ?? {}) };
+                        draft.provider.name = manual;
+                      });
+                      return;
+                    }
+                    if (value === "__clear__") {
+                      updateInput((draft) => {
+                        draft.provider = { ...(draft.provider ?? {}) };
+                        delete draft.provider.name;
+                        if (Object.keys(draft.provider).length === 0) {
+                          delete draft.provider;
+                        }
+                      });
+                      return;
+                    }
+                    updateInput((draft) => {
+                      draft.provider = { ...(draft.provider ?? {}) };
+                      if (value) {
+                        draft.provider.name = value;
+                      } else {
+                        delete draft.provider.name;
+                      }
+                      if (Object.keys(draft.provider).length === 0) {
+                        delete draft.provider;
+                      }
+                    });
+                  }}
+                >
+                  <Select.Trigger
+                    aria-label="Provider"
+                    placeholder={currentConfig?.provider?.name ?? "Provider"}
+                  />
+                  <Select.Content>
+                    {providerOptions.map((option) => (
+                      <Select.Item key={option.value} value={option.value}>
+                        {option.label}
+                      </Select.Item>
+                    ))}
+                    {providerOptions.length > 0 ? <Select.Separator /> : null}
+                    <Select.Item value="__custom__">Custom provider…</Select.Item>
+                    {selectedProviderName ? (
+                      <Select.Item value="__clear__">Clear provider</Select.Item>
+                    ) : null}
+                  </Select.Content>
+                </Select.Root>
+                <TextField.Root
+                  value={effectiveInput.provider?.baseUrl ?? ""}
+                  onChange={(event) =>
+                    updateInput((draft) => {
+                      draft.provider = { ...(draft.provider ?? {}) };
+                      const next = event.target.value || undefined;
+                      if (next) {
+                        draft.provider.baseUrl = next;
+                      } else {
+                        delete draft.provider.baseUrl;
+                      }
+                      if (Object.keys(draft.provider).length === 0) {
+                        delete draft.provider;
+                      }
+                    })
+                  }
+                  placeholder="Base URL (optional)"
+                />
+                <TextField.Root
+                  value={effectiveInput.provider?.apiKey ?? ""}
+                  onChange={(event) =>
+                    updateInput((draft) => {
+                      draft.provider = { ...(draft.provider ?? {}) };
+                      const next = event.target.value || undefined;
+                      if (next) {
+                        draft.provider.apiKey = next;
+                      } else {
+                        delete draft.provider.apiKey;
+                      }
+                      if (Object.keys(draft.provider).length === 0) {
+                        delete draft.provider;
+                      }
+                    })
+                  }
+                  placeholder="API key (optional)"
+                />
+              </Flex>
+            </Section>
+
+            <Section
+              title="Context"
+              description="Control which files and resources are bundled."
+            >
+              <TextField.Root
+                value={effectiveInput.context?.baseDir ?? ""}
+                onChange={(event) =>
+                  updateInput((draft) => {
+                    draft.context = { ...(draft.context ?? {}) };
+                    const next = event.target.value || undefined;
+                    if (next) {
+                      draft.context.baseDir = next;
+                    } else {
+                      delete draft.context.baseDir;
+                    }
+                  })
+                }
+                placeholder={currentConfig?.context?.baseDir ?? "Base directory"}
+              />
+              <Flex direction="column" gap="2">
+                <Flex gap="2">
+                  <TextField.Root
+                    value={includeDraft}
+                    onChange={(event) => setIncludeDraft(event.target.value)}
+                    placeholder="Add include pattern"
+                    aria-label="Add include pattern"
+                  />
+                  <Button
+                    variant="surface"
+                    onClick={handleAddInclude}
+                    disabled={includeDraft.trim().length === 0}
+                  >
+                  Add include
+                  </Button>
+                </Flex>
+                <Flex direction="column" gap="2">
+                  {includeEntries.length === 0 ? (
+                    <Text size="2" color="gray">
+                    No include globs configured yet.
+                    </Text>
+                  ) : (
+                    includeEntries.map((pattern, index) => {
+                      const inputId = `include-entry-${index + 1}`;
+                      return (
+                        <Flex key={`${pattern}-${index}`} gap="2" align="center">
+                          <label className="sr-only" htmlFor={inputId}>
+                            {`Include entry ${index + 1}`}
+                          </label>
+                          <TextField.Root
+                            id={inputId}
+                            value={pattern}
+                            onChange={(event) =>
+                              handleUpdateInclude(index, event.target.value)
+                            }
+                          />
+                          <IconButton
+                            variant="surface"
+                            color="red"
+                            aria-label={`Remove include entry ${index + 1}`}
+                            onClick={() => handleRemoveInclude(index)}
+                          >
+                            <TrashIcon />
+                          </IconButton>
+                        </Flex>
+                      );
+                    })
+                  )}
+                </Flex>
+              </Flex>
+              <Flex direction="column" gap="2">
+                <Flex gap="2">
+                  <TextField.Root
+                    value={excludeDraft}
+                    onChange={(event) => setExcludeDraft(event.target.value)}
+                    placeholder="Add exclude pattern"
+                    aria-label="Add exclude pattern"
+                  />
+                  <Button
+                    variant="surface"
+                    onClick={handleAddExclude}
+                    disabled={excludeDraft.trim().length === 0}
+                  >
+                  Add exclude
+                  </Button>
+                </Flex>
+                <Flex direction="column" gap="2">
+                  {excludeEntries.length === 0 ? (
+                    <Text size="2" color="gray">
+                    No exclude globs configured yet.
+                    </Text>
+                  ) : (
+                    excludeEntries.map((pattern, index) => {
+                      const inputId = `exclude-entry-${index + 1}`;
+                      return (
+                        <Flex key={`${pattern}-${index}`} gap="2" align="center">
+                          <label className="sr-only" htmlFor={inputId}>
+                            {`Exclude entry ${index + 1}`}
+                          </label>
+                          <TextField.Root
+                            id={inputId}
+                            value={pattern}
+                            onChange={(event) =>
+                              handleUpdateExclude(index, event.target.value)
+                            }
+                          />
+                          <IconButton
+                            variant="surface"
+                            color="red"
+                            aria-label={`Remove exclude entry ${index + 1}`}
+                            onClick={() => handleRemoveExclude(index)}
+                          >
+                            <TrashIcon />
+                          </IconButton>
+                        </Flex>
+                      );
+                    })
+                  )}
+                </Flex>
+              </Flex>
+            </Section>
+
+            <Section
+              title="Logging & Tools"
+              description="Tune output verbosity and tool usage."
+            >
+              <Flex align="center" gap="3">
+                <Text size="2">Logging level</Text>
+                <Select.Root
+                  value={effectiveInput.logging?.level ?? ""}
+                  onValueChange={(value) => {
+                    if (value === "__clear__") {
+                      updateInput((draft) => {
+                        draft.logging = { ...(draft.logging ?? {}) };
+                        delete draft.logging.level;
+                        if (Object.keys(draft.logging).length === 0) {
+                          delete draft.logging;
+                        }
+                      });
+                      return;
+                    }
+                    updateInput((draft) => {
+                      draft.logging = { ...(draft.logging ?? {}) };
+                      if (value) {
+                        draft.logging.level = value as never;
+                      } else {
+                        delete draft.logging.level;
+                      }
+                      if (Object.keys(draft.logging).length === 0) {
+                        delete draft.logging;
+                      }
+                    });
+                  }}
+                >
+                  <Select.Trigger
+                    aria-label="Log level"
+                    placeholder={currentConfig?.logging?.level ?? "info"}
+                  />
+                  <Select.Content>
+                    {logLevelOptions.map((level) => (
+                      <Select.Item key={level} value={level}>
+                        {level}
+                      </Select.Item>
+                    ))}
+                    {(effectiveInput.logging?.level ?? "") ? (
+                      <>
+                        <Select.Separator />
+                        <Select.Item value="__clear__">Clear log level</Select.Item>
+                      </>
+                    ) : null}
+                  </Select.Content>
+                </Select.Root>
+              </Flex>
+              <Flex direction="column" gap="3">
+                <Text size="2" color="gray">
+                Enabled tools
+                </Text>
+                {configuredTools.length === 0 ? (
+                  <Text size="2" color="gray">
+                  No tools discovered from the current configuration.
+                  </Text>
+                ) : (
+                  configuredTools.map((toolId) => {
+                    const toolSources = [
+                      effectiveInput.tools,
+                      baselineInput.tools,
+                      currentConfig?.tools,
+                    ].filter(
+                      (value): value is NonNullable<EddieConfigInputDto["tools"]> =>
+                        Boolean(value)
+                    );
+                    let resolvedState: boolean | null = null;
+                    for (const source of toolSources) {
+                      if ("enabled" in source) {
+                        resolvedState = source.enabled?.includes(toolId) ?? false;
+                        break;
+                      }
+                      if ("disabled" in source) {
+                        resolvedState = !(source.disabled?.includes(toolId) ?? false);
+                        break;
+                      }
+                    }
+                    const isEnabled = resolvedState ?? false;
+                    return (
+                      <Flex key={toolId} align="center" gap="3" justify="between">
+                        <Text size="2">{`${toolId} tool`}</Text>
+                        <Switch
+                          checked={isEnabled}
+                          aria-label={`${toolId} tool`}
+                          onCheckedChange={(checked) =>
+                            handleToggleTool(toolId, checked)
+                          }
+                        />
+                      </Flex>
+                    );
+                  })
+                )}
+                <Flex align="center" gap="3">
+                  <Switch
+                    checked={autoApproveChecked}
+                    aria-label="Auto-approve tool calls"
+                    onCheckedChange={(checked) =>
+                      updateInput((draft) => {
+                        draft.tools = { ...(draft.tools ?? {}) };
+                        draft.tools.autoApprove = checked;
+                      })
+                    }
+                  />
+                  <Text size="2">Auto-approve tool calls</Text>
+                </Flex>
+              </Flex>
+            </Section>
+
+            <Section
+              title="Agents"
+              description="Control routing and agent behaviour."
+            >
+              <Select.Root
+                value={effectiveInput.agents?.mode ?? ""}
+                onValueChange={(value) => {
                   if (value === "__clear__") {
                     updateInput((draft) => {
-                      delete draft.model;
+                      draft.agents = { ...(draft.agents ?? {}) };
+                      delete draft.agents.mode;
                     });
                     return;
                   }
                   updateInput((draft) => {
+                    draft.agents = { ...(draft.agents ?? {}) };
                     if (value) {
-                      draft.model = value;
+                      draft.agents.mode = value;
                     } else {
-                      delete draft.model;
+                      delete draft.agents.mode;
                     }
                   });
                 }}
-                disabled={
-                  providerCatalogQuery.isLoading && modelOptions.length === 0
-                }
               >
                 <Select.Trigger
-                  aria-label="Model"
-                  placeholder={currentConfig?.model ?? "Model identifier"}
+                  aria-label="Agent mode"
+                  placeholder={currentConfig?.agents?.mode ?? "single"}
                 />
                 <Select.Content>
-                  {modelOptions.map((model) => (
-                    <Select.Item key={model} value={model}>
-                      {model}
-                    </Select.Item>
-                  ))}
-                  {modelOptions.length > 0 ? <Select.Separator /> : null}
-                  <Select.Item value="__custom__">Custom model…</Select.Item>
-                  {selectedModel ? (
-                    <Select.Item value="__clear__">Clear model</Select.Item>
+                  <Select.Item value="single">single</Select.Item>
+                  <Select.Item value="router">router</Select.Item>
+                  <Select.Item value="manager">manager</Select.Item>
+                  {(effectiveInput.agents?.mode ?? "") ? (
+                    <>
+                      <Select.Separator />
+                      <Select.Item value="__clear__">Clear mode</Select.Item>
+                    </>
                   ) : null}
                 </Select.Content>
               </Select.Root>
@@ -831,646 +1236,241 @@ export function ConfigPage(): JSX.Element {
                 size="2"
                 variant="surface"
                 onClick={() =>
-                  setSystemPromptExpanded((previous) => !previous)
+                  setManagerPromptExpanded((previous) => !previous)
                 }
               >
-                {systemPromptExpanded ? "Hide system prompt" : "Edit system prompt"}
+                {managerPromptExpanded
+                  ? "Hide manager prompt"
+                  : "Edit manager prompt"}
               </Button>
-              {systemPromptExpanded ? (
+              {managerPromptExpanded ? (
                 <TextArea
-                  aria-label="System prompt"
-                  value={effectiveInput.systemPrompt ?? ""}
+                  aria-label="Manager prompt"
+                  value={effectiveInput.agents?.manager?.prompt ?? ""}
                   onChange={(event) =>
                     updateInput((draft) => {
+                      draft.agents = { ...(draft.agents ?? {}) };
+                      draft.agents.manager = {
+                        ...(draft.agents.manager ?? {}),
+                      };
                       const next = event.target.value || undefined;
                       if (next) {
-                        draft.systemPrompt = next;
+                        draft.agents.manager.prompt = next;
                       } else {
-                        delete draft.systemPrompt;
+                        delete draft.agents.manager.prompt;
+                      }
+                      if (Object.keys(draft.agents.manager).length === 0) {
+                        delete draft.agents.manager;
                       }
                     })
                   }
                   placeholder={
-                    currentConfig?.systemPrompt ??
-                    "System prompt used for orchestration"
+                    currentConfig?.agents?.manager?.prompt ?? "Manager prompt"
                   }
-                  rows={3}
+                  rows={4}
                 />
               ) : null}
-            </Flex>
-            <Separator className="opacity-30" />
-            <Flex direction="column" gap="3">
-              <Text size="2" color="gray">
-                Provider configuration
-              </Text>
-              <Select.Root
-                value={selectedProviderName ?? ""}
-                onValueChange={(value) => {
-                  if (value === "__custom__") {
-                    const next = window.prompt(
-                      "Provider identifier",
-                      selectedProviderName ?? ""
-                    );
-                    const manual = next?.trim() ?? "";
-                    if (!manual) {
-                      return;
-                    }
-                    updateInput((draft) => {
-                      draft.provider = { ...(draft.provider ?? {}) };
-                      draft.provider.name = manual;
-                    });
-                    return;
-                  }
-                  if (value === "__clear__") {
-                    updateInput((draft) => {
-                      draft.provider = { ...(draft.provider ?? {}) };
-                      delete draft.provider.name;
-                      if (Object.keys(draft.provider).length === 0) {
-                        delete draft.provider;
-                      }
-                    });
-                    return;
-                  }
-                  updateInput((draft) => {
-                    draft.provider = { ...(draft.provider ?? {}) };
-                    if (value) {
-                      draft.provider.name = value;
-                    } else {
-                      delete draft.provider.name;
-                    }
-                    if (Object.keys(draft.provider).length === 0) {
-                      delete draft.provider;
-                    }
-                  });
-                }}
-              >
-                <Select.Trigger
-                  aria-label="Provider"
-                  placeholder={currentConfig?.provider?.name ?? "Provider"}
-                />
-                <Select.Content>
-                  {providerOptions.map((option) => (
-                    <Select.Item key={option.value} value={option.value}>
-                      {option.label}
-                    </Select.Item>
-                  ))}
-                  {providerOptions.length > 0 ? <Select.Separator /> : null}
-                  <Select.Item value="__custom__">Custom provider…</Select.Item>
-                  {selectedProviderName ? (
-                    <Select.Item value="__clear__">Clear provider</Select.Item>
-                  ) : null}
-                </Select.Content>
-              </Select.Root>
-              <TextField.Root
-                value={effectiveInput.provider?.baseUrl ?? ""}
-                onChange={(event) =>
-                  updateInput((draft) => {
-                    draft.provider = { ...(draft.provider ?? {}) };
-                    const next = event.target.value || undefined;
-                    if (next) {
-                      draft.provider.baseUrl = next;
-                    } else {
-                      delete draft.provider.baseUrl;
-                    }
-                    if (Object.keys(draft.provider).length === 0) {
-                      delete draft.provider;
-                    }
-                  })
-                }
-                placeholder="Base URL (optional)"
-              />
-              <TextField.Root
-                value={effectiveInput.provider?.apiKey ?? ""}
-                onChange={(event) =>
-                  updateInput((draft) => {
-                    draft.provider = { ...(draft.provider ?? {}) };
-                    const next = event.target.value || undefined;
-                    if (next) {
-                      draft.provider.apiKey = next;
-                    } else {
-                      delete draft.provider.apiKey;
-                    }
-                    if (Object.keys(draft.provider).length === 0) {
-                      delete draft.provider;
-                    }
-                  })
-                }
-                placeholder="API key (optional)"
-              />
-            </Flex>
-          </Section>
-
-          <Section
-            title="Context"
-            description="Control which files and resources are bundled."
-          >
-            <TextField.Root
-              value={effectiveInput.context?.baseDir ?? ""}
-              onChange={(event) =>
-                updateInput((draft) => {
-                  draft.context = { ...(draft.context ?? {}) };
-                  const next = event.target.value || undefined;
-                  if (next) {
-                    draft.context.baseDir = next;
-                  } else {
-                    delete draft.context.baseDir;
-                  }
-                })
-              }
-              placeholder={currentConfig?.context?.baseDir ?? "Base directory"}
-            />
-            <Flex direction="column" gap="2">
-              <Flex gap="2">
-                <TextField.Root
-                  value={includeDraft}
-                  onChange={(event) => setIncludeDraft(event.target.value)}
-                  placeholder="Add include pattern"
-                  aria-label="Add include pattern"
-                />
-                <Button
-                  variant="surface"
-                  onClick={handleAddInclude}
-                  disabled={includeDraft.trim().length === 0}
-                >
-                  Add include
-                </Button>
-              </Flex>
-              <Flex direction="column" gap="2">
-                {includeEntries.length === 0 ? (
-                  <Text size="2" color="gray">
-                    No include globs configured yet.
-                  </Text>
-                ) : (
-                  includeEntries.map((pattern, index) => {
-                    const inputId = `include-entry-${index + 1}`;
-                    return (
-                      <Flex key={`${pattern}-${index}`} gap="2" align="center">
-                        <label className="sr-only" htmlFor={inputId}>
-                          {`Include entry ${index + 1}`}
-                        </label>
-                        <TextField.Root
-                          id={inputId}
-                          value={pattern}
-                          onChange={(event) =>
-                            handleUpdateInclude(index, event.target.value)
-                          }
-                        />
-                        <IconButton
-                          variant="surface"
-                          color="red"
-                          aria-label={`Remove include entry ${index + 1}`}
-                          onClick={() => handleRemoveInclude(index)}
-                        >
-                          <TrashIcon />
-                        </IconButton>
-                      </Flex>
-                    );
-                  })
-                )}
-              </Flex>
-            </Flex>
-            <Flex direction="column" gap="2">
-              <Flex gap="2">
-                <TextField.Root
-                  value={excludeDraft}
-                  onChange={(event) => setExcludeDraft(event.target.value)}
-                  placeholder="Add exclude pattern"
-                  aria-label="Add exclude pattern"
-                />
-                <Button
-                  variant="surface"
-                  onClick={handleAddExclude}
-                  disabled={excludeDraft.trim().length === 0}
-                >
-                  Add exclude
-                </Button>
-              </Flex>
-              <Flex direction="column" gap="2">
-                {excludeEntries.length === 0 ? (
-                  <Text size="2" color="gray">
-                    No exclude globs configured yet.
-                  </Text>
-                ) : (
-                  excludeEntries.map((pattern, index) => {
-                    const inputId = `exclude-entry-${index + 1}`;
-                    return (
-                      <Flex key={`${pattern}-${index}`} gap="2" align="center">
-                        <label className="sr-only" htmlFor={inputId}>
-                          {`Exclude entry ${index + 1}`}
-                        </label>
-                        <TextField.Root
-                          id={inputId}
-                          value={pattern}
-                          onChange={(event) =>
-                            handleUpdateExclude(index, event.target.value)
-                          }
-                        />
-                        <IconButton
-                          variant="surface"
-                          color="red"
-                          aria-label={`Remove exclude entry ${index + 1}`}
-                          onClick={() => handleRemoveExclude(index)}
-                        >
-                          <TrashIcon />
-                        </IconButton>
-                      </Flex>
-                    );
-                  })
-                )}
-              </Flex>
-            </Flex>
-          </Section>
-
-          <Section
-            title="Logging & Tools"
-            description="Tune output verbosity and tool usage."
-          >
-            <Flex align="center" gap="3">
-              <Text size="2">Logging level</Text>
-              <Select.Root
-                value={effectiveInput.logging?.level ?? ""}
-                onValueChange={(value) => {
-                  if (value === "__clear__") {
-                    updateInput((draft) => {
-                      draft.logging = { ...(draft.logging ?? {}) };
-                      delete draft.logging.level;
-                      if (Object.keys(draft.logging).length === 0) {
-                        delete draft.logging;
-                      }
-                    });
-                    return;
-                  }
-                  updateInput((draft) => {
-                    draft.logging = { ...(draft.logging ?? {}) };
-                    if (value) {
-                      draft.logging.level = value as never;
-                    } else {
-                      delete draft.logging.level;
-                    }
-                    if (Object.keys(draft.logging).length === 0) {
-                      delete draft.logging;
-                    }
-                  });
-                }}
-              >
-                <Select.Trigger
-                  aria-label="Log level"
-                  placeholder={currentConfig?.logging?.level ?? "info"}
-                />
-                <Select.Content>
-                  {logLevelOptions.map((level) => (
-                    <Select.Item key={level} value={level}>
-                      {level}
-                    </Select.Item>
-                  ))}
-                  {(effectiveInput.logging?.level ?? "") ? (
-                    <>
-                      <Select.Separator />
-                      <Select.Item value="__clear__">Clear log level</Select.Item>
-                    </>
-                  ) : null}
-                </Select.Content>
-              </Select.Root>
-            </Flex>
-            <Flex direction="column" gap="3">
-              <Text size="2" color="gray">
-                Enabled tools
-              </Text>
-              {configuredTools.length === 0 ? (
-                <Text size="2" color="gray">
-                  No tools discovered from the current configuration.
-                </Text>
-              ) : (
-                configuredTools.map((toolId) => {
-                  const toolSources = [
-                    effectiveInput.tools,
-                    baselineInput.tools,
-                    currentConfig?.tools,
-                  ].filter(
-                    (value): value is NonNullable<EddieConfigInputDto["tools"]> =>
-                      Boolean(value)
-                  );
-                  let resolvedState: boolean | null = null;
-                  for (const source of toolSources) {
-                    if ("enabled" in source) {
-                      resolvedState = source.enabled?.includes(toolId) ?? false;
-                      break;
-                    }
-                    if ("disabled" in source) {
-                      resolvedState = !(source.disabled?.includes(toolId) ?? false);
-                      break;
-                    }
-                  }
-                  const isEnabled = resolvedState ?? false;
-                  return (
-                    <Flex key={toolId} align="center" gap="3" justify="between">
-                      <Text size="2">{`${toolId} tool`}</Text>
-                      <Switch
-                        checked={isEnabled}
-                        aria-label={`${toolId} tool`}
-                        onCheckedChange={(checked) =>
-                          handleToggleTool(toolId, checked)
-                        }
-                      />
-                    </Flex>
-                  );
-                })
-              )}
               <Flex align="center" gap="3">
                 <Switch
-                  checked={autoApproveChecked}
-                  aria-label="Auto-approve tool calls"
+                  checked={enableSubagentsChecked}
+                  aria-label="Enable subagents"
                   onCheckedChange={(checked) =>
                     updateInput((draft) => {
-                      draft.tools = { ...(draft.tools ?? {}) };
-                      draft.tools.autoApprove = checked;
+                      draft.agents = { ...(draft.agents ?? {}) };
+                      draft.agents.enableSubagents = checked;
                     })
                   }
                 />
-                <Text size="2">Auto-approve tool calls</Text>
+                <Text size="2">Enable subagents</Text>
               </Flex>
-            </Flex>
-          </Section>
+            </Section>
+          </Flex>
 
-          <Section
-            title="Agents"
-            description="Control routing and agent behaviour."
-          >
-            <Select.Root
-              value={effectiveInput.agents?.mode ?? ""}
-              onValueChange={(value) => {
-                if (value === "__clear__") {
-                  updateInput((draft) => {
-                    draft.agents = { ...(draft.agents ?? {}) };
-                    delete draft.agents.mode;
-                  });
-                  return;
-                }
-                updateInput((draft) => {
-                  draft.agents = { ...(draft.agents ?? {}) };
-                  if (value) {
-                    draft.agents.mode = value;
-                  } else {
-                    delete draft.agents.mode;
-                  }
-                });
-              }}
-            >
-              <Select.Trigger
-                aria-label="Agent mode"
-                placeholder={currentConfig?.agents?.mode ?? "single"}
-              />
-              <Select.Content>
-                <Select.Item value="single">single</Select.Item>
-                <Select.Item value="router">router</Select.Item>
-                <Select.Item value="manager">manager</Select.Item>
-                {(effectiveInput.agents?.mode ?? "") ? (
-                  <>
-                    <Select.Separator />
-                    <Select.Item value="__clear__">Clear mode</Select.Item>
-                  </>
-                ) : null}
-              </Select.Content>
-            </Select.Root>
-            <Button
-              size="2"
-              variant="surface"
-              onClick={() =>
-                setManagerPromptExpanded((previous) => !previous)
+          <Flex direction="column" gap="5" className="w-full lg:w-1/2">
+            <Panel
+              title="Source editor"
+              actions={
+                <Flex align="center" gap="3">
+                  <Badge color={isDirty ? "amber" : "jade"}>
+                    {isDirty ? "Unsaved" : "Up to date"}
+                  </Badge>
+                  <Select.Root value={mode} onValueChange={handleFormatChange}>
+                    <Select.Trigger aria-label="Editor mode" />
+                    <Select.Content>
+                      <Select.Item value="yaml">YAML</Select.Item>
+                      <Select.Item value="json">JSON</Select.Item>
+                    </Select.Content>
+                  </Select.Root>
+                </Flex>
               }
             >
-              {managerPromptExpanded
-                ? "Hide manager prompt"
-                : "Edit manager prompt"}
-            </Button>
-            {managerPromptExpanded ? (
-              <TextArea
-                aria-label="Manager prompt"
-                value={effectiveInput.agents?.manager?.prompt ?? ""}
-                onChange={(event) =>
-                  updateInput((draft) => {
-                    draft.agents = { ...(draft.agents ?? {}) };
-                    draft.agents.manager = {
-                      ...(draft.agents.manager ?? {}),
-                    };
-                    const next = event.target.value || undefined;
-                    if (next) {
-                      draft.agents.manager.prompt = next;
-                    } else {
-                      delete draft.agents.manager.prompt;
-                    }
-                    if (Object.keys(draft.agents.manager).length === 0) {
-                      delete draft.agents.manager;
-                    }
-                  })
-                }
-                placeholder={
-                  currentConfig?.agents?.manager?.prompt ?? "Manager prompt"
-                }
-                rows={4}
-              />
-            ) : null}
-            <Flex align="center" gap="3">
-              <Switch
-                checked={enableSubagentsChecked}
-                aria-label="Enable subagents"
-                onCheckedChange={(checked) =>
-                  updateInput((draft) => {
-                    draft.agents = { ...(draft.agents ?? {}) };
-                    draft.agents.enableSubagents = checked;
-                  })
-                }
-              />
-              <Text size="2">Enable subagents</Text>
-            </Flex>
-          </Section>
-        </Flex>
-
-        <Flex direction="column" gap="5" className="w-full lg:w-1/2">
-          <Panel
-            title="Source editor"
-            actions={
-              <Flex align="center" gap="3">
-                <Badge color={isDirty ? "amber" : "jade"}>
-                  {isDirty ? "Unsaved" : "Up to date"}
-                </Badge>
-                <Select.Root value={mode} onValueChange={handleFormatChange}>
-                  <Select.Trigger aria-label="Editor mode" />
-                  <Select.Content>
-                    <Select.Item value="yaml">YAML</Select.Item>
-                    <Select.Item value="json">JSON</Select.Item>
-                  </Select.Content>
-                </Select.Root>
-              </Flex>
-            }
-          >
-            <Tabs.Root
-              value={showDiff ? "diff" : "editor"}
-              onValueChange={(value) => setShowDiff(value === "diff")}
-            >
-              <Tabs.List>
-                <Tabs.Trigger value="editor">Editor</Tabs.Trigger>
-                <Tabs.Trigger value="diff" disabled={!isDirty}>
+              <Tabs.Root
+                value={showDiff ? "diff" : "editor"}
+                onValueChange={(value) => setShowDiff(value === "diff")}
+              >
+                <Tabs.List>
+                  <Tabs.Trigger value="editor">Editor</Tabs.Trigger>
+                  <Tabs.Trigger value="diff" disabled={!isDirty}>
                   Diff
-                </Tabs.Trigger>
-              </Tabs.List>
-              <Tabs.Content value="editor" className="mt-3">
-                <Editor
-                  height="520px"
-                  language={mode === "json" ? "json" : "yaml"}
-                  value={editorValue}
-                  path={editorPath}
-                  onChange={(value) => setEditorValue(value ?? "")}
-                  options={{
-                    automaticLayout: true,
-                    minimap: { enabled: false },
-                    tabSize: 2,
-                    scrollBeyondLastLine: false,
-                  }}
-                />
-              </Tabs.Content>
-              <Tabs.Content value="diff" className="mt-3">
-                <DiffEditor
-                  height="520px"
-                  language={mode === "json" ? "json" : "yaml"}
-                  original={originalValue}
-                  modified={editorValue}
-                  options={{
-                    renderSideBySide: true,
-                    automaticLayout: true,
-                    minimap: { enabled: false },
-                    enableSplitViewResizing: true,
-                  }}
-                />
-              </Tabs.Content>
-            </Tabs.Root>
+                  </Tabs.Trigger>
+                </Tabs.List>
+                <Tabs.Content value="editor" className="mt-3">
+                  <Editor
+                    height="520px"
+                    language={mode === "json" ? "json" : "yaml"}
+                    value={editorValue}
+                    path={editorPath}
+                    onChange={(value) => setEditorValue(value ?? "")}
+                    options={{
+                      automaticLayout: true,
+                      minimap: { enabled: false },
+                      tabSize: 2,
+                      scrollBeyondLastLine: false,
+                    }}
+                  />
+                </Tabs.Content>
+                <Tabs.Content value="diff" className="mt-3">
+                  <DiffEditor
+                    height="520px"
+                    language={mode === "json" ? "json" : "yaml"}
+                    original={originalValue}
+                    modified={editorValue}
+                    options={{
+                      renderSideBySide: true,
+                      automaticLayout: true,
+                      minimap: { enabled: false },
+                      enableSplitViewResizing: true,
+                    }}
+                  />
+                </Tabs.Content>
+              </Tabs.Root>
 
-            <Flex align="center" justify="between">
-              <Flex align="center" gap="3">
-                <Button
-                  size="2"
-                  variant="surface"
-                  onClick={handleDownload}
-                >
-                  <Flex align="center" gap="2">
-                    <DownloadIcon />
-                    <span>Download</span>
-                  </Flex>
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  className="hidden"
-                  accept=".yaml,.yml,.json"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) {
-                      handleUpload(file);
-                    }
-                    event.target.value = "";
-                  }}
-                />
-                <Button
-                  size="2"
-                  variant="surface"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Flex align="center" gap="2">
-                    <UploadIcon />
-                    <span>Upload</span>
-                  </Flex>
-                </Button>
-              </Flex>
-              <Flex align="center" gap="3">
-                <IconButton
-                  size="3"
-                  variant="surface"
-                  aria-label="Reset to last saved"
-                  disabled={!isDirty}
-                  onClick={() => {
-                    setEditorValue(originalValue);
-                    setParseError(null);
-                    setPreviewError(null);
-                  }}
-                >
-                  <ReloadIcon />
-                </IconButton>
-                <Button
-                  size="3"
-                  disabled={isSaving || !isDirty}
-                  onClick={() =>
-                    saveConfig({
-                      content: editorValue,
-                      format: mode,
-                    })
-                  }
-                >
-                  <Flex align="center" gap="2">
-                    {isSaving ? (
-                      <ReloadIcon className="animate-spin" />
-                    ) : (
-                      <FileTextIcon />
-                    )}
-                    <span>{isSaving ? "Saving…" : "Save changes"}</span>
-                  </Flex>
-                </Button>
-              </Flex>
-            </Flex>
-          </Panel>
-
-          <Panel title="Effective configuration preview">
-            {isPreviewing ? (
-              <Text color="gray">Validating configuration…</Text>
-            ) : currentConfig ? (
-              <Flex direction="column" gap="3">
-                <Flex gap="2" align="center">
-                  <Text weight="medium">Provider:</Text>
-                  <Text>{currentConfig.provider?.name ?? "Unknown"}</Text>
-                </Flex>
-                <Flex gap="2" align="center">
-                  <Text
-                    aria-label={`Model: ${currentConfig.model ?? "Unknown"}`}
-                    asChild
+              <Flex align="center" justify="between">
+                <Flex align="center" gap="3">
+                  <Button
+                    size="2"
+                    variant="surface"
+                    onClick={handleDownload}
                   >
-                    <span>
-                      <span className="font-medium">Model:</span>{" "}
-                      <span aria-hidden="true">
-                        {currentConfig.model
-                          ? currentConfig.model.replace(/-/gu, "\u2011")
-                          : "Unknown"}
-                      </span>
-                    </span>
-                  </Text>
+                    <Flex align="center" gap="2">
+                      <DownloadIcon />
+                      <span>Download</span>
+                    </Flex>
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept=".yaml,.yml,.json"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) {
+                        handleUpload(file);
+                      }
+                      event.target.value = "";
+                    }}
+                  />
+                  <Button
+                    size="2"
+                    variant="surface"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Flex align="center" gap="2">
+                      <UploadIcon />
+                      <span>Upload</span>
+                    </Flex>
+                  </Button>
                 </Flex>
-                <Flex gap="2" align="center">
-                  <Text weight="medium">Context base:</Text>
-                  <Text>{currentConfig.context?.baseDir ?? "cwd"}</Text>
-                </Flex>
-                <Flex gap="2" align="center">
-                  <Text weight="medium">Include globs:</Text>
-                  <Text>
-                    {currentConfig.context?.include?.length ?? 0} entries
-                  </Text>
-                </Flex>
-                <Flex gap="2" align="center">
-                  <Text weight="medium">Enabled tools:</Text>
-                  <Text>
-                    {currentConfig.tools?.enabled?.length ?? 0} configured
-                  </Text>
-                </Flex>
-                <Flex gap="2" align="center">
-                  <Text weight="medium">Agent mode:</Text>
-                  <Text>{currentConfig.agents?.mode ?? "single"}</Text>
+                <Flex align="center" gap="3">
+                  <IconButton
+                    size="3"
+                    variant="surface"
+                    aria-label="Reset to last saved"
+                    disabled={!isDirty}
+                    onClick={() => {
+                      setEditorValue(originalValue);
+                      setParseError(null);
+                      setPreviewError(null);
+                    }}
+                  >
+                    <ReloadIcon />
+                  </IconButton>
+                  <Button
+                    size="3"
+                    disabled={isSaving || !isDirty}
+                    onClick={() =>
+                      saveConfig({
+                        content: editorValue,
+                        format: mode,
+                      })
+                    }
+                  >
+                    <Flex align="center" gap="2">
+                      {isSaving ? (
+                        <ReloadIcon className="animate-spin" />
+                      ) : (
+                        <FileTextIcon />
+                      )}
+                      <span>{isSaving ? "Saving…" : "Save changes"}</span>
+                    </Flex>
+                  </Button>
                 </Flex>
               </Flex>
-            ) : (
-              <Text color="gray">No preview available.</Text>
-            )}
-          </Panel>
+            </Panel>
+
+            <Panel title="Effective configuration preview">
+              {isPreviewing ? (
+                <Text color="gray">Validating configuration…</Text>
+              ) : currentConfig ? (
+                <Flex direction="column" gap="3">
+                  <Flex gap="2" align="center">
+                    <Text weight="medium">Provider:</Text>
+                    <Text>{currentConfig.provider?.name ?? "Unknown"}</Text>
+                  </Flex>
+                  <Flex gap="2" align="center">
+                    <Text
+                      aria-label={`Model: ${currentConfig.model ?? "Unknown"}`}
+                      asChild
+                    >
+                      <span>
+                        <span className="font-medium">Model:</span>{" "}
+                        <span aria-hidden="true">
+                          {currentConfig.model
+                            ? currentConfig.model.replace(/-/gu, "\u2011")
+                            : "Unknown"}
+                        </span>
+                      </span>
+                    </Text>
+                  </Flex>
+                  <Flex gap="2" align="center">
+                    <Text weight="medium">Context base:</Text>
+                    <Text>{currentConfig.context?.baseDir ?? "cwd"}</Text>
+                  </Flex>
+                  <Flex gap="2" align="center">
+                    <Text weight="medium">Include globs:</Text>
+                    <Text>
+                      {currentConfig.context?.include?.length ?? 0} entries
+                    </Text>
+                  </Flex>
+                  <Flex gap="2" align="center">
+                    <Text weight="medium">Enabled tools:</Text>
+                    <Text>
+                      {currentConfig.tools?.enabled?.length ?? 0} configured
+                    </Text>
+                  </Flex>
+                  <Flex gap="2" align="center">
+                    <Text weight="medium">Agent mode:</Text>
+                    <Text>{currentConfig.agents?.mode ?? "single"}</Text>
+                  </Flex>
+                </Flex>
+              ) : (
+                <Text color="gray">No preview available.</Text>
+              )}
+            </Panel>
+          </Flex>
         </Flex>
       </Flex>
-    </Flex>
-  </div>
+    </div>
   );
 }
 

@@ -60,7 +60,7 @@ export function App(): JSX.Element {
         </Routes>
       </AppShell>
     </BrowserRouter>
-/*
+  /*
   const api = useApi();
   const queryClient = useQueryClient();
   const [sessionForm, setSessionForm] = useState<SessionFormState>({
