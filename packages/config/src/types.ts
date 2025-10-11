@@ -55,17 +55,19 @@ export interface ApiPersistenceSqlConnectionConfig {
   [key: string]: unknown;
 }
 
-export interface ApiPersistenceSqlDriverConfig {
+export interface ApiPersistenceSqlConfig {
   connection: ApiPersistenceSqlConnectionConfig;
+  url?: string;
+  ssl?: boolean;
   [key: string]: unknown;
 }
 
 export type ApiPersistenceConfig =
   | { driver: "memory" }
   | { driver: "sqlite"; sqlite?: ApiPersistenceSqliteConfig }
-  | { driver: "postgres"; postgres: ApiPersistenceSqlDriverConfig }
-  | { driver: "mysql"; mysql: ApiPersistenceSqlDriverConfig }
-  | { driver: "mariadb"; mariadb: ApiPersistenceSqlDriverConfig };
+  | { driver: "postgres"; postgres: ApiPersistenceSqlConfig }
+  | { driver: "mysql"; mysql: ApiPersistenceSqlConfig }
+  | { driver: "mariadb"; mariadb: ApiPersistenceSqlConfig };
 
 export interface ApiConfig {
   host?: string;

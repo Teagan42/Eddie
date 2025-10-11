@@ -1,6 +1,14 @@
 import fs from "fs/promises";
 import path from "path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  expectTypeOf,
+  it,
+  vi,
+} from "vitest";
 
 import { Test } from "@nestjs/testing";
 
@@ -212,6 +220,89 @@ describe("ConfigService", () => {
       );
     });
 
+    it("rejects mysql connection urls that are not strings", async () => {
+      const service = new ConfigService();
+
+      await expect(
+        service.compose({
+          api: {
+            persistence: {
+              driver: "mysql",
+              mysql: {
+                connection: {
+                  host: "198.51.100.12",
+                  port: 3306,
+                  database: "eddie_agents",
+                  user: "mysql_operator",
+                  password: "mysql-secret",
+                },
+                url: 1234 as unknown as string,
+              },
+            },
+          },
+        })
+      ).rejects.toThrow(
+        "api.persistence.mysql.url must be a string when provided. Received number."
+      );
+    });
+
+    it("rejects mysql ssl flags that are not booleans", async () => {
+      const service = new ConfigService();
+
+      await expect(
+        service.compose({
+          api: {
+            persistence: {
+              driver: "mysql",
+              mysql: {
+                connection: {
+                  host: "198.51.100.12",
+                  port: 3306,
+                  database: "eddie_agents",
+                  user: "mysql_operator",
+                  password: "mysql-secret",
+                },
+                ssl: "true" as unknown as boolean,
+              },
+            },
+          },
+        })
+      ).rejects.toThrow(
+        "api.persistence.mysql.ssl must be a boolean when provided. Received string."
+      );
+    });
+
+    it("retains mysql url and ssl optional primitives", async () => {
+      const service = new ConfigService();
+
+      const result = await service.compose({
+        api: {
+          persistence: {
+            driver: "mysql",
+            mysql: {
+              connection: {
+                host: "198.51.100.12",
+                port: 3306,
+                database: "eddie_agents",
+                user: "mysql_operator",
+                password: "mysql-secret",
+              },
+              url: "mysql://mysql_operator:mysql-secret@198.51.100.12:3306/eddie_agents",
+              ssl: true,
+            },
+          },
+        },
+      });
+
+      const mysqlConfig = result.api?.persistence?.mysql;
+      expect(mysqlConfig?.url).toBe(
+        "mysql://mysql_operator:mysql-secret@198.51.100.12:3306/eddie_agents"
+      );
+      expect(mysqlConfig?.ssl).toBe(true);
+      expectTypeOf(mysqlConfig?.url).toEqualTypeOf<string | undefined>();
+      expectTypeOf(mysqlConfig?.ssl).toEqualTypeOf<boolean | undefined>();
+    });
+
     it("rejects non-numeric postgres connection ports", async () => {
       const service = new ConfigService();
 
@@ -236,6 +327,32 @@ describe("ConfigService", () => {
         "api.persistence.postgres.connection.port must be a number."
       );
     });
+  });
+
+  it("rejects mysql connection urls that are null", async () => {
+    const service = new ConfigService();
+
+    await expect(
+      service.compose({
+        api: {
+          persistence: {
+            driver: "mysql",
+            mysql: {
+              connection: {
+                host: "198.51.100.12",
+                port: 3306,
+                database: "eddie_agents",
+                user: "mysql_operator",
+                password: "mysql-secret",
+              },
+              url: null,
+            },
+          },
+        },
+      })
+    ).rejects.toThrow(
+      "api.persistence.mysql.url must be a string when provided. Received null."
+    );
   });
 
   describe("load", () => {
