@@ -5,7 +5,7 @@ import type { Request } from "express";
 import { Test } from "@nestjs/testing";
 import { WsAdapter } from "@nestjs/platform-ws";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ConfigService, type EddieConfig } from "@eddie/config";
+import { ConfigService, ConfigStore, type EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { LoggerService } from "@eddie/io";
 import { ApiModule } from "../../src/api.module";
@@ -39,6 +39,8 @@ describe("ApiModule integration", () => {
   let app: INestApplication;
   let configService: ConfigService;
   let contextService: ContextService;
+  let bindStoreSpy: ReturnType<typeof vi.fn>;
+  let composeSpy: ReturnType<typeof vi.fn>;
   let validationPipeStub: {
     onModuleInit: ReturnType<typeof vi.fn>;
     transform: ReturnType<typeof vi.fn>;
@@ -114,8 +116,12 @@ describe("ApiModule integration", () => {
 
   beforeEach(async () => {
     process.env.NEST_DEFAULT_WS_ADAPTER = WS_ADAPTER_PACKAGE;
+    bindStoreSpy = vi.fn();
+    composeSpy = vi.fn().mockResolvedValue(config);
     const configServiceMock = {
       load: vi.fn().mockResolvedValue(config),
+      compose: composeSpy,
+      bindStore: bindStoreSpy,
     } as unknown as ConfigService;
     const contextServiceMock = {
       pack: vi.fn().mockResolvedValue({ files: [], totalBytes: 0 }),
@@ -303,6 +309,12 @@ describe("ApiModule integration", () => {
     ).resolves.toBe(true);
     expect(guard.canActivate).toHaveBeenCalledWith(
       expect.objectContaining({ switchToHttp: expect.any(Function) })
+    );
+  });
+
+  it("binds the config store during bootstrap", () => {
+    expect(bindStoreSpy).toHaveBeenCalledWith(
+      expect.any(ConfigStore)
     );
   });
 });
