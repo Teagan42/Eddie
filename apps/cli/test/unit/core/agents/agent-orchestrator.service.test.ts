@@ -269,6 +269,89 @@ describe("AgentOrchestratorService", () => {
     expect(createSpy.mock.calls[1]?.[2]).toBe(manager);
   });
 
+  it("allows hooks to intercept spawn_subagent requests before delegation", async () => {
+    const createSpy = vi.spyOn(agentInvocationFactory, "create");
+    const provider = new MockProvider([
+      createStream([
+        {
+          type: "tool_call",
+          name: "spawn_subagent",
+          id: "call-1",
+          arguments: {
+            agent: "worker",
+            prompt: "handle request",
+            variables: { priority: "high" },
+          },
+        },
+        { type: "end" },
+      ]),
+      createStream([
+        { type: "delta", text: "planner summary" },
+        { type: "end" },
+      ]),
+      createStream([
+        { type: "delta", text: "worker response" },
+        { type: "end" },
+      ]),
+      createStream([
+        { type: "delta", text: "manager ack" },
+        { type: "end" },
+      ]),
+    ]);
+
+    const hookBus = new HookBus();
+    hookBus.on(HOOK_EVENTS.beforeSpawnSubagent, async (payload) => {
+      const planner = await payload.spawn({
+        agentId: "planner",
+        prompt: "Summarise instructions",
+      });
+      const summary = planner.messages.at(-1)?.content ?? "";
+      return {
+        prompt: `${payload.request.prompt} :: ${summary}`,
+        variables: {
+          ...(payload.request.variables ?? {}),
+          summary,
+        },
+        context: {
+          files: [],
+          totalBytes: summary.length,
+          text: summary,
+        },
+      };
+    });
+
+    const runtime = baseRuntime(provider, { hooks: hookBus });
+    const manager = await orchestrator.runAgent(
+      {
+        definition: {
+          id: "manager",
+          systemPrompt: "coordinate",
+        },
+        prompt: "delegate work",
+        context: contextSlice("root"),
+      },
+      runtime
+    );
+
+    expect(manager.children).toHaveLength(2);
+    const [planner, worker] = manager.children;
+    expect(planner?.id).toBe("planner");
+    expect(worker?.id).toBe("worker");
+    expect(worker?.prompt).toBe("handle request :: planner summary");
+    expect(worker?.context.text).toBe("planner summary");
+
+    expect(createSpy).toHaveBeenCalledTimes(3);
+    const workerCall = createSpy.mock.calls.find(
+      ([definition]) => definition.id === "worker"
+    );
+    expect(workerCall?.[1]?.prompt).toBe("handle request :: planner summary");
+    expect(workerCall?.[1]?.variables).toEqual({
+      priority: "high",
+      summary: "planner summary",
+    });
+    expect(workerCall?.[1]?.context?.text).toBe("planner summary");
+  });
+
   it("emits lifecycle hooks with metadata for nested agents", async () => {
     const provider = new MockProvider([
       createStream([
