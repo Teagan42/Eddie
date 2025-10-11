@@ -72,3 +72,72 @@ describe("ConfigService compose precedence", () => {
     expect(configStore.setSnapshot).toHaveBeenCalledWith(composed);
   });
 });
+
+describe("ConfigService API persistence validation", () => {
+  const createSqlConnection = () => ({
+    host: "localhost",
+    port: 5432,
+    database: "eddie",
+    user: "agent",
+    password: "secret",
+  });
+
+  it("requires driver configuration when using a SQL driver", async () => {
+    const { service } = createService();
+
+    await expect(
+      service.compose({
+        api: {
+          persistence: {
+            driver: "postgres",
+          },
+        },
+      }),
+    ).rejects.toThrow(
+      "api.persistence.postgres must be provided when using the postgres driver.",
+    );
+  });
+
+  it("allows postgres driver configuration with explicit connection details", async () => {
+    const { service } = createService();
+
+    const composed = await service.compose({
+      api: {
+        persistence: {
+          driver: "postgres",
+          postgres: {
+            connection: createSqlConnection(),
+          },
+        },
+      },
+    });
+
+    expect(composed.api?.persistence).toMatchObject({
+      driver: "postgres",
+      postgres: {
+        connection: createSqlConnection(),
+      },
+    });
+  });
+
+  it("rejects optional SQL driver fields when they have the wrong primitive type", async () => {
+    const { service } = createService();
+
+    await expect(
+      service.compose({
+        api: {
+          persistence: {
+            driver: "postgres",
+            postgres: {
+              url: 123,
+              ssl: "require",
+              connection: createSqlConnection(),
+            },
+          },
+        },
+      }),
+    ).rejects.toThrowError(
+      /^api\.persistence\.postgres\.url must be a string when provided\.$/,
+    );
+  });
+});
