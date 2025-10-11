@@ -1239,26 +1239,12 @@ export class ConfigService implements OnApplicationBootstrap {
     }
 
     if (typeof value !== expectedType) {
-      const received = this.describeReceivedType(value);
-
       throw new Error(
-        `api.persistence.${driver}.${property} must be a ${expectedType} when provided. Received ${received}.`
+        `api.persistence.${driver}.${property} must be a ${expectedType} when provided.`
       );
     }
 
     return value as string | boolean;
-  }
-
-  private describeReceivedType(value: unknown): string {
-    if (value === null) {
-      return "null";
-    }
-
-    if (Array.isArray(value)) {
-      return "array";
-    }
-
-    return typeof value;
   }
 
   private validateApiPersistence(
