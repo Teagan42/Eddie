@@ -1,4 +1,8 @@
-import { Module } from "@nestjs/common";
+import {
+  ConfigurableModuleBuilder,
+  Module,
+  type DynamicModule,
+} from "@nestjs/common";
 import { ConfigModule as NestConfigModule } from "@nestjs/config";
 import {
   APP_FILTER,
@@ -6,7 +10,7 @@ import {
   APP_INTERCEPTOR,
   APP_PIPE,
 } from "@nestjs/core";
-import { ConfigModule } from "@eddie/config";
+import { ConfigModule, type ConfigModuleOptions } from "@eddie/config";
 import { ContextModule } from "@eddie/context";
 import { EngineModule } from "@eddie/engine";
 import { IoModule, createLoggerProviders } from "@eddie/io";
@@ -26,10 +30,28 @@ import { OrchestratorModule } from "./orchestrator/orchestrator.module";
 import { ConfigEditorModule } from "./config-editor/config-editor.module";
 import { ProvidersModule } from "./providers/providers.module";
 
+export type ApiModuleOptions = ConfigModuleOptions;
+
+const { ConfigurableModuleClass, MODULE_OPTIONS_TOKEN } =
+  new ConfigurableModuleBuilder<ApiModuleOptions>({
+    moduleName: "EddieApiModule",
+  }).build();
+
+const resolveRuntimeOptions = (
+  options?: ApiModuleOptions,
+): ApiModuleOptions => options ?? {};
+
+const appendConfigImport = <T extends { imports?: DynamicModule[] }>(
+  dynamicModule: T,
+  configImport: DynamicModule,
+) => ({
+  ...dynamicModule,
+  imports: [...(dynamicModule.imports ?? []), configImport],
+});
+
 @Module({
   imports: [
     NestConfigModule.forRoot({ isGlobal: true, cache: true }),
-    ConfigModule,
     ContextModule,
     IoModule,
     EngineModule,
@@ -73,4 +95,28 @@ import { ProvidersModule } from "./providers/providers.module";
     },
   ],
 })
-export class ApiModule {}
+export class ApiModule extends ConfigurableModuleClass {
+  static forRoot(
+    options?: ApiModuleOptions,
+  ): ReturnType<typeof ConfigurableModuleClass["register"]> {
+    const dynamicModule = super.register(options);
+    const configImport = ConfigModule.register(
+      resolveRuntimeOptions(options),
+    );
+
+    return appendConfigImport(dynamicModule, configImport);
+  }
+
+  static forRootAsync(
+    options: Parameters<typeof ConfigurableModuleClass["registerAsync"]>[0],
+  ): ReturnType<typeof ConfigurableModuleClass["registerAsync"]> {
+    const dynamicModule = super.registerAsync(options);
+    const configImport = ConfigModule.registerAsync({
+      inject: [{ token: MODULE_OPTIONS_TOKEN, optional: true }],
+      useFactory: async (moduleOptions?: ApiModuleOptions) =>
+        resolveRuntimeOptions(moduleOptions),
+    });
+
+    return appendConfigImport(dynamicModule, configImport);
+  }
+}
