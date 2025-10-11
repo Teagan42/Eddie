@@ -13,7 +13,6 @@ import { ChatMessagesGateway } from "./chat-messages.gateway";
 import { ToolsModule } from "../tools/tools.module";
 import { ChatSessionStreamRendererService } from "./chat-session-stream-renderer.service";
 import { ChatSessionEventsService } from "./chat-session-events.service";
-import { CHAT_SESSION_EVENT_CLASSES } from "@eddie/types";
 import {
   CHAT_SESSIONS_REPOSITORY,
   InMemoryChatSessionsRepository,
@@ -35,8 +34,6 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
   inject: [ ConfigStore ],
 };
 
-const CHAT_SESSION_EVENT_PROVIDERS = [...CHAT_SESSION_EVENT_CLASSES];
-
 @Module({
   imports: [
     EngineModule,
@@ -52,7 +49,6 @@ const CHAT_SESSION_EVENT_PROVIDERS = [...CHAT_SESSION_EVENT_CLASSES];
     ChatMessagesGateway,
     ChatSessionEventsService,
     ChatSessionsEngineListener,
-    ...CHAT_SESSION_EVENT_PROVIDERS,
     CHAT_SESSIONS_REPOSITORY_PROVIDER,
     {
       provide: StreamRendererService,

@@ -1,14 +1,9 @@
 import 'reflect-metadata';
 import { MODULE_METADATA } from '@nestjs/common/constants';
-import {
-  ChatMessageCreatedEvent,
-  ChatSessionCreatedEvent,
-  ChatSessionUpdatedEvent,
-} from '@eddie/types';
 import { ChatSessionsModule } from '../../../src/chat-sessions/chat-sessions.module';
 
 describe('ChatSessionsModule', () => {
-  it('registers CQRS events for chat sessions', () => {
+  it('imports the CQRS module without registering event payloads as providers', () => {
     const imports =
       Reflect.getMetadata(MODULE_METADATA.IMPORTS, ChatSessionsModule) ?? [];
     const providers =
@@ -18,11 +13,15 @@ describe('ChatSessionsModule', () => {
       typeof moduleRef === 'function' ? moduleRef.name : undefined,
     );
     expect(importNames).toEqual(expect.arrayContaining(['CqrsModule']));
-    expect(providers).toEqual(
-      expect.arrayContaining([
-        ChatSessionCreatedEvent,
-        ChatSessionUpdatedEvent,
-        ChatMessageCreatedEvent,
+    const providerClassNames = providers
+      .filter((provider: unknown): provider is Function => typeof provider === 'function')
+      .map((provider) => provider.name);
+
+    expect(providerClassNames).toEqual(
+      expect.not.arrayContaining([
+        'ChatSessionCreatedEvent',
+        'ChatSessionUpdatedEvent',
+        'ChatMessageCreatedEvent',
       ]),
     );
   });
