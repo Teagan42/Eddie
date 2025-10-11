@@ -106,9 +106,11 @@ export class EngineService {
       logger = this.loggerService.getLogger("engine");
       hooks = await this.hooksService.load(cfg.hooks);
 
-      const tracePath = cfg.output?.jsonlTrace
-        ? path.resolve(cfg.output.jsonlTrace)
-        : undefined;
+      const tracePath = this.resolveTracePath(
+        cfg.output?.jsonlTrace,
+        sessionId,
+        runStartedAt
+      );
 
       session = {
         id: sessionId,
@@ -538,6 +540,29 @@ export class EngineService {
       if (enabledSet) return enabledSet.has(tool.name);
       return true;
     });
+  }
+
+  private resolveTracePath(
+    configuredPath: string | undefined,
+    sessionId: string,
+    runStartedAt: number
+  ): string | undefined {
+    if (!configuredPath) {
+      return undefined;
+    }
+
+    const resolved = path.resolve(configuredPath);
+    const hasJsonlExtension =
+      path.extname(resolved).toLowerCase() === ".jsonl";
+    const directory = hasJsonlExtension
+      ? path.dirname(resolved)
+      : resolved;
+
+    const timestamp = new Date(runStartedAt)
+      .toISOString()
+      .replace(/:/g, "-");
+
+    return path.join(directory, `${timestamp}_${sessionId}.jsonl`);
   }
 
   private serializeError(error: unknown): {
