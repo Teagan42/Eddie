@@ -83,7 +83,9 @@ export class ConfigService implements OnApplicationBootstrap {
   private readonly moduleOptions: CliRuntimeOptions;
 
   constructor(
-    @Inject(forwardRef(() => ConfigStore)) private readonly configStore: ConfigStore,
+    @Optional()
+    @Inject(forwardRef(() => ConfigStore))
+    private readonly configStore?: ConfigStore,
     @Optional()
     @Inject(MODULE_OPTIONS_TOKEN)
     moduleOptions?: CliRuntimeOptions,
@@ -105,7 +107,9 @@ export class ConfigService implements OnApplicationBootstrap {
   async load(options: CliRuntimeOptions): Promise<EddieConfig> {
     const configPath = await this.resolveConfigPath(options);
     const fileConfig = configPath ? await this.readConfigFile(configPath) : {};
-    return this.compose(fileConfig, options);
+    const config = await this.compose(fileConfig, options);
+    this.configStore?.setSnapshot(config);
+    return config;
   }
 
   async compose(
@@ -123,8 +127,6 @@ export class ConfigService implements OnApplicationBootstrap {
     );
 
     this.validateConfig(finalConfig);
-
-    this.configStore?.setSnapshot(finalConfig);
 
     return finalConfig;
   }

@@ -5,7 +5,6 @@ import { MODULE_OPTIONS_TOKEN, INITIAL_CONFIG_TOKEN } from "./config.const";
 import { eddieConfig } from "./config.namespace";
 import type { CliRuntimeOptions, EddieConfig } from "./types";
 import { resolveCliRuntimeOptionsFromEnv } from "./runtime-env";
-import type { ConfigStore } from "./config.store";
 
 export const initialConfigProvider: FactoryProvider<Promise<EddieConfig>> = {
   provide: INITIAL_CONFIG_TOKEN,
@@ -19,12 +18,7 @@ export const initialConfigProvider: FactoryProvider<Promise<EddieConfig>> = {
   ): Promise<EddieConfig> => {
     const envOptions = resolveCliRuntimeOptionsFromEnv(process.env);
     const service = new ConfigService(
-      {
-        setSnapshot: () => {
-          // Intentionally empty: we do not want to mutate the real store during
-          // initial composition.
-        },
-      } as ConfigStore,
+      undefined,
       {
         ...envOptions,
         ...(moduleOptions ?? {}),

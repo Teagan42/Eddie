@@ -69,7 +69,17 @@ describe("ConfigService compose precedence", () => {
 
     expect(composed.model).toBe("cli-model");
     expect(composed.logging?.level).toBe("error");
-    expect(configStore.setSnapshot).toHaveBeenCalledWith(composed);
+    expect(configStore.setSnapshot).not.toHaveBeenCalled();
+  });
+});
+
+describe("ConfigService load lifecycle", () => {
+  it("updates the config store when loading configuration", async () => {
+    const { service, configStore } = createService();
+
+    const config = await service.load({});
+
+    expect(configStore.setSnapshot).toHaveBeenCalledWith(config);
   });
 });
 
