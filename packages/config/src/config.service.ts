@@ -1204,68 +1204,27 @@ export class ConfigService {
       return undefined;
     }
 
-    if (property === "url") {
-      if (expectedType !== "string") {
-        this.raiseOptionalPrimitiveError(driver, property, "string", value);
-      }
+    if (typeof value !== expectedType) {
+      const received = this.describeReceivedType(value);
 
-      this.assertStringOptionalPrimitive(driver, property, value);
-
-      return value;
+      throw new Error(
+        `api.persistence.${driver}.${property} must be a ${expectedType} when provided. Received ${received}.`
+      );
     }
 
-    if (expectedType !== "boolean") {
-      this.raiseOptionalPrimitiveError(driver, property, "boolean", value);
-    }
-
-    this.assertBooleanOptionalPrimitive(driver, property, value);
-
-    return value;
+    return value as string | boolean;
   }
 
   private describeReceivedType(value: unknown): string {
     if (value === null) {
-      return "null";
+      return "type null";
     }
 
     if (Array.isArray(value)) {
-      return "array";
+      return "type array";
     }
 
-    return typeof value;
-  }
-
-  private raiseOptionalPrimitiveError(
-    driver: SqlDriver,
-    property: "url" | "ssl",
-    expectedType: "string" | "boolean",
-    value: unknown
-  ): never {
-    const received = this.describeReceivedType(value);
-
-    throw new Error(
-      `api.persistence.${driver}.${property} must be a ${expectedType} when provided. Received ${received}.`
-    );
-  }
-
-  private assertStringOptionalPrimitive(
-    driver: SqlDriver,
-    property: "url",
-    value: unknown
-  ): asserts value is string {
-    if (typeof value !== "string") {
-      this.raiseOptionalPrimitiveError(driver, property, "string", value);
-    }
-  }
-
-  private assertBooleanOptionalPrimitive(
-    driver: SqlDriver,
-    property: "ssl",
-    value: unknown
-  ): asserts value is boolean {
-    if (typeof value !== "boolean") {
-      this.raiseOptionalPrimitiveError(driver, property, "boolean", value);
-    }
+    return `type ${typeof value}`;
   }
 
   private validateApiPersistence(

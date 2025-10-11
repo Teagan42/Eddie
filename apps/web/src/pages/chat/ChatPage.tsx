@@ -411,8 +411,8 @@ export function ChatPage(): JSX.Element {
             const exists = previous.some((existing) => existing.id === message.id);
             const next = exists
               ? previous.map((existing) =>
-                  existing.id === message.id ? { ...existing, ...message } : existing,
-                )
+                existing.id === message.id ? { ...existing, ...message } : existing,
+              )
               : [...previous, message];
             return next.sort(
               (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
@@ -466,12 +466,12 @@ export function ChatPage(): JSX.Element {
                   typeof p.arguments === 'string'
                     ? { arguments: p.arguments, command: p.arguments, preview: p.arguments }
                     : (() => {
-                        const summary = summarizeObject(p.arguments);
-                        return {
-                          arguments: summary ?? JSON.stringify(p.arguments),
-                          preview: summary ?? undefined,
-                        };
-                      })();
+                      const summary = summarizeObject(p.arguments);
+                      return {
+                        arguments: summary ?? JSON.stringify(p.arguments),
+                        preview: summary ?? undefined,
+                      };
+                    })();
 
                 const node = normalizeToolInvocationNode({
                   id,
@@ -565,10 +565,10 @@ export function ChatPage(): JSX.Element {
       selectedSessionId
         ? api.http.orchestrator.getMetadata(selectedSessionId)
         : Promise.resolve({
-            contextBundles: [],
-            toolInvocations: [],
-            agentHierarchy: [],
-          }),
+          contextBundles: [],
+          toolInvocations: [],
+          agentHierarchy: [],
+        }),
     select: (data) => {
       const normalized = normalizeOrchestratorMetadata(data ?? null);
       if (!normalized) {

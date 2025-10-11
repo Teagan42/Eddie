@@ -1,14 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  expectTypeOf,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Test } from "@nestjs/testing";
 
@@ -97,6 +89,23 @@ describe("ConfigService", () => {
       expect(result.api?.host).toBe("192.0.2.50");
     });
   });
+
+  const assertSqlOptionPrimitives = (
+    config: { url?: string; ssl?: boolean } | undefined,
+    expectedUrl: string
+  ) => {
+    expect(config?.url).toBe(expectedUrl);
+    expect(config?.ssl).toBe(true);
+    expectTypeOf(config?.url).toEqualTypeOf<string | undefined>();
+    expectTypeOf(config?.ssl).toEqualTypeOf<boolean | undefined>();
+
+    if (config) {
+      // @ts-expect-error boolean assignments must be rejected
+      config.url = true;
+      // @ts-expect-error string assignments must be rejected
+      config.ssl = "true";
+    }
+  };
 
   describe("compose", () => {
     it("prefers API host and port provided by the config file", async () => {
@@ -242,7 +251,7 @@ describe("ConfigService", () => {
           },
         })
       ).rejects.toThrow(
-        "api.persistence.mysql.url must be a string when provided. Received number."
+        "api.persistence.mysql.url must be a string when provided. Received type number."
       );
     });
 
@@ -268,45 +277,8 @@ describe("ConfigService", () => {
           },
         })
       ).rejects.toThrow(
-        "api.persistence.mysql.ssl must be a boolean when provided. Received string."
+        "api.persistence.mysql.ssl must be a boolean when provided. Received type string."
       );
-    });
-
-    it("retains mysql url and ssl optional primitives", async () => {
-      const service = new ConfigService();
-
-      const result = await service.compose({
-        api: {
-          persistence: {
-            driver: "mysql",
-            mysql: {
-              connection: {
-                host: "198.51.100.12",
-                port: 3306,
-                database: "eddie_agents",
-                user: "mysql_operator",
-                password: "mysql-secret",
-              },
-              url: "mysql://mysql_operator:mysql-secret@198.51.100.12:3306/eddie_agents",
-              ssl: true,
-            },
-          },
-        },
-      });
-
-      const mysqlConfig = result.api?.persistence?.mysql;
-      expect(mysqlConfig?.url).toBe(
-        "mysql://mysql_operator:mysql-secret@198.51.100.12:3306/eddie_agents"
-      );
-      expect(mysqlConfig?.ssl).toBe(true);
-      expectTypeOf(mysqlConfig?.url).toEqualTypeOf<string | undefined>();
-      expectTypeOf(mysqlConfig?.ssl).toEqualTypeOf<boolean | undefined>();
-      if (mysqlConfig) {
-        // @ts-expect-error boolean assignments must be rejected
-        mysqlConfig.url = true;
-        // @ts-expect-error string assignments must be rejected
-        mysqlConfig.ssl = "true";
-      }
     });
 
     it("rejects non-numeric postgres connection ports", async () => {
@@ -333,6 +305,35 @@ describe("ConfigService", () => {
         "api.persistence.postgres.connection.port must be a number."
       );
     });
+
+    it("retains mysql url and ssl optional primitives", async () => {
+      const service = new ConfigService();
+
+      const result = await service.compose({
+        api: {
+          persistence: {
+            driver: "mysql",
+            mysql: {
+              connection: {
+                host: "198.51.100.12",
+                port: 3306,
+                database: "eddie_agents",
+                user: "mysql_operator",
+                password: "mysql-secret",
+              },
+              url: "mysql://mysql_operator:mysql-secret@198.51.100.12:3306/eddie_agents",
+              ssl: true,
+            },
+          },
+        },
+      });
+
+      const mysqlConfig = result.api?.persistence?.mysql;
+      assertSqlOptionPrimitives(
+        mysqlConfig,
+        "mysql://mysql_operator:mysql-secret@198.51.100.12:3306/eddie_agents"
+      );
+    });
   });
 
   it("rejects mysql connection urls that are null", async () => {
@@ -357,7 +358,7 @@ describe("ConfigService", () => {
         },
       })
     ).rejects.toThrow(
-      "api.persistence.mysql.url must be a string when provided. Received null."
+      "api.persistence.mysql.url must be a string when provided. Received type null."
     );
   });
 
@@ -384,18 +385,10 @@ describe("ConfigService", () => {
     });
 
     const postgresConfig = result.api?.persistence?.postgres;
-    expect(postgresConfig?.url).toBe(
+    assertSqlOptionPrimitives(
+      postgresConfig,
       "postgres://postgres_operator:pg-secret@198.51.100.50:5432/eddie_agents"
     );
-    expect(postgresConfig?.ssl).toBe(true);
-    expectTypeOf(postgresConfig?.url).toEqualTypeOf<string | undefined>();
-    expectTypeOf(postgresConfig?.ssl).toEqualTypeOf<boolean | undefined>();
-    if (postgresConfig) {
-      // @ts-expect-error boolean assignments must be rejected
-      postgresConfig.url = true;
-      // @ts-expect-error string assignments must be rejected
-      postgresConfig.ssl = "true";
-    }
   });
 
   describe("load", () => {

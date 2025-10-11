@@ -43,6 +43,7 @@ module.exports = [
       ...reactHooksPlugin.configs.recommended.rules,
       "react/react-in-jsx-scope": "off",
       "react/prop-types": "off",
+      indent: ["error", 2, { SwitchCase: 1 }],
     },
   },
 ];

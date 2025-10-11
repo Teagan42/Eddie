@@ -20,6 +20,8 @@
     "pretest:e2e": "npm run ensure:api-client",
     "test:e2e": "playwright test",
     "format": "prettier --check .",
+    "start": "vite --mode production",
+    "prestart": "npm run build",
     "format:write": "prettier --write ."
   },
   "dependencies": {

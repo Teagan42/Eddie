@@ -117,7 +117,7 @@ Object.assign(globalThis, {
 
 function renderOverview(): {
   emitLog(entry: LogEntryDto): void;
-} {
+  } {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
