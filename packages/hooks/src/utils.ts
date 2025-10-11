@@ -3,6 +3,59 @@ import type { Stats } from "node:fs";
 import { extname, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+const EXPORT_PREFERENCE = ["import", "default", "node", "module", "require"] as const;
+
+function resolveExportsTarget(
+  target: unknown,
+  baseDir: string
+): string | undefined {
+  if (!target) {
+    return undefined;
+  }
+
+  if (typeof target === "string") {
+    return resolve(baseDir, target);
+  }
+
+  if (Array.isArray(target)) {
+    for (const entry of target) {
+      const resolved = resolveExportsTarget(entry, baseDir);
+      if (resolved) {
+        return resolved;
+      }
+    }
+    return undefined;
+  }
+
+  if (typeof target === "object") {
+    const record = target as Record<string, unknown>;
+    for (const key of EXPORT_PREFERENCE) {
+      if (key in record) {
+        const resolved = resolveExportsTarget(record[key], baseDir);
+        if (resolved) {
+          return resolved;
+        }
+      }
+    }
+
+    if ("." in record) {
+      const resolved = resolveExportsTarget(record["."], baseDir);
+      if (resolved) {
+        return resolved;
+      }
+    }
+
+    for (const value of Object.values(record)) {
+      const resolved = resolveExportsTarget(value, baseDir);
+      if (resolved) {
+        return resolved;
+      }
+    }
+  }
+
+  return undefined;
+}
+
 export function resolveEntry(candidatePath: string): string {
   const candidate = isAbsolute(candidatePath)
     ? candidatePath
@@ -17,8 +70,22 @@ export function resolveEntry(candidatePath: string): string {
     const pkgJson = join(candidate, "package.json");
     if (existsSync(pkgJson)) {
       const pkg = JSON.parse(readFileSync(pkgJson, "utf8"));
-      if (typeof pkg.exports === "string") {
-        return resolve(candidate, pkg.exports);
+      if (pkg.exports) {
+        const exportsField = pkg.exports;
+        const normalizedExports =
+          typeof exportsField === "object" &&
+          exportsField !== null &&
+          !Array.isArray(exportsField) &&
+          "." in exportsField
+            ? (exportsField as Record<string, unknown>)["."]
+            : exportsField;
+        const exportTarget = resolveExportsTarget(
+          normalizedExports,
+          candidate
+        );
+        if (exportTarget) {
+          return exportTarget;
+        }
       }
       if (pkg.module) {
         return resolve(candidate, pkg.module);

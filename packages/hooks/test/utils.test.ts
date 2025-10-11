@@ -14,4 +14,22 @@ describe("resolveEntry", () => {
 
     expect(resolved.endsWith("hook.mjs")).toBe(true);
   });
+
+  it("resolves directories via package.json exports import condition", () => {
+    const pluginDir = createTempPluginDir(
+      "export default () => 'exports-object';\n",
+      {
+        type: "module",
+        exports: {
+          ".": {
+            import: "./hook.mjs",
+          },
+        },
+      }
+    );
+
+    const resolved = resolveEntry(pluginDir);
+
+    expect(resolved.endsWith("hook.mjs")).toBe(true);
+  });
 });
