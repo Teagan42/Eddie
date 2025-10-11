@@ -134,7 +134,10 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
     if (message) this.events.emitPartial(message);
   }
 
-  private emitToolCallEvent(state: StreamState, event: StreamEvent): void {
+  private emitToolCallEvent(
+    state: StreamState,
+    event: Extract<StreamEvent, { type: "tool_call" }>,
+  ): void {
     this.events.emitToolCall({
       sessionId: state.sessionId,
       id: event.id ?? undefined,
@@ -144,7 +147,10 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
     });
   }
 
-  private emitToolResultEvent(state: StreamState, event: StreamEvent): void {
+  private emitToolResultEvent(
+    state: StreamState,
+    event: Extract<StreamEvent, { type: "tool_result" }>,
+  ): void {
     this.events.emitToolResult({
       sessionId: state.sessionId,
       id: event.id ?? undefined,

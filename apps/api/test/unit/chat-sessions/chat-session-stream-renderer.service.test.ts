@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { StreamEvent } from "@eddie/types";
 import {
   ChatSessionsService,
   type ChatSessionsListener,
@@ -99,9 +100,21 @@ describe("ChatSessionStreamRendererService", () => {
     });
 
   it("emits tool events through the events service", async () => {
+      const toolCall: StreamEvent = {
+        type: "tool_call",
+        name: "echo",
+        arguments: { text: "hi" },
+        id: "t1",
+      };
+      const toolResult: StreamEvent = {
+        type: "tool_result",
+        name: "echo",
+        result: { schema: "s1", content: "ok" },
+        id: "t1",
+      };
       await renderer.capture(sessionId, async () => {
-          renderer.render({ type: "tool_call", name: "echo", arguments: { text: "hi" }, id: "t1" } as any);
-          renderer.render({ type: "tool_result", name: "echo", result: { schema: "s1", content: "ok" }, id: "t1" } as any);
+          renderer.render(toolCall);
+          renderer.render(toolResult);
       });
 
       expect(eventMocks.emitToolCall).toHaveBeenCalledWith(
@@ -110,6 +123,39 @@ describe("ChatSessionStreamRendererService", () => {
       expect(eventMocks.emitToolResult).toHaveBeenCalledWith(
           expect.objectContaining({ sessionId, name: "echo", id: "t1" })
       );
+  });
+
+  it("annotates tool events with consistent timestamps", async () => {
+    vi.useFakeTimers();
+    const now = new Date("2024-01-01T00:00:00.000Z");
+    vi.setSystemTime(now);
+
+    const toolCall: StreamEvent = {
+      type: "tool_call",
+      name: "echo",
+      arguments: { text: "hi" },
+      id: "call-1",
+    };
+    const toolResult: StreamEvent = {
+      type: "tool_result",
+      name: "echo",
+      result: { schema: "s1", content: "ok" },
+      id: "call-1",
+    };
+
+    await renderer.capture(sessionId, async () => {
+      renderer.render(toolCall);
+      renderer.render(toolResult);
+    });
+
+    expect(eventMocks.emitToolCall).toHaveBeenCalledWith(
+      expect.objectContaining({ timestamp: now.toISOString() })
+    );
+    expect(eventMocks.emitToolResult).toHaveBeenCalledWith(
+      expect.objectContaining({ timestamp: now.toISOString() })
+    );
+
+    vi.useRealTimers();
   });
 
   it("announces agent activity transitions for stream events", async () => {
@@ -122,13 +168,13 @@ describe("ChatSessionStreamRendererService", () => {
         name: "echo",
         arguments: { text: "hi" },
         id: "call-1",
-      } as any);
+      });
       renderer.render({
         type: "tool_result",
         name: "echo",
         result: { schema: "s1", content: "ok" },
         id: "call-1",
-      } as any);
+      });
       renderer.render({ type: "end" });
     });
 
