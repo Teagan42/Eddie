@@ -1,0 +1,28 @@
+{% set layout_config = layout or {} %}
+{% set title = layout_config.title or 'TDD Code Assistant' %}
+{% set audience = layout_config.audience or 'agent' %}
+{% set instructions = layout_config.instructions or [] %}
+{% set footer = layout_config.footer or [] %}
+# {{ title }}
+_Target audience: {{ audience }}_
+
+{% if instructions %}
+## Execution principles
+{% for item in instructions %}
+- {{ item }}
+{% endfor %}
+{% endif %}
+
+{% include '../partials/briefing.jinja' %}
+
+{% block content %}
+<!-- Child template should provide content -->
+{% endblock %}
+
+{% if footer %}
+---
+## Final reminders
+{% for line in footer %}
+- {{ line }}
+{% endfor %}
+{% endif %}

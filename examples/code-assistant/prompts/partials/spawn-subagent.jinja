@@ -1,0 +1,80 @@
+## Spawning Subagents
+
+When you need to delegate work to a specialist agent, use the `spawn_subagent` tool with the following schema:
+
+```json
+{
+  "agent": "architect|planner|red|green|refactor|quality_gate",
+  "prompt": "Clear, specific instruction for the subagent",
+  "variables": {
+    "key": "value"
+  },
+  "metadata": {
+    "reason": "Why this delegation is necessary"
+  }
+}
+```
+
+### Required Variables by Agent
+
+**architect:**
+- `task`: Short plain-language description
+- `acceptance_criteria`: Array of criteria to satisfy
+- `constraints`: Array of non-functional constraints
+- Optional: `repo_map`, `existing_patterns`
+
+**planner:**
+- `design`: Architect output (design summary object)
+- `acceptance_criteria`: Array of criteria to satisfy
+- `test_cmd`: Shell command to run tests (e.g., "pnpm test")
+- Optional: `tooling`, `repo_map`
+
+**red:**
+- `step`: Current planning step with phase="RED"
+- `acceptance_criteria`: Array of criteria to satisfy
+- `test_conventions`: Object with framework, paths, naming, run command
+- Optional: `repo_map`
+
+**green:**
+- `step`: Current planning step with phase="GREEN"
+- `failing_tests`: Array of test files from RED output
+- `acceptance_criteria`: Array of criteria to satisfy
+- Optional: `repo_map`, `constraints`
+
+**refactor:**
+- `step`: Current planning step with phase="REFACTOR"
+- `acceptance_criteria`: Array of criteria to satisfy
+- Optional: `current_code_smells`, `constraints`, `repo_map`
+
+**quality_gate:**
+- `last_output`: JSON output from the previous agent
+- `gates`: Array of quality gates to check (e.g., ["schema validity", "minimality"])
+
+### Example Delegation
+
+```json
+{
+  "agent": "architect",
+  "prompt": "Design a minimal cursor-based pagination system for the search API",
+  "variables": {
+    "task": "Add cursor pagination to /media/search endpoint",
+    "acceptance_criteria": [
+      "API returns nextCursor when more results exist",
+      "Unit tests cover empty, single-page, multi-page scenarios"
+    ],
+    "constraints": [
+      "Keep response schema stable",
+      "No breaking changes to existing clients"
+    ]
+  },
+  "metadata": {
+    "reason": "Feature requires architectural design before implementation"
+  }
+}
+```
+
+### Delegation Rules
+- Only delegate when you have high confidence the subagent can progress
+- Provide all required variables for the target agent
+- Keep prompts specific and actionable
+- Include metadata explaining why delegation is necessary

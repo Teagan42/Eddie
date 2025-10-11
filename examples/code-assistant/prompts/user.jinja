@@ -1,0 +1,13 @@
+{% set layout_config = layout or {} %}
+{% set title = layout_config.title or 'User Follow-up' %}
+{% set audience = layout_config.audience or 'agent' %}
+{% set cadence = cadence or 'Provide status update' %}
+
+# {{ title }}
+_For: {{ audience }}_
+
+{{ cadence }}
+
+{% if prompt %}
+{{ prompt }}
+{% endif %}

@@ -1,0 +1,16 @@
+{% set test_conventions = test_conventions or {} %}
+{% if test_conventions %}
+## Test Conventions
+{% if test_conventions.framework %}
+- **Framework:** {{ test_conventions.framework }}
+{% endif %}
+{% if test_conventions.paths %}
+- **Test Paths:** {{ test_conventions.paths }}
+{% endif %}
+{% if test_conventions.naming %}
+- **Naming Pattern:** {{ test_conventions.naming }}
+{% endif %}
+{% if test_conventions.run %}
+- **Run Command:** `{{ test_conventions.run }}`
+{% endif %}
+{% endif %}

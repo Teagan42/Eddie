@@ -1,0 +1,19 @@
+{% set briefing_config = briefing or {} %}
+{% set guardrails = briefing_config.guardrails or [] %}
+{% set theme = briefing_config.theme or (context.tdd_mode if context and context.tdd_mode else None) %}
+{% set swimlane = swimlane or None %}
+{% if guardrails or theme or swimlane %}
+## Briefing
+{% if swimlane %}
+- **Swimlane:** {{ swimlane }}
+{% endif %}
+{% if theme %}
+- **Theme:** {{ theme }}
+{% endif %}
+{% if guardrails %}
+- **Guardrails:**
+{% for item in guardrails %}
+  - {{ item }}
+{% endfor %}
+{% endif %}
+{% endif %}
