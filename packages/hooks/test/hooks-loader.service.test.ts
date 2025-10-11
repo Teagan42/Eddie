@@ -1,16 +1,7 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 
 import { HooksLoaderService } from "../src/hooks-loader.service";
-
-function createTempPluginDir(contents: string, pkgJson: Record<string, unknown>) {
-  const dir = mkdtempSync(join(tmpdir(), "hooks-loader-"));
-  writeFileSync(join(dir, "hook.mjs"), contents, "utf8");
-  writeFileSync(join(dir, "package.json"), JSON.stringify(pkgJson), "utf8");
-  return dir;
-}
+import { createTempPluginDir } from "./support/temp-plugin";
 
 describe("HooksLoaderService", () => {
   it("loads hook modules referenced by package.json module field", async () => {
