@@ -5,11 +5,12 @@ import { ApiModule } from "./api.module";
 import { initTracing } from "./telemetry/tracing";
 import { HttpLoggerMiddleware } from "./middleware/http-logger.middleware";
 import { ConfigService } from "@eddie/config";
-import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
+import type { EddieConfig } from "@eddie/config";
 import { LoggerService } from "@eddie/io";
 import { applyCorsConfig } from "./cors";
 import { ensureDefaultConfigRoot } from "./config-root";
 import { configureOpenApi } from "./openapi-config";
+import { getRuntimeOptions, setRuntimeOptionsFromArgv } from "./runtime-options";
 
 function configureLogging(
   config: EddieConfig,
@@ -31,7 +32,7 @@ export async function bootstrap(): Promise<void> {
 
   const configService = app.get(ConfigService);
   const loggerService = app.get(LoggerService);
-  const runtimeOptions: CliRuntimeOptions = {};
+  const runtimeOptions = getRuntimeOptions();
   const config: EddieConfig = await configService.load(runtimeOptions);
 
   if (config.api?.telemetry?.enabled) {
@@ -60,4 +61,19 @@ export async function bootstrap(): Promise<void> {
   await app.listen(port, host);
 }
 
-void bootstrap();
+function isRunningAsStandaloneProcess(): boolean {
+  const entry = process.argv[1];
+  if (!entry) {
+    return false;
+  }
+
+  const normalized = entry.replace(/\\/g, "/");
+  return (
+    normalized.includes("/apps/api/") && /\/main\.(js|ts)$/.test(normalized)
+  );
+}
+
+if (isRunningAsStandaloneProcess()) {
+  setRuntimeOptionsFromArgv(process.argv.slice(2));
+  void bootstrap();
+}

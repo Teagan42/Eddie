@@ -8,9 +8,10 @@ import {
 import type { Request, Response } from "express";
 import { Observable, catchError, defer, of, switchMap, tap } from "rxjs";
 import { ConfigService } from "@eddie/config";
-import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
+import type { EddieConfig } from "@eddie/config";
 import { InjectLogger } from "@eddie/io";
 import type { Logger } from "pino";
+import { getRuntimeOptions } from "./runtime-options";
 
 @Injectable()
 export class RequestLoggingInterceptor
@@ -30,7 +31,7 @@ implements NestInterceptor, OnModuleInit
   }
 
   private async initialize(): Promise<void> {
-    const runtimeOptions: CliRuntimeOptions = {};
+    const runtimeOptions = getRuntimeOptions();
     const config: EddieConfig = await this.configService.load(runtimeOptions);
     this.logBodies = config.logLevel === "debug";
   }
