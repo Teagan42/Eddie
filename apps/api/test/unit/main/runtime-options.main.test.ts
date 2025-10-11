@@ -193,7 +193,7 @@ describe("bootstrap runtime options", () => {
       provider: "anthropic",
       model: "claude-3",
     });
-    expect(stubs.createMock).toHaveBeenCalledTimes(1);
+    expect(stubs.createMock).toHaveBeenCalledTimes(2);
     expect(stubs.listenMock).toHaveBeenCalledTimes(1);
   });
 });
