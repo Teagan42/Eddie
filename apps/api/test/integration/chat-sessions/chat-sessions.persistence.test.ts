@@ -48,9 +48,11 @@ describe("ChatSessionsRepository persistence", () => {
     };
 
     const load = vi.fn().mockResolvedValue(config);
+    const getSnapshot = vi.fn().mockReturnedValue(config);
     const moduleRef = await Test.createTestingModule({
       providers: [
         { provide: ConfigService, useValue: { load } },
+        { provide: ConfigStore, useValue: { getSnapshot } },
         CHAT_SESSIONS_REPOSITORY_PROVIDER,
         ChatSessionsService,
       ],
