@@ -29,9 +29,16 @@ function loadEslintConfig() {
 }
 
 describe('eslint config', () => {
+  const config = loadEslintConfig();
+
   it('ignores generated api client sources', () => {
-    const config = loadEslintConfig();
     const ignoreEntry = config.find((entry: { ignores?: string[] }) => Array.isArray(entry.ignores));
     expect(ignoreEntry?.ignores).toContain('packages/api-client/src/generated/**');
+  });
+
+  it('enforces two-space indentation in TypeScript sources', () => {
+    const tsEntry = config.find((entry: { files?: string[] }) => entry.files?.includes('**/*.ts'));
+    expect(tsEntry?.rules?.indent?.[0]).toBe('error');
+    expect(tsEntry?.rules?.indent?.[1]).toBe(2);
   });
 });
