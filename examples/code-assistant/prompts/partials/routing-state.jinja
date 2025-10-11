@@ -1,0 +1,12 @@
+{% if run and run.state %}
+## Current State
+- **Phase:** {{ run.state.phase or 'init' }}
+- **Last Agent:** {{ run.state.last_agent or 'none' }}
+- **Cycle Count:** {{ run.state.cycle_count or 0 }}
+{% if run.state.acceptance_criteria %}
+- **Acceptance Criteria:**
+{% for criterion in run.state.acceptance_criteria %}
+  - {{ criterion }}
+{% endfor %}
+{% endif %}
+{% endif %}

@@ -1,0 +1,233 @@
+model: gpt-4o
+provider:
+  name: openai
+context:
+  include:
+    - src/**/*.ts
+    - src/**/*.js
+    - src/**/*.py
+    - src/**/*.go
+    - tests/**/*
+    - test/**/*
+  baseDir: .
+  variables:
+    project_type: "multi-language"
+    tdd_mode: "strict"
+agents:
+  mode: router
+  enableSubagents: true
+  routing:
+    confidenceThreshold: 0.6
+    maxDepth: 3
+  manager:
+    name: TDD Router Manager
+    description: "Orchestrates strict TDD workflow through RED → GREEN → REFACTOR cycles"
+    promptTemplate:
+      file: router_manager.jinja
+      baseDir: ./examples/code-assistant/prompts
+      variables:
+        layout:
+          title: "Router Manager: TDD Orchestrator"
+          audience: "Manager Agent"
+          instructions:
+            - "Parse user requests into testable tasks with clear acceptance criteria"
+            - "Route to appropriate specialist agents based on TDD phase"
+            - "Enforce RED → GREEN → REFACTOR discipline"
+            - "Halt on contradictions or quality gate failures"
+          footer:
+            - "Never write code yourself—delegate to specialist agents"
+            - "Track state across cycles and ensure minimal, reversible changes"
+    defaultUserPromptTemplate:
+      file: user.jinja
+      baseDir: ./examples/code-assistant/prompts
+      variables:
+        layout:
+          title: "Manager Follow-up"
+          audience: "Router Manager"
+        cadence: "Summarize current phase and next routing decision"
+  subagents:
+    - id: architect
+      name: Architecture Designer
+      description: "Proposes minimal, coherent designs that satisfy acceptance criteria"
+      tools: ["file_read", "bash"]
+      promptTemplate:
+        file: subagents/architect.jinja
+        baseDir: ./examples/code-assistant/prompts
+        variables:
+          layout:
+            title: "Architect: Design Specialist"
+            audience: "Architecture Designer"
+            instructions:
+              - "Analyze codebase architecture and propose minimal changes"
+              - "Prefer existing patterns over new inventions"
+              - "Deliver implementation-ready design notes"
+          swimlane: "architect"
+          briefing:
+            guardrails:
+              - "Correctness, cohesion, clear boundaries, testability"
+              - "Incremental delivery over big-bang changes"
+            theme: "Minimal architectural design"
+      defaultUserPromptTemplate:
+        file: user.jinja
+        baseDir: ./examples/code-assistant/prompts
+        variables:
+          layout:
+            title: "Architect Update"
+            audience: "Architecture Designer"
+          cadence: "Provide design summary and implications"
+      routingThreshold: 0.5
+
+    - id: planner
+      name: TDD Planning Specialist
+      description: "Creates surgical, dependency-ordered TDD step sequences"
+      tools: ["file_read"]
+      promptTemplate:
+        file: subagents/planner.jinja
+        baseDir: ./examples/code-assistant/prompts
+        variables:
+          layout:
+            title: "Planner: TDD Step Sequencer"
+            audience: "Planning Specialist"
+            instructions:
+              - "Create atomic, reversible, observable steps"
+              - "Maintain clear RED/GREEN/REFACTOR boundaries"
+              - "Include exact verification commands"
+          swimlane: "planner"
+          briefing:
+            guardrails:
+              - "Every acceptance criterion maps to at least one step"
+              - "No step includes both tests and implementation"
+            theme: "TDD execution plan"
+      defaultUserPromptTemplate:
+        file: user.jinja
+        baseDir: ./examples/code-assistant/prompts
+        variables:
+          layout:
+            title: "Planner Update"
+            audience: "Planning Specialist"
+          cadence: "Outline step sequence and ordering rationale"
+      routingThreshold: 0.5
+
+    - id: red
+      name: RED Agent (Test Writer)
+      description: "Writes failing tests only—no implementation code"
+      tools: ["file_read", "file_write", "bash"]
+      promptTemplate:
+        file: subagents/red.jinja
+        baseDir: ./examples/code-assistant/prompts
+        variables:
+          layout:
+            title: "RED: Failing Test Writer"
+            audience: "Test-First Developer"
+            instructions:
+              - "Write failing tests that encode the next behavior"
+              - "Never modify production code"
+              - "Ensure tests fail for the intended reason"
+          swimlane: "red"
+          briefing:
+            guardrails:
+              - "Tests must be deterministic, isolated, and minimal"
+              - "Use existing test conventions in the repo"
+            theme: "RED phase: failing tests"
+      defaultUserPromptTemplate:
+        file: user.jinja
+        baseDir: ./examples/code-assistant/prompts
+        variables:
+          layout:
+            title: "RED Update"
+            audience: "Test Writer"
+          cadence: "Report test files added and expected failure"
+      routingThreshold: 0.4
+
+    - id: green
+      name: GREEN Agent (Implementation)
+      description: "Makes tests pass with minimal code changes"
+      tools: ["file_read", "file_write", "bash"]
+      promptTemplate:
+        file: subagents/green.jinja
+        baseDir: ./examples/code-assistant/prompts
+        variables:
+          layout:
+            title: "GREEN: Minimal Implementation"
+            audience: "Implementation Developer"
+            instructions:
+              - "Make tests pass with smallest possible change"
+              - "No unsolicited refactors or architectural changes"
+              - "Preserve public contracts unless required"
+          swimlane: "green"
+          briefing:
+            guardrails:
+              - "Only newly added tests should move from failing to passing"
+              - "No unrelated files changed"
+            theme: "GREEN phase: minimal implementation"
+      defaultUserPromptTemplate:
+        file: user.jinja
+        baseDir: ./examples/code-assistant/prompts
+        variables:
+          layout:
+            title: "GREEN Update"
+            audience: "Implementation Developer"
+          cadence: "Report code changes and verification results"
+      routingThreshold: 0.4
+
+    - id: refactor
+      name: REFACTOR Agent
+      description: "Improves structure without changing behavior"
+      tools: ["file_read", "file_write", "bash"]
+      promptTemplate:
+        file: subagents/refactor.jinja
+        baseDir: ./examples/code-assistant/prompts
+        variables:
+          layout:
+            title: "REFACTOR: Structure Improver"
+            audience: "Refactoring Specialist"
+            instructions:
+              - "Improve structure without changing observable behavior"
+              - "Rename, extract, deduplicate, improve cohesion"
+              - "Never change public contracts or logic outcomes"
+          swimlane: "refactor"
+          briefing:
+            guardrails:
+              - "All tests must still pass"
+              - "Behavior must remain identical"
+            theme: "REFACTOR phase: structure improvement"
+      defaultUserPromptTemplate:
+        file: user.jinja
+        baseDir: ./examples/code-assistant/prompts
+        variables:
+          layout:
+            title: "REFACTOR Update"
+            audience: "Refactoring Specialist"
+          cadence: "Report refactorings and safety verification"
+      routingThreshold: 0.4
+
+    - id: quality_gate
+      name: Quality Gate Checker
+      description: "Validates outputs against quality gates before proceeding"
+      tools: ["file_read"]
+      promptTemplate:
+        file: subagents/quality_gate.jinja
+        baseDir: ./examples/code-assistant/prompts
+        variables:
+          layout:
+            title: "Quality Gate: Output Validator"
+            audience: "Quality Gatekeeper"
+            instructions:
+              - "Check schema validity, minimality, determinism"
+              - "Verify alignment with acceptance criteria"
+              - "Output pass or block with actionable reason"
+          swimlane: "quality_gate"
+          briefing:
+            guardrails:
+              - "Be strict but fair"
+              - "Provide clear, actionable feedback"
+            theme: "Quality gate validation"
+      defaultUserPromptTemplate:
+        file: user.jinja
+        baseDir: ./examples/code-assistant/prompts
+        variables:
+          layout:
+            title: "Quality Gate Result"
+            audience: "Quality Checker"
+          cadence: "Report validation status"
+      routingThreshold: 0.3

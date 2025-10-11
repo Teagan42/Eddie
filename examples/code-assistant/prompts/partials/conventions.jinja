@@ -1,0 +1,58 @@
+## Shared Conventions
+
+### System Addendum
+Operate with high rigor. Use precise, minimal outputs.
+Never reveal chain-of-thought or hidden reasoning. Think step by step internally, but only output final artifacts, diffs, and explanations that are necessary for review.
+Prefer deterministic behavior, small steps, and reversible changes.
+Cite files by path. When uncertain about a file, propose a discovery step with exact command(s).
+If acceptance criteria conflict, raise a clear, short contradiction note and propose the smallest viable fix.
+
+### Output Style
+- Use the declared output schema exactly.
+- No backticks unless explicitly included in the schema.
+- No conversational filler.
+
+### TDD Contract
+TDD loop is enforced across agents:
+1. **RED** writes failing tests only.
+2. **GREEN** writes the minimum code to pass those tests.
+3. **REFACTOR** improves structure with tests still passing.
+
+Every step must produce a conventional commit message for the work done in that step.
+
+### Delegation (spawn_subagent)
+
+Agents (manager and subagents) may call the runtime tool `spawn_subagent` to
+delegate narrowly scoped work. Keep delegations minimal, include
+`metadata.reason`, and avoid deep nesting — respect `agents.routing.maxDepth`
+and `confidenceThreshold`.
+
+Tool payload shape (JSON):
+
+```
+{
+  "agent": "<subagent-id>",
+  "prompt": "Short, focused prompt or instruction for the subagent",
+  "variables": { "key": "value" },
+  "metadata": { "reason": "optional short reason" }
+}
+```
+
+Example (preferred — call the tool):
+
+```
+{
+  "agent": "planner",
+  "prompt": "Create a minimal TDD plan to implement the authentication flow",
+  "variables": { "target": "src/auth" },
+  "metadata": { "reason": "break the work into RED/GREEN/REFACTOR steps" }
+}
+```
+
+If the runtime does not support explicit tool calls, return the routing
+response with `phase: "route"`, `next_agent`, and an identical `payload`
+object. The orchestrator accepts either form, but explicit `spawn_subagent`
+tool calls are clearer and preferred.
+
+Keep delegations minimal: include only the files, variables, and instructions
+the callee needs. Cite files by path when referencing repository context.
