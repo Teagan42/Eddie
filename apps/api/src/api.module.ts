@@ -10,7 +10,11 @@ import {
   APP_INTERCEPTOR,
   APP_PIPE,
 } from "@nestjs/core";
-import { ConfigModule, type ConfigModuleOptions } from "@eddie/config";
+import {
+  ConfigModule,
+  type ConfigModuleOptions,
+  type CliRuntimeOptions,
+} from "@eddie/config";
 import { ContextModule } from "@eddie/context";
 import { EngineModule } from "@eddie/engine";
 import { IoModule, createLoggerProviders } from "@eddie/io";
@@ -30,16 +34,16 @@ import { OrchestratorModule } from "./orchestrator/orchestrator.module";
 import { ConfigEditorModule } from "./config-editor/config-editor.module";
 import { ProvidersModule } from "./providers/providers.module";
 
-export type ApiModuleOptions = ConfigModuleOptions;
+export type ApiModuleOptions = CliRuntimeOptions;
 
 const { ConfigurableModuleClass, MODULE_OPTIONS_TOKEN } =
   new ConfigurableModuleBuilder<ApiModuleOptions>({
     moduleName: "EddieApiModule",
   }).build();
 
-const resolveRuntimeOptions = (
-  options?: ApiModuleOptions,
-): ApiModuleOptions => options ?? {};
+const toConfigModuleOptions = (
+  options: ApiModuleOptions = {},
+): ConfigModuleOptions => ({ cliOptions: options });
 
 const appendConfigImport = <T extends { imports?: DynamicModule[] }>(
   dynamicModule: T,
@@ -101,7 +105,7 @@ export class ApiModule extends ConfigurableModuleClass {
   ): ReturnType<typeof ConfigurableModuleClass["register"]> {
     const dynamicModule = super.register(options);
     const configImport = ConfigModule.register(
-      resolveRuntimeOptions(options),
+      toConfigModuleOptions(options),
     );
 
     return appendConfigImport(dynamicModule, configImport);
@@ -114,7 +118,7 @@ export class ApiModule extends ConfigurableModuleClass {
     const configImport = ConfigModule.registerAsync({
       inject: [{ token: MODULE_OPTIONS_TOKEN, optional: true }],
       useFactory: async (moduleOptions?: ApiModuleOptions) =>
-        resolveRuntimeOptions(moduleOptions),
+        toConfigModuleOptions(moduleOptions),
     });
 
     return appendConfigImport(dynamicModule, configImport);

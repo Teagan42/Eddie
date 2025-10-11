@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DynamicModule } from "@nestjs/common";
-import type { ConfigModuleOptions } from "@eddie/config";
+import type { CliRuntimeOptions } from "@eddie/config";
 
 describe("AppModule configuration", () => {
   beforeEach(() => {
@@ -16,17 +16,19 @@ describe("AppModule configuration", () => {
       registrationResult as ReturnType<typeof ConfigModule.register>,
     );
 
-    const runtimeOptions: ConfigModuleOptions = {
+    const cliOverrides: CliRuntimeOptions = {
       logLevel: "info",
     };
 
     const { AppModule } = await import("../../src/app.module");
 
     const dynamicModule = (AppModule as unknown as {
-      forRoot: (options?: ConfigModuleOptions) => DynamicModule;
-    }).forRoot(runtimeOptions);
+      forRoot: (options?: CliRuntimeOptions) => DynamicModule;
+    }).forRoot(cliOverrides);
 
-    expect(registerSpy).toHaveBeenCalledWith(runtimeOptions);
+    expect(registerSpy).toHaveBeenCalledWith({
+      cliOptions: cliOverrides,
+    });
     expect(dynamicModule.imports).toContain(registrationResult);
   });
 
@@ -38,7 +40,7 @@ describe("AppModule configuration", () => {
       registrationResult as ReturnType<typeof ConfigModule.registerAsync>,
     );
 
-    const runtimeOptions: ConfigModuleOptions = {
+    const cliOverrides: CliRuntimeOptions = {
       logLevel: "info",
     };
 
@@ -47,7 +49,7 @@ describe("AppModule configuration", () => {
     const dynamicModule = (AppModule as unknown as {
       forRootAsync: (typeof ConfigModule)["registerAsync"];
     }).forRootAsync({
-      useFactory: async () => runtimeOptions,
+      useFactory: async () => cliOverrides,
     });
 
     expect(registerAsyncSpy).toHaveBeenCalled();
@@ -69,8 +71,8 @@ describe("AppModule configuration", () => {
       optional: true,
     });
 
-    await expect(registration?.useFactory(runtimeOptions)).resolves.toEqual(
-      runtimeOptions,
-    );
+    await expect(registration?.useFactory(cliOverrides)).resolves.toEqual({
+      cliOptions: cliOverrides,
+    });
   });
 });

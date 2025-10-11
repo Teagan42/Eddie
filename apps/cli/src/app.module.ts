@@ -3,22 +3,26 @@ import {
   Module,
   type DynamicModule,
 } from "@nestjs/common";
-import { ConfigModule, type ConfigModuleOptions } from "@eddie/config";
+import {
+  ConfigModule,
+  type ConfigModuleOptions,
+  type CliRuntimeOptions,
+} from "@eddie/config";
 import { ContextModule } from "@eddie/context";
 import { EngineModule } from "@eddie/engine";
 import { IoModule } from "@eddie/io";
 import { CliModule } from "./cli/cli.module";
 
-export type AppModuleOptions = ConfigModuleOptions;
+export type AppModuleOptions = CliRuntimeOptions;
 
 const { ConfigurableModuleClass, MODULE_OPTIONS_TOKEN } =
   new ConfigurableModuleBuilder<AppModuleOptions>({
     moduleName: "EddieCliModule",
   }).build();
 
-const resolveRuntimeOptions = (
-  options?: AppModuleOptions,
-): AppModuleOptions => options ?? {};
+const toConfigModuleOptions = (
+  options: AppModuleOptions = {},
+): ConfigModuleOptions => ({ cliOptions: options });
 
 const appendConfigImport = <T extends { imports?: DynamicModule[] }>(
   dynamicModule: T,
@@ -42,7 +46,7 @@ export class AppModule extends ConfigurableModuleClass {
   ): ReturnType<typeof ConfigurableModuleClass["register"]> {
     const dynamicModule = super.register(options);
     const configImport = ConfigModule.register(
-      resolveRuntimeOptions(options),
+      toConfigModuleOptions(options),
     );
 
     return appendConfigImport(dynamicModule, configImport);
@@ -55,7 +59,7 @@ export class AppModule extends ConfigurableModuleClass {
     const configImport = ConfigModule.registerAsync({
       inject: [{ token: MODULE_OPTIONS_TOKEN, optional: true }],
       useFactory: async (moduleOptions?: AppModuleOptions) =>
-        resolveRuntimeOptions(moduleOptions),
+        toConfigModuleOptions(moduleOptions),
     });
 
     return appendConfigImport(dynamicModule, configImport);
