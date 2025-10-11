@@ -74,6 +74,10 @@ export class ChatSessionsGateway implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  emitSessionCreated(session: ChatSessionDto): void {
+    emitEvent(this.server, "session.created", session);
+  }
+
   @SubscribeMessage("message.send")
   @UsePipes(
     new ValidationPipe({
@@ -88,7 +92,12 @@ export class ChatSessionsGateway implements OnModuleInit, OnModuleDestroy {
   }
 
   private handleSessionCreated(sessionId: string): void {
-    this.emitSession("session.created", sessionId);
+    try {
+      const session = this.service.getSession(sessionId);
+      this.emitSessionCreated(session);
+    } catch {
+      // session removed; ignore
+    }
   }
 
   private handleSessionUpdated(sessionId: string): void {
