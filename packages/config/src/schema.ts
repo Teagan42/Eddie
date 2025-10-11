@@ -133,13 +133,38 @@ const API_PERSISTENCE_SQLITE_SCHEMA: JSONSchema7 = {
   },
 };
 
+const API_PERSISTENCE_SQL_CONNECTION_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: true,
+  required: ["host", "port", "database", "user", "password"],
+  properties: {
+    host: { type: "string", minLength: 1 },
+    port: { type: "integer", minimum: 0 },
+    database: { type: "string", minLength: 1 },
+    user: { type: "string", minLength: 1 },
+    password: { type: "string", minLength: 1 },
+  },
+};
+
+const API_PERSISTENCE_SQL_DRIVER_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: true,
+  required: ["connection"],
+  properties: {
+    connection: API_PERSISTENCE_SQL_CONNECTION_SCHEMA,
+  },
+};
+
 const API_PERSISTENCE_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
   required: ["driver"],
   properties: {
-    driver: { enum: ["memory", "sqlite"] },
+    driver: { enum: ["memory", "sqlite", "postgres", "mysql", "mariadb"] },
     sqlite: API_PERSISTENCE_SQLITE_SCHEMA,
+    postgres: API_PERSISTENCE_SQL_DRIVER_SCHEMA,
+    mysql: API_PERSISTENCE_SQL_DRIVER_SCHEMA,
+    mariadb: API_PERSISTENCE_SQL_DRIVER_SCHEMA,
   },
 };
 

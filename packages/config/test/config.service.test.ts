@@ -194,6 +194,23 @@ describe("ConfigService", () => {
         });
       }
     );
+
+    it("requires connection details when configuring postgres persistence", async () => {
+      const service = new ConfigService();
+
+      await expect(
+        service.compose({
+          api: {
+            persistence: {
+              driver: "postgres",
+              postgres: {},
+            },
+          },
+        })
+      ).rejects.toThrow(
+        "api.persistence.postgres.connection must be provided when using the postgres driver."
+      );
+    });
   });
 
   describe("load", () => {

@@ -12,12 +12,14 @@ import { DEFAULT_CONFIG } from "./defaults";
 import { CONFIG_NAMESPACE, eddieConfig } from "./config.namespace";
 import { ConfigStore } from "./hot-config.store";
 import { Subject } from "rxjs";
+import { z } from "zod";
 import type {
   AgentProviderConfig,
   AgentsConfig,
   AgentsConfigInput,
   ApiConfig,
   ApiPersistenceConfig,
+  ApiPersistenceSqlDriverConfig,
   CliRuntimeOptions,
   ContextConfig,
   ContextResourceConfig,
@@ -48,6 +50,23 @@ const CONFIG_FILENAMES = [
   ".eddierc.json",
   ".eddierc.yaml",
 ];
+
+const SQL_DRIVERS = ["postgres", "mysql", "mariadb"] as const;
+const SQL_DRIVER_SET = new Set<string>(SQL_DRIVERS);
+type SqlDriver = (typeof SQL_DRIVERS)[number];
+
+const SQL_CONNECTION_SCHEMA = z
+  .object({
+    host: z.string().min(1, "host must be provided"),
+    port: z
+      .number({ invalid_type_error: "port must be a number" })
+      .int("port must be an integer")
+      .positive("port must be greater than zero"),
+    database: z.string().min(1, "database must be provided"),
+    user: z.string().min(1, "user must be provided"),
+    password: z.string().min(1, "password must be provided"),
+  })
+  .passthrough();
 
 /**
  * ConfigService resolves Eddie configuration from disk and merges it with CLI
@@ -1089,6 +1108,51 @@ export class ConfigService {
     return typeof value === "object" && value !== null && !Array.isArray(value);
   }
 
+  private ensureSqlPersistenceConfig(
+    driver: SqlDriver,
+    config: unknown
+  ): ApiPersistenceSqlDriverConfig {
+    if (!this.isPlainObject(config)) {
+      throw new Error(
+        `api.persistence.${driver} must be an object when using the ${driver} driver.`
+      );
+    }
+
+    if (!("connection" in config)) {
+      throw new Error(
+        `api.persistence.${driver}.connection must be provided when using the ${driver} driver.`
+      );
+    }
+
+    const { connection, ...rest } = config as {
+      connection: unknown;
+      [key: string]: unknown;
+    };
+
+    if (!this.isPlainObject(connection)) {
+      throw new Error(
+        `api.persistence.${driver}.connection must be an object when using the ${driver} driver.`
+      );
+    }
+
+    const result = SQL_CONNECTION_SCHEMA.safeParse(connection);
+    if (!result.success) {
+      const [issue] = result.error.issues;
+      const pathSuffix = issue?.path?.length
+        ? `.${issue.path.map(String).join(".")}`
+        : "";
+      const message = issue?.message ?? "is invalid.";
+      throw new Error(
+        `api.persistence.${driver}.connection${pathSuffix} ${message}`
+      );
+    }
+
+    return {
+      ...rest,
+      connection: result.data,
+    } as ApiPersistenceSqlDriverConfig;
+  }
+
   private validateApiPersistence(
     persistence: ApiPersistenceConfig | undefined
   ): void {
@@ -1096,28 +1160,50 @@ export class ConfigService {
       return;
     }
 
-    if (persistence.driver !== "memory" && persistence.driver !== "sqlite") {
-      throw new Error(
-        "api.persistence.driver must be either 'memory' or 'sqlite'."
-      );
+    if (persistence.driver === "memory") {
+      return;
     }
 
-    if (
-      typeof persistence.sqlite !== "undefined" &&
-      !this.isPlainObject(persistence.sqlite)
-    ) {
-      throw new Error("api.persistence.sqlite must be an object when provided.");
+    if (persistence.driver === "sqlite") {
+      if (
+        typeof persistence.sqlite !== "undefined" &&
+        !this.isPlainObject(persistence.sqlite)
+      ) {
+        throw new Error(
+          "api.persistence.sqlite must be an object when provided."
+        );
+      }
+
+      if (
+        persistence.sqlite &&
+        typeof persistence.sqlite.filename !== "undefined" &&
+        typeof persistence.sqlite.filename !== "string"
+      ) {
+        throw new Error(
+          "api.persistence.sqlite.filename must be a string when provided."
+        );
+      }
+
+      return;
     }
 
-    if (
-      persistence.sqlite &&
-      typeof persistence.sqlite.filename !== "undefined" &&
-      typeof persistence.sqlite.filename !== "string"
-    ) {
-      throw new Error(
-        "api.persistence.sqlite.filename must be a string when provided."
-      );
+    if (SQL_DRIVER_SET.has(persistence.driver)) {
+      const driver = persistence.driver as SqlDriver;
+      const driverConfig = (persistence as Record<string, unknown>)[driver];
+      if (typeof driverConfig === "undefined") {
+        throw new Error(
+          `api.persistence.${driver} must be provided when using the ${driver} driver.`
+        );
+      }
+
+      const validated = this.ensureSqlPersistenceConfig(driver, driverConfig);
+      (persistence as Record<string, unknown>)[driver] = validated;
+      return;
     }
+
+    throw new Error(
+      "api.persistence.driver must be one of 'memory', 'sqlite', 'postgres', 'mysql', or 'mariadb'."
+    );
   }
 
   private validateConfig(config: EddieConfig): void {

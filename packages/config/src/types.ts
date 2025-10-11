@@ -46,10 +46,26 @@ export interface ApiPersistenceSqliteConfig {
   filename?: string;
 }
 
-export interface ApiPersistenceConfig {
-  driver: "memory" | "sqlite";
-  sqlite?: ApiPersistenceSqliteConfig;
+export interface ApiPersistenceSqlConnectionConfig {
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  password: string;
+  [key: string]: unknown;
 }
+
+export interface ApiPersistenceSqlDriverConfig {
+  connection: ApiPersistenceSqlConnectionConfig;
+  [key: string]: unknown;
+}
+
+export type ApiPersistenceConfig =
+  | { driver: "memory" }
+  | { driver: "sqlite"; sqlite?: ApiPersistenceSqliteConfig }
+  | { driver: "postgres"; postgres: ApiPersistenceSqlDriverConfig }
+  | { driver: "mysql"; mysql: ApiPersistenceSqlDriverConfig }
+  | { driver: "mariadb"; mariadb: ApiPersistenceSqlDriverConfig };
 
 export interface ApiConfig {
   host?: string;
