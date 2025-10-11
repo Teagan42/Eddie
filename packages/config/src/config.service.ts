@@ -19,7 +19,7 @@ import type {
   AgentsConfigInput,
   ApiConfig,
   ApiPersistenceConfig,
-  ApiPersistenceSqlDriverConfig,
+  ApiPersistenceSqlConfig,
   CliRuntimeOptions,
   ContextConfig,
   ContextResourceConfig,
@@ -1111,7 +1111,7 @@ export class ConfigService {
   private ensureSqlPersistenceConfig(
     driver: SqlDriver,
     config: unknown
-  ): ApiPersistenceSqlDriverConfig {
+  ): ApiPersistenceSqlConfig {
     if (!this.isPlainObject(config)) {
       throw new Error(
         `api.persistence.${driver} must be an object when using the ${driver} driver.`
@@ -1124,8 +1124,10 @@ export class ConfigService {
       );
     }
 
-    const { connection, ...rest } = config as {
+    const { connection, url, ssl, ...rest } = config as {
       connection: unknown;
+      url?: unknown;
+      ssl?: unknown;
       [key: string]: unknown;
     };
 
@@ -1151,10 +1153,78 @@ export class ConfigService {
       throw new Error(`${connectionPath}${pathSuffix} ${message}`);
     }
 
-    return {
+    const validatedUrl = this.ensureOptionalPrimitive(
+      driver,
+      "url",
+      "string",
+      url
+    );
+    const validatedSsl = this.ensureOptionalPrimitive(
+      driver,
+      "ssl",
+      "boolean",
+      ssl
+    );
+
+    const validated: ApiPersistenceSqlConfig = {
       ...rest,
       connection: result.data,
-    } as ApiPersistenceSqlDriverConfig;
+    };
+
+    if (typeof validatedUrl !== "undefined") {
+      validated.url = validatedUrl;
+    }
+
+    if (typeof validatedSsl !== "undefined") {
+      validated.ssl = validatedSsl;
+    }
+
+    return validated;
+  }
+
+  private ensureOptionalPrimitive(
+    driver: SqlDriver,
+    property: "url",
+    expectedType: "string",
+    value: unknown
+  ): string | undefined;
+  private ensureOptionalPrimitive(
+    driver: SqlDriver,
+    property: "ssl",
+    expectedType: "boolean",
+    value: unknown
+  ): boolean | undefined;
+  private ensureOptionalPrimitive(
+    driver: SqlDriver,
+    property: "url" | "ssl",
+    expectedType: "string" | "boolean",
+    value: unknown
+  ): string | boolean | undefined {
+    if (typeof value === "undefined") {
+      return undefined;
+    }
+
+    if (typeof value !== expectedType) {
+      const received = this.describeReceivedType(value);
+
+      throw new Error(
+        `api.persistence.${driver}.${property} must be a ${expectedType} when provided. Received ${received}.`
+      );
+    }
+
+    return value as string | boolean;
+  }
+
+  private describeReceivedType(value: unknown): string {
+    if (value === null) {
+      return "null";
+    }
+
+    if (Array.isArray(value)) {
+      return "array";
+    }
+
+    return typeof value;
   }
 
   private validateApiPersistence(

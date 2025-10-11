@@ -212,6 +212,58 @@ describe("ConfigService", () => {
       );
     });
 
+    it("rejects mysql connection urls that are not strings", async () => {
+      const service = new ConfigService();
+
+      await expect(
+        service.compose({
+          api: {
+            persistence: {
+              driver: "mysql",
+              mysql: {
+                connection: {
+                  host: "198.51.100.12",
+                  port: 3306,
+                  database: "eddie_agents",
+                  user: "mysql_operator",
+                  password: "mysql-secret",
+                },
+                url: 1234 as unknown as string,
+              },
+            },
+          },
+        })
+      ).rejects.toThrow(
+        "api.persistence.mysql.url must be a string when provided. Received number."
+      );
+    });
+
+    it("rejects mysql ssl flags that are not booleans", async () => {
+      const service = new ConfigService();
+
+      await expect(
+        service.compose({
+          api: {
+            persistence: {
+              driver: "mysql",
+              mysql: {
+                connection: {
+                  host: "198.51.100.12",
+                  port: 3306,
+                  database: "eddie_agents",
+                  user: "mysql_operator",
+                  password: "mysql-secret",
+                },
+                ssl: "true" as unknown as boolean,
+              },
+            },
+          },
+        })
+      ).rejects.toThrow(
+        "api.persistence.mysql.ssl must be a boolean when provided. Received string."
+      );
+    });
+
     it("rejects non-numeric postgres connection ports", async () => {
       const service = new ConfigService();
 
@@ -236,6 +288,32 @@ describe("ConfigService", () => {
         "api.persistence.postgres.connection.port must be a number."
       );
     });
+  });
+
+  it("rejects mysql connection urls that are null", async () => {
+    const service = new ConfigService();
+
+    await expect(
+      service.compose({
+        api: {
+          persistence: {
+            driver: "mysql",
+            mysql: {
+              connection: {
+                host: "198.51.100.12",
+                port: 3306,
+                database: "eddie_agents",
+                user: "mysql_operator",
+                password: "mysql-secret",
+              },
+              url: null,
+            },
+          },
+        },
+      })
+    ).rejects.toThrow(
+      "api.persistence.mysql.url must be a string when provided. Received null."
+    );
   });
 
   describe("load", () => {
