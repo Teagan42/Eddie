@@ -97,6 +97,12 @@ function normalizeList(value: string): string[] {
     .filter(Boolean);
 }
 
+function normalizeListValues(values: readonly string[]): string[] {
+  return values
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+}
+
 export function parseRuntimeOptionsFromArgv(argv: string[]): CliRuntimeOptions {
   const accumulator: Partial<CliRuntimeOptions> = {};
 
@@ -154,23 +160,26 @@ export function parseRuntimeOptionsFromArgv(argv: string[]): CliRuntimeOptions {
 function cloneList(
   values: readonly string[] | undefined,
   dedupe: boolean,
+  normalize: boolean,
 ): string[] | undefined {
   if (!values) {
     return undefined;
   }
 
-  if (values.length === 0) {
+  const source = normalize ? normalizeListValues(values) : values;
+
+  if (source.length === 0) {
     return [];
   }
 
   if (!dedupe) {
-    return [...values];
+    return normalize ? [...source] : [...values];
   }
 
   const seen = new Set<string>();
   const result: string[] = [];
 
-  for (const value of values) {
+  for (const value of source) {
     if (seen.has(value)) {
       continue;
     }
@@ -185,21 +194,26 @@ function cloneList(
 function cloneOptions(
   options: Partial<CliRuntimeOptions>,
   dedupeLists = false,
+  normalizeLists = false,
 ): CliRuntimeOptions {
   const { context, tools, disabledTools, ...rest } = options;
 
   return {
     ...rest,
-    context: cloneList(context, dedupeLists),
-    tools: cloneList(tools, dedupeLists),
-    disabledTools: cloneList(disabledTools, dedupeLists),
+    context: cloneList(context, dedupeLists, normalizeLists),
+    tools: cloneList(tools, dedupeLists, normalizeLists),
+    disabledTools: cloneList(
+      disabledTools,
+      dedupeLists,
+      normalizeLists,
+    ),
   };
 }
 
 let cachedOptions: CliRuntimeOptions | null = null;
 
 function cacheOptions(options: CliRuntimeOptions): void {
-  cachedOptions = cloneOptions(options, true);
+  cachedOptions = cloneOptions(options, true, true);
 }
 
 export function setRuntimeOptions(options: CliRuntimeOptions): void {

@@ -72,4 +72,18 @@ describe("getRuntimeOptions", () => {
     expect(options.tools).toEqual(["lint", "format"]);
     expect(options.disabledTools).toEqual(["write", "lint"]);
   });
+
+  it("trims whitespace in list options when runtime overrides are seeded directly", () => {
+    setRuntimeOptions({
+      context: [" src", "docs "],
+      tools: [" lint", "format "],
+      disabledTools: [" write", "lint "],
+    });
+
+    const options = getRuntimeOptions();
+
+    expect(options.context).toEqual(["src", "docs"]);
+    expect(options.tools).toEqual(["lint", "format"]);
+    expect(options.disabledTools).toEqual(["write", "lint"]);
+  });
 });
