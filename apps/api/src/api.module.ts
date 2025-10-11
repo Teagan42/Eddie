@@ -1,12 +1,18 @@
-import { Module } from "@nestjs/common";
-import { ConfigModule as NestConfigModule } from "@nestjs/config";
+import {
+  ConfigurableModuleBuilder,
+  Module,
+  type DynamicModule,
+} from "@nestjs/common";
 import {
   APP_FILTER,
   APP_GUARD,
   APP_INTERCEPTOR,
   APP_PIPE,
 } from "@nestjs/core";
-import { ConfigModule } from "@eddie/config";
+import {
+  ConfigModule,
+  type CliRuntimeOptions,
+} from "@eddie/config";
 import { ContextModule } from "@eddie/context";
 import { EngineModule } from "@eddie/engine";
 import { IoModule, createLoggerProviders } from "@eddie/io";
@@ -26,10 +32,12 @@ import { OrchestratorModule } from "./orchestrator/orchestrator.module";
 import { ConfigEditorModule } from "./config-editor/config-editor.module";
 import { ProvidersModule } from "./providers/providers.module";
 
+const { ConfigurableModuleClass } = new ConfigurableModuleBuilder<CliRuntimeOptions>({
+  moduleName: "EddieApiModule",
+}).build();
+
 @Module({
   imports: [
-    NestConfigModule.forRoot({ isGlobal: true, cache: true }),
-    ConfigModule,
     ContextModule,
     IoModule,
     EngineModule,
@@ -73,4 +81,30 @@ import { ProvidersModule } from "./providers/providers.module";
     },
   ],
 })
-export class ApiModule {}
+export class ApiModule extends ConfigurableModuleClass {
+  static forRoot(
+    options: CliRuntimeOptions,
+  ): DynamicModule {
+    const dynamicModule = super.register(options);
+    return {
+      ...dynamicModule,
+      imports: [
+        ...(dynamicModule.imports ?? []),
+        ConfigModule.register(options),
+      ],
+    };
+  }
+
+  static forRootAsync(
+    options: Parameters<typeof ConfigurableModuleClass["registerAsync"]>[0],
+  ): DynamicModule {
+    const dynamicModule = super.registerAsync(options);
+    return {
+      ...dynamicModule,
+      imports: [
+        ...(dynamicModule.imports ?? []),
+        ConfigModule.registerAsync(options),
+      ],
+    };
+  }
+}

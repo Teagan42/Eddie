@@ -1,6 +1,5 @@
 import { Inject, Injectable, Optional } from "@nestjs/common";
 import {
-  ConfigService as NestConfigService,
   ConfigType,
 } from "@nestjs/config";
 import fs from "fs/promises";
@@ -9,8 +8,8 @@ import path from "path";
 const DEFAULT_CONFIG_ROOT = path.resolve(process.cwd(), "config");
 import yaml from "yaml";
 import { DEFAULT_CONFIG } from "./defaults";
-import { CONFIG_NAMESPACE, eddieConfig } from "./config.namespace";
-import { ConfigStore } from "./hot-config.store";
+import { eddieConfig } from "./config.namespace";
+import { ConfigStore } from "./config.store";
 import { Subject } from "rxjs";
 import { z } from "zod";
 import type {
@@ -66,7 +65,7 @@ const SQL_CONNECTION_SCHEMA = z
     user: z.string().min(1, "user must be provided"),
     password: z.string().min(1, "password must be provided"),
   })
-  .passthrough();
+  .loose();
 
 /**
  * ConfigService resolves Eddie configuration from disk and merges it with CLI
@@ -84,11 +83,6 @@ export class ConfigService {
     @Optional()
     @Inject(eddieConfig.KEY)
     private readonly defaultsProvider?: ConfigType<typeof eddieConfig>,
-    @Optional()
-    private readonly nestConfigService?: NestConfigService<
-      ConfigType<typeof eddieConfig>,
-      true
-    >
   ) {}
 
   bindStore(store: ConfigStore): void {
@@ -148,14 +142,6 @@ export class ConfigService {
   }
 
   private readNamespacedDefaults(): EddieConfig | EddieConfigInput | undefined {
-    const provided = this.nestConfigService?.get<EddieConfig>(CONFIG_NAMESPACE, {
-      infer: true,
-    });
-
-    if (provided) {
-      return provided;
-    }
-
     if (this.defaultsProvider) {
       return this.defaultsProvider;
     }

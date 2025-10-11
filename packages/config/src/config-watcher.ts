@@ -3,7 +3,7 @@ import { Subscription } from "rxjs";
 
 import type { ConfigFileSnapshot } from "./config.service";
 import { ConfigService } from "./config.service";
-import { ConfigStore } from "./hot-config.store";
+import { ConfigStore } from "./config.store";
 
 @Injectable()
 export class ConfigWatcher implements OnModuleDestroy {
