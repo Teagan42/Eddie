@@ -1,6 +1,4 @@
 import { Injectable, Logger } from "@nestjs/common";
-import path from "path";
-import { pathToFileURL } from "url";
 import { HookBus } from "./hook-bus.service";
 import {
   HOOK_EVENTS,
@@ -9,6 +7,12 @@ import {
   type HookEventName,
   type HookListener,
 } from "./types";
+import {
+  importESM,
+  isESM,
+  resolveCandidate,
+  resolveEntry,
+} from "./utils";
 
 export type { HookEventHandlers } from "./types";
 
@@ -21,18 +25,19 @@ export class HooksLoaderService {
   private readonly logger = new Logger(HooksLoaderService.name);
 
   resolveModule(entry: string, directory?: string): string {
-    if (entry.startsWith(".") || entry.startsWith("/")) {
-      return path.resolve(directory ?? process.cwd(), entry);
-    }
-
-    return require.resolve(entry, {
-      paths: [directory ?? process.cwd()],
-    });
+    const candidate = resolveCandidate(entry, directory);
+    return resolveEntry(candidate);
   }
 
   async importHookModule(entry: string, directory?: string): Promise<HookModule> {
     const resolved = this.resolveModule(entry, directory);
-    const imported = await import(pathToFileURL(resolved).href);
+    if (isESM(resolved)) {
+      const imported = await importESM(resolved);
+      return (imported.default ?? imported) as HookModule;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const imported = require(resolved);
     return (imported.default ?? imported) as HookModule;
   }
 
