@@ -1,4 +1,5 @@
 import { Module, type Provider } from "@nestjs/common";
+import { CqrsModule } from "@nestjs/cqrs";
 import { EngineModule } from "@eddie/engine";
 import { StreamRendererService } from "@eddie/io";
 import { ConfigModule, ConfigStore } from "@eddie/config";
@@ -12,6 +13,7 @@ import { ChatMessagesGateway } from "./chat-messages.gateway";
 import { ToolsModule } from "../tools/tools.module";
 import { ChatSessionStreamRendererService } from "./chat-session-stream-renderer.service";
 import { ChatSessionEventsService } from "./chat-session-events.service";
+import { CHAT_SESSION_EVENT_CLASSES } from "@eddie/types";
 import {
   CHAT_SESSIONS_REPOSITORY,
   InMemoryChatSessionsRepository,
@@ -33,14 +35,24 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
   inject: [ ConfigStore ],
 };
 
+const CHAT_SESSION_EVENT_PROVIDERS = [...CHAT_SESSION_EVENT_CLASSES];
+
 @Module({
-  imports: [ EngineModule, TracesModule, LogsModule, ConfigModule, ToolsModule ],
+  imports: [
+    EngineModule,
+    TracesModule,
+    LogsModule,
+    ConfigModule,
+    ToolsModule,
+    CqrsModule,
+  ],
   providers: [
     ChatSessionsService,
     ChatSessionsGateway,
     ChatMessagesGateway,
     ChatSessionEventsService,
     ChatSessionsEngineListener,
+    ...CHAT_SESSION_EVENT_PROVIDERS,
     CHAT_SESSIONS_REPOSITORY_PROVIDER,
     {
       provide: StreamRendererService,
