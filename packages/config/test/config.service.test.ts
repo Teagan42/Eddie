@@ -301,6 +301,12 @@ describe("ConfigService", () => {
       expect(mysqlConfig?.ssl).toBe(true);
       expectTypeOf(mysqlConfig?.url).toEqualTypeOf<string | undefined>();
       expectTypeOf(mysqlConfig?.ssl).toEqualTypeOf<boolean | undefined>();
+      if (mysqlConfig) {
+        // @ts-expect-error boolean assignments must be rejected
+        mysqlConfig.url = true;
+        // @ts-expect-error string assignments must be rejected
+        mysqlConfig.ssl = "true";
+      }
     });
 
     it("rejects non-numeric postgres connection ports", async () => {
@@ -353,6 +359,43 @@ describe("ConfigService", () => {
     ).rejects.toThrow(
       "api.persistence.mysql.url must be a string when provided. Received null."
     );
+  });
+
+  it("retains postgres url and ssl optional primitives", async () => {
+    const service = new ConfigService();
+
+    const result = await service.compose({
+      api: {
+        persistence: {
+          driver: "postgres",
+          postgres: {
+            connection: {
+              host: "198.51.100.50",
+              port: 5432,
+              database: "eddie_agents",
+              user: "postgres_operator",
+              password: "pg-secret",
+            },
+            url: "postgres://postgres_operator:pg-secret@198.51.100.50:5432/eddie_agents",
+            ssl: true,
+          },
+        },
+      },
+    });
+
+    const postgresConfig = result.api?.persistence?.postgres;
+    expect(postgresConfig?.url).toBe(
+      "postgres://postgres_operator:pg-secret@198.51.100.50:5432/eddie_agents"
+    );
+    expect(postgresConfig?.ssl).toBe(true);
+    expectTypeOf(postgresConfig?.url).toEqualTypeOf<string | undefined>();
+    expectTypeOf(postgresConfig?.ssl).toEqualTypeOf<boolean | undefined>();
+    if (postgresConfig) {
+      // @ts-expect-error boolean assignments must be rejected
+      postgresConfig.url = true;
+      // @ts-expect-error string assignments must be rejected
+      postgresConfig.ssl = "true";
+    }
   });
 
   describe("load", () => {

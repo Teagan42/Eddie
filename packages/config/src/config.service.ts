@@ -1204,17 +1204,21 @@ export class ConfigService {
       return undefined;
     }
 
-    if (expectedType === "string") {
-      if (typeof value !== "string") {
+    if (property === "url") {
+      if (expectedType !== "string") {
         this.raiseOptionalPrimitiveError(driver, property, "string", value);
       }
+
+      this.assertStringOptionalPrimitive(driver, property, value);
 
       return value;
     }
 
-    if (typeof value !== "boolean") {
+    if (expectedType !== "boolean") {
       this.raiseOptionalPrimitiveError(driver, property, "boolean", value);
     }
+
+    this.assertBooleanOptionalPrimitive(driver, property, value);
 
     return value;
   }
@@ -1242,6 +1246,26 @@ export class ConfigService {
     throw new Error(
       `api.persistence.${driver}.${property} must be a ${expectedType} when provided. Received ${received}.`
     );
+  }
+
+  private assertStringOptionalPrimitive(
+    driver: SqlDriver,
+    property: "url",
+    value: unknown
+  ): asserts value is string {
+    if (typeof value !== "string") {
+      this.raiseOptionalPrimitiveError(driver, property, "string", value);
+    }
+  }
+
+  private assertBooleanOptionalPrimitive(
+    driver: SqlDriver,
+    property: "ssl",
+    value: unknown
+  ): asserts value is boolean {
+    if (typeof value !== "boolean") {
+      this.raiseOptionalPrimitiveError(driver, property, "boolean", value);
+    }
   }
 
   private validateApiPersistence(
