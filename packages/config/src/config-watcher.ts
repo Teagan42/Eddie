@@ -13,20 +13,19 @@ export class ConfigWatcher implements OnModuleDestroy {
     @Optional() private readonly configService?: ConfigService,
     @Optional() private readonly store?: ConfigStore
   ) {
-    if (!this.configService || !this.store) {
-      return;
-    }
+    const injectedStore = this.store;
+    const writes$ = this.configService?.writes$;
 
-    const writes$ = this.configService.writes$;
-
-    if (!writes$) {
+    if (!injectedStore || !writes$) {
       return;
     }
 
     this.subscription = writes$.subscribe(
       (snapshot: ConfigFileSnapshot) => {
-        if (snapshot.config) {
-          this.store.setSnapshot(snapshot.config);
+        const config = snapshot.config;
+
+        if (config) {
+          injectedStore.setSnapshot(config);
         }
       }
     );
