@@ -18,7 +18,7 @@ export class ConfigStore {
   constructor(
     @Optional()
     @Inject(INITIAL_CONFIG_TOKEN)
-    initialConfig?: EddieConfig,
+      initialConfig?: EddieConfig,
   ) {
     const seed = initialConfig ?? structuredClone(DEFAULT_CONFIG);
     this.subject = new BehaviorSubject<EddieConfig>(structuredClone(seed));
