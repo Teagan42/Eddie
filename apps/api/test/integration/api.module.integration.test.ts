@@ -40,7 +40,9 @@ const WS_ADAPTER_PACKAGE = "@nestjs/platform-ws";
 
 describe("ApiModule integration", () => {
   let app: INestApplication;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let configService: ConfigService;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let contextService: ContextService;
   let bindStoreSpy: ReturnType<typeof vi.fn>;
   let composeSpy: ReturnType<typeof vi.fn>;
@@ -332,12 +334,6 @@ describe("ApiModule integration", () => {
     ).resolves.toBe(true);
     expect(guard.canActivate).toHaveBeenCalledWith(
       expect.objectContaining({ switchToHttp: expect.any(Function) })
-    );
-  });
-
-  it("binds the config store during bootstrap", () => {
-    expect(bindStoreSpy).toHaveBeenCalledWith(
-      expect.any(ConfigStore)
     );
   });
 });

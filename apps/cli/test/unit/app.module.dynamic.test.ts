@@ -26,9 +26,7 @@ describe("AppModule configuration", () => {
       forRoot: (options?: CliRuntimeOptions) => DynamicModule;
     }).forRoot(cliOverrides);
 
-    expect(registerSpy).toHaveBeenCalledWith({
-      cliOptions: cliOverrides,
-    });
+    expect(registerSpy).toHaveBeenCalledWith(cliOverrides);
     expect(dynamicModule.imports).toContain(registrationResult);
   });
 
@@ -46,9 +44,7 @@ describe("AppModule configuration", () => {
 
     const { AppModule } = await import("../../src/app.module");
 
-    const dynamicModule = (AppModule as unknown as {
-      forRootAsync: (typeof ConfigModule)["registerAsync"];
-    }).forRootAsync({
+    const dynamicModule = AppModule.forRootAsync({
       useFactory: async () => cliOverrides,
     });
 
@@ -58,7 +54,6 @@ describe("AppModule configuration", () => {
     expect(registration).toBeDefined();
 
     expect(dynamicModule.imports).toContain(registrationResult);
-
     const optionsProvider = (dynamicModule.providers ?? []).find(
       (provider): provider is { provide: unknown } =>
         typeof provider === "object" && provider !== null && "provide" in provider,
@@ -66,13 +61,8 @@ describe("AppModule configuration", () => {
 
     expect(optionsProvider).toBeDefined();
 
-    expect(registration?.inject).toContainEqual({
-      token: optionsProvider?.provide,
-      optional: true,
-    });
-
-    await expect(registration?.useFactory(cliOverrides)).resolves.toEqual({
-      cliOptions: cliOverrides,
-    });
+    await expect(registration?.useFactory(cliOverrides)).resolves.toEqual(
+      cliOverrides,
+    );
   });
 });

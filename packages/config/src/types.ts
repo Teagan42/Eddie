@@ -1,6 +1,6 @@
 import type { TemplateDescriptor, TemplateVariables } from "@eddie/templates";
 
-export type LogLevel = "silent" | "info" | "debug";
+export type LogLevel = "silent" | "info" | "debug" | "error";
 
 export interface ApiTelemetryConfig {
   enabled?: boolean;

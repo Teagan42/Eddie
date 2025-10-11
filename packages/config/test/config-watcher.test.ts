@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ConfigFileSnapshot } from "../src/config.service";
 import { ConfigWatcher } from "../src/config-watcher";
 import type { ConfigService } from "../src/config.service";
-import { ConfigStore } from "../src/hot-config.store";
+import { ConfigStore } from "../src/config.store";
 
 describe("ConfigWatcher", () => {
   it("pushes emitted config snapshots into the store", () => {

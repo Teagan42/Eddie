@@ -1,0 +1,28 @@
+{
+    // Format on save, but prefer ESLint fixes so formatting follows eslint rules
+    "editor.formatOnSave": true,
+    // Run ESLint's `--fix` on save (fixes formatting and lint issues ESLint knows about)
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "always"
+    },
+    // Enable the ESLint extension's formatter support
+    "eslint.format.enable": true,
+    "eslint.alwaysShowStatus": true,
+    // Make the ESLint extension the default formatter for JS/TS files so
+    // format actions are driven by eslint rules rather than other formatters.
+    "[javascript]": {
+        "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[javascriptreact]": {
+        "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[typescript]": {
+        "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[typescriptreact]": {
+        "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "editor.indentSize": "tabSize",
+    "editor.tabSize": 2,
+    "CodeGPT.apiKey": "CodeGPT Plus Beta"
+}

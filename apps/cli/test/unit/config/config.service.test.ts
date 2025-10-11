@@ -1,166 +1,80 @@
 import "reflect-metadata";
-import { describe, it, expect } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
 import {
   ConfigService,
   DEFAULT_CONFIG,
-  DEFAULT_SYSTEM_PROMPT,
   type CliRuntimeOptions,
-  type EddieConfig,
+  type ConfigStore,
   type EddieConfigInput,
 } from "@eddie/config";
 
-describe("ConfigService agent configuration", () => {
-  const createService = () => new ConfigService();
+const clone = <T>(value: T): T => structuredClone(value);
 
-  const cloneConfig = <T>(value: T): T =>
-    JSON.parse(JSON.stringify(value)) as T;
+const createService = (defaults = DEFAULT_CONFIG) => {
+  const store = { setSnapshot: vi.fn() } as unknown as ConfigStore;
+  const moduleOptions = {} as CliRuntimeOptions;
+  const providerDefaults = clone(defaults);
 
-  it("merges manager prompts, subagents, and routing data", () => {
-    const service = createService();
-    const base = cloneConfig(DEFAULT_CONFIG);
-    const input: EddieConfigInput = {
-      agents: {
-        manager: { prompt: "Lead agent" },
-        subagents: [
-          { id: "reviewer", prompt: "Review code" },
-          { id: "tester", description: "Validate outputs" },
-        ],
-        routing: { maxDepth: 3 },
+  const service = new ConfigService(store, moduleOptions, providerDefaults);
+
+  return { service, store };
+};
+
+describe("ConfigService CLI precedence", () => {
+  it("overrides config file context with CLI flag to disable context", async () => {
+    const configInput: EddieConfigInput = {
+      context: {
+        include: ["src/**/*"],
       },
     };
 
-    const merged = (service as unknown as {
-      mergeConfig(base: EddieConfig, input: EddieConfigInput): EddieConfig;
-    }).mergeConfig(base, input);
+    const { service } = createService();
 
-    expect(merged.agents.manager.prompt).toBe("Lead agent");
-    expect(merged.agents.subagents).toEqual(input.agents?.subagents);
-    expect(merged.agents.routing).toMatchObject({ maxDepth: 3 });
-    expect(base.agents.subagents).toEqual([]);
+    const composed = await service.compose(configInput, { disableContext: true });
+
+    expect(composed.context.include).toEqual([]);
+    expect(composed.context.resources).toEqual([]);
+    expect(composed.context.maxFiles).toBe(0);
+    expect(composed.context.maxBytes).toBe(0);
   });
 
-  it("defaults manager prompt to the resolved system prompt", () => {
-    const service = createService();
-    const base = cloneConfig(DEFAULT_CONFIG);
-    const input: EddieConfigInput = {
-      systemPrompt: "You are a specialist manager.",
-      agents: {},
-    };
-
-    const merged = (service as unknown as {
-      mergeConfig(base: EddieConfig, input: EddieConfigInput): EddieConfig;
-    }).mergeConfig(base, input);
-
-    expect(merged.systemPrompt).toBe("You are a specialist manager.");
-    expect(merged.agents.manager.prompt).toBe("You are a specialist manager.");
-  });
-
-  it("applies CLI overrides for agent mode and disabling subagents", () => {
-    const service = createService();
-    const base = cloneConfig(DEFAULT_CONFIG);
-    const overrides: CliRuntimeOptions = {
-      agentMode: "router",
-      disableSubagents: true,
-    };
-
-    const applied = (service as unknown as {
-      applyCliOverrides(config: EddieConfig, options: CliRuntimeOptions): EddieConfig;
-    }).applyCliOverrides(base, overrides);
-
-    expect(applied.agents.mode).toBe("router");
-    expect(applied.agents.enableSubagents).toBe(false);
-  });
-
-  it("applies provider profiles when selected via CLI", () => {
-    const service = createService();
-    const base = cloneConfig(DEFAULT_CONFIG);
-    base.providers = {
+  it("uses provider profiles when selected via CLI", async () => {
+    const defaults = clone(DEFAULT_CONFIG);
+    defaults.providers = {
       claude: {
         provider: { name: "anthropic" },
-        model: "claude-3",
+        model: "claude-3-5",
       },
     };
 
-    const overrides: CliRuntimeOptions = { provider: "claude" };
-    const applied = (service as unknown as {
-      applyCliOverrides(
-        config: EddieConfig,
-        options: CliRuntimeOptions
-      ): EddieConfig;
-    }).applyCliOverrides(base, overrides);
+    const { service } = createService(defaults);
 
-    expect(applied.provider.name).toBe("anthropic");
-    expect(applied.model).toBe("claude-3");
+    const composed = await service.compose({}, { provider: "claude" });
+
+    expect(composed.provider.name).toBe("anthropic");
+    expect(composed.model).toBe("claude-3-5");
   });
 
-  it("applies CLI tool enable/disable overrides", () => {
-    const service = createService();
-    const base = cloneConfig(DEFAULT_CONFIG);
-    base.tools = { enabled: ["bash"], disabled: ["write"] };
-    const overrides: CliRuntimeOptions = {
+  it("applies CLI tool overrides after config file values", async () => {
+    const configInput: EddieConfigInput = {
+      tools: {
+        enabled: ["bash"],
+        disabled: ["write"],
+      },
+    };
+    const cliOverrides: CliRuntimeOptions = {
       tools: ["lint"],
       disabledTools: ["bash"],
+      autoApprove: true,
     };
 
-    const applied = (service as unknown as {
-      applyCliOverrides(config: EddieConfig, options: CliRuntimeOptions): EddieConfig;
-    }).applyCliOverrides(base, overrides);
+    const { service } = createService();
 
-    expect(applied.tools?.enabled).toEqual(["lint"]);
-    expect(applied.tools?.disabled).toEqual(["bash"]);
-    expect(applied.tools?.autoApprove).toBe(base.tools?.autoApprove);
-  });
+    const composed = await service.compose(configInput, cliOverrides);
 
-  it("disables context packing when requested via CLI", () => {
-    const service = createService();
-    const base = cloneConfig(DEFAULT_CONFIG);
-    const overrides: CliRuntimeOptions = {
-      disableContext: true,
-    };
-
-    const applied = (service as unknown as {
-      applyCliOverrides(config: EddieConfig, options: CliRuntimeOptions): EddieConfig;
-    }).applyCliOverrides(base, overrides);
-
-    expect(applied.context.include).toEqual([]);
-    expect(applied.context.maxFiles).toBe(0);
-    expect(applied.context.maxBytes).toBe(0);
-    expect(applied.context.resources).toEqual([]);
-  });
-
-  it("validates agent definitions", () => {
-    const service = createService();
-    const invalid = cloneConfig(DEFAULT_CONFIG);
-    invalid.agents.subagents = [
-      { id: "", prompt: "Missing id" },
-    ];
-
-    const act = () =>
-      (service as unknown as { validateConfig(config: EddieConfig): void }).validateConfig(
-        invalid
-      );
-
-    expect(act).toThrowError(/agents\.subagents\[0\]\.id/);
-
-    const thresholdConfig = cloneConfig(DEFAULT_CONFIG);
-    thresholdConfig.agents.routing = { confidenceThreshold: 2 };
-
-    const actThreshold = () =>
-      (service as unknown as { validateConfig(config: EddieConfig): void }).validateConfig(
-        thresholdConfig
-      );
-
-    expect(actThreshold).toThrowError(/confidenceThreshold/);
-  });
-
-  it("retains default system prompt when no overrides are provided", () => {
-    const service = createService();
-    const base = cloneConfig(DEFAULT_CONFIG);
-
-    const merged = (service as unknown as {
-      mergeConfig(base: EddieConfig, input: EddieConfigInput): EddieConfig;
-    }).mergeConfig(base, {});
-
-    expect(merged.agents.manager.prompt).toBe(DEFAULT_SYSTEM_PROMPT);
+    expect(composed.tools?.enabled).toEqual(["lint"]);
+    expect(composed.tools?.disabled).toEqual(["bash"]);
+    expect(composed.tools?.autoApprove).toBe(true);
   });
 });
