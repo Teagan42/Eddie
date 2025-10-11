@@ -59,7 +59,7 @@ const SQL_CONNECTION_SCHEMA = z
   .object({
     host: z.string().min(1, "host must be provided"),
     port: z
-      .number({ invalid_type_error: "port must be a number" })
+      .number()
       .int("port must be an integer")
       .positive("port must be greater than zero"),
     database: z.string().min(1, "database must be provided"),
@@ -1129,10 +1129,16 @@ export class ConfigService {
       [key: string]: unknown;
     };
 
+    const connectionPath = `api.persistence.${driver}.connection`;
+
     if (!this.isPlainObject(connection)) {
       throw new Error(
-        `api.persistence.${driver}.connection must be an object when using the ${driver} driver.`
+        `${connectionPath} must be an object when using the ${driver} driver.`
       );
+    }
+
+    if (typeof connection.port !== "number") {
+      throw new Error(`${connectionPath}.port must be a number.`);
     }
 
     const result = SQL_CONNECTION_SCHEMA.safeParse(connection);
@@ -1142,9 +1148,7 @@ export class ConfigService {
         ? `.${issue.path.map(String).join(".")}`
         : "";
       const message = issue?.message ?? "is invalid.";
-      throw new Error(
-        `api.persistence.${driver}.connection${pathSuffix} ${message}`
-      );
+      throw new Error(`${connectionPath}${pathSuffix} ${message}`);
     }
 
     return {

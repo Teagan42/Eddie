@@ -211,6 +211,31 @@ describe("ConfigService", () => {
         "api.persistence.postgres.connection must be provided when using the postgres driver."
       );
     });
+
+    it("rejects non-numeric postgres connection ports", async () => {
+      const service = new ConfigService();
+
+      await expect(
+        service.compose({
+          api: {
+            persistence: {
+              driver: "postgres",
+              postgres: {
+                connection: {
+                  host: "198.51.100.50",
+                  port: "not-a-number" as unknown as number,
+                  database: "eddie_agents",
+                  user: "postgres_operator",
+                  password: "pg-secret",
+                },
+              },
+            },
+          },
+        })
+      ).rejects.toThrow(
+        "api.persistence.postgres.connection.port must be a number."
+      );
+    });
   });
 
   describe("load", () => {
