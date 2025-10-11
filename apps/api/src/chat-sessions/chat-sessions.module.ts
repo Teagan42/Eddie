@@ -1,7 +1,7 @@
 import { Module, type Provider } from "@nestjs/common";
 import { EngineModule } from "@eddie/engine";
 import { StreamRendererService } from "@eddie/io";
-import { ConfigModule, ConfigService } from "@eddie/config";
+import { ConfigModule, ConfigStore } from "@eddie/config";
 import { TracesModule } from "../traces/traces.module";
 import { LogsModule } from "../logs/logs.module";
 import { ChatSessionsService } from "./chat-sessions.service";
@@ -20,8 +20,8 @@ import {
 
 export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
   provide: CHAT_SESSIONS_REPOSITORY,
-  useFactory: async (configService: ConfigService) => {
-    const config = await configService.load({});
+  useFactory: (configStore: ConfigStore) => {
+    const config = configStore.getSnapshot();
     const persistence = config.api?.persistence ?? { driver: "memory" };
     if (persistence.driver === "sqlite") {
       const filename =
@@ -30,7 +30,7 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
     }
     return new InMemoryChatSessionsRepository();
   },
-  inject: [ ConfigService ],
+  inject: [ ConfigStore ],
 };
 
 @Module({

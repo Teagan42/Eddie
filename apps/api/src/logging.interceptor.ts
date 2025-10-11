@@ -3,11 +3,12 @@ import {
   ExecutionContext,
   Injectable,
   NestInterceptor,
+  OnModuleDestroy,
   OnModuleInit,
 } from "@nestjs/common";
 import type { Request, Response } from "express";
-import { Observable, catchError, defer, of, switchMap, tap } from "rxjs";
-import { ConfigService } from "@eddie/config";
+import { Observable, Subscription, catchError, defer, of, switchMap, tap } from "rxjs";
+import { ConfigService, ConfigStore, hasRuntimeOverrides } from "@eddie/config";
 import type { EddieConfig } from "@eddie/config";
 import { InjectLogger } from "@eddie/io";
 import type { Logger } from "pino";
@@ -15,13 +16,15 @@ import { getRuntimeOptions } from "./runtime-options";
 
 @Injectable()
 export class RequestLoggingInterceptor
-implements NestInterceptor, OnModuleInit
+implements NestInterceptor, OnModuleInit, OnModuleDestroy
 {
   private logBodies = false;
   private initPromise: Promise<void> | null = null;
+  private subscription: Subscription | null = null;
 
   constructor(
     private readonly configService: ConfigService,
+    private readonly configStore: ConfigStore,
     @InjectLogger("api:requests") private readonly logger: Logger
   ) {}
 
@@ -30,9 +33,27 @@ implements NestInterceptor, OnModuleInit
     await this.initPromise;
   }
 
+  onModuleDestroy(): void {
+    this.subscription?.unsubscribe();
+    this.subscription = null;
+  }
+
   private async initialize(): Promise<void> {
     const runtimeOptions = getRuntimeOptions();
-    const config: EddieConfig = await this.configService.load(runtimeOptions);
+    if (hasRuntimeOverrides(runtimeOptions)) {
+      await this.configService.load(runtimeOptions);
+    }
+
+    this.applySnapshot(this.configStore.getSnapshot());
+
+    if (!this.subscription) {
+      this.subscription = this.configStore.changes$.subscribe((config) => {
+        this.applySnapshot(config);
+      });
+    }
+  }
+
+  private applySnapshot(config: EddieConfig): void {
     this.logBodies = config.logLevel === "debug";
   }
 

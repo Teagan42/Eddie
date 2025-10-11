@@ -3,11 +3,13 @@ import {
   ExecutionContext,
   Injectable,
   NestInterceptor,
+  OnModuleDestroy,
   OnModuleInit,
 } from "@nestjs/common";
 import type { Request } from "express";
 import {
   Observable,
+  Subscription,
   catchError,
   defer,
   of,
@@ -15,7 +17,7 @@ import {
   tap,
 } from "rxjs";
 import { createHash, pbkdf2Sync } from "node:crypto";
-import { ConfigService } from "@eddie/config";
+import { ConfigService, ConfigStore, hasRuntimeOverrides } from "@eddie/config";
 import type { EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { InjectLogger } from "@eddie/io";
@@ -28,7 +30,9 @@ interface CacheEntry {
 }
 
 @Injectable()
-export class ApiCacheInterceptor implements NestInterceptor, OnModuleInit {
+export class ApiCacheInterceptor
+  implements NestInterceptor, OnModuleInit, OnModuleDestroy
+{
   private readonly cache = new Map<string, CacheEntry>();
   private enabled = true;
   private ttlMs = 0;
@@ -36,9 +40,11 @@ export class ApiCacheInterceptor implements NestInterceptor, OnModuleInit {
   private contextFingerprint = "";
   private authEnabled = false;
   private initPromise: Promise<void> | null = null;
+  private subscription: Subscription | null = null;
 
   constructor(
     private readonly configService: ConfigService,
+    private readonly configStore: ConfigStore,
     private readonly contextService: ContextService,
     @InjectLogger("api:cache") private readonly logger: Logger
   ) {}
@@ -48,9 +54,27 @@ export class ApiCacheInterceptor implements NestInterceptor, OnModuleInit {
     await this.initPromise;
   }
 
+  onModuleDestroy(): void {
+    this.subscription?.unsubscribe();
+    this.subscription = null;
+  }
+
   private async initialize(): Promise<void> {
     const runtimeOptions = getRuntimeOptions();
-    const config: EddieConfig = await this.configService.load(runtimeOptions);
+    if (hasRuntimeOverrides(runtimeOptions)) {
+      await this.configService.load(runtimeOptions);
+    }
+
+    await this.applySnapshot(this.configStore.getSnapshot());
+
+    if (!this.subscription) {
+      this.subscription = this.configStore.changes$.subscribe((config) => {
+        void this.applySnapshot(config);
+      });
+    }
+  }
+
+  private async applySnapshot(config: EddieConfig): Promise<void> {
     const cacheConfig = config.api?.cache ?? {};
 
     this.enabled = cacheConfig.enabled ?? true;
@@ -75,6 +99,8 @@ export class ApiCacheInterceptor implements NestInterceptor, OnModuleInit {
         .update(JSON.stringify(config.context))
         .digest("hex");
     }
+
+    this.cache.clear();
   }
 
   private async ensureInitialised(): Promise<void> {

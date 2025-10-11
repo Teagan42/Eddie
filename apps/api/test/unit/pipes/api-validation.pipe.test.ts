@@ -3,9 +3,10 @@ import { BadRequestException } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 import { Type } from "class-transformer";
 import { IsInt } from "class-validator";
-import type { ConfigService, EddieConfig } from "@eddie/config";
+import type { ConfigService, ConfigStore, EddieConfig } from "@eddie/config";
 import type { Logger } from "pino";
 import { ApiValidationPipe } from "../../../src/validation.pipe";
+import { of } from "rxjs";
 
 describe("ApiValidationPipe", () => {
   const createConfig = (
@@ -42,10 +43,15 @@ describe("ApiValidationPipe", () => {
     const logger = { warn: vi.fn() };
     const config = createConfig();
     const configService = {
-      load: vi.fn().mockResolvedValue(config),
+      load: vi.fn(),
     } as unknown as ConfigService;
+    const store = {
+      getSnapshot: vi.fn(() => config),
+      changes$: of(config),
+    } as unknown as ConfigStore;
     const pipe = new ApiValidationPipe(
       configService,
+      store,
       logger as unknown as Logger
     );
 
@@ -57,8 +63,8 @@ describe("ApiValidationPipe", () => {
     );
 
     expect(result).toEqual({ count: 4 });
-    expect(configService.load).toHaveBeenCalled();
     expect(logger.warn).not.toHaveBeenCalled();
+    expect(configService.load).not.toHaveBeenCalled();
   });
 
   it("logs validation failures and throws a bad request exception", async () => {
@@ -71,10 +77,15 @@ describe("ApiValidationPipe", () => {
     const logger = { warn: vi.fn() };
     const config = createConfig();
     const configService = {
-      load: vi.fn().mockResolvedValue(config),
+      load: vi.fn(),
     } as unknown as ConfigService;
+    const store = {
+      getSnapshot: vi.fn(() => config),
+      changes$: of(config),
+    } as unknown as ConfigStore;
     const pipe = new ApiValidationPipe(
       configService,
+      store,
       logger as unknown as Logger
     );
 
@@ -100,5 +111,6 @@ describe("ApiValidationPipe", () => {
       "Request validation failed",
     ]);
     expect(secondCall[1]).toBe("Validation pipeline rejected request");
+    expect(configService.load).not.toHaveBeenCalled();
   });
 });

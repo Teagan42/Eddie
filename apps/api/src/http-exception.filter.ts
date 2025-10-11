@@ -5,15 +5,17 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  OnModuleDestroy,
   OnModuleInit,
 } from "@nestjs/common";
 import type { Request, Response } from "express";
-import { ConfigService } from "@eddie/config";
+import { ConfigService, ConfigStore, hasRuntimeOverrides } from "@eddie/config";
 import type { EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { InjectLogger } from "@eddie/io";
 import type { Logger } from "pino";
 import { getRuntimeOptions } from "./runtime-options";
+import { Subscription } from "rxjs";
 
 interface ContextSummary {
   files: number;
@@ -22,13 +24,17 @@ interface ContextSummary {
 
 @Catch()
 @Injectable()
-export class ApiHttpExceptionFilter implements ExceptionFilter, OnModuleInit {
+export class ApiHttpExceptionFilter
+  implements ExceptionFilter, OnModuleInit, OnModuleDestroy
+{
   private includeStackInResponse = false;
   private contextSummary: ContextSummary | null = null;
   private initPromise: Promise<void> | null = null;
+  private subscription: Subscription | null = null;
 
   constructor(
     private readonly configService: ConfigService,
+    private readonly configStore: ConfigStore,
     private readonly contextService: ContextService,
     @InjectLogger("api:exceptions") private readonly logger: Logger
   ) {}
@@ -38,9 +44,27 @@ export class ApiHttpExceptionFilter implements ExceptionFilter, OnModuleInit {
     await this.initPromise;
   }
 
+  onModuleDestroy(): void {
+    this.subscription?.unsubscribe();
+    this.subscription = null;
+  }
+
   private async initialize(): Promise<void> {
     const runtimeOptions = getRuntimeOptions();
-    const config: EddieConfig = await this.configService.load(runtimeOptions);
+    if (hasRuntimeOverrides(runtimeOptions)) {
+      await this.configService.load(runtimeOptions);
+    }
+
+    await this.applySnapshot(this.configStore.getSnapshot());
+
+    if (!this.subscription) {
+      this.subscription = this.configStore.changes$.subscribe((config) => {
+        void this.applySnapshot(config);
+      });
+    }
+  }
+
+  private async applySnapshot(config: EddieConfig): Promise<void> {
     this.includeStackInResponse =
       config.api?.telemetry?.exposeErrorStack ?? config.logLevel === "debug";
 

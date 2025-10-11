@@ -8,7 +8,7 @@ import type {
   EddieConfig,
   ProviderConfig,
 } from "@eddie/config";
-import { ConfigService } from "@eddie/config";
+import { ConfigService, ConfigStore, hasRuntimeOverrides } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { ProviderFactoryService } from "@eddie/providers";
 import { builtinTools } from "@eddie/tools";
@@ -60,6 +60,7 @@ export interface EngineResult {
 export class EngineService {
   constructor(
         private readonly configService: ConfigService,
+        private readonly configStore: ConfigStore,
         private readonly contextService: ContextService,
         private readonly providerFactory: ProviderFactoryService,
         private readonly hooksService: HooksService,
@@ -91,7 +92,7 @@ export class EngineService {
     let logger!: Logger;
 
     try {
-      const cfg = await this.configService.load(options);
+      const cfg = await this.resolveRuntimeConfig(options);
       const managerRuntimeConfig = this.resolveAgentProviderConfig(
         cfg,
         cfg.agents?.manager?.provider,
@@ -267,6 +268,27 @@ export class EngineService {
         );
       }
     }
+  }
+
+  private async resolveRuntimeConfig(
+    options: EngineOptions
+  ): Promise<EddieConfig> {
+    const overrides = this.extractRuntimeOverrides(options);
+
+    if (hasRuntimeOverrides(overrides)) {
+      await this.configService.load(overrides);
+    }
+
+    return this.configStore.getSnapshot();
+  }
+
+  private extractRuntimeOverrides(
+    options: EngineOptions
+  ): CliRuntimeOptions {
+    const { history: _history, autoApprove: _autoApprove, nonInteractive: _nonInteractive, ...remaining } =
+      options;
+
+    return remaining as CliRuntimeOptions;
   }
 
   private applyMcpResourcesToContext(

@@ -4,6 +4,7 @@ import { describe, it, expect, vi } from "vitest";
 import { EngineService, AgentInvocationFactory } from "@eddie/engine";
 import {
   ConfigService,
+  ConfigStore,
   type EddieConfig,
   type MCPToolSourceConfig,
 } from "@eddie/config";
@@ -68,8 +69,14 @@ describe("EngineService MCP resource integration", () => {
       load: vi.fn(async () => hookBus),
     } as unknown as HooksService;
 
+    const store = new ConfigStore();
+    store.setSnapshot(config);
+
     const configService = {
-      load: vi.fn(async () => config),
+      load: vi.fn(async () => {
+        store.setSnapshot(config);
+        return config;
+      }),
     } as unknown as ConfigService;
 
     const providerFactory = {
@@ -136,6 +143,7 @@ describe("EngineService MCP resource integration", () => {
 
     const engine = new EngineService(
       configService,
+      store,
       contextService,
       providerFactory,
       hooksService,

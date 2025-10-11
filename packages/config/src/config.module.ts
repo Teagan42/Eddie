@@ -1,9 +1,10 @@
 import { Global, Module, Provider } from "@nestjs/common";
 import { ConfigModule as NestConfigModule } from "@nestjs/config";
 
+import { eddieConfig } from "./config.namespace";
 import { ConfigService } from "./config.service";
 import { ConfigStore } from "./hot-config.store";
-import { eddieConfig } from "./config.namespace";
+import { ConfigWatcher } from "./config-watcher";
 
 const configStoreProvider: Provider = {
   provide: ConfigStore,
@@ -19,7 +20,7 @@ const configStoreProvider: Provider = {
 @Global()
 @Module({
   imports: [NestConfigModule.forFeature(eddieConfig)],
-  providers: [ConfigService, configStoreProvider],
-  exports: [ConfigService, ConfigStore, NestConfigModule],
+  providers: [ConfigService, configStoreProvider, ConfigWatcher],
+  exports: [ConfigService, ConfigStore, ConfigWatcher, NestConfigModule],
 })
 export class ConfigModule {}

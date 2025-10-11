@@ -2,11 +2,12 @@ import { UnauthorizedException } from "@nestjs/common";
 import type { ExecutionContext } from "@nestjs/common";
 import type { Request } from "express";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ConfigService, EddieConfig } from "@eddie/config";
+import type { ConfigService, ConfigStore, EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import type { Logger } from "pino";
 import type { Reflector } from "@nestjs/core";
 import { ApiKeyGuard } from "../../../src/auth/api-key.guard";
+import { of } from "rxjs";
 
 const createExecutionContext = (request: Partial<Request>): ExecutionContext =>
   ({
@@ -68,19 +69,24 @@ describe("ApiKeyGuard", () => {
   const createGuard = async (config: EddieConfig, reflector?: Reflector) => {
     const logger = { info: vi.fn(), warn: vi.fn(), debug: vi.fn() };
     const configService = {
-      load: vi.fn().mockResolvedValue(config),
+      load: vi.fn(),
     } as unknown as ConfigService;
+    const store = {
+      getSnapshot: vi.fn(() => config),
+      changes$: of(config),
+    } as unknown as ConfigStore;
     const contextService = {
       pack: vi.fn().mockResolvedValue({ files: [], totalBytes: 0 }),
     } as unknown as ContextService;
     const guard = new ApiKeyGuard(
       (reflector ?? { getAllAndOverride: vi.fn().mockReturnValue(false) }) as unknown as Reflector,
       configService,
+      store,
       contextService,
       logger as unknown as Logger
     );
     await guard.onModuleInit();
-    return { guard, logger, configService, contextService };
+    return { guard, logger, configService, contextService, store };
   };
 
   it("allows all requests when authentication is disabled", async () => {
