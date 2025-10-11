@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule, ConfigStore } from "@eddie/config";
+import { ConfigModule } from "@eddie/config";
 import { ContextModule } from "@eddie/context";
 import { IoModule } from "@eddie/io";
 import { HooksModule } from "@eddie/hooks";
