@@ -61,6 +61,7 @@ vi.mock("@/api/api-provider", () => ({
         onSessionUpdated: vi.fn().mockReturnValue(() => {}),
         onMessageCreated: vi.fn().mockReturnValue(() => {}),
         onMessageUpdated: vi.fn().mockReturnValue(() => {}),
+        onAgentActivity: vi.fn().mockReturnValue(() => {}),
       },
       tools: {
         onToolCall: vi.fn((handler: (payload: unknown) => void) => {

@@ -9,7 +9,9 @@ const listMessagesMock = vi.fn();
 const getMetadataMock = vi.fn();
 const catalogMock = vi.fn();
 
-let toolCallHandler: ((payload: unknown) => void) | null = null;
+let agentActivityHandler:
+  | ((payload: { sessionId: string; state: string }) => void)
+  | null = null;
 
 class ResizeObserverMock {
   observe(): void {}
@@ -66,14 +68,14 @@ vi.mock("@/api/api-provider", () => ({
         onSessionUpdated: vi.fn().mockReturnValue(() => {}),
         onMessageCreated: vi.fn().mockReturnValue(() => {}),
         onMessageUpdated: vi.fn().mockReturnValue(() => {}),
+        onAgentActivity: vi.fn(
+          (handler: (payload: { sessionId: string; state: string }) => void) => {
+            agentActivityHandler = handler;
+            return () => {};
+          }
+        ),
       },
-      tools: {
-        onToolCall: vi.fn((handler: (payload: unknown) => void) => {
-          toolCallHandler = handler;
-          return () => {};
-        }),
-        onToolResult: vi.fn().mockReturnValue(() => {}),
-      },
+      tools: undefined,
     },
   }),
 }));
@@ -98,12 +100,26 @@ function renderChatPage(): QueryClient {
   return client;
 }
 
+const expectIndicatorText = async (pattern: RegExp) => {
+  await waitFor(() => {
+    expect(screen.getByTestId("agent-activity-indicator")).toHaveTextContent(
+      pattern
+    );
+  });
+};
+
+const waitForSessionsLoaded = async () => {
+  await waitFor(() => {
+    expect(listSessionsMock).toHaveBeenCalled();
+  });
+};
+
 describe("ChatPage agent activity indicator", () => {
   const timestamp = new Date().toISOString();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    toolCallHandler = null;
+    agentActivityHandler = null;
 
     listSessionsMock.mockResolvedValue([
       {
@@ -125,66 +141,59 @@ describe("ChatPage agent activity indicator", () => {
     });
   });
 
-  it("shows a thinking indicator while awaiting an assistant response", async () => {
-    listMessagesMock.mockResolvedValueOnce([
-      {
-        id: "message-1",
-        sessionId: "session-1",
-        role: "user",
-        content: "Hello?",
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      },
-    ]);
-
+  it("reflects agent activity events for the active session", async () => {
     renderChatPage();
 
     await waitFor(() => {
-      expect(screen.getByTestId("agent-activity-indicator")).toBeInTheDocument();
+      expect(agentActivityHandler).toBeTypeOf("function");
     });
 
-    expect(screen.getByText(/agent is thinking/i)).toBeInTheDocument();
-  });
-
-  it("announces when tools are running", async () => {
-    renderChatPage();
-
-    await waitFor(() => {
-      expect(toolCallHandler).toBeTypeOf("function");
-    });
+    await waitForSessionsLoaded();
 
     await act(async () => {
-      toolCallHandler?.({
-        sessionId: "session-1",
-        id: "call-1",
-        name: "search",
-        status: "running",
-      });
+      agentActivityHandler?.({ sessionId: "session-1", state: "thinking" });
+    });
+
+    await expectIndicatorText(/agent is thinking/i);
+
+    await act(async () => {
+      agentActivityHandler?.({ sessionId: "session-1", state: "tool" });
+    });
+
+    await expectIndicatorText(/calling tools/i);
+
+    await act(async () => {
+      agentActivityHandler?.({ sessionId: "session-1", state: "error" });
+    });
+
+    await expectIndicatorText(/agent run failed/i);
+
+    await act(async () => {
+      agentActivityHandler?.({ sessionId: "session-1", state: "idle" });
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/calling tools/i)).toBeInTheDocument();
+      expect(
+        screen.queryByTestId("agent-activity-indicator")
+      ).not.toBeInTheDocument();
     });
   });
 
-  it("indicates when the run fails", async () => {
+  it("ignores activity events from other sessions", async () => {
     renderChatPage();
 
     await waitFor(() => {
-      expect(toolCallHandler).toBeTypeOf("function");
+      expect(agentActivityHandler).toBeTypeOf("function");
     });
+
+    await waitForSessionsLoaded();
 
     await act(async () => {
-      toolCallHandler?.({
-        sessionId: "session-1",
-        id: "call-1",
-        name: "search",
-        status: "failed",
-      });
+      agentActivityHandler?.({ sessionId: "session-2", state: "thinking" });
     });
 
-    await waitFor(() => {
-      expect(screen.getByText(/agent run failed/i)).toBeInTheDocument();
-    });
+    await expect(
+      screen.findByText(/agent is thinking/i, undefined, { timeout: 100 })
+    ).rejects.toThrow();
   });
 });

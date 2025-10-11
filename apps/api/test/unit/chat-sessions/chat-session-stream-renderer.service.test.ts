@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
+import {
+  ChatSessionsService,
+  type ChatSessionsListener,
+} from "../../../src/chat-sessions/chat-sessions.service";
 import { ChatSessionStreamRendererService } from "../../../src/chat-sessions/chat-session-stream-renderer.service";
 import type { ChatMessagesGateway } from "../../../src/chat-sessions/chat-messages.gateway";
 import { InMemoryChatSessionsRepository } from "../../../src/chat-sessions/chat-sessions.repository";
@@ -8,7 +11,20 @@ describe("ChatSessionStreamRendererService", () => {
     let service: ChatSessionsService;
     let renderer: ChatSessionStreamRendererService;
     let sessionId: string;
-    let gateway: ChatMessagesGateway;
+  let gateway: ChatMessagesGateway;
+  const captureActivity = (): Array<{ sessionId: string; state: string }> => {
+    const events: Array<{ sessionId: string; state: string }> = [];
+    service.registerListener({
+      onSessionCreated: () => {},
+      onSessionUpdated: () => {},
+      onMessageCreated: () => {},
+      onMessageUpdated: () => {},
+      onAgentActivity: (event: { sessionId: string; state: string }) => {
+        events.push(event);
+      },
+    } as unknown as ChatSessionsListener);
+    return events;
+  };
 
     beforeEach(() => {
         service = new ChatSessionsService(new InMemoryChatSessionsRepository());
@@ -72,7 +88,7 @@ describe("ChatSessionStreamRendererService", () => {
         expect(events).toEqual([ "Hello", "Hello world" ]);
     });
 
-    it("emits tool events via ToolsGateway", async () => {
+  it("emits tool events via ToolsGateway", async () => {
         const toolsGateway = {
             emitToolCall: vi.fn(),
             emitToolResult: vi.fn(),
@@ -87,5 +103,56 @@ describe("ChatSessionStreamRendererService", () => {
 
         expect((toolsGateway.emitToolCall as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(1);
         expect((toolsGateway.emitToolResult as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("announces agent activity transitions for stream events", async () => {
+    const events = captureActivity();
+
+    await renderer.capture(sessionId, async () => {
+      renderer.render({ type: "delta", text: "Hello" });
+      renderer.render({
+        type: "tool_call",
+        name: "echo",
+        arguments: { text: "hi" },
+        id: "call-1",
+      } as any);
+      renderer.render({
+        type: "tool_result",
+        name: "echo",
+        result: { schema: "s1", content: "ok" },
+        id: "call-1",
+      } as any);
+      renderer.render({ type: "end" });
     });
+
+    expect(
+      events.map(({ sessionId: id, state }) => ({ sessionId: id, state }))
+    ).toEqual([
+      { sessionId, state: "thinking" },
+      { sessionId, state: "tool" },
+      { sessionId, state: "thinking" },
+      { sessionId, state: "idle" },
+    ]);
+  });
+
+  it("emits error activity for error and notification events", async () => {
+    const events = captureActivity();
+
+    await renderer.capture(sessionId, async () => {
+      renderer.render({ type: "delta", text: "Hi" });
+      renderer.render({
+        type: "notification",
+        payload: "Tool failed",
+        metadata: { severity: "error" },
+      });
+      renderer.render({ type: "error", message: "boom" });
+    });
+
+    expect(
+      events.map(({ sessionId: id, state }) => ({ sessionId: id, state }))
+    ).toEqual([
+      { sessionId, state: "thinking" },
+      { sessionId, state: "error" },
+    ]);
+  });
 });

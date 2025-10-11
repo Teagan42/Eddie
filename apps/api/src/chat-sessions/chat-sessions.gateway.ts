@@ -12,7 +12,11 @@ import {
 } from "@nestjs/websockets";
 import type { Server } from "ws";
 import { emitEvent } from "../websocket/utils";
-import { ChatSessionsService, ChatSessionsListener } from "./chat-sessions.service";
+import {
+  ChatSessionsService,
+  ChatSessionsListener,
+  type AgentActivityEvent,
+} from "./chat-sessions.service";
 import { ChatMessageDto, ChatSessionDto } from "./dto/chat-session.dto";
 import { SendChatMessagePayloadDto } from "./dto/send-chat-message.dto";
 
@@ -55,6 +59,10 @@ implements ChatSessionsListener, OnModuleInit, OnModuleDestroy
 
   onMessageUpdated(message: ChatMessageDto): void {
     emitEvent(this.server, "message.updated", message);
+  }
+
+  onAgentActivity(event: AgentActivityEvent): void {
+    emitEvent(this.server, "agent.activity", event);
   }
 
   @SubscribeMessage("message.send")

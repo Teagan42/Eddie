@@ -2,7 +2,10 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { Injectable } from "@nestjs/common";
 import { StreamRendererService } from "@eddie/io";
 import type { StreamEvent } from "@eddie/types";
-import { ChatSessionsService } from "./chat-sessions.service";
+import {
+  ChatSessionsService,
+  type AgentActivityState,
+} from "./chat-sessions.service";
 import { ChatMessageRole } from "./dto/create-chat-message.dto";
 import { ChatMessagesGateway } from "./chat-messages.gateway";
 import { ToolsGateway } from "../tools/tools.gateway";
@@ -12,6 +15,7 @@ interface StreamState {
     sessionId: string;
     buffer: string;
     messageId?: string;
+    activity: AgentActivityState;
 }
 
 export interface StreamCaptureResult<T> {
@@ -35,11 +39,12 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
     sessionId: string,
     handler: () => Promise<T>,
   ): Promise<StreamCaptureResult<T>> {
-    const state: StreamState = { sessionId, buffer: "" };
+    const state: StreamState = { sessionId, buffer: "", activity: "idle" };
     let result: T | undefined;
     let error: unknown;
 
     await this.storage.run(state, async () => {
+      this.updateActivity(state, "thinking");
       try {
         result = await handler();
       } catch (err) {
@@ -65,10 +70,12 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
       case "delta": {
         if (!event.text) return;
         state.buffer += event.text;
+        this.updateActivity(state, "thinking");
         this.upsertMessage(state);
         break;
       }
       case "tool_call": {
+        this.updateActivity(state, "tool");
         if (!this.toolsGateway) break;
         try {
           this.toolsGateway.emitToolCall({
@@ -84,6 +91,7 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
         break;
       }
       case "tool_result": {
+        this.updateActivity(state, "thinking");
         if (!this.toolsGateway) break;
         try {
           this.toolsGateway.emitToolResult({
@@ -98,6 +106,17 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
         }
         break;
       }
+      case "notification": {
+        const metadata = event.metadata as { severity?: string } | undefined;
+        if (metadata?.severity === "error") {
+          this.updateActivity(state, "error");
+        }
+        break;
+      }
+      case "error": {
+        this.updateActivity(state, "error");
+        break;
+      }
       case "end": {
         if (!state.messageId) return;
         const content = state.buffer.trimEnd();
@@ -107,6 +126,7 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
           content,
         );
         this.emitPartial(message);
+        this.updateActivity(state, "idle");
         break;
       }
       default:
@@ -136,5 +156,13 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
 
   private emitPartial(message: ChatMessageDto | undefined): void {
     if (message) this.messagesGateway.emitPartial(message);
+  }
+
+  private updateActivity(state: StreamState, next: AgentActivityState): void {
+    if (state.activity === next) {
+      return;
+    }
+    state.activity = next;
+    this.chatSessions.setAgentActivity(state.sessionId, next);
   }
 }

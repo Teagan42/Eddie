@@ -186,6 +186,14 @@ export interface OrchestratorMetadataDto {
     capturedAt?: string;
 }
 
+export type AgentActivityStateDto = "idle" | "thinking" | "tool" | "error";
+
+export interface AgentActivityEventDto {
+    sessionId: string;
+    state: AgentActivityStateDto;
+    timestamp?: string;
+}
+
 export interface ApiClientOptions {
     baseUrl: string;
     websocketUrl: string;
@@ -199,6 +207,9 @@ export interface ChatSessionsSocket {
     onSessionUpdated(handler: (session: ChatSessionDto) => void): Unsubscribe;
     onMessageCreated(handler: (message: ChatMessageDto) => void): Unsubscribe;
     onMessageUpdated(handler: (message: ChatMessageDto) => void): Unsubscribe;
+    onAgentActivity(
+        handler: (activity: AgentActivityEventDto) => void
+    ): Unsubscribe;
     emitMessage(sessionId: string, payload: CreateChatMessageDto): void;
 }
 
@@ -389,6 +400,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     },
     onMessageUpdated(handler) {
       return chatChannel.on("message.updated", handler);
+    },
+    onAgentActivity(handler) {
+      return chatChannel.on("agent.activity", handler);
     },
     emitMessage(sessionId, payload) {
       chatChannel.emit("message.send", { sessionId, message: payload });

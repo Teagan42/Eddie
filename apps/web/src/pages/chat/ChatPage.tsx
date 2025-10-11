@@ -119,57 +119,6 @@ const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
   },
 };
 
-function collectToolStatuses(nodes: OrchestratorMetadataDto['toolInvocations'] | undefined): ToolCallStatusDto[] {
-  if (!nodes || nodes.length === 0) {
-    return [];
-  }
-
-  const stack = [...nodes];
-  const statuses: ToolCallStatusDto[] = [];
-
-  while (stack.length > 0) {
-    const node = stack.pop();
-    if (!node) {
-      continue;
-    }
-
-    statuses.push(node.status);
-    if (Array.isArray(node.children) && node.children.length > 0) {
-      stack.push(...node.children);
-    }
-  }
-
-  return statuses;
-}
-
-function isAwaitingAssistantResponse(messages: ChatMessageDto[]): boolean {
-  if (messages.length === 0) {
-    return false;
-  }
-
-  let lastUserIndex = -1;
-  let lastAssistantIndex = -1;
-
-  for (let index = 0; index < messages.length; index += 1) {
-    const message = messages[index];
-    if (message.role === 'user') {
-      lastUserIndex = index;
-    } else if (message.role === 'assistant') {
-      lastAssistantIndex = index;
-    }
-  }
-
-  if (lastUserIndex === -1) {
-    return false;
-  }
-
-  if (lastAssistantIndex === -1) {
-    return true;
-  }
-
-  return lastUserIndex > lastAssistantIndex;
-}
-
 function formatTime(value: string): string | null {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -536,6 +485,9 @@ export function ChatPage(): JSX.Element {
   const defaultComposerRole = 'user' as ComposerRole;
   const [composerRole, setComposerRole] = useState<ComposerRole>(defaultComposerRole);
   const [templateSelection, setTemplateSelection] = useState<string>('');
+  const [agentStreamActivity, setAgentStreamActivity] = useState<
+    Exclude<AgentActivityState, 'sending'>
+  >('idle');
 
   const sessionsQuery = useQuery({
     queryKey: ['chat-sessions'],
@@ -545,6 +497,7 @@ export function ChatPage(): JSX.Element {
   const sessions = useMemo(() => sortSessions(sessionsQuery.data ?? []), [sessionsQuery.data]);
 
   const selectedSessionIdRef = useRef<string | null>(null);
+  const agentActivitySessionRef = useRef<string | null>(null);
   const toolInvocationCacheRef = useRef<Map<string, ToolInvocationNode[]>>(new Map());
 
   const invalidateOrchestratorMetadata = useCallback(
@@ -611,6 +564,33 @@ export function ChatPage(): JSX.Element {
         ? api.http.chatSessions.listMessages(selectedSessionId)
         : Promise.resolve([]),
   });
+
+  useEffect(() => {
+    const normalizedSessionId = selectedSessionId ?? null;
+    if (agentActivitySessionRef.current !== normalizedSessionId) {
+      agentActivitySessionRef.current = normalizedSessionId;
+      setAgentStreamActivity('idle');
+    }
+
+    const unsubscribe = api.sockets.chatSessions.onAgentActivity((activity) => {
+      if (!activity || activity.sessionId !== selectedSessionId) {
+        return;
+      }
+
+      if (
+        activity.state === 'idle' ||
+        activity.state === 'thinking' ||
+        activity.state === 'tool' ||
+        activity.state === 'error'
+      ) {
+        setAgentStreamActivity(activity.state);
+      }
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [api, selectedSessionId]);
 
   useEffect(() => {
     const unsubscribes = [
@@ -916,43 +896,17 @@ export function ChatPage(): JSX.Element {
   const orchestratorMetadata: OrchestratorMetadataDto | null = orchestratorQuery.data ?? null;
   const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
   const lastMessage = messages[messages.length - 1] ?? null;
-  const toolActivity = useMemo(() => {
-    const statuses = collectToolStatuses(orchestratorMetadata?.toolInvocations);
-    const hasFailure = statuses.some((status) => status === 'failed');
-    const hasActive = statuses.some((status) => status === 'pending' || status === 'running');
-    return { hasFailure, hasActive };
-  }, [orchestratorMetadata?.toolInvocations]);
-  const hasFailedTools = toolActivity.hasFailure;
-  const hasActiveTools = toolActivity.hasActive;
-  const awaitingAssistantResponse = useMemo(
-    () => isAwaitingAssistantResponse(messages),
-    [messages],
-  );
   const agentActivityState = useMemo<AgentActivityState>(() => {
-    if (sendMessageMutation.isError || hasFailedTools) {
-      return 'error';
-    }
-
-    if (hasActiveTools) {
-      return 'tool';
-    }
-
     if (sendMessageMutation.isPending) {
       return 'sending';
     }
 
-    if (awaitingAssistantResponse) {
-      return 'thinking';
+    if (sendMessageMutation.isError) {
+      return 'error';
     }
 
-    return 'idle';
-  }, [
-    awaitingAssistantResponse,
-    hasActiveTools,
-    hasFailedTools,
-    sendMessageMutation.isError,
-    sendMessageMutation.isPending,
-  ]);
+    return agentStreamActivity;
+  }, [agentStreamActivity, sendMessageMutation.isError, sendMessageMutation.isPending]);
 
   useEffect(() => {
     if (!lastMessage) {
