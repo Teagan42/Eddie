@@ -18,9 +18,11 @@
   "dependencies": {
     "@eddie/templates": "^0.0.0",
     "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.2",
     "yaml": "^2.6.0"
   },
   "devDependencies": {
+    "@nestjs/testing": "^11.1.6",
     "@types/json-schema": "^7.0.15"
   }
 }

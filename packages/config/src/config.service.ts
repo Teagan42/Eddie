@@ -1,10 +1,15 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
+import {
+  ConfigService as NestConfigService,
+  ConfigType,
+} from "@nestjs/config";
 import fs from "fs/promises";
 import path from "path";
 
 const DEFAULT_CONFIG_ROOT = path.resolve(process.cwd(), "config");
 import yaml from "yaml";
 import { DEFAULT_CONFIG } from "./defaults";
+import { CONFIG_NAMESPACE, eddieConfig } from "./config.namespace";
 import type {
   AgentProviderConfig,
   AgentsConfig,
@@ -48,6 +53,17 @@ const CONFIG_FILENAMES = [
  */
 @Injectable()
 export class ConfigService {
+  constructor(
+    @Optional()
+    @Inject(eddieConfig.KEY)
+    private readonly defaultsProvider?: ConfigType<typeof eddieConfig>,
+    @Optional()
+    private readonly nestConfigService?: NestConfigService<
+      ConfigType<typeof eddieConfig>,
+      true
+    >
+  ) {}
+
   async load(options: CliRuntimeOptions): Promise<EddieConfig> {
     const configPath = await this.resolveConfigPath(options);
     const fileConfig = configPath ? await this.readConfigFile(configPath) : {};
@@ -58,7 +74,8 @@ export class ConfigService {
     input: EddieConfigInput,
     options: CliRuntimeOptions = {}
   ): Promise<EddieConfig> {
-    const merged = this.mergeConfig(DEFAULT_CONFIG, input);
+    const baseConfig = this.resolveBaseConfig();
+    const merged = this.mergeConfig(baseConfig, input);
     if (merged.logging?.level) {
       merged.logLevel = merged.logging.level;
     } else if (merged.logLevel) {
@@ -84,6 +101,33 @@ export class ConfigService {
     this.validateConfig(finalConfig);
 
     return finalConfig;
+  }
+
+  private resolveBaseConfig(): EddieConfig {
+    const defaults = structuredClone(DEFAULT_CONFIG);
+    const namespaced = this.readNamespacedDefaults();
+
+    if (!namespaced) {
+      return defaults;
+    }
+
+    return this.mergeConfig(defaults, namespaced as EddieConfigInput);
+  }
+
+  private readNamespacedDefaults(): EddieConfig | EddieConfigInput | undefined {
+    const provided = this.nestConfigService?.get<EddieConfig>(CONFIG_NAMESPACE, {
+      infer: true,
+    });
+
+    if (provided) {
+      return provided;
+    }
+
+    if (this.defaultsProvider) {
+      return this.defaultsProvider;
+    }
+
+    return undefined;
   }
 
   async readSnapshot(
