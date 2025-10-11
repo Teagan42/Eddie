@@ -1,10 +1,8 @@
-import { isDeepStrictEqual } from "node:util";
-
-import { Injectable } from "@nestjs/common";
-import { BehaviorSubject, Observable, distinctUntilChanged } from "rxjs";
-
-import { DEFAULT_CONFIG } from "./defaults";
-import type { EddieConfig } from "./types";
+import { Injectable } from '@nestjs/common';
+import { BehaviorSubject, Observable, distinctUntilChanged } from 'rxjs';
+import { isDeepStrictEqual } from 'util';
+import { DEFAULT_CONFIG } from './defaults';
+import type { EddieConfig } from './types';
 
 @Injectable()
 export class ConfigStore {

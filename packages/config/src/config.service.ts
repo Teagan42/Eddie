@@ -1,18 +1,16 @@
-import { Inject, Injectable, Optional } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, OnApplicationBootstrap, Optional } from "@nestjs/common";
 import {
-  ConfigService as NestConfigService,
   ConfigType,
 } from "@nestjs/config";
 import fs from "fs/promises";
 import path from "path";
-
-const DEFAULT_CONFIG_ROOT = path.resolve(process.cwd(), "config");
-import yaml from "yaml";
-import { DEFAULT_CONFIG } from "./defaults";
-import { CONFIG_NAMESPACE, eddieConfig } from "./config.namespace";
-import { ConfigStore } from "./hot-config.store";
 import { Subject } from "rxjs";
+import yaml from "yaml";
 import { z } from "zod";
+import { MODULE_OPTIONS_TOKEN } from './config.const';
+import { eddieConfig } from "./config.namespace";
+import { ConfigStore } from './config.store';
+import { DEFAULT_CONFIG } from "./defaults";
 import type {
   AgentProviderConfig,
   AgentsConfig,
@@ -30,6 +28,8 @@ import type {
   ProviderProfileConfig,
   ToolsConfig,
 } from "./types";
+
+const DEFAULT_CONFIG_ROOT = path.resolve(process.cwd(), "config");
 
 export type ConfigFileFormat = "yaml" | "json";
 
@@ -66,33 +66,34 @@ const SQL_CONNECTION_SCHEMA = z
     user: z.string().min(1, "user must be provided"),
     password: z.string().min(1, "password must be provided"),
   })
-  .passthrough();
+  .loose();
 
 /**
  * ConfigService resolves Eddie configuration from disk and merges it with CLI
  * runtime overrides, normalising legacy fields along the way.
  */
 @Injectable()
-export class ConfigService {
-  private configStore?: ConfigStore;
-
+export class ConfigService implements OnApplicationBootstrap {
   private readonly writeSubject = new Subject<ConfigFileSnapshot>();
 
   readonly writes$ = this.writeSubject.asObservable();
 
+  private readonly moduleOptions: CliRuntimeOptions;
+
   constructor(
+    @Inject(forwardRef(() => ConfigStore)) private readonly configStore: ConfigStore,
+    @Optional()
+    @Inject(MODULE_OPTIONS_TOKEN)
+    moduleOptions?: CliRuntimeOptions,
     @Optional()
     @Inject(eddieConfig.KEY)
     private readonly defaultsProvider?: ConfigType<typeof eddieConfig>,
-    @Optional()
-    private readonly nestConfigService?: NestConfigService<
-      ConfigType<typeof eddieConfig>,
-      true
-    >
-  ) {}
+  ) {
+    this.moduleOptions = moduleOptions ?? {};
+  }
 
-  bindStore(store: ConfigStore): void {
-    this.configStore = store;
+  async onApplicationBootstrap() {
+    await this.load(this.moduleOptions);
   }
 
   async load(options: CliRuntimeOptions): Promise<EddieConfig> {
@@ -105,29 +106,15 @@ export class ConfigService {
     input: EddieConfigInput,
     options: CliRuntimeOptions = {}
   ): Promise<EddieConfig> {
-    const baseConfig = this.resolveBaseConfig();
-    const merged = this.mergeConfig(baseConfig, input);
-    if (merged.logging?.level) {
-      merged.logLevel = merged.logging.level;
-    } else if (merged.logLevel) {
-      merged.logging = {
-        ...(merged.logging ?? {}),
-        level: merged.logLevel,
-      };
-    }
-    merged.agents = this.ensureAgentsShape(
-      merged.agents,
-      merged.systemPrompt
-    );
-
-    const withCli = this.applyCliOverrides(merged, options);
-    const finalConfig: EddieConfig = {
-      ...withCli,
-      agents: this.ensureAgentsShape(
-        withCli.agents,
-        withCli.systemPrompt
-      ),
+    const mergedOverrides = {
+      ...this.moduleOptions,
+      ...options,
     };
+    const finalConfig = this.composeLayers(
+      this.resolveDefaultConfig(),
+      input,
+      mergedOverrides,
+    );
 
     this.validateConfig(finalConfig);
 
@@ -136,26 +123,32 @@ export class ConfigService {
     return finalConfig;
   }
 
-  private resolveBaseConfig(): EddieConfig {
-    const defaults = structuredClone(DEFAULT_CONFIG);
-    const namespaced = this.readNamespacedDefaults();
+  private composeLayers(
+    defaults: EddieConfig,
+    fileInput: EddieConfigInput,
+    cliOverrides: CliRuntimeOptions,
+  ): EddieConfig {
+    // Precedence: provider defaults → config file → CLI overrides.
+    const withFileLayer = this.applyConfigFileOverrides(defaults, fileInput);
+    const normalisedFileLayer = this.normalizeConfig(withFileLayer);
+    const withCliLayer = this.applyCliOverrides(normalisedFileLayer, cliOverrides);
+    return this.normalizeConfig(withCliLayer);
+  }
 
-    if (!namespaced) {
-      return defaults;
+  private resolveDefaultConfig(): EddieConfig {
+    // Start from provider-supplied defaults when available. This makes the
+    // defaultsProvider the initial base that will then be overwritten by any
+    // on-disk config and finally by CLI options (the desired precedence).
+    const namespaced = this.readNamespacedDefaults();
+    if (namespaced) {
+      // structuredClone to avoid accidental mutation of the injected provider
+      return structuredClone(namespaced) as EddieConfig;
     }
 
-    return this.mergeConfig(defaults, namespaced as EddieConfigInput);
+    return structuredClone(DEFAULT_CONFIG);
   }
 
   private readNamespacedDefaults(): EddieConfig | EddieConfigInput | undefined {
-    const provided = this.nestConfigService?.get<EddieConfig>(CONFIG_NAMESPACE, {
-      infer: true,
-    });
-
-    if (provided) {
-      return provided;
-    }
-
     if (this.defaultsProvider) {
       return this.defaultsProvider;
     }
@@ -391,7 +384,7 @@ export class ConfigService {
     };
   }
 
-  private mergeConfig(
+  private applyConfigFileOverrides(
     base: EddieConfig,
     input: EddieConfigInput
   ): EddieConfig {
@@ -463,6 +456,47 @@ export class ConfigService {
       logLevel: effectiveLevel,
       systemPrompt,
       agents: mergedAgents,
+    };
+  }
+
+  private normalizeConfig(config: EddieConfig): EddieConfig {
+    const logging = this.normalizeLogging(config);
+    return {
+      ...config,
+      ...logging,
+      agents: this.ensureAgentsShape(
+        config.agents,
+        config.systemPrompt
+      ),
+    };
+  }
+
+  private normalizeLogging(
+    config: EddieConfig
+  ): Pick<EddieConfig, "logLevel" | "logging"> {
+    const logging = config.logging ? { ...config.logging } : undefined;
+    const logLevel = logging?.level ?? config.logLevel;
+
+    if (logging) {
+      if (logLevel && logging.level !== logLevel) {
+        logging.level = logLevel;
+      }
+      return {
+        logLevel,
+        logging,
+      };
+    }
+
+    if (logLevel) {
+      return {
+        logLevel,
+        logging: { level: logLevel },
+      };
+    }
+
+    return {
+      logLevel,
+      logging,
     };
   }
 

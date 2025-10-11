@@ -11,7 +11,7 @@ import { Test } from "@nestjs/testing";
 
 import { ConfigModule } from "../src/config.module";
 import { ConfigService } from "../src/config.service";
-import { ConfigStore } from "../src/hot-config.store";
+import { ConfigStore } from "../src/config.store";
 import { DEFAULT_CONFIG } from "../src/defaults";
 import { eddieConfig } from "../src/config.namespace";
 
@@ -35,15 +35,37 @@ describe("ConfigStore", () => {
     };
 
     const moduleRef = await Test.createTestingModule({
-      imports: [ConfigModule],
+      imports: [ConfigModule.register({
+        logLevel: defaults.logging?.level
+      })],
     })
       .overrideProvider(eddieConfig.KEY)
       .useValue(defaults)
       .compile();
-
+    // Trigger onApplicationBootstrap lifecycle hook
+    await moduleRef.get(ConfigService).onApplicationBootstrap();
     const store = moduleRef.get(ConfigStore);
 
     expect(store.getSnapshot().logging?.level).toBe("error");
+
+    await moduleRef.close();
+  });
+
+  it("applies CLI runtime overrides provided via module registration", async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [
+        ConfigModule.registerAsync({
+          useFactory: async () => ({ logLevel: "debug" as const }),
+        }),
+      ],
+    }).compile();
+
+    // Trigger onApplicationBootstrap lifecycle hook
+    await moduleRef.get(ConfigService).onApplicationBootstrap();
+
+    const store = moduleRef.get(ConfigStore);
+
+    expect(store.getSnapshot().logLevel).toBe("debug");
 
     await moduleRef.close();
   });
@@ -52,7 +74,8 @@ describe("ConfigStore", () => {
     const moduleRef = await Test.createTestingModule({
       imports: [ConfigModule],
     }).compile();
-
+    // Trigger onApplicationBootstrap lifecycle hook
+    await moduleRef.get(ConfigService).onApplicationBootstrap();
     const service = moduleRef.get(ConfigService);
     const store = moduleRef.get(ConfigStore);
 
@@ -68,7 +91,8 @@ describe("ConfigStore", () => {
     const moduleRef = await Test.createTestingModule({
       imports: [ConfigModule],
     }).compile();
-
+    // Trigger onApplicationBootstrap lifecycle hook
+    await moduleRef.get(ConfigService).onApplicationBootstrap();
     const service = moduleRef.get(ConfigService);
     const store = moduleRef.get(ConfigStore);
 
