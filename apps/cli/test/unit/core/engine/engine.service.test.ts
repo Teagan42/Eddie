@@ -11,6 +11,7 @@ import {
 } from "@eddie/engine";
 import {
   ConfigService,
+  ConfigStore,
   type EddieConfig,
   type ProviderConfig,
 } from "@eddie/config";
@@ -77,6 +78,11 @@ interface EngineHarness {
   context: PackedContext;
   fakeOrchestrator: FakeAgentOrchestrator;
   contextPackSpy: ReturnType<typeof vi.fn>;
+  configStore: ConfigStore;
+  configService: {
+    load: ReturnType<typeof vi.fn>;
+    bindStore: ReturnType<typeof vi.fn>;
+  };
 }
 
 function createEngineHarness(
@@ -109,9 +115,21 @@ function createEngineHarness(
 
   const hookBus = new HookBus();
 
+  const configStore = new ConfigStore();
+  configStore.setSnapshot(config);
+
+  let boundStore: ConfigStore | null = configStore;
+  const loadMock = vi.fn(async () => {
+    boundStore?.setSnapshot(structuredClone(config));
+    return structuredClone(config);
+  });
+  const bindStoreMock = vi.fn((store: ConfigStore) => {
+    boundStore = store;
+  });
   const configService = {
-    load: vi.fn(async () => config),
-  } as unknown as ConfigService;
+    load: loadMock,
+    bindStore: bindStoreMock,
+  };
 
   const contextPackSpy = vi.fn(async () => context);
   const contextService = {
@@ -149,8 +167,21 @@ function createEngineHarness(
     fakeOrchestrator.shouldFail = true;
   }
 
-  const engine = new EngineService(
-    configService,
+  const EngineCtor = EngineService as unknown as new (
+    configService: ConfigService,
+    contextService: ContextService,
+    providerFactory: ProviderFactoryService,
+    hooksService: HooksService,
+    confirmService: ConfirmService,
+    tokenizerService: TokenizerService,
+    loggerService: LoggerService,
+    agentOrchestrator: AgentOrchestratorService,
+    mcpToolSourceService: McpToolSourceService,
+    configStore: ConfigStore
+  ) => EngineService;
+
+  const engine = new EngineCtor(
+    configService as unknown as ConfigService,
     contextService,
     providerFactory,
     hooksService,
@@ -158,7 +189,8 @@ function createEngineHarness(
     tokenizerService,
     loggerService,
     fakeOrchestrator as unknown as AgentOrchestratorService,
-    mcpToolSourceService
+    mcpToolSourceService,
+    configStore
   );
 
   return {
@@ -168,6 +200,8 @@ function createEngineHarness(
     context,
     fakeOrchestrator,
     contextPackSpy,
+    configStore,
+    configService,
   };
 }
 
@@ -365,5 +399,37 @@ describe("EngineService agent catalog", () => {
     expect(descriptor.metadata?.description).toBe(
       "Review responses for accuracy"
     );
+  });
+});
+
+describe("EngineService configuration reloads", () => {
+  it("honours ConfigStore updates for manager provider metadata", async () => {
+    const harness = createEngineHarness();
+    const events: SessionMetadata[] = [];
+    harness.hookBus.on(HOOK_EVENTS.sessionStart, (payload) => {
+      events.push(payload.metadata);
+    });
+
+    await harness.engine.run("initial run");
+
+    const updated = structuredClone(harness.config);
+    updated.provider = { name: "hot" };
+    updated.model = "gpt-hot";
+
+    harness.configService.load.mockResolvedValueOnce(
+      structuredClone(harness.config)
+    );
+
+    harness.configStore.setSnapshot(updated);
+
+    events.length = 0;
+    await harness.engine.run("reload run");
+
+    expect(events[0]?.provider).toBe("hot");
+    expect(events[0]?.model).toBe("gpt-hot");
+
+    const runtime = harness.fakeOrchestrator.lastRuntime;
+    expect(runtime?.catalog.getManager().provider.name).toBe("hot");
+    expect(runtime?.catalog.getManager().model).toBe("gpt-hot");
   });
 });

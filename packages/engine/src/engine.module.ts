@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule } from "@eddie/config";
+import { ConfigModule, ConfigStore } from "@eddie/config";
 import { ContextModule } from "@eddie/context";
 import { IoModule } from "@eddie/io";
 import { HooksModule } from "@eddie/hooks";
@@ -36,6 +36,7 @@ import { MCPModule } from "@eddie/mcp";
     ProvidersModule,
     TokenizersModule,
     ToolsModule,
+    ConfigStore,
   ],
 })
 export class EngineModule {}

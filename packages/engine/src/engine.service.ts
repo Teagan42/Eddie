@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { Buffer } from "buffer";
 import { randomUUID } from "crypto";
 import path from "path";
@@ -8,7 +8,7 @@ import type {
   EddieConfig,
   ProviderConfig,
 } from "@eddie/config";
-import { ConfigService } from "@eddie/config";
+import { ConfigService, ConfigStore } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { ProviderFactoryService } from "@eddie/providers";
 import { builtinTools } from "@eddie/tools";
@@ -37,6 +37,7 @@ import type { AgentRuntimeCatalog, AgentRuntimeDescriptor } from "./agents/agent
 import type { Logger } from "pino";
 import { McpToolSourceService } from "@eddie/mcp";
 import type { DiscoveredMcpResource } from "@eddie/mcp";
+import { Subscription } from "rxjs";
 
 export interface EngineOptions extends CliRuntimeOptions {
     history?: ChatMessage[];
@@ -57,7 +58,7 @@ export interface EngineResult {
  * and trace emission.
  */
 @Injectable()
-export class EngineService {
+export class EngineService implements OnModuleDestroy {
   constructor(
         private readonly configService: ConfigService,
         private readonly contextService: ContextService,
@@ -67,8 +68,23 @@ export class EngineService {
         private readonly tokenizerService: TokenizerService,
         private readonly loggerService: LoggerService,
         private readonly agentOrchestrator: AgentOrchestratorService,
-        private readonly mcpToolSourceService: McpToolSourceService
-  ) { }
+        private readonly mcpToolSourceService: McpToolSourceService,
+        private readonly configStore: ConfigStore
+  ) {
+    this.configService.bindStore(this.configStore);
+    this.hotConfig = this.configStore.getSnapshot();
+    this.configSubscription = this.configStore.changes$.subscribe((snapshot) => {
+      this.hotConfig = snapshot;
+    });
+  }
+
+  private hotConfig: EddieConfig;
+  private configSubscription?: Subscription;
+
+  onModuleDestroy(): void {
+    this.configSubscription?.unsubscribe();
+    this.configSubscription = undefined;
+  }
 
   setStreamRenderer(streamRenderer: StreamRendererService): void {
     this.agentOrchestrator.setStreamRenderer(streamRenderer);
@@ -91,7 +107,8 @@ export class EngineService {
     let logger!: Logger;
 
     try {
-      const cfg = await this.configService.load(options);
+    let cfg = await this.configService.load(options);
+    cfg = this.mergeHotConfig(cfg, options);
       const managerRuntimeConfig = this.resolveAgentProviderConfig(
         cfg,
         cfg.agents?.manager?.provider,
@@ -503,6 +520,36 @@ export class EngineService {
 
   private cloneProviderConfig(config: ProviderConfig): ProviderConfig {
     return JSON.parse(JSON.stringify(config)) as ProviderConfig;
+  }
+
+  private mergeHotConfig(
+    config: EddieConfig,
+    options: CliRuntimeOptions
+  ): EddieConfig {
+    const hot = this.hotConfig;
+
+    const shouldMergeProvider = !options.provider;
+    const shouldMergeModel = !options.model;
+
+    if (!hot || (!shouldMergeProvider && !shouldMergeModel)) {
+      return config;
+    }
+
+    const merged = structuredClone(config);
+
+    if (shouldMergeProvider) {
+      merged.provider = this.cloneProviderConfig(hot.provider);
+      merged.providers = hot.providers
+        ? structuredClone(hot.providers)
+        : undefined;
+      merged.agents = hot.agents ? structuredClone(hot.agents) : undefined;
+    }
+
+    if (shouldMergeModel) {
+      merged.model = hot.model;
+    }
+
+    return merged;
   }
 
   private filterTools(

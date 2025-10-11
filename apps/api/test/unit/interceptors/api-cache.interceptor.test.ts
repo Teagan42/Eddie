@@ -3,9 +3,30 @@ import type { Request } from "express";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { firstValueFrom, of } from "rxjs";
 import type { ConfigService, EddieConfig } from "@eddie/config";
+import { ConfigStore } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import type { Logger } from "pino";
 import { ApiCacheInterceptor } from "../../../src/cache.interceptor";
+
+const InterceptorCtor = ApiCacheInterceptor as unknown as new (
+  configService: ConfigService,
+  contextService: ContextService,
+  logger: Logger,
+  configStore: ConfigStore
+) => ApiCacheInterceptor;
+
+const instantiateInterceptor = (
+  configService: ConfigService,
+  contextService: ContextService,
+  logger: Logger,
+  configStore: ConfigStore
+) =>
+  new InterceptorCtor(
+    configService,
+    contextService,
+    logger as unknown as Logger,
+    configStore
+  );
 
 const createExecutionContext = (request: Partial<Request>): ExecutionContext =>
   ({
@@ -60,10 +81,13 @@ describe("ApiCacheInterceptor", () => {
     const contextService = {
       pack: vi.fn().mockResolvedValue({ files: [], totalBytes: 0 }),
     } as unknown as ContextService;
-    const interceptor = new ApiCacheInterceptor(
+    const configStore = new ConfigStore();
+    configStore.setSnapshot(createConfig() as EddieConfig);
+    const interceptor = instantiateInterceptor(
       configService,
       contextService,
-      logger as unknown as Logger
+      logger as unknown as Logger,
+      configStore
     );
     await interceptor.onModuleInit();
 
@@ -105,10 +129,13 @@ describe("ApiCacheInterceptor", () => {
     const contextService = {
       pack: vi.fn().mockResolvedValue({ files: [], totalBytes: 0 }),
     } as unknown as ContextService;
-    const interceptor = new ApiCacheInterceptor(
+    const configStore = new ConfigStore();
+    configStore.setSnapshot(createConfig() as EddieConfig);
+    const interceptor = instantiateInterceptor(
       configService,
       contextService,
-      logger as unknown as Logger
+      logger as unknown as Logger,
+      configStore
     );
     await interceptor.onModuleInit();
 
@@ -144,10 +171,13 @@ describe("ApiCacheInterceptor", () => {
     const contextService = {
       pack: vi.fn().mockResolvedValue({ files: [], totalBytes: 0 }),
     } as unknown as ContextService;
-    const interceptor = new ApiCacheInterceptor(
+    const configStore = new ConfigStore();
+    configStore.setSnapshot(createConfig({ cache: { enabled: false } }) as EddieConfig);
+    const interceptor = instantiateInterceptor(
       configService,
       contextService,
-      logger as unknown as Logger
+      logger as unknown as Logger,
+      configStore
     );
 
     const request = {
@@ -184,5 +214,62 @@ describe("ApiCacheInterceptor", () => {
       expect.anything(),
       "Caching fresh response"
     );
+  });
+
+  it("updates cache behaviour when the ConfigStore snapshot changes", async () => {
+    const logger = { debug: vi.fn(), error: vi.fn() };
+    const configStore = new ConfigStore();
+    const initialConfig = createConfig();
+    configStore.setSnapshot(initialConfig as EddieConfig);
+
+    const configService = {
+      load: vi.fn().mockResolvedValue(initialConfig),
+    } as unknown as ConfigService;
+    const contextService = {
+      pack: vi.fn().mockResolvedValue({ files: [], totalBytes: 0 }),
+    } as unknown as ContextService;
+
+    const InterceptorCtor = ApiCacheInterceptor as unknown as new (
+      configService: ConfigService,
+      contextService: ContextService,
+      logger: Logger,
+      configStore: ConfigStore
+    ) => ApiCacheInterceptor;
+
+    const interceptor = new InterceptorCtor(
+      configService,
+      contextService,
+      logger as unknown as Logger,
+      configStore
+    );
+    await interceptor.onModuleInit();
+
+    const request = {
+      method: "GET",
+      originalUrl: "/cache",
+      headers: {},
+      get: vi.fn(() => undefined),
+      query: {},
+    } as unknown as Request;
+    const context = createExecutionContext(request);
+    const next: CallHandler = { handle: vi.fn(() => of({ status: "first" })) };
+
+    await firstValueFrom(interceptor.intercept(context, next));
+    const initialLogCalls = logger.debug.mock.calls.length;
+
+    configStore.setSnapshot(
+      createConfig({ cache: { enabled: false } }) as EddieConfig
+    );
+
+    next.handle = vi.fn(() => of({ status: "second" }));
+
+    const result = await firstValueFrom(interceptor.intercept(context, next));
+
+    expect(result).toEqual({ status: "second" });
+    expect(next.handle).toHaveBeenCalledTimes(1);
+    const newCalls = logger.debug.mock.calls.slice(initialLogCalls);
+    for (const call of newCalls) {
+      expect(call[1]).not.toBe("Caching fresh response");
+    }
   });
 });

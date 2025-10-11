@@ -3,6 +3,7 @@ import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Test } from "@nestjs/testing";
+import { firstValueFrom } from "rxjs";
 
 import { ConfigService } from "../src/config.service";
 import { DEFAULT_CONFIG } from "../src/defaults";
@@ -170,6 +171,22 @@ describe("ConfigService", () => {
 
       expect(result.api?.host).toBe("10.0.0.1");
       expect(result.api?.port).toBe(9090);
+    });
+  });
+
+  describe("writeSource", () => {
+    it("emits snapshots to writes$ subscribers", async () => {
+      const service = new ConfigService();
+      const emission = firstValueFrom(service.writes$);
+
+      await service.writeSource(
+        "provider:\n  name: second\nmodel: gpt-4",
+        "yaml"
+      );
+
+      const snapshot = await emission;
+      expect(snapshot.config?.provider?.name).toBe("second");
+      expect(snapshot.config?.model).toBe("gpt-4");
     });
   });
 });

@@ -8,6 +8,7 @@ import path from "path";
 
 const DEFAULT_CONFIG_ROOT = path.resolve(process.cwd(), "config");
 import yaml from "yaml";
+import { Observable, Subject } from "rxjs";
 import { DEFAULT_CONFIG } from "./defaults";
 import { CONFIG_NAMESPACE, eddieConfig } from "./config.namespace";
 import { ConfigStore } from "./hot-config.store";
@@ -55,6 +56,8 @@ const CONFIG_FILENAMES = [
 @Injectable()
 export class ConfigService {
   private configStore?: ConfigStore;
+  private readonly writeSubject = new Subject<ConfigFileSnapshot>();
+  readonly writes$: Observable<ConfigFileSnapshot> = this.writeSubject.asObservable();
 
   constructor(
     @Optional()
@@ -228,13 +231,16 @@ export class ConfigService {
 
     this.configStore?.setSnapshot(config);
 
-    return {
+    const snapshot: ConfigFileSnapshot = {
       path: destination,
       format,
       content: serialized,
       input,
       config,
     };
+
+    this.writeSubject.next(snapshot);
+    return snapshot;
   }
 
   private async readConfigFile(candidate: string): Promise<EddieConfigInput> {
