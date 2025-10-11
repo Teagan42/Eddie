@@ -74,34 +74,12 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
       }
       case "tool_call": {
         this.updateActivity(state, "tool");
-        if (!this.toolsGateway) break;
-        try {
-          this.toolsGateway.emitToolCall({
-            sessionId: state.sessionId,
-            id: event.id ?? undefined,
-            name: event.name,
-            arguments: event.arguments ?? null,
-            timestamp: new Date().toISOString(),
-          });
-        } catch {
-          // ignore gateway errors to keep stream rendering robust
-        }
+        this.emitToolCallEvent(state, event);
         break;
       }
       case "tool_result": {
         this.updateActivity(state, "thinking");
-        if (!this.toolsGateway) break;
-        try {
-          this.toolsGateway.emitToolResult({
-            sessionId: state.sessionId,
-            id: event.id ?? undefined,
-            name: event.name,
-            result: event.result ?? null,
-            timestamp: new Date().toISOString(),
-          });
-        } catch {
-          // ignore
-        }
+        this.emitToolResultEvent(state, event);
         break;
       }
       case "notification": {
@@ -154,6 +132,26 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
 
   private emitPartial(message: ChatMessageDto | undefined): void {
     if (message) this.events.emitPartial(message);
+  }
+
+  private emitToolCallEvent(state: StreamState, event: StreamEvent): void {
+    this.events.emitToolCall({
+      sessionId: state.sessionId,
+      id: event.id ?? undefined,
+      name: event.name,
+      arguments: event.arguments ?? null,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  private emitToolResultEvent(state: StreamState, event: StreamEvent): void {
+    this.events.emitToolResult({
+      sessionId: state.sessionId,
+      id: event.id ?? undefined,
+      name: event.name,
+      result: event.result ?? null,
+      timestamp: new Date().toISOString(),
+    });
   }
 
   private updateActivity(state: StreamState, next: AgentActivityState): void {
