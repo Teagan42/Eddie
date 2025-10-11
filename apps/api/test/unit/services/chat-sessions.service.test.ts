@@ -1,4 +1,5 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
+import type { EventBus } from "@nestjs/cqrs";
 import {
   ChatSessionsService,
   type AgentInvocationSnapshot,
@@ -9,35 +10,22 @@ import {
   InMemoryChatSessionsRepository,
   type AgentInvocationSnapshot as RepositoryInvocationSnapshot,
 } from "../../../src/chat-sessions/chat-sessions.repository";
-
-class ListenerSpy {
-  created = 0;
-  updated = 0;
-  messages = 0;
-  messageUpdates = 0;
-
-  onSessionCreated(): void {
-    this.created += 1;
-  }
-
-  onSessionUpdated(): void {
-    this.updated += 1;
-  }
-
-  onMessageCreated(): void {
-    this.messages += 1;
-  }
-
-  onMessageUpdated(): void {
-    this.messageUpdates += 1;
-  }
-}
+import {
+  ChatSessionCreatedEvent,
+  ChatSessionUpdatedEvent,
+  ChatMessageCreatedEvent,
+} from "@eddie/types";
 
 describe("ChatSessionsService", () => {
   let service: ChatSessionsService;
+  let publishSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    service = new ChatSessionsService(new InMemoryChatSessionsRepository());
+    publishSpy = vi.fn();
+    service = new ChatSessionsService(
+      new InMemoryChatSessionsRepository(),
+      { publish: publishSpy } as unknown as EventBus
+    );
   });
 
   it("exposes AgentInvocationSnapshot type to consumers", () => {
@@ -46,16 +34,14 @@ describe("ChatSessionsService", () => {
     >();
   });
 
-  it("creates sessions and notifies listeners", () => {
-    const listener = new ListenerSpy();
-    service.registerListener(listener);
-
+  it("publishes lifecycle events through the EventBus", () => {
     const dto: CreateChatSessionDto = { title: "My Session" };
     const session = service.createSession(dto);
 
     expect(session.title).toBe("My Session");
-    expect(listener.created).toBe(1);
-    expect(listener.updated).toBe(0);
+    const createdEvent = publishSpy.mock.calls[0]?.[0];
+    expect(createdEvent).toBeInstanceOf(ChatSessionCreatedEvent);
+    expect(createdEvent).toMatchObject({ sessionId: session.id });
 
     const messageDto: CreateChatMessageDto = {
       role: "user",
@@ -64,8 +50,33 @@ describe("ChatSessionsService", () => {
     const { message } = service.addMessage(session.id, messageDto);
 
     expect(message.content).toBe("Hello world");
-    expect(listener.messages).toBe(1);
-    expect(listener.updated).toBe(1);
+    const messageEvent = publishSpy.mock.calls[1]?.[0];
+    expect(messageEvent).toBeInstanceOf(ChatMessageCreatedEvent);
+    expect(messageEvent).toMatchObject({
+      sessionId: session.id,
+      messageId: message.id,
+    });
+
+    const sessionUpdated = publishSpy.mock.calls[2]?.[0];
+    expect(sessionUpdated).toBeInstanceOf(ChatSessionUpdatedEvent);
+    expect(sessionUpdated).toMatchObject({
+      sessionId: session.id,
+      changedFields: expect.arrayContaining(["updatedAt"]),
+    });
+
+    publishSpy.mockClear();
+
+    service.archiveSession(session.id);
+    const archivedEvent = publishSpy.mock.calls[0]?.[0];
+    expect(archivedEvent).toBeInstanceOf(ChatSessionUpdatedEvent);
+    expect(archivedEvent).toMatchObject({
+      sessionId: session.id,
+      changedFields: expect.arrayContaining(["status"]),
+    });
+
+    const stored = service.listMessages(session.id);
+    expect(stored).toHaveLength(1);
+    expect(stored[0]?.content).toBe("Hello world");
   });
 
   it("persists tool identifiers and names on stored messages", () => {
@@ -129,9 +140,6 @@ describe("ChatSessionsService", () => {
   });
 
   it("updates message content without reordering sessions", () => {
-    const listener = new ListenerSpy();
-    service.registerListener(listener);
-
     const session = service.createSession({ title: "Streaming" });
     const { message } = service.addMessage(session.id, {
       role: "assistant",
@@ -145,8 +153,6 @@ describe("ChatSessionsService", () => {
     );
 
     expect(updated.content).toBe("Final response");
-    expect(listener.messageUpdates).toBe(1);
-    expect(listener.updated).toBe(1);
     expect(service.listMessages(session.id)[0]?.content).toBe("Final response");
   });
 });

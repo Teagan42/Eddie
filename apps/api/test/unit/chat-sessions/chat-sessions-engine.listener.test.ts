@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EngineService, EngineResult } from "@eddie/engine";
+import { ChatMessageCreatedEvent } from "@eddie/types";
 import { ChatSessionsEngineListener } from "../../../src/chat-sessions/chat-sessions-engine.listener";
 import { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
 import type { ChatSessionStreamRendererService } from "../../../src/chat-sessions/chat-session-stream-renderer.service";
@@ -21,7 +22,6 @@ const createChatMessage = (
 });
 
 describe("ChatSessionsEngineListener", () => {
-  const registerListener = vi.fn();
   const listMessages = vi.fn();
   const addMessage = vi.fn();
   const updateMessageContent = vi.fn();
@@ -37,7 +37,6 @@ describe("ChatSessionsEngineListener", () => {
   let listener: ChatSessionsEngineListener;
 
   beforeEach(() => {
-    registerListener.mockReset();
     listMessages.mockReset();
     addMessage.mockReset();
     updateMessageContent.mockReset();
@@ -45,7 +44,6 @@ describe("ChatSessionsEngineListener", () => {
     capture.mockReset();
 
     chatSessions = {
-      registerListener,
       listMessages,
       addMessage,
       updateMessageContent,
@@ -92,27 +90,18 @@ describe("ChatSessionsEngineListener", () => {
     );
   });
 
-  it("registers and unregisters with the chat sessions service", () => {
-    const unregister = vi.fn();
-    registerListener.mockReturnValue(unregister);
-
-    listener.onModuleInit();
-
-    expect(registerListener).toHaveBeenCalledWith(listener);
-
-    listener.onModuleDestroy();
-    expect(unregister).toHaveBeenCalled();
-  });
-
   it("registers the stream renderer with the engine", () => {
     expect(engineSetStreamRenderer).toHaveBeenCalledWith(streamRenderer);
   });
 
-  it("ignores assistant messages", () => {
-    const message = createChatMessage({ role: ChatMessageRole.Assistant });
+  it("ignores assistant messages", async () => {
+    const message = createChatMessage({
+      id: "assistant-1",
+      role: ChatMessageRole.Assistant,
+    });
+    listMessages.mockReturnValue([message]);
 
-    listener.onModuleInit();
-    listener.onMessageCreated(message);
+    await listener.handle(new ChatMessageCreatedEvent(message.sessionId, message.id));
 
     expect(engineRun).not.toHaveBeenCalled();
   });
@@ -162,9 +151,7 @@ describe("ChatSessionsEngineListener", () => {
       };
     });
 
-    listener.onModuleInit();
-
-    listener.onMessageCreated(newMessage);
+    await listener.handle(new ChatMessageCreatedEvent(newMessage.sessionId, newMessage.id));
 
     await new Promise((resolve) => setImmediate(resolve));
 
@@ -251,8 +238,7 @@ describe("ChatSessionsEngineListener", () => {
       }
     });
 
-    listener.onModuleInit();
-    listener.onMessageCreated(message);
+    await listener.handle(new ChatMessageCreatedEvent(message.sessionId, message.id));
 
     await new Promise((resolve) => setImmediate(resolve));
 
@@ -287,5 +273,4 @@ describe("ChatSessionsEngineListener", () => {
       })
     );
   });
-
 });

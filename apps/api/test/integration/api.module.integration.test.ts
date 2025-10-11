@@ -176,7 +176,6 @@ describe("ApiModule integration", () => {
     };
 
     chatSessionsServiceStub = {
-      registerListener: vi.fn(() => vi.fn()),
       listSessions: vi.fn(() => []),
       createSession: vi.fn(),
       getSession: vi.fn(),
@@ -195,11 +194,7 @@ describe("ApiModule integration", () => {
     } as unknown as ChatSessionsService;
 
     chatSessionsEngineListenerStub = {
-      onModuleInit: vi.fn(),
-      onModuleDestroy: vi.fn(),
-      onSessionCreated: vi.fn(),
-      onSessionUpdated: vi.fn(),
-      onMessageCreated: vi.fn(),
+      handle: vi.fn(),
     } as unknown as ChatSessionsEngineListener;
 
     tracesServiceStub = {

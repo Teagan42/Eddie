@@ -1,7 +1,15 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
+import { EventBus } from "@nestjs/cqrs";
 import { CreateChatSessionDto } from "./dto/create-chat-session.dto";
 import { CreateChatMessageDto } from "./dto/create-chat-message.dto";
 import { ChatMessageDto, ChatSessionDto } from "./dto/chat-session.dto";
+import {
+  AgentActivityChangedEvent,
+  ChatMessageCreatedEvent,
+  ChatMessageUpdatedEvent,
+  ChatSessionCreatedEvent,
+  ChatSessionUpdatedEvent,
+} from "@eddie/types";
 import {
   CHAT_SESSIONS_REPOSITORY,
   type AgentInvocationSnapshot,
@@ -14,32 +22,16 @@ export type { AgentInvocationSnapshot } from "./chat-sessions.repository";
 
 export type AgentActivityState = "idle" | "thinking" | "tool" | "error";
 
-export interface AgentActivityEvent {
-  sessionId: string;
-  state: AgentActivityState;
-  timestamp: string;
-}
-
-export interface ChatSessionsListener {
-  onSessionCreated(session: ChatSessionDto): void;
-  onSessionUpdated(session: ChatSessionDto): void;
-  onMessageCreated(message: ChatMessageDto): void;
-  onMessageUpdated(message: ChatMessageDto): void;
-  onAgentActivity?(event: AgentActivityEvent): void;
-}
-
 @Injectable()
 export class ChatSessionsService {
-  private readonly listeners = new Set<ChatSessionsListener>();
-
   constructor(
     @Inject(CHAT_SESSIONS_REPOSITORY)
-    private readonly repository: ChatSessionsRepository
+    private readonly repository: ChatSessionsRepository,
+    @Optional() private readonly eventBus?: EventBus
   ) {}
 
-  registerListener(listener: ChatSessionsListener): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+  private publish(event: object): void {
+    this.eventBus?.publish(event);
   }
 
   private toDto(entity: ChatSessionRecord): ChatSessionDto {
@@ -77,40 +69,6 @@ export class ChatSessionsService {
     return this.repository.listAgentInvocations(sessionId);
   }
 
-  private notifySessionCreated(session: ChatSessionDto): void {
-    for (const listener of this.listeners) {
-      listener.onSessionCreated(session);
-    }
-  }
-
-  private notifySessionUpdated(session: ChatSessionDto): void {
-    for (const listener of this.listeners) {
-      listener.onSessionUpdated(session);
-    }
-  }
-
-  private notifyMessageCreated(message: ChatMessageDto): void {
-    for (const listener of this.listeners) {
-      listener.onMessageCreated(message);
-    }
-  }
-
-  private notifyMessageUpdated(message: ChatMessageDto): void {
-    for (const listener of this.listeners) {
-      if (typeof listener.onMessageUpdated === "function") {
-        listener.onMessageUpdated(message);
-      }
-    }
-  }
-
-  private notifyAgentActivity(event: AgentActivityEvent): void {
-    for (const listener of this.listeners) {
-      if (typeof listener.onAgentActivity === "function") {
-        listener.onAgentActivity(event);
-      }
-    }
-  }
-
   listSessions(): ChatSessionDto[] {
     return this.repository
       .listSessions()
@@ -131,7 +89,7 @@ export class ChatSessionsService {
       description: dto.description,
     });
     const sessionDto = this.toDto(entity);
-    this.notifySessionCreated(sessionDto);
+    this.publish(new ChatSessionCreatedEvent(sessionDto.id));
     return sessionDto;
   }
 
@@ -141,7 +99,7 @@ export class ChatSessionsService {
       throw new NotFoundException(`Chat session ${id} not found`);
     }
     const dto = this.toDto(session);
-    this.notifySessionUpdated(dto);
+    this.publish(new ChatSessionUpdatedEvent(dto.id, ["status"]));
     return dto;
   }
 
@@ -168,8 +126,8 @@ export class ChatSessionsService {
     }
     const messageDto = this.messageToDto(result.message);
     const sessionDto = this.toDto(result.session);
-    this.notifyMessageCreated(messageDto);
-    this.notifySessionUpdated(sessionDto);
+    this.publish(new ChatMessageCreatedEvent(messageDto.sessionId, messageDto.id));
+    this.publish(new ChatSessionUpdatedEvent(sessionDto.id, ["updatedAt"]));
     return { message: messageDto, session: sessionDto };
   }
 
@@ -186,17 +144,19 @@ export class ChatSessionsService {
       );
     }
     const dto = this.messageToDto(entity);
-    this.notifyMessageUpdated(dto);
+    this.publish(new ChatMessageUpdatedEvent(sessionId, messageId));
     return dto;
   }
 
   setAgentActivity(sessionId: string, state: AgentActivityState): void {
     this.ensureSessionExists(sessionId);
-    this.notifyAgentActivity({
-      sessionId,
-      state,
-      timestamp: new Date().toISOString(),
-    });
+    this.publish(
+      new AgentActivityChangedEvent(
+        sessionId,
+        state,
+        new Date().toISOString()
+      )
+    );
   }
 
   private ensureSessionExists(id: string): void {
