@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ConfigService, ConfigStore, type EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { LoggerService } from "@eddie/io";
+import { Subject } from "rxjs";
 import { ApiModule } from "../../src/api.module";
 import { HealthController } from "../../src/controllers/health.controller";
 import { ApiValidationPipe } from "../../src/validation.pipe";
@@ -21,6 +22,8 @@ import { ChatSessionsEngineListener } from "../../src/chat-sessions/chat-session
 import { TracesService } from "../../src/traces/traces.service";
 import { LogsService } from "../../src/logs/logs.service";
 import { RuntimeConfigService } from "../../src/runtime-config/runtime-config.service";
+import { RuntimeConfigGateway } from "../../src/runtime-config/runtime-config.gateway";
+import type { RuntimeConfigDto } from "../../src/runtime-config/dto/runtime-config.dto";
 
 const createExecutionContext = (request: Partial<Request>): ExecutionContext =>
   ({
@@ -69,6 +72,7 @@ describe("ApiModule integration", () => {
   let tracesServiceStub: TracesService;
   let logsServiceStub: LogsService;
   let runtimeConfigServiceStub: RuntimeConfigService;
+  let runtimeConfigGatewayStub: RuntimeConfigGateway;
 
   const createLoggerStub = () => {
     const stub = {
@@ -221,18 +225,35 @@ describe("ApiModule integration", () => {
       })),
     } as unknown as LogsService;
 
-    const defaultConfig = {
+    const defaultConfig: RuntimeConfigDto = {
       apiUrl: "http://localhost:3000",
       websocketUrl: "ws://localhost:3000",
       features: {},
       theme: "dark" as const,
     };
+    const runtimeConfigChanges = new Subject<RuntimeConfigDto>();
 
     runtimeConfigServiceStub = {
-      registerListener: vi.fn(() => vi.fn()),
+      changes$: runtimeConfigChanges.asObservable(),
       get: vi.fn(() => defaultConfig),
-      update: vi.fn((value) => ({ ...defaultConfig, ...value })),
+      update: vi.fn((value) => {
+        const next: RuntimeConfigDto = {
+          ...defaultConfig,
+          ...value,
+          features:
+            value.features !== undefined
+              ? { ...defaultConfig.features, ...value.features }
+              : defaultConfig.features,
+        };
+        runtimeConfigChanges.next(next);
+        return next;
+      }),
     } as unknown as RuntimeConfigService;
+    runtimeConfigGatewayStub = {
+      onModuleInit: vi.fn(),
+      onModuleDestroy: vi.fn(),
+      onConfigChanged: vi.fn(),
+    } as unknown as RuntimeConfigGateway;
 
     const moduleRef = await Test.createTestingModule({
       imports: [ApiModule],
@@ -263,6 +284,8 @@ describe("ApiModule integration", () => {
       .useValue(tracesServiceStub)
       .overrideProvider(LogsService)
       .useValue(logsServiceStub)
+      .overrideProvider(RuntimeConfigGateway)
+      .useValue(runtimeConfigGatewayStub)
       .overrideProvider(RuntimeConfigService)
       .useValue(runtimeConfigServiceStub)
       .compile();

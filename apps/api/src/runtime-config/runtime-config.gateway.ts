@@ -4,36 +4,31 @@ import {
   WebSocketServer,
 } from "@nestjs/websockets";
 import type { Server } from "ws";
+import { Subscription } from "rxjs";
 import { emitEvent } from "../websocket/utils";
 import { RuntimeConfigDto } from "./dto/runtime-config.dto";
-import {
-  RuntimeConfigListener,
-  RuntimeConfigService,
-} from "./runtime-config.service";
+import { RuntimeConfigService } from "./runtime-config.service";
 
 @WebSocketGateway({
   path: "/config",
 })
-export class RuntimeConfigGateway
-implements RuntimeConfigListener, OnModuleInit, OnModuleDestroy
-{
+export class RuntimeConfigGateway implements OnModuleInit, OnModuleDestroy {
   @WebSocketServer()
   private server!: Server;
 
-  private unregister: (() => void) | null = null;
+  private subscription: Subscription | null = null;
 
   constructor(private readonly config: RuntimeConfigService) {}
 
   onModuleInit(): void {
-    if (!this.config || typeof this.config.registerListener !== "function") {
-      return;
-    }
-    this.unregister = this.config.registerListener(this);
+    this.subscription = this.config.changes$.subscribe((config) => {
+      this.onConfigChanged(config);
+    });
   }
 
   onModuleDestroy(): void {
-    this.unregister?.();
-    this.unregister = null;
+    this.subscription?.unsubscribe();
+    this.subscription = null;
   }
 
   onConfigChanged(config: RuntimeConfigDto): void {

@@ -7,10 +7,14 @@ import {
   type EddieConfig,
   type EddieConfigInput,
 } from "@eddie/config";
+import { ConfigHotReloadService } from "./config-hot-reload.service";
 
 @Injectable()
 export class ConfigEditorService {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly hotReloadService: ConfigHotReloadService
+  ) {}
 
   getSchemaBundle() {
     return EDDIE_CONFIG_SCHEMA_BUNDLE;
@@ -39,7 +43,7 @@ export class ConfigEditorService {
     path?: string | null
   ): Promise<ConfigFileSnapshot> {
     try {
-      return await this.configService.writeSource(source, format, {}, path);
+      return await this.hotReloadService.persist(source, format, path);
     } catch (error) {
       throw new BadRequestException(this.normaliseError(error));
     }

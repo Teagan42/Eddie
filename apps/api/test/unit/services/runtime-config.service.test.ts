@@ -1,12 +1,8 @@
+import { Subject } from "rxjs";
 import { describe, expect, it, vi } from "vitest";
 import { RuntimeConfigDto } from "../../../src/runtime-config/dto/runtime-config.dto";
 import { RuntimeConfigService } from "../../../src/runtime-config/runtime-config.service";
-
-const ServiceCtor = RuntimeConfigService as unknown as new (
-  configService: {
-    get: (key: string, options?: unknown) => unknown;
-  }
-) => RuntimeConfigService;
+import type { RuntimeConfigStore } from "../../../src/runtime-config/runtime-config.store";
 
 const defaultRuntimeConfig: RuntimeConfigDto = {
   apiUrl: "http://localhost:3000",
@@ -19,56 +15,67 @@ const defaultRuntimeConfig: RuntimeConfigDto = {
   theme: "dark",
 };
 
-function createService(
-  runtimeConfig: RuntimeConfigDto = defaultRuntimeConfig
+type ConfigServiceStub = { get: ReturnType<typeof vi.fn> };
+
+function createStore(
+  initial: RuntimeConfigDto
 ): {
-  service: RuntimeConfigService;
-  configService: {
-    get: ReturnType<typeof vi.fn>;
-  };
+  store: RuntimeConfigStore;
+  changes$: Subject<RuntimeConfigDto>;
+  snapshot: () => RuntimeConfigDto;
+  setSnapshotSpy: ReturnType<typeof vi.fn>;
 } {
-  const configService = {
+  const changes$ = new Subject<RuntimeConfigDto>();
+  let current = {
+    ...initial,
+    features: { ...initial.features },
+  } satisfies RuntimeConfigDto;
+  const setSnapshotSpy = vi.fn((config: RuntimeConfigDto) => {
+    current = {
+      ...config,
+      features: { ...config.features },
+    };
+  });
+  const store: RuntimeConfigStore = {
+    changes$: changes$.asObservable(),
+    setSnapshot: setSnapshotSpy,
+    getSnapshot: vi.fn(() => ({
+      ...current,
+      features: { ...current.features },
+    })),
+  };
+  return { store, changes$, snapshot: () => current, setSnapshotSpy };
+}
+
+function createService(runtimeConfig: RuntimeConfigDto = defaultRuntimeConfig) {
+  const configService: ConfigServiceStub = {
     get: vi.fn((key: string) => {
       if (key === "runtime") {
         return runtimeConfig;
       }
-
       return undefined;
     }),
-  } as const;
-
-  return {
-    service: new ServiceCtor(configService),
-    configService,
   };
-}
+  const { store, changes$, snapshot, setSnapshotSpy } = createStore(runtimeConfig);
+  const service = new RuntimeConfigService(configService as never, store);
 
-class RuntimeConfigListenerSpy {
-  updates = 0;
-  onConfigChanged(): void {
-    this.updates += 1;
-  }
+  return { service, configService, changes$, snapshot, setSnapshotSpy };
 }
 
 describe("RuntimeConfigService", () => {
-  it("merges updates and notifies listeners", () => {
-    const { service } = createService();
-    const spy = new RuntimeConfigListenerSpy();
-    service.registerListener(spy);
+  it("merges updates and writes them through the store", () => {
+    const { service, setSnapshotSpy } = createService();
 
     const updated = service.update({ theme: "light" });
+
     expect(updated.theme).toBe("light");
-    expect(spy.updates).toBe(1);
+    expect(setSnapshotSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({ theme: "light" })
+    );
   });
 
   it("deep merges feature flags so unrelated defaults remain", () => {
-    const { service } = createService();
-    const received: RuntimeConfigDto[] = [];
-    service.registerListener({
-      onConfigChanged: (config) => {
-        received.push(config);
-      },
-    });
+    const { service, setSnapshotSpy } = createService();
 
     const updated = service.update({ features: { chat: false } });
     const expectedFeatures = {
@@ -78,8 +85,9 @@ describe("RuntimeConfigService", () => {
     } satisfies RuntimeConfigDto["features"];
 
     expect(updated.features).toEqual(expectedFeatures);
-    expect(received).toHaveLength(1);
-    expect(received[0].features).toEqual(expectedFeatures);
+    expect(setSnapshotSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({ features: expectedFeatures })
+    );
   });
 
   it("returns a cloned snapshot from get so external mutations do not leak", () => {
@@ -109,5 +117,33 @@ describe("RuntimeConfigService", () => {
 
     expect(configService.get).toHaveBeenCalledWith("runtime", { infer: true });
     expect(service.get()).toEqual(runtimeConfig);
+  });
+
+  it("maps store emissions to cloned payloads", () => {
+    const { service, changes$ } = createService();
+    const received: RuntimeConfigDto[] = [];
+
+    const subscription = service.changes$.subscribe((config) => {
+      received.push(config);
+    });
+
+    const nextConfig: RuntimeConfigDto = {
+      apiUrl: "http://localhost:4000",
+      websocketUrl: "ws://localhost:4000",
+      features: {
+        traces: false,
+        logs: true,
+        chat: true,
+      },
+      theme: "light",
+    };
+
+    changes$.next(nextConfig);
+
+    expect(received).toHaveLength(1);
+    expect(received[0]).toEqual(nextConfig);
+    expect(received[0]).not.toBe(nextConfig);
+
+    subscription.unsubscribe();
   });
 });
