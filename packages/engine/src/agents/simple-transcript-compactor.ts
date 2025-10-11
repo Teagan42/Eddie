@@ -1,9 +1,11 @@
 import type {
-  AgentInvocation,
   TranscriptCompactionPlan,
   TranscriptCompactionResult,
   TranscriptCompactor,
 } from "./agent-orchestrator.service";
+import type { AgentInvocation } from "./agent-invocation";
+
+type InvocationMessage = AgentInvocation["messages"][number];
 
 /**
  * SimpleTranscriptCompactor
@@ -15,7 +17,6 @@ export class SimpleTranscriptCompactor implements TranscriptCompactor {
   constructor(private readonly maxMessages = 300, private readonly keepLast = 50) {}
 
   plan(invocation: AgentInvocation, iteration: number): TranscriptCompactionPlan | null {
-    void iteration;
     const total = invocation.messages.length;
     if (total <= this.maxMessages) {
       return null;
@@ -30,14 +31,22 @@ export class SimpleTranscriptCompactor implements TranscriptCompactor {
       return null;
     }
 
+    if (!this.hasRemovableNonSystem(invocation.messages)) {
+      return null;
+    }
+
+    const reason = this.describeCompaction(removableCount, iteration);
+
     return {
-      reason: `truncate ${removableCount} oldest messages (limit ${this.maxMessages})`,
+      reason,
       apply: (): TranscriptCompactionResult => {
         const messages = invocation.messages;
         const removeOldestNonSystem = (): boolean => {
           const head = messages[0];
           if (head?.role === "system") {
-            const nextIndex = messages.findIndex((message) => message.role !== "system");
+            const nextIndex = messages.findIndex(
+              (message: InvocationMessage) => message.role !== "system"
+            );
             if (nextIndex === -1) {
               return false;
             }
@@ -68,5 +77,15 @@ export class SimpleTranscriptCompactor implements TranscriptCompactor {
       this.maxMessages,
       Math.max(this.keepLast, Math.floor(this.maxMessages / 3))
     );
+  }
+
+  private hasRemovableNonSystem(messages: InvocationMessage[]): boolean {
+    return messages.some(
+      (message: InvocationMessage) => message.role !== "system"
+    );
+  }
+
+  private describeCompaction(removableCount: number, iteration: number): string {
+    return `truncate ${removableCount} oldest messages (limit ${this.maxMessages}; iteration ${iteration})`;
   }
 }

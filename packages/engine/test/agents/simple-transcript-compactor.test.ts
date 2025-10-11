@@ -54,4 +54,32 @@ describe("SimpleTranscriptCompactor", () => {
       "m7",
     ]);
   });
+
+  it("returns null when only system messages exceed the limit", () => {
+    const compactor = new SimpleTranscriptCompactor(1, 0);
+    const invocation = buildInvocation([
+      message("system", "s1"),
+      message("system", "s2"),
+    ]);
+
+    const plan = compactor.plan(invocation, 0);
+
+    expect(plan).toBeNull();
+  });
+
+  it("includes the iteration count in the compaction reason", () => {
+    const compactor = new SimpleTranscriptCompactor(5, 1);
+    const invocation = buildInvocation([
+      message("system", "system"),
+      message("user", "m1"),
+      message("assistant", "m2"),
+      message("user", "m3"),
+      message("assistant", "m4"),
+      message("user", "m5"),
+    ]);
+
+    const plan = compactor.plan(invocation, 3);
+
+    expect(plan?.reason).toContain("iteration 3");
+  });
 });
