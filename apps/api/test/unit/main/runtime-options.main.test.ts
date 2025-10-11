@@ -7,6 +7,8 @@ import {
 const stubs = vi.hoisted(() => ({
   loadMock: vi.fn(),
   ensureMock: vi.fn(),
+  getSnapshotMock: vi.fn(),
+  setSnapshotMock: vi.fn(),
   configureOpenApiMock: vi.fn(),
   applyCorsMock: vi.fn(),
   useMock: vi.fn(),
@@ -17,6 +19,11 @@ const stubs = vi.hoisted(() => ({
 
 class ConfigServiceStub {
   load = stubs.loadMock;
+}
+
+class ConfigStoreStub {
+  setSnapshot = stubs.setSnapshotMock;
+  getSnapshot = stubs.getSnapshotMock;
 }
 
 class LoggerServiceStub {
@@ -47,11 +54,17 @@ vi.mock("@nestjs/platform-ws", () => ({
 
 vi.mock(
   "@eddie/config",
-  () => ({
-    ConfigModule: class {},
-    ConfigService: ConfigServiceStub,
-  }),
-  { virtual: true },
+  async () => {
+    const actual = await vi.importActual<typeof import("@eddie/config")>(
+      "@eddie/config",
+    );
+    return {
+      ...actual,
+      ConfigModule: class {},
+      ConfigService: ConfigServiceStub,
+      ConfigStore: ConfigStoreStub,
+    };
+  },
 );
 
 vi.mock(
@@ -88,10 +101,16 @@ describe("bootstrap runtime options", () => {
     resetRuntimeOptionsCache();
     vi.clearAllMocks();
 
+    stubs.getSnapshotMock.mockReturnValue({ api: {} });
+
     stubs.createMock.mockResolvedValue({
       enableShutdownHooks: vi.fn(),
       useWebSocketAdapter: vi.fn(),
       get: (token: unknown) => {
+        if (token === ConfigStoreStub) {
+          return new ConfigStoreStub();
+        }
+
         if (token === ConfigServiceStub) {
           return new ConfigServiceStub();
         }

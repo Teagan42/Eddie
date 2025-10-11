@@ -2,10 +2,11 @@ import type { ArgumentsHost } from "@nestjs/common";
 import { BadRequestException } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { describe, expect, it, vi } from "vitest";
-import type { ConfigService, EddieConfig } from "@eddie/config";
+import type { ConfigService, ConfigStore, EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import type { Logger } from "pino";
 import { ApiHttpExceptionFilter } from "../../../src/http-exception.filter";
+import { of } from "rxjs";
 
 describe("ApiHttpExceptionFilter", () => {
   const baseConfig = {
@@ -34,13 +35,18 @@ describe("ApiHttpExceptionFilter", () => {
   it("formats http exceptions and logs them", async () => {
     const logger = { error: vi.fn(), debug: vi.fn() };
     const configService = {
-      load: vi.fn().mockResolvedValue(baseConfig),
+      load: vi.fn(),
     } as unknown as ConfigService;
+    const store = {
+      getSnapshot: vi.fn(() => baseConfig),
+      changes$: of(baseConfig),
+    } as unknown as ConfigStore;
     const contextService = {
       pack: vi.fn().mockResolvedValue({ files: ["a"], totalBytes: 1024 }),
     } as unknown as ContextService;
     const filter = new ApiHttpExceptionFilter(
       configService,
+      store,
       contextService,
       logger as unknown as Logger
     );
@@ -63,7 +69,6 @@ describe("ApiHttpExceptionFilter", () => {
 
     await filter.catch(exception, host);
 
-    expect(configService.load).toHaveBeenCalled();
     expect(contextService.pack).toHaveBeenCalled();
     expect(response.status).toHaveBeenCalledWith(400);
     expect(response.json).toHaveBeenCalledWith(
@@ -81,6 +86,7 @@ describe("ApiHttpExceptionFilter", () => {
       expect.objectContaining({ statusCode: 400, path: "/health" }),
       "Unhandled exception while processing request"
     );
+    expect(configService.load).not.toHaveBeenCalled();
   });
 
   it("includes stack traces when configured", async () => {
@@ -92,13 +98,18 @@ describe("ApiHttpExceptionFilter", () => {
     } as unknown as EddieConfig;
     const logger = { error: vi.fn(), debug: vi.fn() };
     const configService = {
-      load: vi.fn().mockResolvedValue(config),
+      load: vi.fn(),
     } as unknown as ConfigService;
+    const store = {
+      getSnapshot: vi.fn(() => config),
+      changes$: of(config),
+    } as unknown as ConfigStore;
     const contextService = {
       pack: vi.fn().mockResolvedValue({ files: [], totalBytes: 0 }),
     } as unknown as ContextService;
     const filter = new ApiHttpExceptionFilter(
       configService,
+      store,
       contextService,
       logger as unknown as Logger
     );
@@ -126,18 +137,24 @@ describe("ApiHttpExceptionFilter", () => {
         stack: expect.arrayContaining([expect.stringContaining("Error: boom")]),
       })
     );
+    expect(configService.load).not.toHaveBeenCalled();
   });
 
   it("rethrows exceptions for non-http contexts", async () => {
     const logger = { error: vi.fn(), debug: vi.fn() };
     const configService = {
-      load: vi.fn().mockResolvedValue(baseConfig),
+      load: vi.fn(),
     } as unknown as ConfigService;
+    const store = {
+      getSnapshot: vi.fn(() => baseConfig),
+      changes$: of(baseConfig),
+    } as unknown as ConfigStore;
     const contextService = {
       pack: vi.fn().mockResolvedValue({ files: [], totalBytes: 0 }),
     } as unknown as ContextService;
     const filter = new ApiHttpExceptionFilter(
       configService,
+      store,
       contextService,
       logger as unknown as Logger
     );

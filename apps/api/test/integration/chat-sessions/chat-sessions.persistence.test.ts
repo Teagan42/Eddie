@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Test } from "@nestjs/testing";
-import { ConfigService, DEFAULT_CONFIG } from "@eddie/config";
+import { ConfigService, ConfigStore, DEFAULT_CONFIG } from "@eddie/config";
 
 import { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
 import { CHAT_SESSIONS_REPOSITORY_PROVIDER } from "../../../src/chat-sessions/chat-sessions.module";
@@ -48,9 +48,11 @@ describe("ChatSessionsRepository persistence", () => {
     };
 
     const load = vi.fn().mockResolvedValue(config);
+    const getSnapshot = vi.fn().mockReturnValue(config);
     const moduleRef = await Test.createTestingModule({
       providers: [
         { provide: ConfigService, useValue: { load } },
+        { provide: ConfigStore, useValue: { getSnapshot } },
         CHAT_SESSIONS_REPOSITORY_PROVIDER,
         ChatSessionsService,
       ],

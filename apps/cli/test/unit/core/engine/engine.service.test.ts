@@ -11,6 +11,7 @@ import {
 } from "@eddie/engine";
 import {
   ConfigService,
+  ConfigStore,
   type EddieConfig,
   type ProviderConfig,
 } from "@eddie/config";
@@ -77,6 +78,8 @@ interface EngineHarness {
   context: PackedContext;
   fakeOrchestrator: FakeAgentOrchestrator;
   contextPackSpy: ReturnType<typeof vi.fn>;
+  store: ConfigStore;
+  configService: ConfigService & { load: ReturnType<typeof vi.fn> };
 }
 
 function createEngineHarness(
@@ -109,9 +112,15 @@ function createEngineHarness(
 
   const hookBus = new HookBus();
 
+  const store = new ConfigStore();
+  store.setSnapshot(config);
+
   const configService = {
-    load: vi.fn(async () => config),
-  } as unknown as ConfigService;
+    load: vi.fn(async () => {
+      store.setSnapshot(config);
+      return config;
+    }),
+  };
 
   const contextPackSpy = vi.fn(async () => context);
   const contextService = {
@@ -150,7 +159,8 @@ function createEngineHarness(
   }
 
   const engine = new EngineService(
-    configService,
+    configService as unknown as ConfigService,
+    store,
     contextService,
     providerFactory,
     hooksService,
@@ -168,6 +178,10 @@ function createEngineHarness(
     context,
     fakeOrchestrator,
     contextPackSpy,
+    store,
+    configService: configService as unknown as ConfigService & {
+      load: ReturnType<typeof vi.fn>;
+    },
   };
 }
 
@@ -322,6 +336,7 @@ describe("EngineService agent catalog", () => {
       },
     };
     harness.config.agents.manager.provider = "alt";
+    harness.store.setSnapshot(harness.config);
 
     const events: SessionMetadata[] = [];
     harness.hookBus.on(HOOK_EVENTS.sessionStart, (payload) => {
@@ -351,6 +366,7 @@ describe("EngineService agent catalog", () => {
         description: "Review responses for accuracy",
       },
     ];
+    harness.store.setSnapshot(harness.config);
 
     await harness.engine.run("Delegation run");
 
@@ -365,5 +381,143 @@ describe("EngineService agent catalog", () => {
     expect(descriptor.metadata?.description).toBe(
       "Review responses for accuracy"
     );
+  });
+});
+
+describe("EngineService runtime overrides", () => {
+  it("loads configuration when auto-approve flag is provided", async () => {
+    const harness = createEngineHarness();
+
+    await harness.engine.run("Override run", { autoApprove: true });
+
+    expect(harness.configService.load).toHaveBeenCalledTimes(1);
+    expect(harness.configService.load).toHaveBeenCalledWith(
+      expect.objectContaining({ autoApprove: true })
+    );
+  });
+});
+
+describe("EngineService hot configuration", () => {
+  it("picks up provider changes from the config store without new module instances", async () => {
+    const initialConfig: EddieConfig = {
+      model: "initial-model",
+      provider: { name: "initial-provider" },
+      context: { include: [], baseDir: process.cwd() },
+      systemPrompt: "system",
+      logLevel: "info",
+      logging: { level: "info" },
+      output: {},
+      tools: {},
+      hooks: {},
+      tokenizer: {},
+      agents: {
+        mode: "manager",
+        manager: { prompt: "be helpful" },
+        subagents: [],
+        enableSubagents: false,
+      },
+    };
+
+    const store = new ConfigStore();
+    store.setSnapshot(initialConfig);
+
+    const configService = {
+      load: vi.fn(async () => initialConfig),
+    } as unknown as ConfigService;
+
+    const context = { files: [], totalBytes: 1, text: "context" } as PackedContext;
+
+    const contextService = {
+      pack: vi.fn(async () => context),
+    } as unknown as ContextService;
+
+    const providerFactory = {
+      create: vi.fn((config: ProviderConfig): ProviderAdapter => ({
+        name: config.name,
+        stream: vi.fn(),
+      })),
+    } as unknown as ProviderFactoryService;
+
+    const hookBus = new HookBus();
+
+    const hooksService = {
+      load: vi.fn(async () => hookBus),
+    } as unknown as HooksService;
+
+    const confirmService = {
+      create: vi.fn(() => async () => true),
+    } as unknown as ConfirmService;
+
+    const tokenizerService = {
+      create: vi.fn(() => ({
+        countTokens: (text: string) => text.length,
+      })),
+    } as unknown as TokenizerService;
+
+    const loggerService = new LoggerService();
+    const mcpToolSourceService = {
+      collectTools: vi.fn(async () => ({ tools: [], resources: [], prompts: [] })),
+    } as unknown as McpToolSourceService;
+
+    const orchestrator = new FakeAgentOrchestrator();
+
+    const engine = new EngineService(
+      configService,
+      store,
+      contextService,
+      providerFactory,
+      hooksService,
+      confirmService,
+      tokenizerService,
+      loggerService,
+      orchestrator as unknown as AgentOrchestratorService,
+      mcpToolSourceService
+    );
+
+    await engine.run("initial run");
+
+    expect(providerFactory.create).toHaveBeenLastCalledWith(
+      expect.objectContaining({ name: "initial-provider" })
+    );
+
+    const initialRuntime = orchestrator.lastRuntime;
+    expect(initialRuntime?.catalog.getManager().provider.name).toBe(
+      "initial-provider"
+    );
+    expect(initialRuntime?.catalog.getManager().model).toBe("initial-model");
+
+    const updatedConfig: EddieConfig = {
+      ...structuredClone(initialConfig),
+      provider: { name: "alt-provider" },
+      model: "alt-model",
+      providers: {
+        alt: {
+          provider: { name: "alt-provider" },
+          model: "alt-model",
+        },
+      },
+      agents: {
+        ...structuredClone(initialConfig.agents),
+        manager: {
+          ...structuredClone(initialConfig.agents.manager),
+          provider: "alt",
+        },
+      },
+    };
+
+    store.setSnapshot(updatedConfig);
+    providerFactory.create.mockClear();
+
+    await engine.run("reloaded run");
+
+    expect(providerFactory.create).toHaveBeenLastCalledWith(
+      expect.objectContaining({ name: "alt-provider" })
+    );
+
+    const reloadedRuntime = orchestrator.lastRuntime;
+    expect(reloadedRuntime?.catalog.getManager().provider.name).toBe(
+      "alt-provider"
+    );
+    expect(reloadedRuntime?.catalog.getManager().model).toBe("alt-model");
   });
 });

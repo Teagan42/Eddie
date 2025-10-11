@@ -5,3 +5,5 @@ export * from "./defaults";
 export * from "./types";
 export * from "./schema";
 export * from "./hot-config.store";
+export * from "./config-watcher";
+export * from "./runtime-overrides";

@@ -2,7 +2,7 @@ import type { CallHandler, ExecutionContext } from "@nestjs/common";
 import type { Request } from "express";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { firstValueFrom, of } from "rxjs";
-import type { ConfigService, EddieConfig } from "@eddie/config";
+import type { ConfigService, ConfigStore, EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import type { Logger } from "pino";
 import { ApiCacheInterceptor } from "../../../src/cache.interceptor";
@@ -55,13 +55,18 @@ describe("ApiCacheInterceptor", () => {
   it("caches GET responses until the entry expires", async () => {
     const logger = { debug: vi.fn(), error: vi.fn() };
     const configService = {
-      load: vi.fn().mockResolvedValue(createConfig()),
+      load: vi.fn(),
     } as unknown as ConfigService;
     const contextService = {
       pack: vi.fn().mockResolvedValue({ files: [], totalBytes: 0 }),
     } as unknown as ContextService;
+    const store = {
+      getSnapshot: vi.fn(() => createConfig()),
+      changes$: of(createConfig()),
+    } as unknown as ConfigStore;
     const interceptor = new ApiCacheInterceptor(
       configService,
+      store,
       contextService,
       logger as unknown as Logger
     );
@@ -95,18 +100,24 @@ describe("ApiCacheInterceptor", () => {
       expect.objectContaining({ cacheKey: expect.any(String) }),
       "Caching fresh response"
     );
+    expect(configService.load).not.toHaveBeenCalled();
   });
 
   it("bypasses caching for non-GET requests", async () => {
     const logger = { debug: vi.fn(), error: vi.fn() };
     const configService = {
-      load: vi.fn().mockResolvedValue(createConfig()),
+      load: vi.fn(),
     } as unknown as ConfigService;
     const contextService = {
       pack: vi.fn().mockResolvedValue({ files: [], totalBytes: 0 }),
     } as unknown as ContextService;
+    const store = {
+      getSnapshot: vi.fn(() => createConfig()),
+      changes$: of(createConfig()),
+    } as unknown as ConfigStore;
     const interceptor = new ApiCacheInterceptor(
       configService,
+      store,
       contextService,
       logger as unknown as Logger
     );
@@ -130,25 +141,31 @@ describe("ApiCacheInterceptor", () => {
       expect.anything(),
       "Caching fresh response"
     );
+    expect(configService.load).not.toHaveBeenCalled();
   });
 
-  it("waits for configuration before first request when caching is disabled", async () => {
+  it("disables caching when the store snapshot marks it disabled", async () => {
     const logger = { debug: vi.fn(), error: vi.fn() };
-    let resolveConfig: ((config: EddieConfig) => void) | undefined;
-    const configPromise = new Promise<EddieConfig>((resolve) => {
-      resolveConfig = resolve;
+    const config = createConfig({
+      cache: { enabled: false },
     });
     const configService = {
-      load: vi.fn().mockReturnValue(configPromise),
+      load: vi.fn(),
     } as unknown as ConfigService;
     const contextService = {
       pack: vi.fn().mockResolvedValue({ files: [], totalBytes: 0 }),
     } as unknown as ContextService;
+    const store = {
+      getSnapshot: vi.fn(() => config),
+      changes$: of(config),
+    } as unknown as ConfigStore;
     const interceptor = new ApiCacheInterceptor(
       configService,
+      store,
       contextService,
       logger as unknown as Logger
     );
+    await interceptor.onModuleInit();
 
     const request = {
       method: "GET",
@@ -160,29 +177,14 @@ describe("ApiCacheInterceptor", () => {
     const context = createExecutionContext(request);
     const next: CallHandler = { handle: vi.fn(() => of({ status: "ok" })) };
 
-    const resultPromise = firstValueFrom(interceptor.intercept(context, next));
-
-    await Promise.resolve();
-    expect(next.handle).not.toHaveBeenCalled();
-
-    resolveConfig?.(
-      createConfig({
-        cache: { enabled: false },
-      })
-    );
-
-    const result = await resultPromise;
+    const result = await firstValueFrom(interceptor.intercept(context, next));
 
     expect(result).toEqual({ status: "ok" });
     expect(next.handle).toHaveBeenCalledTimes(1);
-    expect(configService.load).toHaveBeenCalledTimes(1);
-
-    await firstValueFrom(interceptor.intercept(context, next));
-
-    expect(next.handle).toHaveBeenCalledTimes(2);
     expect(logger.debug).not.toHaveBeenCalledWith(
       expect.anything(),
       "Caching fresh response"
     );
+    expect(configService.load).not.toHaveBeenCalled();
   });
 });

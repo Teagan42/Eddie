@@ -2,7 +2,7 @@ import type { CallHandler, ExecutionContext } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { firstValueFrom, of, throwError } from "rxjs";
-import type { ConfigService, EddieConfig } from "@eddie/config";
+import type { ConfigService, ConfigStore, EddieConfig } from "@eddie/config";
 import type { Logger } from "pino";
 import { RequestLoggingInterceptor } from "../../../src/logging.interceptor";
 
@@ -44,10 +44,15 @@ describe("RequestLoggingInterceptor", () => {
   it("logs successful requests without bodies by default", async () => {
     const logger = { debug: vi.fn(), info: vi.fn(), error: vi.fn() };
     const configService = {
-      load: vi.fn().mockResolvedValue(createConfig("info")),
+      load: vi.fn(),
     } as unknown as ConfigService;
+    const store = {
+      getSnapshot: vi.fn(() => createConfig("info")),
+      changes$: of(createConfig("info")),
+    } as unknown as ConfigStore;
     const interceptor = new RequestLoggingInterceptor(
       configService,
+      store,
       logger as unknown as Logger
     );
     await interceptor.onModuleInit();
@@ -91,15 +96,21 @@ describe("RequestLoggingInterceptor", () => {
       }),
       "Request completed successfully"
     );
+    expect(configService.load).not.toHaveBeenCalled();
   });
 
   it("logs request pipeline errors", async () => {
     const logger = { debug: vi.fn(), info: vi.fn(), error: vi.fn() };
     const configService = {
-      load: vi.fn().mockResolvedValue(createConfig("debug")),
+      load: vi.fn(),
     } as unknown as ConfigService;
+    const store = {
+      getSnapshot: vi.fn(() => createConfig("debug")),
+      changes$: of(createConfig("debug")),
+    } as unknown as ConfigStore;
     const interceptor = new RequestLoggingInterceptor(
       configService,
+      store,
       logger as unknown as Logger
     );
     await interceptor.onModuleInit();
@@ -136,19 +147,21 @@ describe("RequestLoggingInterceptor", () => {
       }),
       "Request pipeline emitted an error"
     );
+    expect(configService.load).not.toHaveBeenCalled();
   });
 
   it("logs bodies on the first request when debug logging is enabled", async () => {
     const logger = { debug: vi.fn(), info: vi.fn(), error: vi.fn() };
-    let resolveConfig: ((config: EddieConfig) => void) | undefined;
-    const configPromise = new Promise<EddieConfig>((resolve) => {
-      resolveConfig = resolve;
-    });
     const configService = {
-      load: vi.fn().mockReturnValue(configPromise),
+      load: vi.fn(),
     } as unknown as ConfigService;
+    const store = {
+      getSnapshot: vi.fn(() => createConfig("debug")),
+      changes$: of(createConfig("debug")),
+    } as unknown as ConfigStore;
     const interceptor = new RequestLoggingInterceptor(
       configService,
+      store,
       logger as unknown as Logger
     );
 
@@ -169,17 +182,9 @@ describe("RequestLoggingInterceptor", () => {
     const context = createExecutionContext(request, response);
     const next: CallHandler = { handle: vi.fn(() => of({ status: "created" })) };
 
-    const resultPromise = firstValueFrom(interceptor.intercept(context, next));
-
-    await Promise.resolve();
-    expect(logger.debug).not.toHaveBeenCalled();
-
-    resolveConfig?.(createConfig("debug"));
-
-    const result = await resultPromise;
+    const result = await firstValueFrom(interceptor.intercept(context, next));
 
     expect(result).toEqual({ status: "created" });
-    expect(configService.load).toHaveBeenCalledTimes(1);
     expect(logger.debug).toHaveBeenCalledWith(
       {
         method: "POST",
@@ -196,5 +201,6 @@ describe("RequestLoggingInterceptor", () => {
       }),
       "Request completed successfully"
     );
+    expect(configService.load).not.toHaveBeenCalled();
   });
 });

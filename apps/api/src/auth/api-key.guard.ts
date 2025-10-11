@@ -2,11 +2,12 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  OnModuleDestroy,
   OnModuleInit,
   UnauthorizedException,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { ConfigService } from "@eddie/config";
+import { ConfigService, ConfigStore, hasRuntimeOverrides } from "@eddie/config";
 import type { EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { InjectLogger } from "@eddie/io";
@@ -14,6 +15,7 @@ import type { Logger } from "pino";
 import { getRuntimeOptions } from "../runtime-options";
 import { IS_PUBLIC_KEY } from "./public.decorator";
 import type { Request } from "express";
+import { Subscription } from "rxjs";
 
 interface ContextSummary {
   files: number;
@@ -35,15 +37,17 @@ interface WebSocketClient {
 }
 
 @Injectable()
-export class ApiKeyGuard implements CanActivate, OnModuleInit {
+export class ApiKeyGuard implements CanActivate, OnModuleInit, OnModuleDestroy {
   private enabled = false;
   private apiKeys = new Set<string>();
   private initPromise: Promise<void> | null = null;
   private contextSummary: ContextSummary | null = null;
+  private subscription: Subscription | null = null;
 
   constructor(
     private readonly reflector: Reflector,
     private readonly configService: ConfigService,
+    private readonly configStore: ConfigStore,
     private readonly contextService: ContextService,
     @InjectLogger("api:auth") private readonly logger: Logger
   ) {}
@@ -51,6 +55,11 @@ export class ApiKeyGuard implements CanActivate, OnModuleInit {
   async onModuleInit(): Promise<void> {
     this.initPromise = this.initialize();
     await this.initPromise;
+  }
+
+  onModuleDestroy(): void {
+    this.subscription?.unsubscribe();
+    this.subscription = null;
   }
 
   private normalizeKeys(source: unknown): string[] {
@@ -74,7 +83,20 @@ export class ApiKeyGuard implements CanActivate, OnModuleInit {
 
   private async initialize(): Promise<void> {
     const runtimeOptions = getRuntimeOptions();
-    const config: EddieConfig = await this.configService.load(runtimeOptions);
+    if (hasRuntimeOverrides(runtimeOptions)) {
+      await this.configService.load(runtimeOptions);
+    }
+
+    await this.applySnapshot(this.configStore.getSnapshot());
+
+    if (!this.subscription) {
+      this.subscription = this.configStore.changes$.subscribe((config) => {
+        void this.applySnapshot(config);
+      });
+    }
+  }
+
+  private async applySnapshot(config: EddieConfig): Promise<void> {
     const authConfig = config.api?.auth;
 
     this.enabled = authConfig?.enabled ?? false;

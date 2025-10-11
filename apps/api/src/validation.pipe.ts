@@ -2,6 +2,7 @@ import {
   ArgumentMetadata,
   BadRequestException,
   Injectable,
+  OnModuleDestroy,
   OnModuleInit,
   PipeTransform,
   ValidationPipe,
@@ -9,18 +10,21 @@ import {
 } from "@nestjs/common";
 import type { ValidationError } from "class-validator";
 import type { EddieConfig } from "@eddie/config";
-import { ConfigService } from "@eddie/config";
+import { ConfigService, ConfigStore, hasRuntimeOverrides } from "@eddie/config";
 import { InjectLogger } from "@eddie/io";
 import type { Logger } from "pino";
 import { getRuntimeOptions } from "./runtime-options";
+import { Subscription } from "rxjs";
 
 @Injectable()
-export class ApiValidationPipe implements PipeTransform, OnModuleInit {
+export class ApiValidationPipe implements PipeTransform, OnModuleInit, OnModuleDestroy {
   private delegate: ValidationPipe | null = null;
   private initPromise: Promise<void> | null = null;
+  private subscription: Subscription | null = null;
 
   constructor(
     private readonly configService: ConfigService,
+    private readonly configStore: ConfigStore,
     @InjectLogger("api:validation") private readonly logger: Logger
   ) {}
 
@@ -29,9 +33,27 @@ export class ApiValidationPipe implements PipeTransform, OnModuleInit {
     await this.initPromise;
   }
 
+  onModuleDestroy(): void {
+    this.subscription?.unsubscribe();
+    this.subscription = null;
+  }
+
   private async initialize(): Promise<void> {
     const runtimeOptions = getRuntimeOptions();
-    const config: EddieConfig = await this.configService.load(runtimeOptions);
+    if (hasRuntimeOverrides(runtimeOptions)) {
+      await this.configService.load(runtimeOptions);
+    }
+
+    this.delegate = this.createValidationPipe(this.configStore.getSnapshot());
+
+    if (!this.subscription) {
+      this.subscription = this.configStore.changes$.subscribe((config) => {
+        this.delegate = this.createValidationPipe(config);
+      });
+    }
+  }
+
+  private createValidationPipe(config: EddieConfig): ValidationPipe {
     const validation = config.api?.validation ?? {};
 
     const options: ValidationPipeOptions = {
@@ -58,7 +80,7 @@ export class ApiValidationPipe implements PipeTransform, OnModuleInit {
       },
     };
 
-    this.delegate = new ValidationPipe(options);
+    return new ValidationPipe(options);
   }
 
   private async ensureInitialised(): Promise<void> {
