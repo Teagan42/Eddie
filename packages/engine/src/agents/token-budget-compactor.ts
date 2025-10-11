@@ -6,17 +6,23 @@ import type {
 } from "./agent-orchestrator.service";
 import type { ChatMessage } from "@eddie/types";
 
+const DEFAULT_HARD_FLOOR = 2048;
+
 export type SummarizeFn = (
   messages: ChatMessage[]
 ) => Promise<string> | string;
 
 export class TokenBudgetCompactor implements TranscriptCompactor {
+  private readonly hardFloor: number;
+
   constructor(
     private readonly tokenBudget: number,
     private readonly keepTail: number = 6,
     private readonly summarize: SummarizeFn = naiveSummarize,
-    private readonly hardFloor: number = 2048
-  ) {}
+    hardFloor: number = DEFAULT_HARD_FLOOR
+  ) {
+    this.hardFloor = resolveHardFloor(this.tokenBudget, hardFloor);
+  }
 
   async plan(
     invocation: AgentInvocation,
@@ -101,7 +107,8 @@ async function compactInPlace(
   }
 
   const assembledTokens = estimateTokens(assembled);
-  if (assembledTokens <= budget || assembledTokens < hardFloor) {
+  const floorOverridesBudget = budget < hardFloor;
+  if (assembledTokens <= budget || floorOverridesBudget) {
     invocation.messages.splice(0, invocation.messages.length, ...assembled);
     return;
   }
@@ -217,4 +224,11 @@ function naiveSummarize(messages: ChatMessage[]): string {
   }
 
   return lines.join("\n");
+}
+
+function resolveHardFloor(tokenBudget: number, requestedFloor: number): number {
+  if (requestedFloor !== DEFAULT_HARD_FLOOR) {
+    return requestedFloor;
+  }
+  return Math.min(requestedFloor, tokenBudget);
 }
