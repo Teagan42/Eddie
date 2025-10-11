@@ -32,7 +32,7 @@ import { MCPModule } from "@eddie/mcp";
   exports: [
     EngineService,
     AgentOrchestratorService,
-    ConfigStore,
+    ConfigModule,
     HooksModule,
     ProvidersModule,
     TokenizersModule,
