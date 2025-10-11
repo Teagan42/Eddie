@@ -8,6 +8,7 @@ import {
 } from "@eddie/config";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConfigEditorService } from "../../../src/config-editor/config-editor.service";
+import type { ConfigHotReloadService } from "../../../src/config-editor/config-hot-reload.service";
 
 interface ConfigServiceMock {
   readSnapshot: ReturnType<typeof vi.fn>;
@@ -19,6 +20,7 @@ interface ConfigServiceMock {
 describe("ConfigEditorService", () => {
   let service: ConfigEditorService;
   let configService: ConfigServiceMock;
+  let hotReloadService: { persist: ReturnType<typeof vi.fn> };
 
   const createSnapshot = (): ConfigFileSnapshot => ({
     path: "/tmp/eddie.config.yaml",
@@ -37,7 +39,14 @@ describe("ConfigEditorService", () => {
       writeSource: vi.fn(),
     };
 
-    service = new ConfigEditorService(configService as never);
+    hotReloadService = {
+      persist: vi.fn(),
+    } satisfies Pick<ConfigHotReloadService, "persist">;
+
+    service = new ConfigEditorService(
+      configService as never,
+      hotReloadService as never
+    );
   });
 
   it("returns the exported schema bundle", () => {
@@ -99,23 +108,22 @@ describe("ConfigEditorService", () => {
     });
   });
 
-  it("persists configuration sources through the config service", async () => {
+  it("persists configuration sources through the hot reload service", async () => {
     const snapshot = createSnapshot();
-    configService.writeSource.mockResolvedValue(snapshot);
+    hotReloadService.persist.mockResolvedValue(snapshot);
 
     await expect(service.save("contents", "yaml", "./config.yaml"))
       .resolves.toBe(snapshot);
 
-    expect(configService.writeSource).toHaveBeenCalledWith(
+    expect(hotReloadService.persist).toHaveBeenCalledWith(
       "contents",
       "yaml",
-      {},
       "./config.yaml"
     );
   });
 
   it("falls back to a friendly message when saving fails", async () => {
-    configService.writeSource.mockRejectedValue("nope");
+    hotReloadService.persist.mockRejectedValue("nope");
 
     const save = service.save("contents", "json" as ConfigFileFormat);
 
