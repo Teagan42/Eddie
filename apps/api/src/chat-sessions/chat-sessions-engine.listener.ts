@@ -1,9 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { EventsHandler, IEventHandler } from "@nestjs/cqrs";
 import { EngineService } from "@eddie/engine";
 import type { AgentInvocation, EngineResult } from "@eddie/engine";
 import type { ChatMessage } from "@eddie/types";
 import {
-  ChatSessionsListener,
   ChatSessionsService,
   type AgentInvocationSnapshot,
 } from "./chat-sessions.service";
@@ -17,15 +17,16 @@ import { TracesService } from "../traces/traces.service";
 import type { TraceDto } from "../traces/dto/trace.dto";
 import { LogsService } from "../logs/logs.service";
 import type { LogEntryDto } from "../logs/dto/log-entry.dto";
+import { ChatMessageCreatedEvent } from "@eddie/types";
 
 const DEFAULT_ENGINE_FAILURE_MESSAGE =
     "Engine failed to respond. Check server logs for details.";
 
+@EventsHandler(ChatMessageCreatedEvent)
 @Injectable()
 export class ChatSessionsEngineListener
-implements ChatSessionsListener, OnModuleInit, OnModuleDestroy {
+implements IEventHandler<ChatMessageCreatedEvent> {
   private readonly logger = new Logger(ChatSessionsEngineListener.name);
-  private unregister: (() => void) | null = null;
 
   constructor(
         private readonly chatSessions: ChatSessionsService,
@@ -37,34 +38,14 @@ implements ChatSessionsListener, OnModuleInit, OnModuleDestroy {
     this.engine.setStreamRenderer(this.streamRenderer);
   }
 
-  onModuleInit(): void {
-    this.unregister = this.chatSessions.registerListener(this);
-  }
-
-  onModuleDestroy(): void {
-    this.unregister?.();
-    this.unregister = null;
-  }
-
-  onSessionCreated(): void {
-    // No engine side-effects for session creation events.
-  }
-
-  onSessionUpdated(): void {
-    // No engine side-effects for session updates.
-  }
-
-  onMessageCreated(message: ChatMessageDto): void {
-    if (!this.shouldInvokeEngine(message)) {
+  handle(event: ChatMessageCreatedEvent): void {
+    const messages = this.chatSessions.listMessages(event.sessionId);
+    const message = messages.find((entry) => entry.id === event.messageId);
+    if (!message || !this.shouldInvokeEngine(message)) {
       return;
     }
 
     void this.executeEngine(message);
-  }
-
-  onMessageUpdated(message: ChatMessageDto): void {
-    void message;
-    // No engine side-effects for message updates.
   }
 
   private shouldInvokeEngine(message: ChatMessageDto): boolean {
