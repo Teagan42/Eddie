@@ -42,7 +42,7 @@ export class AppModule extends ConfigurableModuleClass {
   static forRootAsync(
     options: Parameters<typeof ConfigurableModuleClass["registerAsync"]>[0],
   ): DynamicModule {
-    const dynamicModule = super.register(options);
+    const dynamicModule = super.registerAsync(options);
     return {
       ...dynamicModule,
       imports: [
