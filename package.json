@@ -24,7 +24,9 @@
     "dev:cli": "npm run dev --workspace @eddie/cli --if-present",
     "dev:api": "npm run dev --workspace @eddie/api --if-present",
     "web:dev": "npm run dev --workspace @eddie/web --if-present",
+    "web:start": "npm run start --workspace @eddie/web --if-present",
     "dev": "concurrently \"npm run dev:api --if-present\" \"npm run web:dev --if-present\"",
+    "start": "concurrently \"npm run start:api --if-present\" \"npm run web:start --if-present\"",
     "web:build": "npm run build --workspace @eddie/web --if-present",
     "web:test": "npm run test --workspace @eddie/web --if-present"
   },
