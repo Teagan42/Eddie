@@ -1,6 +1,7 @@
 import { ConfigStore } from "@eddie/config";
-import type { Observable } from "rxjs";
+import { BehaviorSubject, Observable } from "rxjs";
 import type { RuntimeConfigDto } from "./dto/runtime-config.dto";
+import { runtimeDefaults } from "./runtime.config";
 
 export interface RuntimeConfigStore {
   readonly changes$: Observable<RuntimeConfigDto>;
@@ -10,13 +11,35 @@ export interface RuntimeConfigStore {
 
 export const RUNTIME_CONFIG_STORE = Symbol("RUNTIME_CONFIG_STORE");
 
-export function createRuntimeConfigStore(): RuntimeConfigStore {
-  const store = new ConfigStore();
+export function createRuntimeConfigStore(
+  configStore: ConfigStore
+): RuntimeConfigStore {
+  const subject = new BehaviorSubject<RuntimeConfigDto>(
+    cloneRuntimeConfig(runtimeDefaults)
+  );
+  let snapshot = cloneRuntimeConfig(runtimeDefaults);
+  let seeded = false;
+
+  configStore.changes$.subscribe(() => {
+    if (seeded) {
+      subject.next(cloneRuntimeConfig(snapshot));
+    }
+  });
+
   return {
-    changes$: store.changes$ as unknown as Observable<RuntimeConfigDto>,
+    changes$: subject.asObservable(),
     setSnapshot: (config: RuntimeConfigDto) => {
-      store.setSnapshot(config as unknown as never);
+      snapshot = cloneRuntimeConfig(config);
+      seeded = true;
+      subject.next(cloneRuntimeConfig(snapshot));
     },
-    getSnapshot: () => store.getSnapshot() as unknown as RuntimeConfigDto,
+    getSnapshot: () => cloneRuntimeConfig(snapshot),
+  };
+}
+
+export function cloneRuntimeConfig(config: RuntimeConfigDto): RuntimeConfigDto {
+  return {
+    ...config,
+    features: { ...config.features },
   };
 }

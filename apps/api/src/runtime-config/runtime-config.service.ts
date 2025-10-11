@@ -5,6 +5,7 @@ import { RuntimeConfigDto } from "./dto/runtime-config.dto";
 import { mergeRuntimeConfig, runtimeDefaults } from "./runtime.config";
 import {
   RUNTIME_CONFIG_STORE,
+  cloneRuntimeConfig,
   type RuntimeConfigStore,
 } from "./runtime-config.store";
 
@@ -20,29 +21,22 @@ export class RuntimeConfigService {
     const configured = this.configService.get<RuntimeConfigDto>("runtime", {
       infer: true,
     });
-    const initial = this.cloneConfig(
+    const initial = cloneRuntimeConfig(
       mergeRuntimeConfig(runtimeDefaults, configured ?? undefined)
     );
     this.store.setSnapshot(initial);
-    this.changes$ = this.store.changes$.pipe(map((config) => this.cloneConfig(config)));
+    this.changes$ = this.store.changes$.pipe(map(cloneRuntimeConfig));
   }
 
   get(): RuntimeConfigDto {
-    return this.cloneConfig(this.store.getSnapshot());
+    return cloneRuntimeConfig(this.store.getSnapshot());
   }
 
   update(partial: Partial<RuntimeConfigDto>): RuntimeConfigDto {
     const merged = this.mergeConfig(this.store.getSnapshot(), partial);
 
     this.store.setSnapshot(merged);
-    return this.cloneConfig(merged);
-  }
-
-  private cloneConfig(config: RuntimeConfigDto): RuntimeConfigDto {
-    return {
-      ...config,
-      features: { ...config.features },
-    };
+    return cloneRuntimeConfig(merged);
   }
 
   private mergeConfig(

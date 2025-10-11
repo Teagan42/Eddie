@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { ConfigStore } from "@eddie/config";
 import { RuntimeConfigService } from "./runtime-config.service";
 import { RuntimeConfigController } from "./runtime-config.controller";
 import { RuntimeConfigGateway } from "./runtime-config.gateway";
@@ -12,7 +13,11 @@ import {
 @Module({
   imports: [ConfigModule.forFeature(runtimeConfig)],
   providers: [
-    { provide: RUNTIME_CONFIG_STORE, useFactory: createRuntimeConfigStore },
+    {
+      provide: RUNTIME_CONFIG_STORE,
+      useFactory: createRuntimeConfigStore,
+      inject: [ConfigStore],
+    },
     RuntimeConfigService,
     RuntimeConfigGateway,
   ],
