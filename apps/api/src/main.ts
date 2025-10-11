@@ -66,7 +66,7 @@ export async function bootstrap(): Promise<void> {
 }
 
 function isRunningAsStandaloneProcess(): boolean {
-  const entry = process.argv[1];
+  const entry = process.argv[ 1 ];
   if (!entry) {
     return false;
   }
@@ -77,7 +77,7 @@ function isRunningAsStandaloneProcess(): boolean {
   );
 }
 
-if (isRunningAsStandaloneProcess()) {
-  setRuntimeOptionsFromArgv(process.argv.slice(2));
-  void bootstrap();
-}
+// if (isRunningAsStandaloneProcess()) {
+//   setRuntimeOptionsFromArgv(process.argv.slice(2));
+void bootstrap();
+// }
