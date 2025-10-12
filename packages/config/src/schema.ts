@@ -417,7 +417,7 @@ const MCP_AUTH_SCHEMA: JSONSchema7 = {
 const MCP_HEADERS_SCHEMA: JSONSchema7 = {
   type: "object",
   patternProperties: {
-    "^[^\\s:]+$": { type: "string" },
+    "^(?!.*[:\\s]).+$": { type: "string" },
   },
   additionalProperties: false,
 };

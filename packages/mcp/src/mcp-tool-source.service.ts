@@ -27,6 +27,8 @@ import type { ToolCallArguments, ToolDefinition, ToolResult } from "@eddie/types
 import type { EventSourceInit } from "eventsource";
 
 const CLIENT_INFO = { name: "eddie", version: "unknown" } as const;
+const CALL_TOOL_RESULT_OPTIONAL_MESSAGES_SCHEMA =
+  CallToolResultSchema.partial({ messages: true });
 
 interface BuildHttpHeadersOptions {
   accept?: string;
@@ -180,11 +182,7 @@ export class McpToolSourceService {
     args: ToolCallArguments
   ): Promise<ToolResult> {
     return this.withClient(source, async (client) => {
-      const result = await this.callToolWithMessagesFallback(
-        client,
-        toolName,
-        args
-      );
+      const result = await this.callTool(client, toolName, args);
 
       if (
         !result ||
@@ -375,46 +373,18 @@ export class McpToolSourceService {
     return false;
   }
 
-  private isMissingMessagesError(error: unknown): boolean {
-    if (!(error instanceof Error)) {
-      return false;
-    }
-
-    if (
-      error.name === "ZodError" &&
-      typeof error.message === "string" &&
-      error.message.toLowerCase().includes("messages")
-    ) {
-      return true;
-    }
-
-    const cause = (error as { cause?: unknown }).cause;
-    if (cause && cause !== error) {
-      return this.isMissingMessagesError(cause);
-    }
-
-    return false;
-  }
-
-  private async callToolWithMessagesFallback(
+  private async callTool(
     client: Client,
     toolName: string,
     args: ToolCallArguments
   ): Promise<unknown> {
-    const buildParams = () => ({
-      name: toolName,
-      arguments: structuredClone(args ?? {}),
-    });
-
-    try {
-      return await client.callTool(buildParams(), CallToolResultSchema);
-    } catch (error) {
-      if (!this.isMissingMessagesError(error)) {
-        throw error;
-      }
-
-      return client.callTool(buildParams());
-    }
+    return client.callTool(
+      {
+        name: toolName,
+        arguments: structuredClone(args ?? {}),
+      },
+      CALL_TOOL_RESULT_OPTIONAL_MESSAGES_SCHEMA
+    );
   }
 
   private normalizePromptDefinition(

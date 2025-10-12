@@ -260,7 +260,7 @@ describe("McpToolSourceService streamable HTTP transport", () => {
     });
   });
 
-  it("falls back when tool call validation rejects missing messages", async () => {
+  it("accepts tool results that omit messages", async () => {
     const service = new McpToolSourceService();
     const config: StreamableHttpConfiguredSource = {
       id: "mock",
@@ -276,20 +276,19 @@ describe("McpToolSourceService streamable HTTP transport", () => {
           params: { name: string; arguments?: Record<string, unknown> },
           schema?: unknown,
         ) => {
-          if (schema) {
-            const error = new Error(
-              "ZodError: [ { \"path\": [\"messages\"], \"message\": \"Required\" } ]",
-            );
-            error.name = "ZodError";
-            throw error;
-          }
-
-          return {
+          const result = {
             schema: hoisted.outputSchema.$id,
             content: `results for ${params.arguments?.query}`,
             data: { items: ["alpha", "beta"] },
             metadata: { tookMs: 12 },
           };
+
+          if (schema && typeof schema === "object") {
+            const parser = schema as { parse(value: unknown): unknown };
+            return parser.parse(result);
+          }
+
+          return result;
         },
       );
 
@@ -315,9 +314,8 @@ describe("McpToolSourceService streamable HTTP transport", () => {
       data: { items: ["alpha", "beta"] },
       metadata: { tookMs: 12 },
     });
-    expect(fallbackCallTool).toHaveBeenCalledTimes(2);
+    expect(fallbackCallTool).toHaveBeenCalledTimes(1);
     expect(fallbackCallTool.mock.calls[0][1]).toBeDefined();
-    expect(fallbackCallTool.mock.calls[1][1]).toBeUndefined();
   });
 
   it("rejects when a prompt payload omits mandatory fields", async () => {
