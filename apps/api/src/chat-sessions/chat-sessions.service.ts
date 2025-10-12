@@ -1,4 +1,5 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
+import { EventBus } from "@nestjs/cqrs";
 import { CreateChatSessionDto } from "./dto/create-chat-session.dto";
 import { CreateChatMessageDto } from "./dto/create-chat-message.dto";
 import { ChatMessageDto, ChatSessionDto } from "./dto/chat-session.dto";
@@ -9,6 +10,7 @@ import {
   type ChatSessionRecord,
   type ChatSessionsRepository,
 } from "./chat-sessions.repository";
+import { ChatMessageCreatedEvent } from "@eddie/types";
 
 export type { AgentInvocationSnapshot } from "./chat-sessions.repository";
 
@@ -34,7 +36,8 @@ export class ChatSessionsService {
 
   constructor(
     @Inject(CHAT_SESSIONS_REPOSITORY)
-    private readonly repository: ChatSessionsRepository
+    private readonly repository: ChatSessionsRepository,
+    @Optional() private readonly eventBus?: EventBus
   ) {}
 
   registerListener(listener: ChatSessionsListener): () => void {
@@ -170,6 +173,9 @@ export class ChatSessionsService {
     const sessionDto = this.toDto(result.session);
     this.notifyMessageCreated(messageDto);
     this.notifySessionUpdated(sessionDto);
+    this.eventBus?.publish(
+      new ChatMessageCreatedEvent(messageDto.sessionId, messageDto.id)
+    );
     return { message: messageDto, session: sessionDto };
   }
 

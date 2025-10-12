@@ -1,4 +1,5 @@
 import { Module, type Provider } from "@nestjs/common";
+import { CqrsModule } from "@nestjs/cqrs";
 import { EngineModule } from "@eddie/engine";
 import { StreamRendererService } from "@eddie/io";
 import { ConfigModule, ConfigStore } from "@eddie/config";
@@ -34,7 +35,14 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
 };
 
 @Module({
-  imports: [ EngineModule, TracesModule, LogsModule, ConfigModule, ToolsModule ],
+  imports: [
+    EngineModule,
+    TracesModule,
+    LogsModule,
+    ConfigModule,
+    ToolsModule,
+    CqrsModule,
+  ],
   providers: [
     ChatSessionsService,
     ChatSessionsGateway,
@@ -54,9 +62,4 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
   controllers: [ ChatSessionsController ],
   exports: [ ChatSessionsService ],
 })
-export class ChatSessionsModule {
-  constructor(
-        // Ensures the engine listener is instantiated so it can self-register
-        private readonly _engineListener: ChatSessionsEngineListener
-  ) { }
-}
+export class ChatSessionsModule {}

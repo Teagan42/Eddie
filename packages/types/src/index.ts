@@ -131,3 +131,5 @@ export interface ToolDefinition {
     ctx: ToolExecutionContext,
   ): Promise<ToolResult>;
 }
+
+export * from "./chat-sessions/events";

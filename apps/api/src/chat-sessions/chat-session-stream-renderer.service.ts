@@ -1,14 +1,19 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { Injectable } from "@nestjs/common";
+import { EventBus } from "@nestjs/cqrs";
 import { StreamRendererService } from "@eddie/io";
 import type { StreamEvent } from "@eddie/types";
+import {
+  ChatMessagePartialEvent,
+  ChatSessionToolCallEvent,
+  ChatSessionToolResultEvent,
+} from "@eddie/types";
 import {
   ChatSessionsService,
   type AgentActivityState,
 } from "./chat-sessions.service";
 import { ChatMessageRole } from "./dto/create-chat-message.dto";
 import type { ChatMessageDto } from "./dto/chat-session.dto";
-import { ChatSessionEventsService } from "./chat-session-events.service";
 
 interface StreamState {
     sessionId: string;
@@ -28,7 +33,7 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
   private readonly storage = new AsyncLocalStorage<StreamState>();
   constructor(
         private readonly chatSessions: ChatSessionsService,
-        private readonly events: ChatSessionEventsService,
+        private readonly eventBus: EventBus,
   ) {
     super();
   }
@@ -131,33 +136,39 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
   }
 
   private emitPartial(message: ChatMessageDto | undefined): void {
-    if (message) this.events.emitPartial(message);
+    if (message) {
+      this.eventBus.publish(new ChatMessagePartialEvent(message));
+    }
   }
 
   private emitToolCallEvent(
     state: StreamState,
     event: Extract<StreamEvent, { type: "tool_call" }>,
   ): void {
-    this.events.emitToolCall({
-      sessionId: state.sessionId,
-      id: event.id ?? undefined,
-      name: event.name,
-      arguments: event.arguments ?? null,
-      timestamp: new Date().toISOString(),
-    });
+    this.eventBus.publish(
+      new ChatSessionToolCallEvent(
+        state.sessionId,
+        event.id ?? undefined,
+        event.name,
+        event.arguments ?? null,
+        new Date().toISOString(),
+      )
+    );
   }
 
   private emitToolResultEvent(
     state: StreamState,
     event: Extract<StreamEvent, { type: "tool_result" }>,
   ): void {
-    this.events.emitToolResult({
-      sessionId: state.sessionId,
-      id: event.id ?? undefined,
-      name: event.name,
-      result: event.result ?? null,
-      timestamp: new Date().toISOString(),
-    });
+    this.eventBus.publish(
+      new ChatSessionToolResultEvent(
+        state.sessionId,
+        event.id ?? undefined,
+        event.name,
+        event.result ?? null,
+        new Date().toISOString(),
+      )
+    );
   }
 
   private updateActivity(state: StreamState, next: AgentActivityState): void {
