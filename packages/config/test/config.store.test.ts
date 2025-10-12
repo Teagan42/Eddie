@@ -92,6 +92,22 @@ describe("ConfigStore", () => {
     await moduleRef.close();
   });
 
+  it("seeds configuration from a CLI-provided config file", async () => {
+    const configPath = path.join(tmpDir, "eddie.config.yaml");
+    await fs.writeFile(configPath, "logLevel: warn\n");
+
+    const moduleRef = await Test.createTestingModule({
+      imports: [ConfigModule.register({ config: configPath })],
+    }).compile();
+
+    const store = moduleRef.get(ConfigStore);
+    const snapshot = store.getSnapshot();
+
+    expect(snapshot.logLevel).toBe("warn");
+
+    await moduleRef.close();
+  });
+
   it("updates the snapshot when load succeeds", async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [ConfigModule],

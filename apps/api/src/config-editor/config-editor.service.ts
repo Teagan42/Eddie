@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import {
   ConfigService,
+  ConfigStore,
   EDDIE_CONFIG_SCHEMA_BUNDLE,
   type ConfigFileFormat,
   type ConfigFileSnapshot,
@@ -13,7 +14,8 @@ import { ConfigHotReloadService } from "./config-hot-reload.service";
 export class ConfigEditorService {
   constructor(
     private readonly configService: ConfigService,
-    private readonly hotReloadService: ConfigHotReloadService
+    private readonly hotReloadService: ConfigHotReloadService,
+    private readonly configStore: ConfigStore
   ) {}
 
   getSchemaBundle() {
@@ -21,7 +23,9 @@ export class ConfigEditorService {
   }
 
   async getSnapshot(): Promise<ConfigFileSnapshot> {
-    return this.configService.readSnapshot({});
+    const snapshot = await this.configService.readSnapshot({});
+    const config = this.configStore.getSnapshot();
+    return { ...snapshot, config } satisfies ConfigFileSnapshot;
   }
 
   async preview(

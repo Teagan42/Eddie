@@ -17,15 +17,21 @@ export const initialConfigProvider: FactoryProvider<Promise<EddieConfig>> = {
     defaults?: ConfigType<typeof eddieConfig>,
   ): Promise<EddieConfig> => {
     const envOptions = resolveCliRuntimeOptionsFromEnv(process.env);
+    const combinedOptions = {
+      ...envOptions,
+      ...(moduleOptions ?? {}),
+    };
     const service = new ConfigService(
       undefined,
-      {
-        ...envOptions,
-        ...(moduleOptions ?? {}),
-      },
+      moduleOptions,
       defaults,
     );
 
-    return service.compose({}, {});
+    const { config, input } = await service.readSnapshot(combinedOptions);
+    if (config) {
+      return config;
+    }
+
+    return service.compose(input, combinedOptions);
   },
 };
