@@ -414,19 +414,85 @@ const MCP_AUTH_SCHEMA: JSONSchema7 = {
   ],
 };
 
+const MCP_HEADERS_SCHEMA: JSONSchema7 = {
+  type: "object",
+  patternProperties: {
+    "^[^\s:]+$": { type: "string" },
+  },
+  additionalProperties: false,
+};
+
+const MCP_STREAMABLE_HTTP_TRANSPORT_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "url"],
+  properties: {
+    type: { const: "streamable-http" },
+    url: { type: "string", minLength: 1 },
+    headers: MCP_HEADERS_SCHEMA,
+  },
+};
+
+const MCP_SSE_TRANSPORT_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "url"],
+  properties: {
+    type: { const: "sse" },
+    url: { type: "string", minLength: 1 },
+    headers: MCP_HEADERS_SCHEMA,
+  },
+};
+
+const MCP_WEBSOCKET_TRANSPORT_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "url"],
+  properties: {
+    type: { const: "websocket" },
+    url: { type: "string", minLength: 1 },
+  },
+};
+
+const MCP_STDIO_TRANSPORT_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "command"],
+  properties: {
+    type: { const: "stdio" },
+    command: { type: "string", minLength: 1 },
+    args: {
+      type: "array",
+      items: { type: "string" },
+    },
+    env: {
+      type: "object",
+      additionalProperties: { type: "string" },
+    },
+    cwd: { type: "string", minLength: 1 },
+    stderr: { enum: ["inherit", "pipe", "ignore"] },
+  },
+};
+
+const MCP_TRANSPORT_SCHEMA: JSONSchema7 = {
+  oneOf: [
+    MCP_STREAMABLE_HTTP_TRANSPORT_SCHEMA,
+    MCP_SSE_TRANSPORT_SCHEMA,
+    MCP_WEBSOCKET_TRANSPORT_SCHEMA,
+    MCP_STDIO_TRANSPORT_SCHEMA,
+  ],
+};
+
 const MCP_TOOL_SOURCE_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
-  required: ["id", "type", "url"],
+  required: ["id", "type"],
   properties: {
     id: { type: "string", minLength: 1 },
     type: { const: "mcp" },
     url: { type: "string", minLength: 1 },
     name: { type: "string" },
-    headers: {
-      type: "object",
-      additionalProperties: { type: "string" },
-    },
+    headers: MCP_HEADERS_SCHEMA,
     auth: MCP_AUTH_SCHEMA,
     capabilities: {
       type: "object",
@@ -442,7 +508,16 @@ const MCP_TOOL_SOURCE_SCHEMA: JSONSchema7 = {
         },
       },
     },
+    transport: MCP_TRANSPORT_SCHEMA,
   },
+  allOf: [
+    {
+      anyOf: [
+        { required: ["url"] },
+        { required: ["transport"] },
+      ],
+    },
+  ],
 };
 
 const TOOLS_CONFIG_SCHEMA: JSONSchema7 = {

@@ -304,14 +304,47 @@ export interface MCPToolSourceCapabilitiesConfig {
   [key: string]: unknown;
 }
 
+export interface MCPStreamableHttpTransportConfig {
+  type: "streamable-http";
+  url: string;
+  headers?: Record<string, string>;
+}
+
+export interface MCPSseTransportConfig {
+  type: "sse";
+  url: string;
+  headers?: Record<string, string>;
+}
+
+export interface MCPWebSocketTransportConfig {
+  type: "websocket";
+  url: string;
+}
+
+export interface MCPStdioTransportConfig {
+  type: "stdio";
+  command: string;
+  args?: string[];
+  env?: Record<string, string>;
+  cwd?: string;
+  stderr?: "inherit" | "pipe" | "ignore";
+}
+
+export type MCPTransportConfig =
+  | MCPStreamableHttpTransportConfig
+  | MCPSseTransportConfig
+  | MCPWebSocketTransportConfig
+  | MCPStdioTransportConfig;
+
 export interface MCPToolSourceConfig {
   id: string;
   type: "mcp";
-  url: string;
+  url?: string;
   name?: string;
   headers?: Record<string, string>;
   auth?: MCPAuthConfig;
   capabilities?: MCPToolSourceCapabilitiesConfig;
+  transport?: MCPTransportConfig;
 }
 
 export type ToolSourceConfig = MCPToolSourceConfig;

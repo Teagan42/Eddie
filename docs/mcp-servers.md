@@ -9,10 +9,13 @@ returned resources into the packed context that prompts receive.【F:apps/cli/sr
 ## 1. Declare the MCP source in your config
 
 MCP servers are configured in the `tools.sources` array inside
-`eddie.config.(json|yaml)`. Each entry must provide a unique `id`, the literal
-`type: "mcp"`, and the JSON-RPC endpoint `url`. Optional fields let you set a
-human readable `name`, inject HTTP `headers`, and advertise protocol
-`capabilities` to the server during the handshake.【F:apps/cli/src/config/types.ts†L194-L210】【F:apps/cli/src/config/config.service.ts†L948-L1016】
+`eddie.config.(json|yaml)`. Each entry must provide a unique `id` and the literal
+`type: "mcp"`. You can continue to supply the legacy `url` field for simple
+streamable HTTP servers, or declare a `transport` object to pick between the
+available client transports (`streamable-http`, `sse`, `websocket`, or
+`stdio`). Optional fields let you set a human readable `name`, inject HTTP
+`headers`, and advertise protocol `capabilities` to the server during the
+handshake.【F:apps/cli/src/config/types.ts†L194-L217】【F:apps/cli/src/config/config.service.ts†L948-L1016】【F:packages/config/src/types.ts†L307-L336】
 
 ```yaml
 model: gpt-4o-mini
@@ -27,7 +30,9 @@ tools:
   sources:
     - id: docs-service
       type: mcp
-      url: https://mcp.example.com/rpc
+      transport:
+        type: streamable-http
+        url: https://mcp.example.com/rpc
       name: Internal docs indexer
       capabilities:
         tools: {}
@@ -40,20 +45,31 @@ assign any discovered MCP resources to the current context so prompts and
 subagents can reference them via the usual `context.resources` data.
 【F:apps/cli/src/core/engine/engine.service.ts†L144-L199】
 
+To connect through Server-Sent Events, WebSockets, or a local stdio server,
+swap the `transport.type` while keeping the same `id`/`type` structure. For
+example, a local CLI bridge might use `type: stdio` with `command` and `args`,
+while a push-based server can declare `type: sse` alongside the streaming
+endpoint `url`. Eddie automatically picks the right client transport for each
+entry.
+
 ## 2. Provide authentication (optional)
 
 If your MCP server requires authentication, declare the scheme under the
 `auth` block. Basic credentials are converted to `Authorization: Basic` headers
 and bearer tokens map to `Authorization: Bearer` automatically. You can also set
 `type: "none"` to force Eddie to skip header injection when the server relies on
-other mechanisms (for example IP allow lists).【F:apps/cli/src/config/types.ts†L200-L210】【F:apps/cli/src/config/config.service.ts†L1018-L1052】【F:apps/cli/src/integrations/mcp/mcp-tool-source.service.ts†L204-L268】
+other mechanisms (for example IP allow lists). Headers declared at the source
+level apply to every HTTP request, while `transport.headers` can override values
+for HTTP-based transports when you need per-transport overrides.【F:apps/cli/src/config/types.ts†L200-L217】【F:apps/cli/src/config/config.service.ts†L1018-L1052】【F:packages/mcp/src/mcp-tool-source.service.ts†L200-L252】
 
 ```yaml
 tools:
   sources:
     - id: secured-research
       type: mcp
-      url: https://research.example.com/mcp
+      transport:
+        type: streamable-http
+        url: https://research.example.com/mcp
       auth:
         type: bearer
         token: ${MCP_RESEARCH_TOKEN}
@@ -62,7 +78,7 @@ tools:
 Set `headers` when you need to forward additional metadata (such as tenant IDs
 or custom API keys). Eddie merges these with the required JSON content headers
 and omits duplicate Authorization values so you stay in control of the final
-request payload.【F:apps/cli/src/integrations/mcp/mcp-tool-source.service.ts†L199-L233】
+request payload.【F:packages/mcp/src/mcp-tool-source.service.ts†L200-L252】
 
 ## 3. Allow or disable tools per session
 

@@ -1,31 +1,34 @@
 import { Injectable } from "@nestjs/common";
 import { Buffer } from "buffer";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import { WebSocketClientTransport } from "@modelcontextprotocol/sdk/client/websocket.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import {
+  ErrorCode,
+  McpError,
+  ResultSchema,
+} from "@modelcontextprotocol/sdk/types.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type {
-  MCPToolSourceConfig,
   MCPAuthConfig,
+  MCPToolSourceConfig,
+  MCPTransportConfig,
 } from "@eddie/config";
 import type {
-  DiscoveredMcpResource,
   DiscoveredMcpPrompt,
-  McpInitializeResult,
+  DiscoveredMcpResource,
   McpPromptDefinition,
-  McpPromptDescription,
-  McpPromptGetResult,
-  McpPromptsListResult,
   McpResourceDescription,
-  McpResourcesListResult,
-  McpToolDescription,
   McpToolSourceDiscovery,
-  McpToolsListResult,
-  JsonRpcRequest,
-  JsonRpcResponse,
 } from "./types";
-import type { ToolDefinition, ToolResult, ToolCallArguments } from "@eddie/types";
+import type { ToolCallArguments, ToolDefinition, ToolResult } from "@eddie/types";
+
+const CLIENT_INFO = { name: "eddie", version: "unknown" } as const;
 
 @Injectable()
 export class McpToolSourceService {
-  private requestCounter = 0;
-
   async collectTools(
     sources: MCPToolSourceConfig[] | undefined
   ): Promise<{
@@ -77,94 +80,66 @@ export class McpToolSourceService {
     resources: McpResourceDescription[];
     prompts: McpPromptDefinition[];
   }> {
-    const sessionId = await this.initialize(source);
-    const tools = await this.listTools(source, sessionId);
-    const resources = await this.listResources(source, sessionId);
-    const promptDefinitions = await this.discoverPrompts(source, sessionId);
+    return this.withClient(source, async (client) => {
+      const toolsResult = await client.listTools();
+      const resourcesResult = await client.listResources();
+      const prompts = await this.discoverPrompts(client);
 
-    const toolDefinitions = tools.map((tool) =>
-      this.toToolDefinition(source, sessionId, tool)
-    );
+      const toolDefinitions = (toolsResult.tools ?? []).map((tool) =>
+        this.toToolDefinition(source, {
+          name: tool.name,
+          description: tool.description,
+          inputSchema: structuredClone(tool.inputSchema ?? {}),
+          outputSchema: tool.outputSchema
+            ? structuredClone(tool.outputSchema)
+            : undefined,
+        })
+      );
 
-    return { tools: toolDefinitions, resources, prompts: promptDefinitions };
-  }
+      const resources = (resourcesResult.resources ?? []).map((resource) => ({
+        ...resource,
+        metadata: resource.metadata
+          ? structuredClone(resource.metadata)
+          : undefined,
+      }));
 
-  private async initialize(source: MCPToolSourceConfig): Promise<string | undefined> {
-    const result = await this.sendJsonRpc<McpInitializeResult>(
-      source,
-      "initialize",
-      {
-        clientInfo: { name: "eddie", version: "unknown" },
-        capabilities: source.capabilities ?? {},
-      }
-    );
-
-    return result.sessionId;
-  }
-
-  private async listTools(
-    source: MCPToolSourceConfig,
-    sessionId?: string
-  ): Promise<McpToolDescription[]> {
-    const params = sessionId ? { sessionId } : undefined;
-    const result = await this.sendJsonRpc<McpToolsListResult>(
-      source,
-      "tools/list",
-      params
-    );
-    return (result.tools ?? []).map((tool) => ({
-      ...tool,
-      inputSchema: structuredClone(tool.inputSchema),
-      outputSchema: tool.outputSchema
-        ? structuredClone(tool.outputSchema)
-        : undefined,
-    }));
-  }
-
-  private async listResources(
-    source: MCPToolSourceConfig,
-    sessionId?: string
-  ): Promise<McpResourceDescription[]> {
-    const params = sessionId ? { sessionId } : undefined;
-    const result = await this.sendJsonRpc<McpResourcesListResult>(
-      source,
-      "resources/list",
-      params
-    );
-    return (result.resources ?? []).map((resource) => ({
-      ...resource,
-      metadata: resource.metadata ? structuredClone(resource.metadata) : undefined,
-    }));
-  }
-
-  private async listPrompts(
-    source: MCPToolSourceConfig,
-    sessionId?: string
-  ): Promise<McpPromptDescription[]> {
-    const params = sessionId ? { sessionId } : undefined;
-    const result = await this.sendJsonRpc<McpPromptsListResult>(
-      source,
-      "prompts/list",
-      params
-    );
-    return result.prompts ?? [];
+      return { tools: toolDefinitions, resources, prompts };
+    });
   }
 
   private async discoverPrompts(
-    source: MCPToolSourceConfig,
-    sessionId: string | undefined
+    client: Client
   ): Promise<McpPromptDefinition[]> {
     try {
-      const descriptors = await this.listPrompts(source, sessionId);
+      const listResult = await client.listPrompts();
+      const descriptors = listResult.prompts ?? [];
       if (!descriptors.length) {
         return [];
       }
 
-      return Promise.all(
-        descriptors.map((descriptor) =>
-          this.getPrompt(source, sessionId, descriptor.name)
-        )
+      const definitions = await Promise.all(
+        descriptors.map(async (descriptor) => {
+          const result = await client.getPrompt({ name: descriptor.name });
+          const prompt = result.prompt;
+          return {
+            name: prompt.name,
+            description: prompt.description,
+            arguments: prompt.arguments?.map((argument) => ({
+              ...argument,
+              schema:
+                argument.schema !== undefined
+                  ? structuredClone(argument.schema)
+                  : undefined,
+            })),
+            messages: (prompt.messages ?? []).map((message) => ({
+              ...message,
+              content: structuredClone(message.content ?? []),
+            })),
+          } satisfies McpPromptDefinition;
+        })
       );
+
+      return definitions;
     } catch (error) {
       if (this.isPromptsNotSupportedError(error)) {
         return [];
@@ -174,44 +149,14 @@ export class McpToolSourceService {
     }
   }
 
-  private async getPrompt(
-    source: MCPToolSourceConfig,
-    sessionId: string | undefined,
-    name: string
-  ): Promise<McpPromptDefinition> {
-    const params: Record<string, unknown> = { name };
-    if (sessionId) {
-      params.sessionId = sessionId;
-    }
-
-    const result = await this.sendJsonRpc<McpPromptGetResult>(
-      source,
-      "prompts/get",
-      params
-    );
-
-    const prompt = result.prompt;
-    return {
-      name: prompt.name,
-      description: prompt.description,
-      arguments: prompt.arguments?.map((argument) => ({
-        ...argument,
-        schema:
-          argument.schema !== undefined
-            ? structuredClone(argument.schema)
-            : undefined,
-      })),
-      messages: (prompt.messages ?? []).map((message) => ({
-        ...message,
-        content: structuredClone(message.content ?? []),
-      })),
-    };
-  }
-
   private toToolDefinition(
     source: MCPToolSourceConfig,
-    sessionId: string | undefined,
-    descriptor: McpToolDescription
+    descriptor: {
+      name: string;
+      description?: string;
+      inputSchema: Record<string, unknown>;
+      outputSchema?: Record<string, unknown>;
+    }
   ): ToolDefinition {
     const jsonSchema = structuredClone(descriptor.inputSchema);
     const outputSchema = descriptor.outputSchema
@@ -223,101 +168,154 @@ export class McpToolSourceService {
       description: descriptor.description,
       jsonSchema,
       ...(outputSchema ? { outputSchema } : {}),
-      handler: async (args: ToolCallArguments) => {
-        const result = await this.callTool(source, sessionId, descriptor.name, args);
-        if (
-          !result ||
-          typeof result !== "object" ||
-          typeof result.schema !== "string" ||
-          typeof result.content !== "string"
-        ) {
-          throw new Error(
-            `Tool ${descriptor.name} returned an invalid result payload from MCP source ${source.id}.`
-          );
-        }
-
-        const clonedResult: ToolResult = {
-          schema: result.schema,
-          content: result.content,
-          data:
-            result.data !== undefined
-              ? structuredClone(result.data)
-              : undefined,
-          metadata:
-            result.metadata !== undefined
-              ? structuredClone(result.metadata)
-              : undefined,
-        };
-
-        return clonedResult;
-      },
+      handler: async (args: ToolCallArguments) =>
+        this.executeTool(source, descriptor.name, args),
     };
   }
 
-  private async callTool(
+  private async executeTool(
     source: MCPToolSourceConfig,
-    sessionId: string | undefined,
-    name: string,
+    toolName: string,
     args: ToolCallArguments
   ): Promise<ToolResult> {
-    const params: Record<string, unknown> = {
-      name,
-      arguments: structuredClone(args ?? {}),
-    };
+    return this.withClient(source, async (client) => {
+      const result = await client.callTool(
+        {
+          name: toolName,
+          arguments: structuredClone(args ?? {}),
+        },
+        ResultSchema
+      );
 
-    if (sessionId) {
-      params.sessionId = sessionId;
-    }
+      if (
+        !result ||
+        typeof result !== "object" ||
+        typeof (result as { schema?: unknown }).schema !== "string" ||
+        typeof (result as { content?: unknown }).content !== "string"
+      ) {
+        throw new Error(
+          `Tool ${toolName} returned an invalid result payload from MCP source ${source.id}.`
+        );
+      }
 
-    return this.sendJsonRpc<ToolResult>(source, "tools/call", params);
-  }
+      const typedResult = result as {
+        schema: string;
+        content: string;
+        data?: unknown;
+        metadata?: unknown;
+      };
 
-  private async sendJsonRpc<T>(
-    source: MCPToolSourceConfig,
-    method: string,
-    params?: unknown
-  ): Promise<T> {
-    const id = `${source.id}-${++this.requestCounter}`;
-    const request: JsonRpcRequest = {
-      jsonrpc: "2.0",
-      id,
-      method,
-    };
+      const toolResult: ToolResult = {
+        schema: typedResult.schema,
+        content: typedResult.content,
+        data:
+          typedResult.data !== undefined
+            ? structuredClone(typedResult.data)
+            : undefined,
+        metadata:
+          typedResult.metadata !== undefined
+            ? structuredClone(typedResult.metadata)
+            : undefined,
+      };
 
-    if (typeof params !== "undefined") {
-      request.params = params;
-    }
-
-    const headers = this.buildHeaders(source);
-    const response = await fetch(source.url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(request),
+      return toolResult;
     });
-
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(
-        `MCP request to ${source.url} failed with status ${response.status}: ${body}`
-      );
-    }
-
-    const payload = (await response.json()) as JsonRpcResponse<T>;
-    if ("error" in payload) {
-      throw new Error(
-        `MCP request for ${method} failed: ${payload.error.message}`,
-        payload.error.data ? { cause: payload.error } : undefined
-      );
-    }
-
-    return payload.result;
   }
 
-  private buildHeaders(source: MCPToolSourceConfig): Record<string, string> {
+  private async withClient<T>(
+    source: MCPToolSourceConfig,
+    callback: (client: Client) => Promise<T>
+  ): Promise<T> {
+    const transport = this.createTransport(source);
+    const client = this.createClient(source);
+
+    try {
+      await client.connect(transport);
+      return await callback(client);
+    } finally {
+      try {
+        await client.close();
+      } catch {
+        // ignore shutdown errors
+      }
+
+      if (typeof (transport as { close?: () => Promise<void> }).close === "function") {
+        try {
+          await (transport as { close: () => Promise<void> }).close();
+        } catch {
+          // ignore shutdown errors
+        }
+      }
+    }
+  }
+
+  private createClient(source: MCPToolSourceConfig): Client {
+    const options = source.capabilities
+      ? { capabilities: structuredClone(source.capabilities) }
+      : undefined;
+    return new Client(CLIENT_INFO, options);
+  }
+
+  private createTransport(source: MCPToolSourceConfig): Transport {
+    const transportConfig = this.resolveTransportConfig(source);
+    switch (transportConfig.type) {
+      case "streamable-http": {
+        const headers = this.buildHttpHeaders(source, transportConfig.headers);
+        return new StreamableHTTPClientTransport(new URL(transportConfig.url), {
+          requestInit: { headers },
+        });
+      }
+      case "sse": {
+        const headers = this.buildHttpHeaders(source, transportConfig.headers);
+        return new SSEClientTransport(new URL(transportConfig.url), {
+          eventSourceInit: { headers },
+          requestInit: { headers },
+        });
+      }
+      case "websocket":
+        return new WebSocketClientTransport(new URL(transportConfig.url));
+      case "stdio":
+        return new StdioClientTransport({
+          command: transportConfig.command,
+          args: transportConfig.args,
+          env: transportConfig.env,
+          cwd: transportConfig.cwd,
+          stderr: transportConfig.stderr,
+        });
+      default: {
+        const exhaustiveCheck: never = transportConfig;
+        throw new Error(
+          `Unsupported MCP transport type ${(exhaustiveCheck as { type: string }).type}`
+        );
+      }
+    }
+  }
+
+  private resolveTransportConfig(
+    source: MCPToolSourceConfig
+  ): MCPTransportConfig {
+    if (source.transport) {
+      return source.transport;
+    }
+
+    if (!source.url) {
+      throw new Error(
+        `MCP source ${source.id} must provide either a url or a transport configuration.`
+      );
+    }
+
+    return { type: "streamable-http", url: source.url };
+  }
+
+  private buildHttpHeaders(
+    source: MCPToolSourceConfig,
+    transportHeaders?: Record<string, string>
+  ): Record<string, string> {
     const headers: Record<string, string> = {
       accept: "application/json",
       "content-type": "application/json",
       ...(source.headers ?? {}),
+      ...(transportHeaders ?? {}),
     };
 
     const hasAuthorizationHeader = Object.keys(headers).some(
@@ -334,7 +332,7 @@ export class McpToolSourceService {
     return headers;
   }
 
-  private computeAuthorization(auth: MCPAuthConfig): string {
+  private computeAuthorization(auth: MCPAuthConfig): string | undefined {
     switch (auth.type) {
       case "basic": {
         const encoded = Buffer.from(`${auth.username}:${auth.password}`).toString(
@@ -346,26 +344,21 @@ export class McpToolSourceService {
         return `Bearer ${auth.token}`;
       case "none":
       default:
-        return "";
+        return undefined;
     }
   }
 
   private isPromptsNotSupportedError(error: unknown): boolean {
-    if (!(error instanceof Error)) {
-      return false;
+    if (error instanceof McpError) {
+      return error.code === ErrorCode.MethodNotFound;
     }
 
-    const message = error.message.toLowerCase();
-    if (message.includes("method not found")) {
-      return true;
-    }
-
-    const cause = (error as { cause?: unknown }).cause;
-    if (cause && typeof cause === "object" && "code" in cause) {
-      const code = (cause as { code?: unknown }).code;
-      if (typeof code === "number" && code === -32601) {
-        return true;
-      }
+    if (error instanceof Error) {
+      const message = error.message.toLowerCase();
+      return (
+        message.includes("method not found") ||
+        message.includes("does not support prompts")
+      );
     }
 
     return false;
