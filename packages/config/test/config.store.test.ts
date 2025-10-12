@@ -92,7 +92,7 @@ describe("ConfigStore", () => {
     await moduleRef.close();
   });
 
-  it("updates the snapshot when compose succeeds", async () => {
+  it("updates the snapshot when load succeeds", async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [ConfigModule],
     }).compile();
@@ -101,10 +101,13 @@ describe("ConfigStore", () => {
     const service = moduleRef.get(ConfigService);
     const store = moduleRef.get(ConfigStore);
 
-    const next = await service.compose({ logLevel: "debug" });
+    const next = await service.load({ logLevel: "debug" });
 
-    expect(store.getSnapshot()).toEqual(next);
-    expect(store.getSnapshot().logLevel).toBe("debug");
+    const snapshot = store.getSnapshot();
+
+    expect(snapshot).toEqual(next);
+    expect(snapshot.logLevel).toBe("debug");
+    expect(snapshot.logging?.level).toBe("debug");
 
     await moduleRef.close();
   });

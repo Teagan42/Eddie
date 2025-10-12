@@ -108,7 +108,10 @@ export class ConfigService implements OnApplicationBootstrap {
     const configPath = await this.resolveConfigPath(options);
     const fileConfig = configPath ? await this.readConfigFile(configPath) : {};
     const config = await this.compose(fileConfig, options);
-    this.configStore?.setSnapshot(config);
+    if (this.configStore) {
+      this.configStore.setSnapshot(config);
+      return this.configStore.getSnapshot();
+    }
     return config;
   }
 
