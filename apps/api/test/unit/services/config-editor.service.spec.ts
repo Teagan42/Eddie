@@ -17,18 +17,26 @@ interface ConfigServiceMock {
   writeSource: ReturnType<typeof vi.fn>;
 }
 
+interface ConfigStoreMock {
+  getSnapshot: ReturnType<typeof vi.fn>;
+}
+
 describe("ConfigEditorService", () => {
   let service: ConfigEditorService;
   let configService: ConfigServiceMock;
   let hotReloadService: { persist: ReturnType<typeof vi.fn> };
+  let configStore: ConfigStoreMock;
 
-  const createSnapshot = (): ConfigFileSnapshot => ({
+  const createSnapshot = (
+    overrides: Partial<ConfigFileSnapshot> = {}
+  ): ConfigFileSnapshot => ({
     path: "/tmp/eddie.config.yaml",
     format: "yaml",
     content: "model: gpt-4",
     input: { model: "gpt-4" } as EddieConfigInput,
     config: { model: "gpt-4" } as EddieConfig,
     error: null,
+    ...overrides,
   });
 
   beforeEach(() => {
@@ -43,9 +51,14 @@ describe("ConfigEditorService", () => {
       persist: vi.fn(),
     } satisfies Pick<ConfigHotReloadService, "persist">;
 
+    configStore = {
+      getSnapshot: vi.fn(),
+    } satisfies ConfigStoreMock;
+
     service = new ConfigEditorService(
       configService as never,
-      hotReloadService as never
+      hotReloadService as never,
+      configStore as never
     );
   });
 
@@ -56,9 +69,27 @@ describe("ConfigEditorService", () => {
   it("delegates snapshot retrieval to the config service", async () => {
     const snapshot = createSnapshot();
     configService.readSnapshot.mockResolvedValue(snapshot);
+    configStore.getSnapshot.mockReturnValue(snapshot.config);
 
-    await expect(service.getSnapshot()).resolves.toBe(snapshot);
+    await expect(service.getSnapshot()).resolves.toEqual({
+      ...snapshot,
+      config: snapshot.config,
+    });
     expect(configService.readSnapshot).toHaveBeenCalledWith({});
+  });
+
+  it("populates the snapshot config from the config store", async () => {
+    const snapshot = createSnapshot({ config: undefined });
+    configService.readSnapshot.mockResolvedValue(snapshot);
+
+    const storeConfig = { model: "gpt-4o" } as EddieConfig;
+    configStore.getSnapshot.mockReturnValue(storeConfig);
+
+    await expect(service.getSnapshot()).resolves.toMatchObject({
+      config: storeConfig,
+    });
+
+    expect(configStore.getSnapshot).toHaveBeenCalledTimes(1);
   });
 
   it("parses and composes preview payloads", async () => {
