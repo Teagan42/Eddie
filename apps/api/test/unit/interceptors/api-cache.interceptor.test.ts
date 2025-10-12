@@ -27,6 +27,7 @@ describe("ApiCacheInterceptor", () => {
   const createConfig = (overrides: Partial<EddieConfig["api"]> = {}): EddieConfig =>
     ({
       logLevel: "info",
+      projectDir: process.cwd(),
       context: {
         baseDir: process.cwd(),
         includes: [],

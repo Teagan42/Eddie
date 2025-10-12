@@ -36,6 +36,7 @@ const createWsExecutionContext = (client: unknown): ExecutionContext =>
 describe("ApiKeyGuard", () => {
   const baseConfig = {
     logLevel: "info",
+    projectDir: process.cwd(),
     context: {
       baseDir: process.cwd(),
       includes: [],

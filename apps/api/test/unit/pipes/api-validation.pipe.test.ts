@@ -14,6 +14,7 @@ describe("ApiValidationPipe", () => {
   ): EddieConfig =>
     ({
       logLevel: "info",
+      projectDir: process.cwd(),
       context: {
         baseDir: process.cwd(),
         includes: [],

@@ -146,6 +146,16 @@ export class ConfigService implements OnApplicationBootstrap {
     return this.normalizeConfig(withCliLayer);
   }
 
+  private resolveProjectDir(
+    candidate: string | undefined,
+    fallback: string
+  ): string {
+    if (typeof candidate === "string" && candidate.trim() !== "") {
+      return candidate;
+    }
+    return fallback;
+  }
+
   private resolveDefaultConfig(): EddieConfig {
     // Start from provider-supplied defaults when available. This makes the
     // defaultsProvider the initial base that will then be overwritten by any
@@ -373,7 +383,8 @@ export class ConfigService implements OnApplicationBootstrap {
   }
 
   private ensureContextShape(
-    context: ContextConfig | undefined
+    context: ContextConfig | undefined,
+    fallbackProjectDir: string
   ): ContextConfig {
     const include = context?.include ? [...context.include] : [];
     const exclude = context?.exclude ? [...context.exclude] : undefined;
@@ -387,7 +398,7 @@ export class ConfigService implements OnApplicationBootstrap {
     return {
       include,
       exclude,
-      baseDir: context?.baseDir ?? process.cwd(),
+      baseDir: context?.baseDir ?? fallbackProjectDir,
       maxBytes: context?.maxBytes,
       maxFiles: context?.maxFiles,
       variables,
@@ -399,10 +410,24 @@ export class ConfigService implements OnApplicationBootstrap {
     base: EddieConfig,
     input: EddieConfigInput
   ): EddieConfig {
-    const mergedContext = this.ensureContextShape({
+    const nextProjectDir = this.resolveProjectDir(
+      input.projectDir,
+      base.projectDir
+    );
+
+    const contextOverrides: Partial<ContextConfig> = {
       ...base.context,
       ...(input.context ?? {}),
-    });
+    };
+
+    if (!input.context || typeof input.context.baseDir === "undefined") {
+      delete contextOverrides.baseDir;
+    }
+
+    const mergedContext = this.ensureContextShape(
+      contextOverrides,
+      nextProjectDir
+    );
 
     const mergedLogging: LoggingConfig = {
       level: base.logging?.level ?? base.logLevel,
@@ -443,6 +468,7 @@ export class ConfigService implements OnApplicationBootstrap {
     return {
       ...base,
       ...(input.model ? { model: input.model } : {}),
+      projectDir: nextProjectDir,
       provider,
       providers,
       context: mergedContext,
@@ -476,12 +502,19 @@ export class ConfigService implements OnApplicationBootstrap {
 
   private normalizeConfig(config: EddieConfig): EddieConfig {
     const logging = this.normalizeLogging(config);
+    const projectDir = this.resolveProjectDir(
+      config.projectDir,
+      process.cwd()
+    );
+    const context = this.ensureContextShape(config.context, projectDir);
     return {
       ...config,
       ...logging,
-      agents: this.ensureAgentsShape(
-        config.agents,
-        config.systemPrompt
+      projectDir,
+      context,
+      agents: this.applyAgentsBaseDir(
+        this.ensureAgentsShape(config.agents, config.systemPrompt),
+        projectDir
       ),
     };
   }
@@ -815,6 +848,100 @@ export class ConfigService implements OnApplicationBootstrap {
         typeof agents?.enableSubagents === "boolean"
           ? agents.enableSubagents
           : true,
+    };
+  }
+
+  private applyAgentsBaseDir(
+    agents: AgentsConfig,
+    baseDir: string
+  ): AgentsConfig {
+    const manager = { ...agents.manager };
+
+    manager.promptTemplate = this.applyTemplateBaseDir(
+      manager.promptTemplate,
+      baseDir
+    );
+
+    manager.defaultUserPromptTemplate = this.applyTemplateBaseDir(
+      manager.defaultUserPromptTemplate,
+      baseDir
+    );
+
+    if (manager.resources) {
+      manager.resources = manager.resources.map((resource) =>
+        this.applyContextResourceBaseDir(resource, baseDir)
+      );
+    }
+
+    const subagents = agents.subagents.map((agent) => {
+      const cloned = { ...agent };
+
+      cloned.promptTemplate = this.applyTemplateBaseDir(
+        agent.promptTemplate,
+        baseDir
+      );
+
+      cloned.defaultUserPromptTemplate = this.applyTemplateBaseDir(
+        agent.defaultUserPromptTemplate,
+        baseDir
+      );
+
+      if (agent.resources) {
+        cloned.resources = agent.resources.map((resource) =>
+          this.applyContextResourceBaseDir(resource, baseDir)
+        );
+      }
+
+      return cloned;
+    });
+
+    return {
+      ...agents,
+      manager,
+      subagents,
+    };
+  }
+
+  private applyContextResourceBaseDir(
+    resource: ContextResourceConfig,
+    baseDir: string
+  ): ContextResourceConfig {
+    if (resource.type === "bundle") {
+      if (resource.baseDir) {
+        return resource;
+      }
+      return {
+        ...resource,
+        baseDir,
+      };
+    }
+
+    const template = this.applyTemplateBaseDir(resource.template, baseDir);
+    if (template === resource.template) {
+      return resource;
+    }
+
+    return {
+      ...resource,
+      template: template!,
+    };
+  }
+
+  private applyTemplateBaseDir<T extends { baseDir?: string }>(
+    descriptor: T | undefined,
+    baseDir: string
+  ): T | undefined {
+    if (!descriptor) {
+      return undefined;
+    }
+
+    if (descriptor.baseDir) {
+      return descriptor;
+    }
+
+    return {
+      ...descriptor,
+      baseDir,
     };
   }
 
@@ -1369,6 +1496,13 @@ export class ConfigService implements OnApplicationBootstrap {
   }
 
   private validateConfig(config: EddieConfig): void {
+    if (
+      typeof config.projectDir !== "string" ||
+      config.projectDir.trim() === ""
+    ) {
+      throw new Error("projectDir must be a non-empty string.");
+    }
+
     this.validateToolsConfig(config.tools);
 
     if (

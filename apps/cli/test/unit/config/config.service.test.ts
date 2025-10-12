@@ -77,4 +77,45 @@ describe("ConfigService CLI precedence", () => {
     expect(composed.tools?.disabled).toEqual(["bash"]);
     expect(composed.tools?.autoApprove).toBe(true);
   });
+
+  it("inherits context baseDir from projectDir when unset", async () => {
+    const projectDir = "/tmp/eddie-project";
+    const configInput = {
+      projectDir,
+      context: {
+        include: ["src/**/*"],
+      },
+    } as unknown as EddieConfigInput;
+
+    const { service } = createService();
+
+    const composed = await service.compose(configInput);
+
+    expect((composed as unknown as { projectDir: string }).projectDir).toBe(
+      projectDir
+    );
+    expect(composed.context.baseDir).toBe(projectDir);
+  });
+
+  it("defaults agent prompt templates to the projectDir", async () => {
+    const projectDir = "/tmp/eddie-project";
+    const configInput = {
+      projectDir,
+      agents: {
+        manager: {
+          prompt: "Hello",
+          promptTemplate: {
+            file: "manager.jinja",
+          },
+        },
+        subagents: [],
+      },
+    } as unknown as EddieConfigInput;
+
+    const { service } = createService();
+
+    const composed = await service.compose(configInput);
+
+    expect(composed.agents.manager.promptTemplate?.baseDir).toBe(projectDir);
+  });
 });

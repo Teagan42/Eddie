@@ -100,6 +100,10 @@ export class EngineService {
 
     try {
       const cfg = await this.resolveRuntimeConfig(options);
+      const projectDir = cfg.projectDir ?? process.cwd();
+      if (!cfg.context.baseDir) {
+        cfg.context.baseDir = projectDir;
+      }
       const managerRuntimeConfig = this.resolveAgentProviderConfig(
         cfg,
         cfg.agents?.manager?.provider,
@@ -202,11 +206,13 @@ export class EngineService {
       });
       const transcriptCompactor = this.resolveTranscriptCompactor(cfg);
 
+      const runtimeCwd = cfg.context.baseDir ?? projectDir;
+
       const runtime: AgentRuntimeOptions = {
         catalog,
         hooks,
         confirm,
-        cwd: cfg.context.baseDir ?? process.cwd(),
+        cwd: runtimeCwd,
         logger,
         tracePath,
         traceAppend: cfg.output?.jsonlAppend ?? true,

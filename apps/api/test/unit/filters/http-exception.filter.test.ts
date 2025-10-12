@@ -11,6 +11,7 @@ import { of } from "rxjs";
 describe("ApiHttpExceptionFilter", () => {
   const baseConfig = {
     logLevel: "info",
+    projectDir: process.cwd(),
     context: {
       baseDir: process.cwd(),
       includes: [],
