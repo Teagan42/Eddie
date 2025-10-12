@@ -50,8 +50,19 @@ implements
   }
 
   async handle(event: ChatMessageCreatedEvent): Promise<void> {
-    const messages = this.chatSessions.listMessages(event.sessionId);
-    const message = messages.find((entry) => entry.id === event.messageId);
+    await this.processMessage(event.sessionId, event.messageId);
+  }
+
+  onMessageCreated(message: ChatMessageDto): void {
+    void this.processMessage(message.sessionId, message.id);
+  }
+
+  private async processMessage(
+    sessionId: string,
+    messageId: string
+  ): Promise<void> {
+    const messages = this.chatSessions.listMessages(sessionId);
+    const message = messages.find((entry) => entry.id === messageId);
     if (!message || !this.shouldInvokeEngine(message)) {
       return;
     }
