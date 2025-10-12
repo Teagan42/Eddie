@@ -12,8 +12,14 @@ interface RecordedRequest {
   headers: http.IncomingHttpHeaders;
 }
 
+interface RecordedResponse {
+  method: string;
+  payload: unknown;
+}
+
 describe("MCP tool source integration", () => {
   const requests: RecordedRequest[] = [];
+  const responses: RecordedResponse[] = [];
   const expectedToken = "mock-token";
   const toolSchema = {
     type: "object",
@@ -102,6 +108,7 @@ describe("MCP tool source integration", () => {
               sessionId: "mock-session",
               protocolVersion: "2024-11-05",
               capabilities: { tools: {}, resources: {} },
+              serverInfo: { name: "mock-mcp", version: "1.0.0" },
             },
           };
           break;
@@ -188,6 +195,7 @@ describe("MCP tool source integration", () => {
       }
 
       res.writeHead(200, { "content-type": "application/json" });
+      responses.push({ method: message.method, payload: responsePayload });
       res.end(JSON.stringify(responsePayload));
     });
 
@@ -213,6 +221,7 @@ describe("MCP tool source integration", () => {
 
   it("discovers tools and executes MCP-backed handlers", async () => {
     requests.length = 0;
+    responses.length = 0;
     const service = new McpToolSourceService();
     const config: MCPToolSourceConfig = {
       id: "mock",
@@ -252,6 +261,17 @@ describe("MCP tool source integration", () => {
       "prompts/list",
       "prompts/get",
     ]);
+    const initializeResponse = responses.find((entry) => entry.method === "initialize");
+    expect(initializeResponse?.payload).toEqual(
+      expect.objectContaining({
+        result: expect.objectContaining({
+          serverInfo: expect.objectContaining({
+            name: expect.any(String),
+            version: expect.any(String),
+          }),
+        }),
+      })
+    );
     expect(requests[0].headers.authorization).toBe(`Bearer ${expectedToken}`);
     expect(requests[1].params?.sessionId).toBe("mock-session");
     expect(requests[2].params?.sessionId).toBe("mock-session");
