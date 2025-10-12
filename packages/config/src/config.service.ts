@@ -394,9 +394,7 @@ export class ConfigService implements OnApplicationBootstrap {
       ? { ...contextInput.variables }
       : undefined;
     const resources = contextInput?.resources
-      ? contextInput.resources.map((resource) =>
-          this.cloneResourceConfig(resource)
-        )
+      ? contextInput.resources.map((resource) => this.cloneResourceConfig(resource))
       : undefined;
 
     return {
