@@ -133,6 +133,8 @@ type AutoSessionAttemptStatus = 'idle' | 'pending' | 'failed';
 type AutoSessionAttemptState = {
   status: AutoSessionAttemptStatus;
   apiKey: string | null;
+  lastAttemptAt: number | null;
+  lastFailureAt: number | null;
 };
 
 // Small runtime type for realtime tool events forwarded over the "tools" socket.
@@ -297,6 +299,8 @@ export function ChatPage(): JSX.Element {
   const autoSessionAttemptRef = useRef<AutoSessionAttemptState>({
     status: 'idle',
     apiKey: null,
+    lastAttemptAt: null,
+    lastFailureAt: null,
   });
   const setAutoSessionAttemptState = useCallback(
     (updates: Partial<AutoSessionAttemptState>) => {
@@ -626,14 +630,14 @@ export function ChatPage(): JSX.Element {
   const createSessionMutation = useMutation({
     mutationFn: (payload: CreateChatSessionDto) => api.http.chatSessions.create(payload),
     onSuccess: (session) => {
-      setAutoSessionAttemptState({ status: 'idle' });
+      setAutoSessionAttemptState({ status: 'idle', lastAttemptAt: null, lastFailureAt: null });
       queryClient.setQueryData<ChatSessionDto[]>(['chat-sessions'], (previous = []) =>
         sortSessions([session, ...previous]),
       );
       applyChatUpdate((chat) => ({ ...chat, selectedSessionId: session.id }));
     },
     onError: () => {
-      setAutoSessionAttemptState({ status: 'failed' });
+      setAutoSessionAttemptState({ status: 'failed', lastFailureAt: Date.now() });
     },
   });
   const isCreatingSession = createSessionMutation.isPending;
@@ -641,13 +645,18 @@ export function ChatPage(): JSX.Element {
   useEffect(() => {
     const currentKey = apiKey ?? null;
     if (autoSessionAttemptRef.current.apiKey !== currentKey) {
-      setAutoSessionAttemptState({ apiKey: currentKey, status: 'idle' });
+      setAutoSessionAttemptState({
+        apiKey: currentKey,
+        status: 'idle',
+        lastAttemptAt: null,
+        lastFailureAt: null,
+      });
     }
   }, [apiKey]);
 
   useEffect(() => {
     if (sessions.length > 0) {
-      setAutoSessionAttemptState({ status: 'idle' });
+      setAutoSessionAttemptState({ status: 'idle', lastAttemptAt: null, lastFailureAt: null });
     }
   }, [sessions.length]);
 
@@ -656,11 +665,32 @@ export function ChatPage(): JSX.Element {
       return;
     }
 
-    if (autoSessionAttemptRef.current.status !== 'idle' || isCreatingSession) {
+    const attemptState = autoSessionAttemptRef.current;
+
+    if (attemptState.status === 'failed' && attemptState.lastFailureAt) {
+      const elapsedSinceFailure = Date.now() - attemptState.lastFailureAt;
+      if (elapsedSinceFailure < 30_000) {
+        return;
+      }
+
+      setAutoSessionAttemptState({ status: 'idle', lastAttemptAt: null, lastFailureAt: null });
+    }
+
+    if (attemptState.status !== 'idle' || isCreatingSession) {
       return;
     }
 
-    setAutoSessionAttemptState({ status: 'pending', apiKey: apiKey ?? null });
+    const now = Date.now();
+    if (attemptState.lastAttemptAt && now - attemptState.lastAttemptAt < 5_000) {
+      return;
+    }
+
+    setAutoSessionAttemptState({
+      status: 'pending',
+      apiKey: apiKey ?? null,
+      lastAttemptAt: now,
+      lastFailureAt: null,
+    });
     createSessionMutation.mutate({
       title: 'New orchestrator session',
       description: '',
