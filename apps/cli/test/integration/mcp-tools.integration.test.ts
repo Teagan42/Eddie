@@ -174,18 +174,35 @@ describe("MCP tool source integration", () => {
             },
           };
           break;
-        case "tools/call":
+        case "tools/call": {
+          const query =
+            typeof message.params?.arguments?.query === "string"
+              ? message.params.arguments.query
+              : "";
+          const resultText = `results for ${query}`;
           responsePayload = {
             jsonrpc: "2.0",
             id: message.id,
             result: {
               schema: outputSchema.$id,
-              content: `results for ${message.params?.arguments?.query}`,
+              content: resultText,
               data: { items: ["alpha", "beta"] },
               metadata: { tookMs: 12 },
+              messages: [
+                {
+                  role: "assistant",
+                  content: [
+                    {
+                      type: "text",
+                      text: resultText,
+                    },
+                  ],
+                },
+              ],
             },
           };
           break;
+        }
         default:
           responsePayload = {
             jsonrpc: "2.0",
@@ -299,6 +316,15 @@ describe("MCP tool source integration", () => {
     ]);
     expect(requests[5].params?.sessionId).toBe("mock-session");
     expect(requests[5].params?.arguments).toEqual({ query: "beta" });
+
+    const toolCallResponse = responses.find((entry) => entry.method === "tools/call");
+    expect(toolCallResponse?.payload).toEqual(
+      expect.objectContaining({
+        result: expect.objectContaining({
+          messages: expect.any(Array),
+        }),
+      })
+    );
 
     expect(result).toEqual({
       schema: outputSchema.$id,
