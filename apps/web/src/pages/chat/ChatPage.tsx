@@ -128,6 +128,13 @@ type ChatPreferences = NonNullable<LayoutPreferencesDto['chat']>;
 
 type ComposerRole = CreateChatMessageDto['role'];
 
+type AutoSessionAttemptStatus = 'idle' | 'pending' | 'failed';
+
+type AutoSessionAttemptState = {
+  status: AutoSessionAttemptStatus;
+  apiKey: string | null;
+};
+
 // Small runtime type for realtime tool events forwarded over the "tools" socket.
 // We keep this conservative and shallow: server-side sanitization already
 // stringifies large values, so the client only needs to read common fields.
@@ -287,7 +294,16 @@ export function ChatPage(): JSX.Element {
   const sessionsLoaded = sessionsQuery.isSuccess;
 
   const selectedSessionIdRef = useRef<string | null>(null);
-  const autoSessionAttemptRef = useRef(false);
+  const autoSessionAttemptRef = useRef<AutoSessionAttemptState>({
+    status: 'idle',
+    apiKey: null,
+  });
+  const setAutoSessionAttemptState = useCallback(
+    (updates: Partial<AutoSessionAttemptState>) => {
+      Object.assign(autoSessionAttemptRef.current, updates);
+    },
+    [],
+  );
   const agentActivitySessionRef = useRef<string | null>(null);
   const toolInvocationCacheRef = useRef<Map<string, ToolInvocationNode[]>>(new Map());
 
@@ -610,26 +626,28 @@ export function ChatPage(): JSX.Element {
   const createSessionMutation = useMutation({
     mutationFn: (payload: CreateChatSessionDto) => api.http.chatSessions.create(payload),
     onSuccess: (session) => {
+      setAutoSessionAttemptState({ status: 'idle' });
       queryClient.setQueryData<ChatSessionDto[]>(['chat-sessions'], (previous = []) =>
         sortSessions([session, ...previous]),
       );
       applyChatUpdate((chat) => ({ ...chat, selectedSessionId: session.id }));
     },
     onError: () => {
-      autoSessionAttemptRef.current = false;
+      setAutoSessionAttemptState({ status: 'failed' });
     },
   });
   const isCreatingSession = createSessionMutation.isPending;
 
   useEffect(() => {
-    if (!apiKey) {
-      autoSessionAttemptRef.current = false;
+    const currentKey = apiKey ?? null;
+    if (autoSessionAttemptRef.current.apiKey !== currentKey) {
+      setAutoSessionAttemptState({ apiKey: currentKey, status: 'idle' });
     }
   }, [apiKey]);
 
   useEffect(() => {
     if (sessions.length > 0) {
-      autoSessionAttemptRef.current = false;
+      setAutoSessionAttemptState({ status: 'idle' });
     }
   }, [sessions.length]);
 
@@ -638,11 +656,11 @@ export function ChatPage(): JSX.Element {
       return;
     }
 
-    if (autoSessionAttemptRef.current || isCreatingSession) {
+    if (autoSessionAttemptRef.current.status !== 'idle' || isCreatingSession) {
       return;
     }
 
-    autoSessionAttemptRef.current = true;
+    setAutoSessionAttemptState({ status: 'pending', apiKey: apiKey ?? null });
     createSessionMutation.mutate({
       title: 'New orchestrator session',
       description: '',

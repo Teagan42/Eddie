@@ -141,6 +141,25 @@ describe("ChatPage authentication behaviours", () => {
     expect(sessionButton).toHaveClass("rt-variant-solid");
   });
 
+  it("stops auto session creation retries after a failure", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    createSessionMock.mockRejectedValue(new Error("invalid key"));
+
+    try {
+      renderChatPage();
+
+      await waitFor(() => expect(createSessionMock).toHaveBeenCalledTimes(1));
+
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(createSessionMock).toHaveBeenCalledTimes(1);
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
   it("disables the composer when no API key is available", async () => {
     const timestamp = new Date().toISOString();
     useAuthMock.mockReturnValue({ apiKey: null, setApiKey: vi.fn() });
