@@ -8,11 +8,17 @@ import type { CliRuntimeOptions, EddieConfig, EddieConfigInput } from "../src/ty
 const clone = <T>(value: T): T => structuredClone(value);
 
 const createService = (defaults?: Partial<EddieConfig>) => {
-  const configStore = { setSnapshot: vi.fn() } as unknown as ConfigStore;
-  const moduleOptions = {} as CliRuntimeOptions;
   const providerDefaults = defaults
     ? { ...clone(DEFAULT_CONFIG), ...defaults }
     : undefined;
+  let snapshot = clone(providerDefaults ?? DEFAULT_CONFIG);
+  const configStore = {
+    setSnapshot: vi.fn((next: EddieConfig) => {
+      snapshot = clone(next);
+    }),
+    getSnapshot: vi.fn(() => clone(snapshot)),
+  } as unknown as ConfigStore;
+  const moduleOptions = {} as CliRuntimeOptions;
 
   const service = new ConfigService(configStore, moduleOptions, providerDefaults);
 
@@ -69,7 +75,27 @@ describe("ConfigService compose precedence", () => {
 
     expect(composed.model).toBe("cli-model");
     expect(composed.logging?.level).toBe("error");
-    expect(configStore.setSnapshot).toHaveBeenCalledWith(composed);
+    expect(configStore.setSnapshot).not.toHaveBeenCalled();
+  });
+});
+
+describe("ConfigService load lifecycle", () => {
+  it("updates the config store when loading configuration", async () => {
+    const { service, configStore } = createService();
+
+    const config = await service.load({});
+
+    expect(configStore.setSnapshot).toHaveBeenCalledWith(config);
+  });
+
+  it("returns the stored snapshot when a config store is provided", async () => {
+    const { service, configStore } = createService();
+
+    const config = await service.load({});
+
+    expect(configStore.getSnapshot).toHaveBeenCalled();
+    const lastSnapshot = configStore.getSnapshot.mock.results.at(-1)?.value;
+    expect(lastSnapshot).toEqual(config);
   });
 });
 

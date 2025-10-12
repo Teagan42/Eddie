@@ -26,14 +26,18 @@ function configureLogging(
 export async function bootstrap(): Promise<void> {
   ensureDefaultConfigRoot();
 
-  const app = await NestFactory.create(ApiModule, { bufferLogs: true });
+  const runtimeOptions = getRuntimeOptions();
+
+  const app = await NestFactory.create(
+    ApiModule.forRoot(runtimeOptions),
+    { bufferLogs: true },
+  );
   app.enableShutdownHooks();
   app.useWebSocketAdapter(new WsAdapter(app));
 
   const configService = app.get(ConfigService);
   const configStore = app.get(ConfigStore);
   const loggerService = app.get(LoggerService);
-  const runtimeOptions = getRuntimeOptions();
   if (hasRuntimeOverrides(runtimeOptions)) {
     await configService.load(runtimeOptions);
   }

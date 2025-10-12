@@ -24,6 +24,9 @@ describe("ConfigStore", () => {
 
   afterEach(async () => {
     delete process.env.CONFIG_ROOT;
+    delete process.env.EDDIE_CLI_LOG_LEVEL;
+    delete process.env.EDDIE_CLI_CONTEXT;
+    delete process.env.EDDIE_CLI_DISABLE_SUBAGENTS;
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
@@ -70,7 +73,26 @@ describe("ConfigStore", () => {
     await moduleRef.close();
   });
 
-  it("updates the snapshot when compose succeeds", async () => {
+  it("seeds runtime overrides from environment variables", async () => {
+    process.env.EDDIE_CLI_LOG_LEVEL = "debug";
+    process.env.EDDIE_CLI_CONTEXT = "src,tests";
+    process.env.EDDIE_CLI_DISABLE_SUBAGENTS = "true";
+
+    const moduleRef = await Test.createTestingModule({
+      imports: [ConfigModule],
+    }).compile();
+
+    const store = moduleRef.get(ConfigStore);
+    const snapshot = store.getSnapshot();
+
+    expect(snapshot.logLevel).toBe("debug");
+    expect(snapshot.context?.include).toEqual(["src", "tests"]);
+    expect(snapshot.agents?.enableSubagents).toBe(false);
+
+    await moduleRef.close();
+  });
+
+  it("updates the snapshot when load succeeds", async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [ConfigModule],
     }).compile();
@@ -79,10 +101,13 @@ describe("ConfigStore", () => {
     const service = moduleRef.get(ConfigService);
     const store = moduleRef.get(ConfigStore);
 
-    const next = await service.compose({ logLevel: "debug" });
+    const next = await service.load({ logLevel: "debug" });
 
-    expect(store.getSnapshot()).toEqual(next);
-    expect(store.getSnapshot().logLevel).toBe("debug");
+    const snapshot = store.getSnapshot();
+
+    expect(snapshot).toEqual(next);
+    expect(snapshot.logLevel).toBe("debug");
+    expect(snapshot.logging?.level).toBe("debug");
 
     await moduleRef.close();
   });

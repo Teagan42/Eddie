@@ -11,6 +11,7 @@ import { MODULE_OPTIONS_TOKEN } from './config.const';
 import { eddieConfig } from "./config.namespace";
 import { ConfigStore } from './config.store';
 import { DEFAULT_CONFIG } from "./defaults";
+import { resolveCliRuntimeOptionsFromEnv } from "./runtime-env";
 import type {
   AgentProviderConfig,
   AgentsConfig,
@@ -82,7 +83,9 @@ export class ConfigService implements OnApplicationBootstrap {
   private readonly moduleOptions: CliRuntimeOptions;
 
   constructor(
-    @Inject(forwardRef(() => ConfigStore)) private readonly configStore: ConfigStore,
+    @Optional()
+    @Inject(forwardRef(() => ConfigStore))
+    private readonly configStore?: ConfigStore,
     @Optional()
     @Inject(MODULE_OPTIONS_TOKEN)
     moduleOptions?: CliRuntimeOptions,
@@ -90,7 +93,11 @@ export class ConfigService implements OnApplicationBootstrap {
     @Inject(eddieConfig.KEY)
     private readonly defaultsProvider?: ConfigType<typeof eddieConfig>,
   ) {
-    this.moduleOptions = moduleOptions ?? {};
+    const envOptions = resolveCliRuntimeOptionsFromEnv(process.env);
+    this.moduleOptions = {
+      ...envOptions,
+      ...(moduleOptions ?? {}),
+    };
   }
 
   async onApplicationBootstrap() {
@@ -100,7 +107,12 @@ export class ConfigService implements OnApplicationBootstrap {
   async load(options: CliRuntimeOptions): Promise<EddieConfig> {
     const configPath = await this.resolveConfigPath(options);
     const fileConfig = configPath ? await this.readConfigFile(configPath) : {};
-    return this.compose(fileConfig, options);
+    const config = await this.compose(fileConfig, options);
+    if (this.configStore) {
+      this.configStore.setSnapshot(config);
+      return this.configStore.getSnapshot();
+    }
+    return config;
   }
 
   async compose(
@@ -118,8 +130,6 @@ export class ConfigService implements OnApplicationBootstrap {
     );
 
     this.validateConfig(finalConfig);
-
-    this.configStore?.setSnapshot(finalConfig);
 
     return finalConfig;
   }

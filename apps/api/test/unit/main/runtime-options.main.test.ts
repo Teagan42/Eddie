@@ -15,6 +15,7 @@ const stubs = vi.hoisted(() => ({
   listenMock: vi.fn(),
   createMock: vi.fn(),
   configureLoggerMock: vi.fn(),
+  apiForRootMock: vi.fn(),
 }));
 
 class ConfigServiceStub {
@@ -35,7 +36,9 @@ class HttpLoggerMiddlewareStub {
 }
 
 vi.mock("../../../src/api.module", () => ({
-  ApiModule: class {},
+  ApiModule: {
+    forRoot: stubs.apiForRootMock,
+  },
 }));
 
 vi.mock("../../../src/config-root", () => ({
@@ -129,6 +132,8 @@ describe("bootstrap runtime options", () => {
       use: vi.fn(),
       listen: stubs.listenMock,
     });
+
+    stubs.apiForRootMock.mockReturnValue({});
   });
 
   afterEach(() => {
@@ -195,5 +200,54 @@ describe("bootstrap runtime options", () => {
     });
     expect(stubs.createMock).toHaveBeenCalledTimes(2);
     expect(stubs.listenMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses ApiModule.forRoot when creating the application", async () => {
+    const runtimeOverrides = {
+      config: "/tmp/eddie.yaml",
+      context: ["src", "docs"],
+    } satisfies Parameters<typeof setRuntimeOptionsFromArgv>[0];
+
+    stubs.apiForRootMock.mockReset();
+    const moduleRef = Symbol("api-module");
+    stubs.apiForRootMock
+      .mockReturnValueOnce({})
+      .mockReturnValueOnce(moduleRef);
+
+    process.argv = [
+      "node",
+      "main.js",
+      "--config",
+      runtimeOverrides.config!,
+      "--context",
+      runtimeOverrides.context![0]!,
+      "--context",
+      runtimeOverrides.context![1]!,
+    ];
+
+    const runtimeOptionsModule = await import("../../../src/runtime-options");
+    const getRuntimeOptionsSpy = vi
+      .spyOn(runtimeOptionsModule, "getRuntimeOptions")
+      .mockReturnValueOnce({})
+      .mockReturnValueOnce({
+        config: runtimeOverrides.config,
+        context: runtimeOverrides.context,
+      });
+
+    const { bootstrap } = await import("../../../src/main");
+
+    await bootstrap();
+
+    expect(stubs.apiForRootMock).toHaveBeenCalledTimes(2);
+    const lastCall = stubs.apiForRootMock.mock.calls.at(-1);
+    expect(lastCall?.[0]).toEqual({
+      config: runtimeOverrides.config,
+      context: runtimeOverrides.context,
+    });
+
+    const createArgs = stubs.createMock.mock.calls.at(-1);
+    expect(createArgs?.[0]).toBe(moduleRef);
+
+    getRuntimeOptionsSpy.mockRestore();
   });
 });
