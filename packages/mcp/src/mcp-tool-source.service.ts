@@ -6,9 +6,9 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { WebSocketClientTransport } from "@modelcontextprotocol/sdk/client/websocket.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import {
+  CallToolResultSchema,
   ErrorCode,
   McpError,
-  ResultSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type {
@@ -24,6 +24,7 @@ import type {
   McpToolSourceDiscovery,
 } from "./types";
 import type { ToolCallArguments, ToolDefinition, ToolResult } from "@eddie/types";
+import type { EventSourceInit } from "eventsource";
 
 const CLIENT_INFO = { name: "eddie", version: "unknown" } as const;
 
@@ -88,7 +89,7 @@ export class McpToolSourceService {
     return this.withClient(source, async (client) => {
       const toolsResult = await client.listTools();
       const resourcesResult = await client.listResources();
-      const prompts = await this.discoverPrompts(client);
+      const prompts = await this.discoverPrompts(client, source.id);
 
       const toolDefinitions = (toolsResult.tools ?? []).map((tool) =>
         this.toToolDefinition(source, {
@@ -102,10 +103,15 @@ export class McpToolSourceService {
       );
 
       const resources = (resourcesResult.resources ?? []).map((resource) => ({
-        ...resource,
-        metadata: resource.metadata
-          ? structuredClone(resource.metadata)
-          : undefined,
+        name: resource.name,
+        uri: resource.uri,
+        description:
+          typeof resource.description === "string"
+            ? resource.description
+            : undefined,
+        mimeType:
+          typeof resource.mimeType === "string" ? resource.mimeType : undefined,
+        metadata: this.cloneRecord(resource.metadata),
       }));
 
       return { tools: toolDefinitions, resources, prompts };
@@ -113,7 +119,8 @@ export class McpToolSourceService {
   }
 
   private async discoverPrompts(
-    client: Client
+    client: Client,
+    sourceId: string
   ): Promise<McpPromptDefinition[]> {
     try {
       const listResult = await client.listPrompts();
@@ -125,22 +132,11 @@ export class McpToolSourceService {
       const definitions = await Promise.all(
         descriptors.map(async (descriptor) => {
           const result = await client.getPrompt({ name: descriptor.name });
-          const prompt = result.prompt;
-          return {
-            name: prompt.name,
-            description: prompt.description,
-            arguments: prompt.arguments?.map((argument) => ({
-              ...argument,
-              schema:
-                argument.schema !== undefined
-                  ? structuredClone(argument.schema)
-                  : undefined,
-            })),
-            messages: (prompt.messages ?? []).map((message) => ({
-              ...message,
-              content: structuredClone(message.content ?? []),
-            })),
-          } satisfies McpPromptDefinition;
+          return this.normalizePromptDefinition(
+            sourceId,
+            descriptor.name,
+            result.prompt
+          );
         })
       );
 
@@ -189,7 +185,7 @@ export class McpToolSourceService {
           name: toolName,
           arguments: structuredClone(args ?? {}),
         },
-        ResultSchema
+        CallToolResultSchema
       );
 
       if (
@@ -217,10 +213,7 @@ export class McpToolSourceService {
           typedResult.data !== undefined
             ? structuredClone(typedResult.data)
             : undefined,
-        metadata:
-          typedResult.metadata !== undefined
-            ? structuredClone(typedResult.metadata)
-            : undefined,
+        metadata: this.cloneRecord(typedResult.metadata),
       };
 
       return toolResult;
@@ -275,8 +268,11 @@ export class McpToolSourceService {
           accept: "text/event-stream",
           includeContentType: false,
         });
+        const eventSourceInit = { headers } as EventSourceInit & {
+          headers?: Record<string, string>;
+        };
         return new SSEClientTransport(new URL(transportConfig.url), {
-          eventSourceInit: { headers },
+          eventSourceInit,
           requestInit: { headers },
         });
       }
@@ -380,4 +376,162 @@ export class McpToolSourceService {
 
     return false;
   }
+
+  private normalizePromptDefinition(
+    sourceId: string,
+    descriptorName: string,
+    prompt: unknown
+  ): McpPromptDefinition {
+    const location = this.formatPromptLocation(sourceId, descriptorName);
+    const {
+      name,
+      description,
+      arguments: rawArguments,
+      messages,
+    } = this.expectRecord<{
+      name?: unknown;
+      description?: unknown;
+      arguments?: unknown;
+      messages?: unknown;
+    }>(prompt, `MCP prompt ${location} is not an object`);
+
+    if (typeof name !== "string" || name.trim() === "") {
+      throw new Error(`MCP prompt ${location} is missing a name`);
+    }
+
+    const promptArguments = this.normalizePromptArguments(
+      sourceId,
+      name,
+      rawArguments
+    );
+    const promptMessages = this.normalizePromptMessages(
+      sourceId,
+      name,
+      messages
+    );
+
+    return {
+      name,
+      description:
+        typeof description === "string" ? description : undefined,
+      arguments: promptArguments,
+      messages: promptMessages,
+    };
+  }
+
+  private normalizePromptArguments(
+    sourceId: string,
+    promptName: string,
+    rawArguments: unknown
+  ): McpPromptDefinition["arguments"] {
+    const location = this.formatPromptLocation(sourceId, promptName);
+    if (rawArguments === undefined) {
+      return undefined;
+    }
+
+    if (!Array.isArray(rawArguments)) {
+      throw new Error(`MCP prompt ${location} has invalid arguments`);
+    }
+
+    return rawArguments.map((argument, index) => {
+      const {
+        name,
+        description,
+        required,
+        schema,
+      }: {
+        name?: unknown;
+        description?: unknown;
+        required?: unknown;
+        schema?: unknown;
+      } = this.expectRecord<{
+        name?: unknown;
+        description?: unknown;
+        required?: unknown;
+        schema?: unknown;
+      }>(
+        argument,
+        `MCP prompt ${location} argument #${index + 1} is not an object`
+      );
+
+      if (typeof name !== "string" || name.trim() === "") {
+        throw new Error(
+          `MCP prompt ${location} argument #${index + 1} is missing a name`
+        );
+      }
+
+      return {
+        name,
+        description:
+          typeof description === "string" ? description : undefined,
+        required: typeof required === "boolean" ? required : undefined,
+        schema: this.cloneRecord(schema),
+      };
+    });
+  }
+
+  private normalizePromptMessages(
+    sourceId: string,
+    promptName: string,
+    rawMessages: unknown
+  ): McpPromptDefinition["messages"] {
+    const location = this.formatPromptLocation(sourceId, promptName);
+    if (!Array.isArray(rawMessages) || rawMessages.length === 0) {
+      throw new Error(`MCP prompt ${location} has no messages`);
+    }
+
+    return rawMessages.map((message, index) => {
+      const { role, content } = this.expectRecord<{
+        role?: unknown;
+        content?: unknown;
+      }>(
+        message,
+        `MCP prompt ${location} message #${index + 1} is not an object`
+      );
+
+      if (typeof role !== "string" || role.trim() === "") {
+        throw new Error(
+          `MCP prompt ${location} message #${index + 1} is missing a role`
+        );
+      }
+
+      if (content !== undefined && !Array.isArray(content)) {
+        throw new Error(
+          `MCP prompt ${location} message #${index + 1} has invalid content`
+        );
+      }
+
+      return {
+        role,
+        content: structuredClone((content ?? []) as unknown[]),
+      };
+    });
+  }
+
+  private formatPromptLocation(sourceId: string, promptName: string): string {
+    return `${sourceId}/${promptName}`;
+  }
+
+  private expectRecord<T extends Record<string, unknown>>(
+    value: unknown,
+    errorMessage: string
+  ): T {
+    if (!isRecord(value)) {
+      throw new Error(errorMessage);
+    }
+
+    return value as T;
+  }
+
+  private cloneRecord(value: unknown): Record<string, unknown> | undefined {
+    if (!isRecord(value)) {
+      return undefined;
+    }
+
+    return structuredClone(value);
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

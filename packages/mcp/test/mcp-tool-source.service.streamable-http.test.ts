@@ -259,4 +259,30 @@ describe("McpToolSourceService streamable HTTP transport", () => {
       metadata: { tookMs: 12 },
     });
   });
+
+  it("rejects when a prompt payload omits mandatory fields", async () => {
+    const service = new McpToolSourceService();
+    const config: StreamableHttpConfiguredSource = {
+      id: "invalid-prompts",
+      type: "mcp",
+      url: "https://mcp.example.com/rpc",
+      name: "Invalid prompt server",
+    };
+
+    const originalImplementation = hoisted.Client.getMockImplementation();
+    hoisted.Client.mockImplementationOnce((info: unknown, options: unknown) => {
+      const instance = originalImplementation!(info, options);
+      instance.listPrompts = vi
+        .fn()
+        .mockResolvedValue({ prompts: [{ name: "broken" }] });
+      instance.getPrompt = vi
+        .fn()
+        .mockResolvedValue({ prompt: { description: "missing name" } });
+      return instance;
+    });
+
+    await expect(service.discoverSources([config])).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[Error: MCP prompt invalid-prompts/broken is missing a name]`
+    );
+  });
 });
