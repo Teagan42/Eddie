@@ -383,24 +383,28 @@ export class ConfigService implements OnApplicationBootstrap {
   }
 
   private ensureContextShape(
-    context: ContextConfig | undefined,
+    contextInput: Partial<ContextConfig> | undefined,
     fallbackProjectDir: string
   ): ContextConfig {
-    const include = context?.include ? [...context.include] : [];
-    const exclude = context?.exclude ? [...context.exclude] : undefined;
-    const variables = context?.variables
-      ? { ...context.variables }
+    const include = contextInput?.include ? [...contextInput.include] : [];
+    const exclude = contextInput?.exclude
+      ? [...contextInput.exclude]
       : undefined;
-    const resources = context?.resources
-      ? context.resources.map((resource) => this.cloneResourceConfig(resource))
+    const variables = contextInput?.variables
+      ? { ...contextInput.variables }
+      : undefined;
+    const resources = contextInput?.resources
+      ? contextInput.resources.map((resource) =>
+          this.cloneResourceConfig(resource)
+        )
       : undefined;
 
     return {
       include,
       exclude,
-      baseDir: context?.baseDir ?? fallbackProjectDir,
-      maxBytes: context?.maxBytes,
-      maxFiles: context?.maxFiles,
+      baseDir: contextInput?.baseDir ?? fallbackProjectDir,
+      maxBytes: contextInput?.maxBytes,
+      maxFiles: contextInput?.maxFiles,
       variables,
       resources,
     };

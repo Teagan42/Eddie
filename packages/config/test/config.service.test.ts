@@ -55,6 +55,28 @@ describe("ConfigService compose precedence", () => {
     expect(composed.api?.port).toBe(4242);
   });
 
+  it("keeps default context include when config omits it", async () => {
+    const defaults: EddieConfig = {
+      ...clone(DEFAULT_CONFIG),
+      context: {
+        ...clone(DEFAULT_CONFIG.context),
+        include: ["defaults/**/*"],
+      },
+    };
+    const configInput: EddieConfigInput = {
+      context: {
+        exclude: ["**/*.test.ts"],
+      },
+    };
+
+    const { service } = createService(defaults);
+
+    const composed = await service.compose(configInput);
+
+    expect(composed.context.include).toEqual(["defaults/**/*"]);
+    expect(composed.context.exclude).toEqual(["**/*.test.ts"]);
+  });
+
   it("applies CLI overrides last", async () => {
     const defaults: EddieConfig = {
       ...clone(DEFAULT_CONFIG),
