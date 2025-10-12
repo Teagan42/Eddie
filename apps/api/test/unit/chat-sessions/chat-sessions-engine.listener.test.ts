@@ -1,4 +1,6 @@
+import "reflect-metadata";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { EVENTS_HANDLER_METADATA } from "@nestjs/cqrs/dist/decorators/constants";
 import type { EngineService, EngineResult } from "@eddie/engine";
 import { ChatSessionsEngineListener } from "../../../src/chat-sessions/chat-sessions-engine.listener";
 import { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
@@ -8,6 +10,7 @@ import type { ChatMessageDto } from "../../../src/chat-sessions/dto/chat-session
 import type { LogsService } from "../../../src/logs/logs.service";
 import type { TraceDto } from "../../../src/traces/dto/trace.dto";
 import type { TracesService } from "../../../src/traces/traces.service";
+import { ChatMessageCreatedEvent } from "@eddie/types";
 
 const createChatMessage = (
   overrides: Partial<ChatMessageDto> = {}
@@ -21,7 +24,6 @@ const createChatMessage = (
 });
 
 describe("ChatSessionsEngineListener", () => {
-  const registerListener = vi.fn();
   const listMessages = vi.fn();
   const addMessage = vi.fn();
   const updateMessageContent = vi.fn();
@@ -37,15 +39,14 @@ describe("ChatSessionsEngineListener", () => {
   let listener: ChatSessionsEngineListener;
 
   beforeEach(() => {
-    registerListener.mockReset();
     listMessages.mockReset();
     addMessage.mockReset();
     updateMessageContent.mockReset();
     saveAgentInvocations.mockReset();
     capture.mockReset();
+    listMessages.mockReturnValue([]);
 
     chatSessions = {
-      registerListener,
       listMessages,
       addMessage,
       updateMessageContent,
@@ -92,16 +93,14 @@ describe("ChatSessionsEngineListener", () => {
     );
   });
 
-  it("registers and unregisters with the chat sessions service", () => {
-    const unregister = vi.fn();
-    registerListener.mockReturnValue(unregister);
+  it("subscribes to ChatMessageCreatedEvent", () => {
+    const events =
+      Reflect.getMetadata(
+        EVENTS_HANDLER_METADATA,
+        ChatSessionsEngineListener
+      ) ?? [];
 
-    listener.onModuleInit();
-
-    expect(registerListener).toHaveBeenCalledWith(listener);
-
-    listener.onModuleDestroy();
-    expect(unregister).toHaveBeenCalled();
+    expect(events).toContain(ChatMessageCreatedEvent);
   });
 
   it("registers the stream renderer with the engine", () => {
@@ -111,8 +110,7 @@ describe("ChatSessionsEngineListener", () => {
   it("ignores assistant messages", () => {
     const message = createChatMessage({ role: ChatMessageRole.Assistant });
 
-    listener.onModuleInit();
-    listener.onMessageCreated(message);
+    listener.handle(new ChatMessageCreatedEvent(message.sessionId, message.id));
 
     expect(engineRun).not.toHaveBeenCalled();
   });
@@ -162,9 +160,9 @@ describe("ChatSessionsEngineListener", () => {
       };
     });
 
-    listener.onModuleInit();
-
-    listener.onMessageCreated(newMessage);
+    await listener.handle(
+      new ChatMessageCreatedEvent(newMessage.sessionId, newMessage.id)
+    );
 
     await new Promise((resolve) => setImmediate(resolve));
 
@@ -251,8 +249,9 @@ describe("ChatSessionsEngineListener", () => {
       }
     });
 
-    listener.onModuleInit();
-    listener.onMessageCreated(message);
+    await listener.handle(
+      new ChatMessageCreatedEvent(message.sessionId, message.id)
+    );
 
     await new Promise((resolve) => setImmediate(resolve));
 

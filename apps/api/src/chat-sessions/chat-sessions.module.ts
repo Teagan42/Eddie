@@ -62,9 +62,4 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
   controllers: [ ChatSessionsController ],
   exports: [ ChatSessionsService ],
 })
-export class ChatSessionsModule {
-  constructor(
-        // Ensures the engine listener is instantiated so it can self-register
-        private readonly _engineListener: ChatSessionsEngineListener
-  ) { }
-}
+export class ChatSessionsModule {}

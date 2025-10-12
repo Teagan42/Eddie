@@ -1,23 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { EventBus } from "@nestjs/cqrs";
 import type { StreamEvent } from "@eddie/types";
+import {
+  ChatMessagePartialEvent,
+  ChatSessionToolCallEvent,
+  ChatSessionToolResultEvent,
+} from "@eddie/types";
 import {
   ChatSessionsService,
   type ChatSessionsListener,
 } from "../../../src/chat-sessions/chat-sessions.service";
 import { ChatSessionStreamRendererService } from "../../../src/chat-sessions/chat-session-stream-renderer.service";
 import { InMemoryChatSessionsRepository } from "../../../src/chat-sessions/chat-sessions.repository";
-import type { ChatSessionEventsService } from "../../../src/chat-sessions/chat-session-events.service";
 
 describe("ChatSessionStreamRendererService", () => {
     let service: ChatSessionsService;
     let renderer: ChatSessionStreamRendererService;
     let sessionId: string;
-    let events: ChatSessionEventsService;
-    let eventMocks: {
-      emitPartial: ReturnType<typeof vi.fn>;
-      emitToolCall: ReturnType<typeof vi.fn>;
-      emitToolResult: ReturnType<typeof vi.fn>;
-    };
+    let eventBus: EventBus;
+    let publish: ReturnType<typeof vi.fn>;
     const captureActivity = (): Array<{ sessionId: string; state: string }> => {
       const events: Array<{ sessionId: string; state: string }> = [];
       service.registerListener({
@@ -34,13 +35,9 @@ describe("ChatSessionStreamRendererService", () => {
 
     beforeEach(() => {
         service = new ChatSessionsService(new InMemoryChatSessionsRepository());
-        eventMocks = {
-            emitPartial: vi.fn(),
-            emitToolCall: vi.fn(),
-            emitToolResult: vi.fn(),
-        };
-        events = eventMocks as unknown as ChatSessionEventsService;
-        renderer = new ChatSessionStreamRendererService(service, events);
+        publish = vi.fn();
+        eventBus = { publish } as unknown as EventBus;
+        renderer = new ChatSessionStreamRendererService(service, eventBus);
         sessionId = service.createSession({ title: "Stream" }).id;
     });
 
@@ -84,22 +81,22 @@ describe("ChatSessionStreamRendererService", () => {
         const messages = service.listMessages(sessionId);
         expect(messages[ 0 ]?.content).toBe("Partial");
     });
-    it("emits partial updates for assistant responses", async () => {
-        const partialEvents: string[] = [];
-        const emitPartialMock = eventMocks.emitPartial;
-        emitPartialMock.mockImplementation((message: { content: string; }) =>
-            partialEvents.push(message.content)
-        );
-
+    it("publishes partial events for assistant responses", async () => {
         await renderer.capture(sessionId, async () => {
             renderer.render({ type: "delta", text: "Hello" });
             renderer.render({ type: "delta", text: " world" });
         });
 
-        expect(partialEvents).toEqual([ "Hello", "Hello world" ]);
+        const publishedEvents = publish.mock.calls.map(([ event ]) => event);
+        expect(publishedEvents).toHaveLength(2);
+        expect(publishedEvents[ 0 ]).toBeInstanceOf(ChatMessagePartialEvent);
+        expect(publishedEvents[ 1 ]).toBeInstanceOf(ChatMessagePartialEvent);
+        const [ first, second ] = publishedEvents as Array<ChatMessagePartialEvent & { message: { content: string } }>;
+        expect(first.message.content).toBe("Hello");
+        expect(second.message.content).toBe("Hello world");
     });
 
-  it("emits tool events through the events service", async () => {
+  it("publishes tool call and result events", async () => {
       const toolCall: StreamEvent = {
         type: "tool_call",
         name: "echo",
@@ -117,12 +114,14 @@ describe("ChatSessionStreamRendererService", () => {
           renderer.render(toolResult);
       });
 
-      expect(eventMocks.emitToolCall).toHaveBeenCalledWith(
-          expect.objectContaining({ sessionId, name: "echo", id: "t1" })
-      );
-      expect(eventMocks.emitToolResult).toHaveBeenCalledWith(
-          expect.objectContaining({ sessionId, name: "echo", id: "t1" })
-      );
+      const publishedEvents = publish.mock.calls.map(([ event ]) => event);
+      expect(publishedEvents.some((event) => event instanceof ChatSessionToolCallEvent)).toBe(true);
+      expect(publishedEvents.some((event) => event instanceof ChatSessionToolResultEvent)).toBe(true);
+      const callEvent = publishedEvents.find((event): event is ChatSessionToolCallEvent => event instanceof ChatSessionToolCallEvent)!;
+      const resultEvent = publishedEvents.find((event): event is ChatSessionToolResultEvent => event instanceof ChatSessionToolResultEvent)!;
+
+      expect(callEvent).toMatchObject({ sessionId, name: "echo", id: "t1" });
+      expect(resultEvent).toMatchObject({ sessionId, name: "echo", id: "t1" });
   });
 
   it("annotates tool events with consistent timestamps", async () => {
@@ -148,12 +147,12 @@ describe("ChatSessionStreamRendererService", () => {
       renderer.render(toolResult);
     });
 
-    expect(eventMocks.emitToolCall).toHaveBeenCalledWith(
-      expect.objectContaining({ timestamp: now.toISOString() })
-    );
-    expect(eventMocks.emitToolResult).toHaveBeenCalledWith(
-      expect.objectContaining({ timestamp: now.toISOString() })
-    );
+    const publishedEvents = publish.mock.calls.map(([ event ]) => event);
+    const callEvent = publishedEvents.find((event): event is ChatSessionToolCallEvent => event instanceof ChatSessionToolCallEvent)!;
+    const resultEvent = publishedEvents.find((event): event is ChatSessionToolResultEvent => event instanceof ChatSessionToolResultEvent)!;
+
+    expect(callEvent.timestamp).toBe(now.toISOString());
+    expect(resultEvent.timestamp).toBe(now.toISOString());
 
     vi.useRealTimers();
   });
