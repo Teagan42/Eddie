@@ -114,10 +114,6 @@ describe("bootstrap runtime options", () => {
           return new ConfigStoreStub();
         }
 
-        if (token === ConfigServiceStub) {
-          return new ConfigServiceStub();
-        }
-
         if (token === LoggerServiceStub) {
           return new LoggerServiceStub();
         }
@@ -143,8 +139,7 @@ describe("bootstrap runtime options", () => {
     vi.clearAllMocks();
   });
 
-  it("passes CLI flags through to ConfigService.load", async () => {
-    stubs.loadMock.mockResolvedValue({ api: {} });
+  it("does not call ConfigService.load when runtime overrides provided", async () => {
     stubs.listenMock.mockResolvedValue(undefined);
 
     process.argv = [
@@ -183,21 +178,7 @@ describe("bootstrap runtime options", () => {
 
     await bootstrap();
 
-    expect(stubs.loadMock).toHaveBeenCalledWith({
-      config: "/tmp/eddie.yaml",
-      context: ["src", "docs", "tests"],
-      tools: ["lint", "format"],
-      disabledTools: ["write"],
-      jsonlTrace: "trace.jsonl",
-      logLevel: "debug",
-      logFile: "eddie.log",
-      agentMode: "router",
-      disableSubagents: true,
-      autoApprove: true,
-      nonInteractive: true,
-      provider: "anthropic",
-      model: "claude-3",
-    });
+    expect(stubs.loadMock).not.toHaveBeenCalled();
     expect(stubs.createMock).toHaveBeenCalledTimes(2);
     expect(stubs.listenMock).toHaveBeenCalledTimes(2);
   });

@@ -4,7 +4,7 @@ import { WsAdapter } from "@nestjs/platform-ws";
 import { ApiModule } from "./api.module";
 import { initTracing } from "./telemetry/tracing";
 import { HttpLoggerMiddleware } from "./middleware/http-logger.middleware";
-import { ConfigService, ConfigStore, hasRuntimeOverrides } from "@eddie/config";
+import { ConfigStore } from "@eddie/config";
 import type { EddieConfig } from "@eddie/config";
 import { LoggerService } from "@eddie/io";
 import { applyCorsConfig } from "./cors";
@@ -35,12 +35,8 @@ export async function bootstrap(): Promise<void> {
   app.enableShutdownHooks();
   app.useWebSocketAdapter(new WsAdapter(app));
 
-  const configService = app.get(ConfigService);
   const configStore = app.get(ConfigStore);
   const loggerService = app.get(LoggerService);
-  if (hasRuntimeOverrides(runtimeOptions)) {
-    await configService.load(runtimeOptions);
-  }
   const config: EddieConfig = configStore.getSnapshot();
 
   if (config.api?.telemetry?.enabled) {
