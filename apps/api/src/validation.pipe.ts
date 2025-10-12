@@ -10,10 +10,9 @@ import {
 } from "@nestjs/common";
 import type { ValidationError } from "class-validator";
 import type { EddieConfig } from "@eddie/config";
-import { ConfigService, ConfigStore, hasRuntimeOverrides } from "@eddie/config";
+import { ConfigService, ConfigStore } from "@eddie/config";
 import { InjectLogger } from "@eddie/io";
 import type { Logger } from "pino";
-import { getRuntimeOptions } from "./runtime-options";
 import { Subscription } from "rxjs";
 
 @Injectable()
@@ -39,18 +38,19 @@ export class ApiValidationPipe implements PipeTransform, OnModuleInit, OnModuleD
   }
 
   private async initialize(): Promise<void> {
-    const runtimeOptions = getRuntimeOptions();
-    if (hasRuntimeOverrides(runtimeOptions)) {
-      await this.configService.load(runtimeOptions);
-    }
-
     this.delegate = this.createValidationPipe(this.configStore.getSnapshot());
 
-    if (!this.subscription) {
-      this.subscription = this.configStore.changes$.subscribe((config) => {
-        this.delegate = this.createValidationPipe(config);
-      });
+    this.ensureSubscription();
+  }
+
+  private ensureSubscription(): void {
+    if (this.subscription) {
+      return;
     }
+
+    this.subscription = this.configStore.changes$.subscribe((config) => {
+      this.delegate = this.createValidationPipe(config);
+    });
   }
 
   private createValidationPipe(config: EddieConfig): ValidationPipe {

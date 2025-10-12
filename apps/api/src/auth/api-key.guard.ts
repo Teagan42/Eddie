@@ -7,12 +7,11 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { ConfigService, ConfigStore, hasRuntimeOverrides } from "@eddie/config";
+import { ConfigService, ConfigStore } from "@eddie/config";
 import type { EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { InjectLogger } from "@eddie/io";
 import type { Logger } from "pino";
-import { getRuntimeOptions } from "../runtime-options";
 import { IS_PUBLIC_KEY } from "./public.decorator";
 import type { Request } from "express";
 import { Subscription } from "rxjs";
@@ -82,18 +81,19 @@ export class ApiKeyGuard implements CanActivate, OnModuleInit, OnModuleDestroy {
   }
 
   private async initialize(): Promise<void> {
-    const runtimeOptions = getRuntimeOptions();
-    if (hasRuntimeOverrides(runtimeOptions)) {
-      await this.configService.load(runtimeOptions);
-    }
-
     await this.applySnapshot(this.configStore.getSnapshot());
 
-    if (!this.subscription) {
-      this.subscription = this.configStore.changes$.subscribe((config) => {
-        void this.applySnapshot(config);
-      });
+    this.ensureSubscription();
+  }
+
+  private ensureSubscription(): void {
+    if (this.subscription) {
+      return;
     }
+
+    this.subscription = this.configStore.changes$.subscribe((config) => {
+      void this.applySnapshot(config);
+    });
   }
 
   private async applySnapshot(config: EddieConfig): Promise<void> {

@@ -2,10 +2,17 @@ import type { CallHandler, ExecutionContext } from "@nestjs/common";
 import type { Request } from "express";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { firstValueFrom, of } from "rxjs";
-import type { ConfigService, ConfigStore, EddieConfig } from "@eddie/config";
+import type {
+  CliRuntimeOptions,
+  ConfigService,
+  ConfigStore,
+  EddieConfig,
+} from "@eddie/config";
+import * as Config from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import type { Logger } from "pino";
 import { ApiCacheInterceptor } from "../../../src/cache.interceptor";
+import * as runtimeOptions from "../../../src/runtime-options";
 
 const createExecutionContext = (request: Partial<Request>): ExecutionContext =>
   ({
@@ -50,6 +57,36 @@ describe("ApiCacheInterceptor", () => {
 
   afterEach(() => {
     nowSpy?.mockRestore();
+  });
+
+  it("does not reload configuration when runtime overrides exist", async () => {
+    const logger = { debug: vi.fn(), error: vi.fn() };
+    const configService = {
+      load: vi.fn(),
+    } as unknown as ConfigService;
+    const contextService = {
+      pack: vi.fn().mockResolvedValue({ files: [], totalBytes: 0 }),
+    } as unknown as ContextService;
+    const store = {
+      getSnapshot: vi.fn(() => createConfig()),
+      changes$: of(createConfig()),
+    } as unknown as ConfigStore;
+
+    vi.spyOn(runtimeOptions, "getRuntimeOptions").mockReturnValue({
+      config: "alt.json",
+    } as unknown as CliRuntimeOptions);
+    vi.spyOn(Config, "hasRuntimeOverrides").mockReturnValue(true);
+
+    const interceptor = new ApiCacheInterceptor(
+      configService,
+      store,
+      contextService,
+      logger as unknown as Logger
+    );
+
+    await interceptor.onModuleInit();
+
+    expect(configService.load).not.toHaveBeenCalled();
   });
 
   it("caches GET responses until the entry expires", async () => {

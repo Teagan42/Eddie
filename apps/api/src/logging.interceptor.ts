@@ -8,11 +8,10 @@ import {
 } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { Observable, Subscription, catchError, defer, of, switchMap, tap } from "rxjs";
-import { ConfigService, ConfigStore, hasRuntimeOverrides } from "@eddie/config";
+import { ConfigService, ConfigStore } from "@eddie/config";
 import type { EddieConfig } from "@eddie/config";
 import { InjectLogger } from "@eddie/io";
 import type { Logger } from "pino";
-import { getRuntimeOptions } from "./runtime-options";
 
 @Injectable()
 export class RequestLoggingInterceptor
@@ -39,18 +38,19 @@ implements NestInterceptor, OnModuleInit, OnModuleDestroy
   }
 
   private async initialize(): Promise<void> {
-    const runtimeOptions = getRuntimeOptions();
-    if (hasRuntimeOverrides(runtimeOptions)) {
-      await this.configService.load(runtimeOptions);
-    }
-
     this.applySnapshot(this.configStore.getSnapshot());
 
-    if (!this.subscription) {
-      this.subscription = this.configStore.changes$.subscribe((config) => {
-        this.applySnapshot(config);
-      });
+    this.ensureSubscription();
+  }
+
+  private ensureSubscription(): void {
+    if (this.subscription) {
+      return;
     }
+
+    this.subscription = this.configStore.changes$.subscribe((config) => {
+      this.applySnapshot(config);
+    });
   }
 
   private applySnapshot(config: EddieConfig): void {
