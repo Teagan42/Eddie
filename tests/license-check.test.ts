@@ -10,6 +10,23 @@ import {
   runLicenseCheck,
 } from '../scripts/license-check';
 
+const DEFAULT_ALLOWED_LICENSES = [
+  '0BSD',
+  'Apache-2.0',
+  'BlueOak-1.0.0',
+  'BSD-2-Clause',
+  'BSD-3-Clause',
+  'BUSL-1.1',
+  'CC0-1.0',
+  'CC-BY-4.0',
+  'ISC',
+  'MIT',
+  'MIT-0',
+  'MPL-2.0',
+  'Python-2.0',
+  'Unlicense',
+];
+
 function createTempDir(prefix: string) {
   return mkdtempSync(join(tmpdir(), prefix));
 }
@@ -329,5 +346,17 @@ describe('repository automation', () => {
 
     expect(packageJson.scripts?.['lint:licenses']).toBeDefined();
     expect(packageJson.scripts?.lint).toContain('lint:licenses');
+  });
+
+  it('keeps third-party notices synchronized with the lockfile', () => {
+    expect(() =>
+      runLicenseCheck({
+        lockfilePath: join(process.cwd(), 'package-lock.json'),
+        outputPath: join(process.cwd(), 'THIRD_PARTY_NOTICES.md'),
+        allowedLicenses: DEFAULT_ALLOWED_LICENSES,
+        rootDir: process.cwd(),
+        check: true,
+      }),
+    ).not.toThrow();
   });
 });
