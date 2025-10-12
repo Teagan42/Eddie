@@ -488,9 +488,13 @@ export class AgentOrchestratorService {
     const child = await invocation.spawn(descriptor.definition, spawnOptions);
 
     const finalMessage = child.messages.at(-1);
+    const finalMessageText = finalMessage?.content?.trim() ?? "";
+    const transcriptSummary = this.createTranscriptSummary(child.messages);
+    const selectedBundleIds = this.collectSelectedBundleIds(child.context);
+
     const content =
-            finalMessage && finalMessage.content.trim().length > 0
-              ? finalMessage.content
+            finalMessageText.length > 0
+              ? finalMessageText
               : `Subagent ${ descriptor.id } completed without a final response.`;
 
     const metadata: Record<string, unknown> = {
@@ -516,22 +520,58 @@ export class AgentOrchestratorService {
       metadata.request = args.metadata;
     }
 
+    const metadataExtras: Record<string, unknown> = {};
+
+    if (selectedBundleIds.length > 0) {
+      metadataExtras.contextBundleIds = selectedBundleIds;
+    }
+
+    if (transcriptSummary) {
+      metadataExtras.historySnippet = transcriptSummary;
+      metadataExtras.transcriptSummary = transcriptSummary;
+    }
+
+    if (finalMessageText.length > 0) {
+      metadataExtras.finalMessage = finalMessageText;
+    }
+
+    Object.assign(metadata, metadataExtras);
+
     const data: Record<string, unknown> = {
       agentId: descriptor.id,
       messageCount: child.messages.length,
       prompt: overrides.prompt,
     };
 
-    if (finalMessage?.content) {
-      data.finalMessage = finalMessage.content;
+    if (finalMessageText.length > 0) {
+      data.finalMessage = finalMessageText;
     }
 
     if (overrides.variables && Object.keys(overrides.variables).length > 0) {
       data.variables = overrides.variables;
     }
 
-    if (overrides.contextProvided && overrides.context) {
-      data.context = overrides.context;
+    const contextPayload =
+            overrides.contextProvided && overrides.context
+              ? { ...overrides.context }
+              : undefined;
+
+    if (contextPayload) {
+      data.context = contextPayload;
+    }
+
+    if (selectedBundleIds.length > 0) {
+      data.context = {
+        ...(data.context ?? {}),
+        selectedBundleIds,
+      };
+    }
+
+    if (transcriptSummary) {
+      Object.assign(data, {
+        transcriptSummary,
+        historySnippet: transcriptSummary,
+      });
     }
 
     return {
@@ -540,6 +580,41 @@ export class AgentOrchestratorService {
       data,
       metadata,
     };
+  }
+
+  private collectSelectedBundleIds(context: PackedContext): string[] {
+    if (!context.resources || context.resources.length === 0) {
+      return [];
+    }
+
+    return context.resources
+      .filter((resource) => resource.type === "bundle")
+      .map((resource) => resource.id)
+      .filter((id): id is string => typeof id === "string" && id.trim().length > 0);
+  }
+
+  private createTranscriptSummary(
+    messages: AgentInvocation["messages"]
+  ): string | undefined {
+    const relevant = messages
+      .filter((message) => message.role === "user" || message.role === "assistant")
+      .map((message) => {
+        const trimmed = message.content.trim();
+        if (!trimmed) {
+          return undefined;
+        }
+
+        const role = message.role === "user" ? "User" : "Assistant";
+        return `${ role }: ${ trimmed }`;
+      })
+      .filter((value): value is string => Boolean(value));
+
+    if (relevant.length === 0) {
+      return undefined;
+    }
+
+    const snippet = relevant.slice(-2).join(" | ");
+    return snippet.length > 280 ? `${ snippet.slice(0, 277) }...` : snippet;
   }
 
   private isPlainObject(value: unknown): value is Record<string, unknown> {

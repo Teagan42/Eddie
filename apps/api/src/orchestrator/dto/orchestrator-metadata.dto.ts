@@ -54,6 +54,13 @@ export class ToolCallNodeDto {
     children: ToolCallNodeDto[] = [];
 }
 
+interface AgentHierarchyMetadataFields {
+  historySnippet?: string;
+  transcriptSummary?: string;
+  finalMessage?: string;
+  contextBundleIds?: string[];
+}
+
 export class AgentHierarchyNodeDto {
   @ApiProperty({ description: "Agent identifier" })
   @IsString()
@@ -81,7 +88,7 @@ export class AgentHierarchyNodeDto {
   @ApiPropertyOptional({ description: "Additional metadata" })
   @IsObject()
   @IsOptional()
-    metadata?: Record<string, unknown>;
+    metadata?: Record<string, unknown> & AgentHierarchyMetadataFields;
 
   @ApiProperty({ type: () => [AgentHierarchyNodeDto] })
   @IsArray()

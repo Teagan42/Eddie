@@ -160,11 +160,19 @@ export interface OrchestratorContextBundleDto {
     fileCount: number;
 }
 
+export interface OrchestratorAgentMetadataDto
+    extends Record<string, unknown> {
+    finalMessage?: string;
+    transcriptSummary?: string;
+    historySnippet?: string;
+    contextBundleIds?: string[];
+}
+
 export interface OrchestratorToolCallNodeDto {
     id: string;
     name: string;
     status: ToolCallStatusDto;
-    metadata?: Record<string, unknown>;
+    metadata?: OrchestratorAgentMetadataDto;
     children: OrchestratorToolCallNodeDto[];
 }
 
@@ -174,7 +182,7 @@ export interface OrchestratorAgentNodeDto {
     provider?: string;
     model?: string;
     depth?: number;
-    metadata?: Record<string, unknown>;
+    metadata?: OrchestratorAgentMetadataDto;
     children: OrchestratorAgentNodeDto[];
 }
 
