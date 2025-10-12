@@ -34,6 +34,7 @@ describe("EngineService MCP resource integration", () => {
     const config: EddieConfig = {
       model: "gpt-mock",
       provider: { name: "mock-provider" },
+      projectDir: process.cwd(),
       context: { include: [], baseDir: process.cwd() },
       systemPrompt: "fallback",
       logLevel: "info",

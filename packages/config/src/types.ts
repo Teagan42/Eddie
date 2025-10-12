@@ -212,6 +212,7 @@ export interface TranscriptConfig {
 export interface EddieConfig {
   model: string;
   provider: ProviderConfig;
+  projectDir: string;
   providers?: Record<string, ProviderProfileConfig>;
   context: ContextConfig;
   api?: ApiConfig;
@@ -229,6 +230,7 @@ export interface EddieConfig {
 export interface EddieConfigInput {
   model?: string;
   provider?: Partial<ProviderConfig>;
+  projectDir?: string;
   providers?: Record<string, ProviderProfileConfig>;
   context?: Partial<ContextConfig>;
   api?: Partial<ApiConfig>;

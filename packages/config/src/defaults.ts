@@ -8,6 +8,7 @@ Use the builtin tools to explore the filesystem safely:
 - Favor \`rg\` over recursive \`ls\` or \`grep -R\` when searching.`;
 
 export const DEFAULT_CONFIG: EddieConfig = {
+  projectDir: process.cwd(),
   model: "gpt-4o-mini",
   provider: {
     name: "openai",

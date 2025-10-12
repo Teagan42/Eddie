@@ -20,7 +20,7 @@ describe("ConfigEditorController", () => {
     format: "yaml",
     content: "model: gpt-4",
     input: { model: "gpt-4" } as EddieConfigInput,
-    config: { model: "gpt-4" } as EddieConfig,
+    config: { model: "gpt-4", projectDir: process.cwd() } as EddieConfig,
     error: null,
   };
 
@@ -67,7 +67,7 @@ describe("ConfigEditorController", () => {
   it("passes preview payloads through to the service", async () => {
     const result = {
       input: { model: "gpt-4o" } as EddieConfigInput,
-      config: { model: "gpt-4o" } as EddieConfig,
+      config: { model: "gpt-4o", projectDir: process.cwd() } as EddieConfig,
     };
     service.preview.mockResolvedValue(result);
 

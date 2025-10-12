@@ -92,6 +92,7 @@ function createEngineHarness(
   const config: EddieConfig = {
     model: "gpt-test",
     provider: { name: "test-provider" },
+    projectDir: process.cwd(),
     context: { include: [], baseDir: process.cwd() },
     systemPrompt: "system",
     logLevel: "info",
@@ -216,6 +217,18 @@ describe("EngineService hooks", () => {
     const [timestamp, sessionFragment] = fileName.split("_");
     expect(timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d{3}Z$/);
     expect(sessionFragment).toBe(`${metadata?.id}.jsonl`);
+  });
+
+  it("passes the projectDir through to tool runtimes", async () => {
+    const harness = createEngineHarness();
+    const projectDir = "/tmp/eddie-project";
+    harness.config.projectDir = projectDir;
+    harness.config.context.baseDir = undefined;
+    harness.store.setSnapshot(harness.config);
+
+    await harness.engine.run("Base dir propagation");
+
+    expect(harness.fakeOrchestrator.lastRuntime?.cwd).toBe(projectDir);
   });
 
   it("emits session lifecycle hooks with metadata", async () => {
@@ -519,6 +532,7 @@ describe("EngineService hot configuration", () => {
     const initialConfig: EddieConfig = {
       model: "initial-model",
       provider: { name: "initial-provider" },
+      projectDir: process.cwd(),
       context: { include: [], baseDir: process.cwd() },
       systemPrompt: "system",
       logLevel: "info",

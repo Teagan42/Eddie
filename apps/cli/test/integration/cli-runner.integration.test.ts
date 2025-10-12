@@ -33,6 +33,7 @@ const createConfig = (overrides: Partial<EddieConfig> = {}): EddieConfig => {
   const base: EddieConfig = {
     model: "gpt-4o",
     provider: { name: "openai" },
+    projectDir: process.cwd(),
     context: {
       include: ["src/**/*.ts"],
       exclude: ["**/*.spec.ts"],

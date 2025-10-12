@@ -92,6 +92,7 @@ describe("ApiModule integration", () => {
 
   const config: EddieConfig = {
     logLevel: "debug",
+    projectDir: process.cwd(),
     context: {
       baseDir: process.cwd(),
       includes: [],

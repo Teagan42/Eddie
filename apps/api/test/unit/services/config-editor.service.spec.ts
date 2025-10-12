@@ -34,7 +34,7 @@ describe("ConfigEditorService", () => {
     format: "yaml",
     content: "model: gpt-4",
     input: { model: "gpt-4" } as EddieConfigInput,
-    config: { model: "gpt-4" } as EddieConfig,
+    config: { model: "gpt-4", projectDir: process.cwd() } as EddieConfig,
     error: null,
     ...overrides,
   });
@@ -82,7 +82,7 @@ describe("ConfigEditorService", () => {
     const snapshot = createSnapshot({ config: undefined });
     configService.readSnapshot.mockResolvedValue(snapshot);
 
-    const storeConfig = { model: "gpt-4o" } as EddieConfig;
+    const storeConfig = { model: "gpt-4o", projectDir: process.cwd() } as EddieConfig;
     configStore.getSnapshot.mockReturnValue(storeConfig);
 
     await expect(service.getSnapshot()).resolves.toMatchObject({
@@ -94,7 +94,10 @@ describe("ConfigEditorService", () => {
 
   it("parses and composes preview payloads", async () => {
     const input: EddieConfigInput = { model: "gpt-4o" } as EddieConfigInput;
-    const config: EddieConfig = { model: "gpt-4o" } as EddieConfig;
+    const config: EddieConfig = {
+      model: "gpt-4o",
+      projectDir: process.cwd(),
+    } as EddieConfig;
 
     configService.parseSource.mockReturnValue(input);
     configService.compose.mockResolvedValue(config);

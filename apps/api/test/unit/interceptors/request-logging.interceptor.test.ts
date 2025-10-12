@@ -23,6 +23,7 @@ describe("RequestLoggingInterceptor", () => {
   const createConfig = (logLevel: string): EddieConfig =>
     ({
       logLevel,
+      projectDir: process.cwd(),
       context: {
         baseDir: process.cwd(),
         includes: [],

@@ -539,6 +539,7 @@ export const EDDIE_CONFIG_SCHEMA: JSONSchema7 = {
   properties: {
     model: { type: "string", minLength: 1 },
     provider: PROVIDER_CONFIG_SCHEMA,
+    projectDir: { type: "string" },
     providers: {
       type: "object",
       additionalProperties: PROVIDER_PROFILE_SCHEMA,
@@ -565,6 +566,7 @@ export const EDDIE_CONFIG_INPUT_SCHEMA: JSONSchema7 = {
   properties: {
     model: { type: "string", minLength: 1 },
     provider: PROVIDER_CONFIG_INPUT_SCHEMA,
+    projectDir: { type: "string" },
     providers: {
       type: "object",
       additionalProperties: PROVIDER_PROFILE_SCHEMA,
