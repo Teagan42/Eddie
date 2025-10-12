@@ -29,6 +29,7 @@ import {
 } from "./agent-invocation";
 import { AgentInvocationFactory } from "./agent-invocation.factory";
 import type { AgentRuntimeCatalog, AgentRuntimeDescriptor } from "./agent-runtime.types";
+import { AgentRunner } from "./agent-runner";
 import type { TemplateVariables } from "@eddie/templates";
 
 interface AgentTraceEvent {
@@ -37,7 +38,6 @@ interface AgentTraceEvent {
 }
 
 const SPAWN_TOOL_NAME = "spawn_subagent";
-const SPAWN_TOOL_RESULT_SCHEMA = "eddie.tool.spawn_subagent.result.v1";
 
 interface SpawnToolArguments {
     agent: string;
@@ -454,7 +454,7 @@ export class AgentOrchestratorService {
       );
 
       return {
-        schema: SPAWN_TOOL_RESULT_SCHEMA,
+        schema: AgentRunner.SPAWN_TOOL_RESULT_SCHEMA,
         content: reason,
         data: {
           agentId: descriptor.id,
@@ -487,134 +487,17 @@ export class AgentOrchestratorService {
 
     const child = await invocation.spawn(descriptor.definition, spawnOptions);
 
-    const finalMessage = child.messages.at(-1);
-    const finalMessageText = finalMessage?.content?.trim() ?? "";
-    const transcriptSummary = this.createTranscriptSummary(child.messages);
-    const selectedBundleIds = this.collectSelectedBundleIds(child.context);
-
-    const content =
-            finalMessageText.length > 0
-              ? finalMessageText
-              : `Subagent ${ descriptor.id } completed without a final response.`;
-
-    const metadata: Record<string, unknown> = {
-      agentId: descriptor.id,
-      model: descriptor.model,
-      provider: descriptor.provider.name,
-      parentAgentId: parentDescriptor.id,
-    };
-
-    if (descriptor.metadata?.profileId) {
-      metadata.profileId = descriptor.metadata.profileId;
-    }
-    if (descriptor.metadata?.routingThreshold !== undefined) {
-      metadata.routingThreshold = descriptor.metadata.routingThreshold;
-    }
-    if (descriptor.metadata?.name) {
-      metadata.name = descriptor.metadata.name;
-    }
-    if (descriptor.metadata?.description) {
-      metadata.description = descriptor.metadata.description;
-    }
-    if (args.metadata && Object.keys(args.metadata).length > 0) {
-      metadata.request = args.metadata;
-    }
-
-    const metadataExtras: Record<string, unknown> = {};
-
-    if (selectedBundleIds.length > 0) {
-      metadataExtras.contextBundleIds = selectedBundleIds;
-    }
-
-    if (transcriptSummary) {
-      metadataExtras.historySnippet = transcriptSummary;
-      metadataExtras.transcriptSummary = transcriptSummary;
-    }
-
-    if (finalMessageText.length > 0) {
-      metadataExtras.finalMessage = finalMessageText;
-    }
-
-    Object.assign(metadata, metadataExtras);
-
-    const data: Record<string, unknown> = {
-      agentId: descriptor.id,
-      messageCount: child.messages.length,
-      prompt: overrides.prompt,
-    };
-
-    if (finalMessageText.length > 0) {
-      data.finalMessage = finalMessageText;
-    }
-
-    if (overrides.variables && Object.keys(overrides.variables).length > 0) {
-      data.variables = overrides.variables;
-    }
-
-    const contextPayload =
-            overrides.contextProvided && overrides.context
-              ? { ...overrides.context }
-              : undefined;
-
-    if (contextPayload) {
-      data.context = contextPayload;
-    }
-
-    if (selectedBundleIds.length > 0) {
-      data.context = {
-        ...(data.context ?? {}),
-        selectedBundleIds,
-      };
-    }
-
-    if (transcriptSummary) {
-      Object.assign(data, {
-        transcriptSummary,
-        historySnippet: transcriptSummary,
-      });
-    }
-
-    return {
-      schema: SPAWN_TOOL_RESULT_SCHEMA,
-      content,
-      data,
-      metadata,
-    };
-  }
-
-  private collectSelectedBundleIds(context: PackedContext): string[] {
-    if (!context.resources || context.resources.length === 0) {
-      return [];
-    }
-
-    return context.resources
-      .filter((resource) => resource.type === "bundle")
-      .map((resource) => resource.id)
-      .filter((id): id is string => typeof id === "string" && id.trim().length > 0);
-  }
-
-  private createTranscriptSummary(
-    messages: AgentInvocation["messages"]
-  ): string | undefined {
-    const relevant = messages
-      .filter((message) => message.role === "user" || message.role === "assistant")
-      .map((message) => {
-        const trimmed = message.content.trim();
-        if (!trimmed) {
-          return undefined;
-        }
-
-        const role = message.role === "user" ? "User" : "Assistant";
-        return `${ role }: ${ trimmed }`;
-      })
-      .filter((value): value is string => Boolean(value));
-
-    if (relevant.length === 0) {
-      return undefined;
-    }
-
-    const snippet = relevant.slice(-2).join(" | ");
-    return snippet.length > 280 ? `${ snippet.slice(0, 277) }...` : snippet;
+    return AgentRunner.buildSubagentResult({
+      child,
+      descriptor,
+      parentDescriptor,
+      request: {
+        prompt: overrides.prompt,
+        variables: overrides.variables,
+        context: overrides.contextProvided ? overrides.context : undefined,
+        metadata: args.metadata,
+      },
+    });
   }
 
   private isPlainObject(value: unknown): value is Record<string, unknown> {
