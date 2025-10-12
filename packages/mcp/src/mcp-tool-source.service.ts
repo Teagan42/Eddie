@@ -27,6 +27,11 @@ import type { ToolCallArguments, ToolDefinition, ToolResult } from "@eddie/types
 
 const CLIENT_INFO = { name: "eddie", version: "unknown" } as const;
 
+interface BuildHttpHeadersOptions {
+  accept?: string;
+  includeContentType?: boolean;
+}
+
 @Injectable()
 export class McpToolSourceService {
   async collectTools(
@@ -266,7 +271,10 @@ export class McpToolSourceService {
         });
       }
       case "sse": {
-        const headers = this.buildHttpHeaders(source, transportConfig.headers);
+        const headers = this.buildHttpHeaders(source, transportConfig.headers, {
+          accept: "text/event-stream",
+          includeContentType: false,
+        });
         return new SSEClientTransport(new URL(transportConfig.url), {
           eventSourceInit: { headers },
           requestInit: { headers },
@@ -309,14 +317,23 @@ export class McpToolSourceService {
 
   private buildHttpHeaders(
     source: MCPToolSourceConfig,
-    transportHeaders?: Record<string, string>
+    transportHeaders?: Record<string, string>,
+    options?: BuildHttpHeadersOptions
   ): Record<string, string> {
-    const headers: Record<string, string> = {
-      accept: "application/json",
-      "content-type": "application/json",
-      ...(source.headers ?? {}),
-      ...(transportHeaders ?? {}),
-    };
+    const headers: Record<string, string> = {};
+
+    const { accept = "application/json", includeContentType = true } =
+      options ?? {};
+
+    if (accept) {
+      headers.accept = accept;
+    }
+
+    if (includeContentType) {
+      headers["content-type"] = "application/json";
+    }
+
+    Object.assign(headers, source.headers ?? {}, transportHeaders ?? {});
 
     const hasAuthorizationHeader = Object.keys(headers).some(
       (key) => key.toLowerCase() === "authorization"
