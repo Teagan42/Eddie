@@ -260,6 +260,66 @@ describe("McpToolSourceService streamable HTTP transport", () => {
     });
   });
 
+  it("falls back when tool call validation rejects missing messages", async () => {
+    const service = new McpToolSourceService();
+    const config: StreamableHttpConfiguredSource = {
+      id: "mock",
+      type: "mcp",
+      url: "https://mcp.example.com/rpc",
+    };
+
+    const originalImplementation = hoisted.Client.getMockImplementation();
+    const fallbackCallTool = vi
+      .fn()
+      .mockImplementation(
+        async (
+          params: { name: string; arguments?: Record<string, unknown> },
+          schema?: unknown,
+        ) => {
+          if (schema) {
+            const error = new Error(
+              "ZodError: [ { \"path\": [\"messages\"], \"message\": \"Required\" } ]",
+            );
+            error.name = "ZodError";
+            throw error;
+          }
+
+          return {
+            schema: hoisted.outputSchema.$id,
+            content: `results for ${params.arguments?.query}`,
+            data: { items: ["alpha", "beta"] },
+            metadata: { tookMs: 12 },
+          };
+        },
+      );
+
+    hoisted.Client.mockImplementationOnce(
+      (info: unknown, options: unknown) =>
+        originalImplementation!(info, options),
+    );
+    hoisted.Client.mockImplementationOnce((info: unknown, options: unknown) => {
+      const instance = originalImplementation!(info, options);
+      instance.callTool = fallbackCallTool as unknown as typeof instance.callTool;
+      return instance;
+    });
+
+    const discoveries = await service.discoverSources([config]);
+    const [tool] = discoveries[0].tools;
+    const handler = tool.handler as ToolHandler;
+
+    const result = await handler({ query: "beta" });
+
+    expect(result).toEqual({
+      schema: hoisted.outputSchema.$id,
+      content: "results for beta",
+      data: { items: ["alpha", "beta"] },
+      metadata: { tookMs: 12 },
+    });
+    expect(fallbackCallTool).toHaveBeenCalledTimes(2);
+    expect(fallbackCallTool.mock.calls[0][1]).toBeDefined();
+    expect(fallbackCallTool.mock.calls[1][1]).toBeUndefined();
+  });
+
   it("rejects when a prompt payload omits mandatory fields", async () => {
     const service = new McpToolSourceService();
     const config: StreamableHttpConfiguredSource = {

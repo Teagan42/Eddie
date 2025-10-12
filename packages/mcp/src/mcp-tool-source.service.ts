@@ -180,12 +180,10 @@ export class McpToolSourceService {
     args: ToolCallArguments
   ): Promise<ToolResult> {
     return this.withClient(source, async (client) => {
-      const result = await client.callTool(
-        {
-          name: toolName,
-          arguments: structuredClone(args ?? {}),
-        },
-        CallToolResultSchema
+      const result = await this.callToolWithMessagesFallback(
+        client,
+        toolName,
+        args
       );
 
       if (
@@ -375,6 +373,48 @@ export class McpToolSourceService {
     }
 
     return false;
+  }
+
+  private isMissingMessagesError(error: unknown): boolean {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    if (
+      error.name === "ZodError" &&
+      typeof error.message === "string" &&
+      error.message.toLowerCase().includes("messages")
+    ) {
+      return true;
+    }
+
+    const cause = (error as { cause?: unknown }).cause;
+    if (cause && cause !== error) {
+      return this.isMissingMessagesError(cause);
+    }
+
+    return false;
+  }
+
+  private async callToolWithMessagesFallback(
+    client: Client,
+    toolName: string,
+    args: ToolCallArguments
+  ): Promise<unknown> {
+    const buildParams = () => ({
+      name: toolName,
+      arguments: structuredClone(args ?? {}),
+    });
+
+    try {
+      return await client.callTool(buildParams(), CallToolResultSchema);
+    } catch (error) {
+      if (!this.isMissingMessagesError(error)) {
+        throw error;
+      }
+
+      return client.callTool(buildParams());
+    }
   }
 
   private normalizePromptDefinition(
