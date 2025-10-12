@@ -1,12 +1,24 @@
 import { Injectable } from "@nestjs/common";
 import type { TemplateVariables } from "@eddie/templates";
-import type { PackedContext } from "@eddie/types";
+import type { ChatMessage, PackedContext } from "@eddie/types";
 import { ToolRegistryFactory } from "@eddie/tools";
 import { TemplateRendererService } from "@eddie/templates";
 import type { AgentDefinition } from "./agent-definition";
 import { AgentInvocation, type AgentInvocationOptions } from "./agent-invocation";
 
 const EMPTY_CONTEXT: PackedContext = { files: [], totalBytes: 0, text: "" };
+
+const cloneContext = (context: PackedContext): PackedContext => ({
+  ...context,
+  files: context.files.map((file) => ({ ...file })),
+  resources: context.resources?.map((resource) => ({
+    ...resource,
+    files: resource.files?.map((file) => ({ ...file })),
+  })),
+});
+
+const cloneHistory = (messages: ChatMessage[]): ChatMessage[] =>
+  messages.map((message) => ({ ...message }));
 
 @Injectable()
 export class AgentInvocationFactory {
@@ -20,14 +32,16 @@ export class AgentInvocationFactory {
     options: AgentInvocationOptions,
     parent?: AgentInvocation
   ): Promise<AgentInvocation> {
-    const context = options.context ?? definition.context ?? EMPTY_CONTEXT;
+    const sourceContext = options.context ?? definition.context ?? EMPTY_CONTEXT;
+    const context = cloneContext(sourceContext);
+    const history = cloneHistory(options.history ?? []);
     const builtinVariables: TemplateVariables = {
       agent: {
         id: definition.id,
       },
       prompt: options.prompt,
       context,
-      history: options.history ?? [],
+      history,
       systemPrompt: definition.systemPrompt,
     };
 
@@ -77,8 +91,8 @@ export class AgentInvocationFactory {
 
     const invocationOptions: AgentInvocationOptions = {
       prompt,
-      context: options.context,
-      history: options.history,
+      context,
+      history,
     };
 
     return new AgentInvocation(
