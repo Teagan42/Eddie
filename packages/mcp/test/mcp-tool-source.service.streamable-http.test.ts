@@ -1,5 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-import { ResultSchema } from "@modelcontextprotocol/sdk/types.js";
+import { CompatibilityCallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { MCPToolSourceConfig } from "@eddie/config";
 import type { ToolDefinition } from "@eddie/types";
 
@@ -109,12 +109,17 @@ const hoisted = vi.hoisted(() => {
       getPrompt: vi.fn().mockResolvedValue({ prompt: structuredClone(promptDefinition) }),
       callTool: vi
         .fn()
-        .mockImplementation(async (params: { name: string; arguments?: Record<string, unknown> }) => ({
-          schema: outputSchema.$id,
-          content: `results for ${params.arguments?.query}`,
-          data: { items: ["alpha", "beta"] },
-          metadata: { tookMs: 12 },
-        })),
+        .mockImplementation(
+          async (params: { name: string; arguments?: Record<string, unknown> }) => ({
+            content: [
+              {
+                type: "text" as const,
+                text: `results for ${params.arguments?.query}`,
+              },
+            ],
+            structuredContent: { items: ["alpha", "beta"] },
+          })
+        ),
       close: vi.fn().mockResolvedValue(undefined),
     };
     clientInstances.push(instance);
@@ -156,13 +161,21 @@ const hoisted = vi.hoisted(() => {
   };
 });
 
-vi.mock("@modelcontextprotocol/sdk/client/index.js", () => ({
-  Client: hoisted.Client,
-}));
+vi.mock(
+  "@modelcontextprotocol/sdk/client/index.js",
+  () => ({
+    Client: hoisted.Client,
+  }),
+  { virtual: true }
+);
 
-vi.mock("@modelcontextprotocol/sdk/client/streamableHttp.js", () => ({
-  StreamableHTTPClientTransport: hoisted.StreamableHTTPClientTransport,
-}));
+vi.mock(
+  "@modelcontextprotocol/sdk/client/streamableHttp.js",
+  () => ({
+    StreamableHTTPClientTransport: hoisted.StreamableHTTPClientTransport,
+  }),
+  { virtual: true }
+);
 
 interface StreamableHttpConfiguredSource extends MCPToolSourceConfig {
   transport: {
@@ -254,14 +267,13 @@ describe("McpToolSourceService streamable HTTP transport", () => {
 
     expect(hoisted.Client).toHaveBeenCalledTimes(2);
     expect(result).toEqual({
-      schema: hoisted.outputSchema.$id,
+      schema: "mcp://mock/mock_search",
       content: "results for beta",
       data: { items: ["alpha", "beta"] },
-      metadata: { tookMs: 12 },
     });
   });
 
-  it("accepts tool results that omit messages", async () => {
+  it("accepts compatibility tool results that provide a toolResult payload", async () => {
     const service = new McpToolSourceService();
     const config: StreamableHttpConfiguredSource = {
       id: "mock",
@@ -277,12 +289,17 @@ describe("McpToolSourceService streamable HTTP transport", () => {
           params: { name: string; arguments?: Record<string, unknown> },
           schema?: unknown,
         ) => {
-          const result = {
-            schema: hoisted.outputSchema.$id,
-            content: `results for ${params.arguments?.query}`,
-            data: { items: ["alpha", "beta"] },
-            metadata: { tookMs: 12 },
+          const legacyResult = {
+            content: [
+              {
+                type: "text" as const,
+                text: `results for ${params.arguments?.query}`,
+              },
+            ],
+            structuredContent: { items: ["alpha", "beta"] },
           };
+
+          const result = { toolResult: legacyResult };
 
           if (schema && typeof schema === "object") {
             const parser = schema as { parse(value: unknown): unknown };
@@ -310,16 +327,15 @@ describe("McpToolSourceService streamable HTTP transport", () => {
     const result = await handler({ query: "beta" });
 
     expect(result).toEqual({
-      schema: hoisted.outputSchema.$id,
+      schema: "mcp://mock/mock_search",
       content: "results for beta",
       data: { items: ["alpha", "beta"] },
-      metadata: { tookMs: 12 },
     });
     expect(fallbackCallTool).toHaveBeenCalledTimes(1);
     expect(fallbackCallTool.mock.calls[0][1]).toBeDefined();
   });
 
-  it("tolerates tool results that provide non-array messages", async () => {
+  it("concatenates text content blocks into the tool result summary", async () => {
     const service = new McpToolSourceService();
     const config: StreamableHttpConfiguredSource = {
       id: "mock",
@@ -336,11 +352,10 @@ describe("McpToolSourceService streamable HTTP transport", () => {
           schema?: unknown,
         ) => {
           const result = {
-            schema: hoisted.outputSchema.$id,
-            content: `results for ${params.arguments?.query}`,
-            data: { items: ["alpha", "beta"] },
-            metadata: { tookMs: 12 },
-            messages: "unexpected string value",
+            content: [
+              { type: "text" as const, text: `results for ${params.arguments?.query}` },
+              { type: "text" as const, text: "more details" },
+            ],
           };
 
           if (schema && typeof schema === "object") {
@@ -367,15 +382,13 @@ describe("McpToolSourceService streamable HTTP transport", () => {
     const handler = tool.handler as ToolHandler;
 
     await expect(handler({ query: "beta" })).resolves.toEqual({
-      schema: hoisted.outputSchema.$id,
-      content: "results for beta",
-      data: { items: ["alpha", "beta"] },
-      metadata: { tookMs: 12 },
+      schema: "mcp://mock/mock_search",
+      content: "results for beta\nmore details",
     });
     expect(fallbackCallTool).toHaveBeenCalledTimes(1);
   });
 
-  it("passes a tailored schema when invoking callTool", async () => {
+  it("passes the compatibility callTool schema to the client", async () => {
     const service = new McpToolSourceService();
     const config: StreamableHttpConfiguredSource = {
       id: "mock",
@@ -395,10 +408,13 @@ describe("McpToolSourceService streamable HTTP transport", () => {
           providedSchema = schema;
 
           const result = {
-            schema: hoisted.outputSchema.$id,
-            content: `results for ${params.arguments?.query}`,
-            metadata: { tookMs: 7 },
-            messages: "unexpected string value",
+            content: [
+              {
+                type: "text" as const,
+                text: `results for ${params.arguments?.query}`,
+              },
+            ],
+            structuredContent: { items: ["alpha", "beta"] },
           };
 
           if (schema && typeof schema === "object") {
@@ -427,17 +443,7 @@ describe("McpToolSourceService streamable HTTP transport", () => {
     await handler({ query: "beta" });
 
     expect(fallbackCallTool).toHaveBeenCalledTimes(1);
-    expect(providedSchema).toBeDefined();
-    expect(providedSchema).not.toBe(ResultSchema);
-
-    const parser = providedSchema as { parse(value: unknown): unknown };
-    expect(() =>
-      parser.parse({
-        schema: hoisted.outputSchema.$id,
-        content: "ok",
-        messages: "still a string",
-      }),
-    ).not.toThrow();
+    expect(providedSchema).toBe(CompatibilityCallToolResultSchema);
   });
 
   it("rejects when a prompt payload omits mandatory fields", async () => {
