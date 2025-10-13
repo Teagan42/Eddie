@@ -229,9 +229,9 @@ export class AgentOrchestratorService {
 
     const lines = subagents.map((agent) => {
       const nameLabel =
-                agent.metadata?.name && agent.metadata.name !== agent.id
-                  ? `${ agent.id } (${ agent.metadata.name })`
-                  : agent.id;
+        agent.metadata?.name && agent.metadata.name !== agent.id
+          ? `${agent.id} (${agent.metadata.name})`
+          : agent.id;
       const description = agent.metadata?.description
         ? ` – ${ agent.metadata.description }`
         : "";
@@ -247,7 +247,7 @@ export class AgentOrchestratorService {
 
     return {
       type: "function",
-          name: AgentRunner.SPAWN_TOOL_NAME,
+      name: AgentRunner.SPAWN_TOOL_NAME,
       description,
       parameters: {
         type: "object",
@@ -265,13 +265,13 @@ export class AgentOrchestratorService {
           variables: {
             type: "object",
             description:
-                            "Optional template variables merged into the subagent's prompt context.",
+              "Optional template variables merged into the subagent's prompt context.",
             additionalProperties: true,
           },
           metadata: {
             type: "object",
             description:
-                            "Optional metadata describing the delegation request for auditing.",
+              "Optional metadata describing the delegation request for auditing.",
             additionalProperties: true,
           },
         },
@@ -301,7 +301,7 @@ export class AgentOrchestratorService {
   private parseSpawnArguments(raw: unknown): SpawnToolArguments {
     const value = this.coerceToolArguments(raw);
     const agentValue =
-            value.agent ?? value.agentId ?? value.id ?? value.target ?? undefined;
+      value.agent ?? value.agentId ?? value.id ?? value.target ?? undefined;
     if (typeof agentValue !== "string" || agentValue.trim() === "") {
       throw new Error(
         `${ AgentRunner.SPAWN_TOOL_NAME } requires an "agent" property identifying the subagent to spawn.`
@@ -309,7 +309,7 @@ export class AgentOrchestratorService {
     }
 
     const promptValue =
-            value.prompt ?? value.message ?? value.input ?? value.instructions;
+      value.prompt ?? value.message ?? value.input ?? value.instructions;
     if (typeof promptValue !== "string" || promptValue.trim() === "") {
       throw new Error(
         `${ AgentRunner.SPAWN_TOOL_NAME } requires a non-empty "prompt" string describing the task.`
@@ -564,7 +564,7 @@ export class AgentOrchestratorService {
       composeToolSchemas: () => this.composeToolSchemas(invocation, runtime),
       executeSpawnTool: (event) =>
         this.executeSpawnTool(invocation, runtime, event, descriptor),
-      applyTranscriptCompactionIfNeeded: async (iteration, _payload) => {
+      applyTranscriptCompactionIfNeeded: async (iteration) => {
         await this.applyTranscriptCompactionIfNeeded(
           runtime,
           invocation,

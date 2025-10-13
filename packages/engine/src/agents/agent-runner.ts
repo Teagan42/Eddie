@@ -227,14 +227,16 @@ export class AgentRunner {
             }
 
             try {
-              const result =
-                event.name === AgentRunner.SPAWN_TOOL_NAME
-                  ? await executeSpawnTool(event)
-                  : await invocation.toolRegistry.execute(event, {
-                      cwd,
-                      confirm,
-                      env: process.env,
-                    });
+              let result: ToolResult;
+              if (event.name === AgentRunner.SPAWN_TOOL_NAME) {
+                result = await executeSpawnTool(event);
+              } else {
+                result = await invocation.toolRegistry.execute(event, {
+                  cwd,
+                  confirm,
+                  env: process.env,
+                });
+              }
 
               streamRenderer.render({
                 type: "tool_result",
