@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { StreamEvent, ToolResult } from "@eddie/types";
 import { AgentOrchestratorService } from "../../src/agents/agent-orchestrator.service";
+import { AgentRunner } from "../../src/agents/agent-runner";
 import type { AgentInvocation } from "../../src/agents/agent-invocation";
 import type {
   AgentRuntimeCatalog,
@@ -112,6 +113,8 @@ describe("AgentOrchestratorService", () => {
       traceWriter as any,
     );
 
+    const runSpy = vi.spyOn(AgentRunner.prototype as Record<string, unknown>, "run");
+
     await orchestrator.runAgent(
       { definition: agentDefinition, prompt: "List files" },
       runtime as any,
@@ -121,6 +124,8 @@ describe("AgentOrchestratorService", () => {
     expect(providerStream.mock.calls[1]?.[0]).toMatchObject({
       previousResponseId: "resp_first",
     });
+    expect(runSpy).toHaveBeenCalled();
+    runSpy.mockRestore();
   });
 
   it("returns spawn tool summaries with transcript snippet and context metadata", async () => {
