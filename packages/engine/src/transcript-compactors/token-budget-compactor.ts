@@ -85,6 +85,7 @@ const factory: TranscriptCompactorFactory<TokenBudgetTranscriptCompactorConfig> 
 registerTranscriptCompactor(factory, { builtin: true });
 
 export const TokenBudgetCompactorStrategy = factory.strategy;
+export type { TokenBudgetTranscriptCompactorConfig };
 
 /* ---------------- helpers ---------------- */
 
