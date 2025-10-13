@@ -89,4 +89,33 @@ describe("CLI bootstrap module configuration", () => {
     const createArgs = stubs.createContextMock.mock.calls.at(-1);
     expect(createArgs?.[0]).toBe(dynamicModule);
   });
+
+  it("combines env and CLI runtime options with CLI overrides", async () => {
+    stubs.resolveEnvMock.mockReturnValue({
+      tools: ["lint"],
+      logLevel: "info",
+    });
+
+    process.argv = [
+      "node",
+      "eddie",
+      "--log-level",
+      "debug",
+      "--context",
+      "src",
+      "--context",
+      "docs",
+    ];
+
+    await import("../../../src/main");
+
+    await vi.waitFor(() => expect(stubs.forRootMock).toHaveBeenCalled());
+
+    const lastCall = stubs.forRootMock.mock.calls.at(-1);
+    expect(lastCall?.[0]).toEqual({
+      tools: ["lint"],
+      logLevel: "debug",
+      context: ["src", "docs"],
+    });
+  });
 });

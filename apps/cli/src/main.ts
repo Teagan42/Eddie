@@ -1,12 +1,18 @@
 #!/usr/bin/env node
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
-import { resolveCliRuntimeOptionsFromEnv } from "@eddie/config";
+import {
+  mergeCliRuntimeOptions,
+  parseCliRuntimeOptionsFromArgv,
+  resolveCliRuntimeOptionsFromEnv,
+} from "@eddie/config";
 import { AppModule } from "./app.module";
 import { CliRunnerService } from "./cli/cli-runner.service";
 
 async function bootstrap(): Promise<void> {
-  const runtimeOptions = resolveCliRuntimeOptionsFromEnv(process.env);
+  const envRuntimeOptions = resolveCliRuntimeOptionsFromEnv(process.env);
+  const cliRuntimeOptions = parseCliRuntimeOptionsFromArgv(process.argv.slice(2));
+  const runtimeOptions = mergeCliRuntimeOptions(envRuntimeOptions, cliRuntimeOptions);
   const app = await NestFactory.createApplicationContext(
     AppModule.forRoot(runtimeOptions),
   );
