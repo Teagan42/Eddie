@@ -52,8 +52,14 @@ configuration files.
 ## Context Resources
 
 `ContextService` can bundle additional resources into the packed workspace
-context. Resources are declared under `context.resources` and support two
-flavours:
+context. By default it will gather up to **64 files** (focused on text
+extensions) while staying under a **250,000 bytes** budget, applying a set of
+include patterns that
+cover source code, configuration, and documentation alongside sensible ignores
+like `node_modules`, build artifacts, and caches. Override `maxFiles`,
+`maxBytes`, `include`, or `exclude` inside your configuration to tighten or
+loosen those defaults when a workflow needs more (or less) context. Resources
+are declared under `context.resources` and support two flavours:
 
 - `bundle` – glob selected files, optionally applying a virtual path prefix.
 - `template` – render a synthetic resource from a template file.
@@ -62,6 +68,8 @@ flavours:
 {
   "context": {
     "include": ["src/**/*.ts"],
+    "maxFiles": 32,
+    "maxBytes": 150000,
     "resources": [
       {
         "type": "bundle",
@@ -83,8 +91,24 @@ flavours:
 
 Rendered resources are appended to the packed context (`PackedContext.text`) in
 named sections, preserving metadata such as IDs and virtual paths. Bundle
-resources expose their constituent files via `PackedResource.files` so downstream
-systems can inspect size and provenance.
+resources expose their constituent files via `PackedResource.files` and capture a
+`metadata.virtualPath` when a prefix is supplied so downstream systems can
+inspect size and provenance. The stitched `context.text` output resembles the
+following, making it easy to audit what the agent received:
+
+```text
+// File: src/example.ts
+export function greet(name: string) {
+  return `Hello, ${name}!`;
+}
+// End of src/example.ts
+
+// Resource: Runbooks - Troubleshooting guides
+## Deployment checks
+- Verify migrations
+- Confirm health probes
+// End Resource: Runbooks
+```
 
 ## Available Variables
 
