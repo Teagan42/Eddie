@@ -318,6 +318,62 @@ describe("McpToolSourceService streamable HTTP transport", () => {
     expect(fallbackCallTool.mock.calls[0][1]).toBeDefined();
   });
 
+  it("tolerates tool results that provide non-array messages", async () => {
+    const service = new McpToolSourceService();
+    const config: StreamableHttpConfiguredSource = {
+      id: "mock",
+      type: "mcp",
+      url: "https://mcp.example.com/rpc",
+    };
+
+    const originalImplementation = hoisted.Client.getMockImplementation();
+    const fallbackCallTool = vi
+      .fn()
+      .mockImplementation(
+        async (
+          params: { name: string; arguments?: Record<string, unknown> },
+          schema?: unknown,
+        ) => {
+          const result = {
+            schema: hoisted.outputSchema.$id,
+            content: `results for ${params.arguments?.query}`,
+            data: { items: ["alpha", "beta"] },
+            metadata: { tookMs: 12 },
+            messages: "unexpected string value",
+          };
+
+          if (schema && typeof schema === "object") {
+            const parser = schema as { parse(value: unknown): unknown };
+            return parser.parse(result);
+          }
+
+          return result;
+        },
+      );
+
+    hoisted.Client.mockImplementationOnce(
+      (info: unknown, options: unknown) =>
+        originalImplementation!(info, options),
+    );
+    hoisted.Client.mockImplementationOnce((info: unknown, options: unknown) => {
+      const instance = originalImplementation!(info, options);
+      instance.callTool = fallbackCallTool as unknown as typeof instance.callTool;
+      return instance;
+    });
+
+    const discoveries = await service.discoverSources([config]);
+    const [tool] = discoveries[0].tools;
+    const handler = tool.handler as ToolHandler;
+
+    await expect(handler({ query: "beta" })).resolves.toEqual({
+      schema: hoisted.outputSchema.$id,
+      content: "results for beta",
+      data: { items: ["alpha", "beta"] },
+      metadata: { tookMs: 12 },
+    });
+    expect(fallbackCallTool).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects when a prompt payload omits mandatory fields", async () => {
     const service = new McpToolSourceService();
     const config: StreamableHttpConfiguredSource = {

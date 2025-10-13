@@ -21,31 +21,14 @@ import type {
 } from "./types";
 import type { ToolCallArguments, ToolDefinition, ToolResult } from "@eddie/types";
 import type { EventSourceInit } from "eventsource";
-import { z } from "zod";
-
 const CLIENT_INFO = { name: "eddie", version: "unknown" } as const;
-const CALL_TOOL_RESULT_OPTIONAL_MESSAGES_SCHEMA = ResultSchema.extend({
-  schema: z.string(),
-  content: z.string(),
-  data: z.unknown().optional(),
-  metadata: z
-    .record(z.unknown())
-    .optional(),
-  messages: z
-    .array(
-      z
-        .object({
-          role: z.string(),
-          content: z.unknown(),
-        })
-        .passthrough()
-    )
-    .optional(),
-});
-
-type CallToolResultWithOptionalMessages = z.infer<
-  typeof CALL_TOOL_RESULT_OPTIONAL_MESSAGES_SCHEMA
->;
+type CallToolResultPayload = Record<string, unknown> & {
+  schema?: unknown;
+  content?: unknown;
+  data?: unknown;
+  metadata?: unknown;
+  messages?: unknown;
+};
 
 interface BuildHttpHeadersOptions {
   accept?: string;
@@ -200,32 +183,42 @@ export class McpToolSourceService {
   ): Promise<ToolResult> {
     return this.withClient(source, async (client) => {
       const result = await this.callTool(client, toolName, args);
-
-      if (
-        !result ||
-        typeof result !== "object" ||
-        typeof (result as { schema?: unknown }).schema !== "string" ||
-        typeof (result as { content?: unknown }).content !== "string"
-      ) {
-        throw new Error(
-          `Tool ${toolName} returned an invalid result payload from MCP source ${source.id}.`
-        );
-      }
-
-      const typedResult = result as CallToolResultWithOptionalMessages;
-
-      const toolResult: ToolResult = {
-        schema: typedResult.schema,
-        content: typedResult.content,
-        data:
-          typedResult.data !== undefined
-            ? structuredClone(typedResult.data)
-            : undefined,
-        metadata: this.cloneRecord(typedResult.metadata),
-      };
-
-      return toolResult;
+      return this.normalizeToolResult(result, {
+        toolName,
+        sourceId: source.id,
+      });
     });
+  }
+
+  private normalizeToolResult(
+    result: unknown,
+    context: { toolName: string; sourceId: string }
+  ): ToolResult {
+    if (
+      !result ||
+      typeof result !== "object" ||
+      typeof (result as { schema?: unknown }).schema !== "string" ||
+      typeof (result as { content?: unknown }).content !== "string"
+    ) {
+      throw new Error(
+        `Tool ${context.toolName} returned an invalid result payload from MCP source ${context.sourceId}.`
+      );
+    }
+
+    const typedResult = result as CallToolResultPayload & {
+      schema: string;
+      content: string;
+    };
+
+    return {
+      schema: typedResult.schema,
+      content: typedResult.content,
+      data:
+        typedResult.data !== undefined
+          ? structuredClone(typedResult.data)
+          : undefined,
+      metadata: this.cloneRecord(typedResult.metadata),
+    };
   }
 
   private async withClient<T>(
@@ -389,14 +382,14 @@ export class McpToolSourceService {
     client: Client,
     toolName: string,
     args: ToolCallArguments
-  ): Promise<CallToolResultWithOptionalMessages> {
+  ): Promise<CallToolResultPayload> {
     return client.callTool(
       {
         name: toolName,
         arguments: structuredClone(args ?? {}),
       },
-      CALL_TOOL_RESULT_OPTIONAL_MESSAGES_SCHEMA
-    ) as Promise<CallToolResultWithOptionalMessages>;
+      ResultSchema
+    ) as Promise<CallToolResultPayload>;
   }
 
   private normalizePromptDefinition(
