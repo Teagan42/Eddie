@@ -28,21 +28,22 @@ export const fileReadTool: ToolDefinition = {
   async handler(args, ctx) {
     const relPath = String(args.path ?? "");
     const absolute = path.resolve(ctx.cwd, relPath);
-    const content = await fs.readFile(absolute, "utf-8");
+    const fileBuffer = await fs.readFile(absolute);
     const maxBytes = args.maxBytes ? Number(args.maxBytes) : undefined;
-    const originalBytes = Buffer.byteLength(content, "utf-8");
-    const slice =
-      maxBytes && originalBytes > maxBytes
-        ? content.slice(0, maxBytes)
-        : content;
-    const truncated = Boolean(maxBytes && originalBytes > maxBytes);
+    const shouldTruncate =
+      typeof maxBytes === "number" && fileBuffer.byteLength > maxBytes;
+    const truncatedBuffer = shouldTruncate
+      ? fileBuffer.subarray(0, maxBytes)
+      : fileBuffer;
+    const content = truncatedBuffer.toString("utf-8");
+    const outputBytes = truncatedBuffer.byteLength;
     return {
       schema: "eddie.tool.file_read.result.v1",
-      content: slice,
+      content,
       data: {
         path: relPath,
-        bytes: Buffer.byteLength(slice, "utf-8"),
-        truncated,
+        bytes: outputBytes,
+        truncated: shouldTruncate,
       },
     };
   },
