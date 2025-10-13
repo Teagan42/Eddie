@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import path from "path";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, type SpyInstance } from "vitest";
 import type { SessionMetadata } from "@eddie/hooks";
 import {
   AgentInvocation,
@@ -14,7 +14,6 @@ import {
   type AgentRuntimeOptions,
 } from "@eddie/engine";
 import {
-  ConfigService,
   ConfigStore,
   type EddieConfig,
   type ProviderConfig,
@@ -83,7 +82,8 @@ interface EngineHarness {
   fakeOrchestrator: FakeAgentOrchestrator;
   contextPackSpy: ReturnType<typeof vi.fn>;
   store: ConfigStore;
-  configService: ConfigService & { load: ReturnType<typeof vi.fn> };
+  confirmService: { create: ReturnType<typeof vi.fn> };
+  getSnapshotSpy: SpyInstance<[], EddieConfig>;
 }
 
 function createEngineHarness(
@@ -119,13 +119,7 @@ function createEngineHarness(
 
   const store = new ConfigStore();
   store.setSnapshot(config);
-
-  const configService = {
-    load: vi.fn(async () => {
-      store.setSnapshot(config);
-      return config;
-    }),
-  };
+  const getSnapshotSpy = vi.spyOn(store, "getSnapshot");
 
   const contextPackSpy = vi.fn(async () => context);
   const contextService = {
@@ -145,7 +139,7 @@ function createEngineHarness(
 
   const confirmService = {
     create: vi.fn(() => async () => true),
-  } as unknown as ConfirmService;
+  };
 
   const tokenizerService = {
     create: vi.fn(() => ({
@@ -164,12 +158,11 @@ function createEngineHarness(
   }
 
   const engine = new EngineService(
-    configService as unknown as ConfigService,
     store,
     contextService,
     providerFactory,
     hooksService,
-    confirmService,
+    confirmService as unknown as ConfirmService,
     tokenizerService,
     loggerService,
     fakeOrchestrator as unknown as AgentOrchestratorService,
@@ -184,9 +177,8 @@ function createEngineHarness(
     fakeOrchestrator,
     contextPackSpy,
     store,
-    configService: configService as unknown as ConfigService & {
-      load: ReturnType<typeof vi.fn>;
-    },
+    confirmService,
+    getSnapshotSpy,
   };
 }
 
@@ -520,9 +512,10 @@ describe("EngineService runtime overrides", () => {
 
     await harness.engine.run("Override run", { autoApprove: true });
 
-    expect(harness.configService.load).toHaveBeenCalledTimes(1);
-    expect(harness.configService.load).toHaveBeenCalledWith(
-      expect.objectContaining({ autoApprove: true })
+    expect(harness.getSnapshotSpy).toHaveBeenCalledTimes(1);
+    expect(harness.confirmService.create).toHaveBeenCalledTimes(1);
+    expect(harness.confirmService.create).toHaveBeenCalledWith(
+      expect.objectContaining({ autoApprove: true, nonInteractive: false })
     );
   });
 });
@@ -551,10 +544,7 @@ describe("EngineService hot configuration", () => {
 
     const store = new ConfigStore();
     store.setSnapshot(initialConfig);
-
-    const configService = {
-      load: vi.fn(async () => initialConfig),
-    } as unknown as ConfigService;
+    const getSnapshotSpy = vi.spyOn(store, "getSnapshot");
 
     const context = { files: [], totalBytes: 1, text: "context" } as PackedContext;
 
@@ -593,7 +583,6 @@ describe("EngineService hot configuration", () => {
     const orchestrator = new FakeAgentOrchestrator();
 
     const engine = new EngineService(
-      configService,
       store,
       contextService,
       providerFactory,
@@ -606,6 +595,8 @@ describe("EngineService hot configuration", () => {
     );
 
     await engine.run("initial run");
+
+    expect(getSnapshotSpy).toHaveBeenCalled();
 
     expect(providerFactory.create).toHaveBeenLastCalledWith(
       expect.objectContaining({ name: "initial-provider" })
@@ -638,9 +629,11 @@ describe("EngineService hot configuration", () => {
 
     store.setSnapshot(updatedConfig);
     providerFactory.create.mockClear();
+    getSnapshotSpy.mockClear();
 
     await engine.run("reloaded run");
 
+    expect(getSnapshotSpy).toHaveBeenCalled();
     expect(providerFactory.create).toHaveBeenLastCalledWith(
       expect.objectContaining({ name: "alt-provider" })
     );

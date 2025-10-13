@@ -45,8 +45,6 @@ describe("ConfigStore", () => {
       .overrideProvider(eddieConfig.KEY)
       .useValue(defaults)
       .compile();
-    // Trigger onApplicationBootstrap lifecycle hook
-    await moduleRef.get(ConfigService).onApplicationBootstrap();
     const store = moduleRef.get(ConfigStore);
 
     expect(store.getSnapshot().logging?.level).toBe("error");
@@ -62,9 +60,6 @@ describe("ConfigStore", () => {
         }),
       ],
     }).compile();
-
-    // Trigger onApplicationBootstrap lifecycle hook
-    await moduleRef.get(ConfigService).onApplicationBootstrap();
 
     const store = moduleRef.get(ConfigStore);
 
@@ -112,8 +107,6 @@ describe("ConfigStore", () => {
     const moduleRef = await Test.createTestingModule({
       imports: [ConfigModule],
     }).compile();
-    // Trigger onApplicationBootstrap lifecycle hook
-    await moduleRef.get(ConfigService).onApplicationBootstrap();
     const service = moduleRef.get(ConfigService);
     const store = moduleRef.get(ConfigStore);
 
@@ -132,8 +125,6 @@ describe("ConfigStore", () => {
     const moduleRef = await Test.createTestingModule({
       imports: [ConfigModule],
     }).compile();
-    // Trigger onApplicationBootstrap lifecycle hook
-    await moduleRef.get(ConfigService).onApplicationBootstrap();
     const service = moduleRef.get(ConfigService);
     const store = moduleRef.get(ConfigStore);
 

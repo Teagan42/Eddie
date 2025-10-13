@@ -23,7 +23,7 @@ export class ContextCommand implements CliCommand {
   ) {}
 
   async execute(args: CliArguments): Promise<void> {
-    const engineOptions = this.optionsService.parse(args.options);
+    this.optionsService.parse(args.options);
     const cfg = this.configStore.getSnapshot();
 
     this.loggerService.configure({
