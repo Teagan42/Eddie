@@ -47,13 +47,21 @@ const hoisted = vi.hoisted(() => {
   };
 });
 
-vi.mock("@modelcontextprotocol/sdk/client/index.js", () => ({
-  Client: hoisted.Client,
-}));
+vi.mock(
+  "@modelcontextprotocol/sdk/client/index.js",
+  () => ({
+    Client: hoisted.Client,
+  }),
+  { virtual: true }
+);
 
-vi.mock("@modelcontextprotocol/sdk/client/sse.js", () => ({
-  SSEClientTransport: hoisted.SSEClientTransport,
-}));
+vi.mock(
+  "@modelcontextprotocol/sdk/client/sse.js",
+  () => ({
+    SSEClientTransport: hoisted.SSEClientTransport,
+  }),
+  { virtual: true }
+);
 
 import { McpToolSourceService } from "../src/mcp-tool-source.service";
 

@@ -6,11 +6,12 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { WebSocketClientTransport } from "@modelcontextprotocol/sdk/client/websocket.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import {
-  CallToolResultSchema,
+  CompatibilityCallToolResultSchema,
   ErrorCode,
   McpError,
+  type CallToolResult,
+  type CompatibilityCallToolResult,
 } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type {
   MCPAuthConfig,
@@ -27,14 +28,7 @@ import type {
 import type { ToolCallArguments, ToolDefinition, ToolResult } from "@eddie/types";
 import type { EventSourceInit } from "eventsource";
 const CLIENT_INFO = { name: "eddie", version: "unknown" } as const;
-const CALL_TOOL_RESULT_FLEXIBLE_MESSAGES_SCHEMA =
-  CallToolResultSchema.extend({
-    content: z.string(),
-    messages: z.unknown().optional(),
-  });
-type CallToolResultPayload = z.infer<
-  typeof CALL_TOOL_RESULT_FLEXIBLE_MESSAGES_SCHEMA
->;
+type CallToolResultPayload = CompatibilityCallToolResult;
 
 interface BuildHttpHeadersOptions {
   accept?: string;
@@ -200,12 +194,54 @@ export class McpToolSourceService {
     result: CallToolResultPayload,
     context: { toolName: string; sourceId: string }
   ): ToolResult {
-    const { schema, content, data, metadata } = result ?? {};
+    if (this.isCompatibilityCallToolResult(result)) {
+      return this.normalizeLegacyToolResult(result.toolResult, context);
+    }
+
+    const structuredContent = this.cloneRecord(result.structuredContent);
+    return this.buildToolResultFromContent(
+      result.content,
+      structuredContent,
+      context,
+      "result"
+    );
+  }
+
+  private isCompatibilityCallToolResult(
+    result: CallToolResultPayload
+  ): result is Extract<CallToolResultPayload, { toolResult: unknown }> {
+    return isRecord(result) && "toolResult" in result;
+  }
+
+  private normalizeLegacyToolResult(
+    payload: unknown,
+    context: { toolName: string; sourceId: string }
+  ): ToolResult {
+    if (!isRecord(payload)) {
+      throw this.createInvalidResultError(context, "legacy result");
+    }
+
+    const { schema, content, data, metadata } = payload as {
+      schema?: unknown;
+      content?: unknown;
+      data?: unknown;
+      metadata?: unknown;
+    };
+
+    if (Array.isArray((payload as { content?: unknown }).content)) {
+      const structuredContent = this.cloneRecord(
+        (payload as { structuredContent?: unknown }).structuredContent
+      );
+      return this.buildToolResultFromContent(
+        (payload as { content: CallToolResult["content"] }).content,
+        structuredContent,
+        context,
+        "legacy result"
+      );
+    }
 
     if (typeof schema !== "string" || typeof content !== "string") {
-      throw new Error(
-        `Tool ${context.toolName} returned an invalid result payload from MCP source ${context.sourceId}.`
-      );
+      throw this.createInvalidResultError(context, "legacy result");
     }
 
     return {
@@ -214,6 +250,75 @@ export class McpToolSourceService {
       data: data !== undefined ? structuredClone(data) : undefined,
       metadata: this.cloneRecord(metadata),
     };
+  }
+
+  private computeToolResultSchema(context: {
+    toolName: string;
+    sourceId: string;
+  }): string {
+    return `mcp://${context.sourceId}/${context.toolName}`;
+  }
+
+  private formatToolResultContent(
+    content: CallToolResult["content"] | undefined,
+    structuredContent: Record<string, unknown> | undefined
+  ): string | undefined {
+    const segments = (content ?? []).map((block) => this.describeContentBlock(block));
+
+    if (segments.length > 0) {
+      return segments.join("\n");
+    }
+
+    if (structuredContent) {
+      return JSON.stringify(structuredContent);
+    }
+
+    return undefined;
+  }
+
+  private describeContentBlock(block: CallToolResult["content"][number]): string {
+    switch (block.type) {
+      case "text":
+        return block.text;
+      case "image":
+        return `[image:${block.mimeType}]`;
+      case "audio":
+        return `[audio:${block.mimeType}]`;
+      case "resource_link": {
+        const name = block.name?.trim();
+        return name && name.length > 0 ? name : block.uri;
+      }
+      default:
+        return `[${block.type}]`;
+    }
+  }
+
+  private buildToolResultFromContent(
+    content: CallToolResult["content"] | undefined,
+    structuredContent: Record<string, unknown> | undefined,
+    context: { toolName: string; sourceId: string },
+    label: "result" | "legacy result"
+  ): ToolResult {
+    const summary = this.formatToolResultContent(content, structuredContent);
+
+    if (summary === undefined) {
+      throw this.createInvalidResultError(context, label);
+    }
+
+    return {
+      schema: this.computeToolResultSchema(context),
+      content: summary,
+      ...(structuredContent ? { data: structuredClone(structuredContent) } : {}),
+    };
+  }
+
+  private createInvalidResultError(
+    context: { toolName: string; sourceId: string },
+    label: "result" | "legacy result"
+  ): Error {
+    return new Error(
+      `Tool ${context.toolName} returned an invalid ${label} payload from MCP source ${context.sourceId}.`
+    );
   }
 
   private async withClient<T>(
@@ -383,7 +488,7 @@ export class McpToolSourceService {
         name: toolName,
         arguments: structuredClone(args ?? {}),
       },
-      CALL_TOOL_RESULT_FLEXIBLE_MESSAGES_SCHEMA
+      CompatibilityCallToolResultSchema
     );
   }
 
