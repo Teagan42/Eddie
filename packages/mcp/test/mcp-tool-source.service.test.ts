@@ -132,4 +132,10 @@ describe("SDK module loading", () => {
 
     expect(source).not.toMatch(/^import\s+[^\n]*streamableHttp/m);
   });
+
+  it("avoids referencing dist esm client types directly", () => {
+    const source = readFileSync(serviceSourcePath, "utf8");
+
+    expect(source).not.toContain("@modelcontextprotocol/sdk/dist/esm/client");
+  });
 });

@@ -8,7 +8,6 @@ import type {
 } from "@eddie/config";
 import { LoggerService } from "@eddie/io";
 import type { Logger } from "pino";
-import type { Client } from "@modelcontextprotocol/sdk/dist/esm/client/index.js";
 import type {
   DiscoveredMcpResource,
   DiscoveredMcpPrompt,
@@ -56,6 +55,8 @@ const CLIENT_MODULE_PATH =
   "@modelcontextprotocol/sdk/client/index.js" as const;
 const STREAMABLE_TRANSPORT_MODULE_PATH =
   "@modelcontextprotocol/sdk/client/streamableHttp.js" as const;
+
+type Client = typeof import("@modelcontextprotocol/sdk/client/index.js").Client;
 
 @Injectable()
 export class McpToolSourceService {
@@ -570,7 +571,7 @@ export class McpToolSourceService {
 }
 
 type SdkModules = {
-  Client: typeof import("@modelcontextprotocol/sdk/client/index.js").Client;
+  Client: Client;
   StreamableHTTPClientTransport: typeof import(
     "@modelcontextprotocol/sdk/client/streamableHttp.js"
   ).StreamableHTTPClientTransport;
