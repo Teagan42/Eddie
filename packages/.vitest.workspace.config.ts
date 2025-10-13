@@ -60,12 +60,13 @@ export const createPackageVitestConfig = (packageName: string) =>
       environment: "node",
       passWithNoTests: true,
       coverage: {
-        reporter: ["text", "html"],
+        reporter: ["text", "json-summary"],
         reportsDirectory: path.resolve(
           workspaceRoot,
           "coverage",
           packageName
         ),
+        reportOnFailure: true,
       },
     },
   });
