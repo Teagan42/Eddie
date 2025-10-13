@@ -143,16 +143,18 @@ jobs:
         run: |
           declare -A results
           results[lint]="${{ needs.lint.result }}"
-          results[build-test]="${{ needs['build-test'].result }}"
+          results["build-test"]="${{ needs['build-test'].result }}"
 
           printf "%-10s %s\n" "Job" "Result"
-          for job in "${!results[@]}"; do
-            printf "%-10s %s\n" "$job" "${results[$job]}"
+          declare -a jobs=("${!results[@]}")
+
+          for job in "${jobs[@]}"; do
+            printf "%-10s %s\n" "$job" "${results["$job"]}"
           done
 
-          for job in "${!results[@]}"; do
-            if [ "${results[$job]}" != "success" ]; then
-              echo "::error title=CI summary::Job '$job' finished with status '${results[$job]}'"
+          for job in "${jobs[@]}"; do
+            if [ "${results["$job"]}" != "success" ]; then
+              echo "::error title=CI summary::Job '$job' finished with status '${results["$job"]}'"
               exit 1
             fi
           done

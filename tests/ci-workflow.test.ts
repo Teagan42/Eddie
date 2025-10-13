@@ -15,4 +15,11 @@ describe('ci workflow configuration', () => {
       /build-test:[\s\S]*npm run build --workspaces[\s\S]*npm run test --workspace \$\{\{ matrix\.workspace\.name \}\} -- --coverage/
     );
   });
+
+  it('quotes associative array keys containing hyphens', () => {
+    expect(workflow).toMatch(
+      /results\["build-test"\]="\$\{\{ needs\['build-test'\]\.result \}\}"/
+    );
+    expect(workflow).toMatch(/results\["\$job"\]/);
+  });
 });
