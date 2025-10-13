@@ -308,6 +308,9 @@ export function ChatPage(): JSX.Element {
     },
     [],
   );
+  const resetAutoSessionAttempt = useCallback(() => {
+    setAutoSessionAttemptState({ status: 'idle', lastAttemptAt: null, lastFailureAt: null });
+  }, [setAutoSessionAttemptState]);
   const agentActivitySessionRef = useRef<string | null>(null);
   const toolInvocationCacheRef = useRef<Map<string, ToolInvocationNode[]>>(new Map());
 
@@ -630,7 +633,7 @@ export function ChatPage(): JSX.Element {
   const createSessionMutation = useMutation({
     mutationFn: (payload: CreateChatSessionDto) => api.http.chatSessions.create(payload),
     onSuccess: (session) => {
-      setAutoSessionAttemptState({ status: 'idle', lastAttemptAt: null, lastFailureAt: null });
+      resetAutoSessionAttempt();
       queryClient.setQueryData<ChatSessionDto[]>(['chat-sessions'], (previous = []) =>
         sortSessions([session, ...previous]),
       );
@@ -657,22 +660,16 @@ export function ChatPage(): JSX.Element {
 
   useEffect(() => {
     if (sessions.length > 0) {
-      setAutoSessionAttemptState({ status: 'idle', lastAttemptAt: null, lastFailureAt: null });
+      resetAutoSessionAttempt();
     }
-  }, [sessions.length, setAutoSessionAttemptState]);
+  }, [resetAutoSessionAttempt, sessions.length]);
 
   useEffect(() => {
     if (!apiKey || !sessionsLoaded || sessions.length > 0) {
       return;
     }
 
-    if (autoSessionAttempt.status === 'failed' && autoSessionAttempt.lastFailureAt) {
-      const elapsedSinceFailure = Date.now() - autoSessionAttempt.lastFailureAt;
-      if (elapsedSinceFailure < 30_000) {
-        return;
-      }
-
-      setAutoSessionAttemptState({ status: 'idle', lastAttemptAt: null, lastFailureAt: null });
+    if (autoSessionAttempt.status === 'failed') {
       return;
     }
 

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { Theme } from "@radix-ui/themes";
 import { ChatPage } from "./ChatPage";
 
@@ -157,6 +157,47 @@ describe("ChatPage authentication behaviours", () => {
       expect(createSessionMock).toHaveBeenCalledTimes(1);
     } finally {
       consoleErrorSpy.mockRestore();
+    }
+  });
+
+  it("does not retry automatic session creation after failure without an API key change", async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    let currentTime = Date.now();
+    const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => currentTime);
+    createSessionMock.mockRejectedValue(new Error("invalid key"));
+
+    const view = render(
+      <Theme>
+        <QueryClientProvider client={client}>
+          <ChatPage />
+        </QueryClientProvider>
+      </Theme>,
+    );
+
+    try {
+      await waitFor(() => expect(createSessionMock).toHaveBeenCalledTimes(1));
+
+      act(() => {
+        currentTime += 31_000;
+        view.rerender(
+          <Theme>
+            <QueryClientProvider client={client}>
+              <ChatPage />
+            </QueryClientProvider>
+          </Theme>,
+        );
+      });
+
+      await waitFor(
+        () => expect(createSessionMock).toHaveBeenCalledTimes(1),
+        { timeout: 200 },
+      );
+    } finally {
+      nowSpy.mockRestore();
+      view.unmount();
     }
   });
 
