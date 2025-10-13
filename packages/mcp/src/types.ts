@@ -1,5 +1,10 @@
 import type { ToolDefinition } from "@eddie/types";
 
+export type {
+  Client as McpClient,
+  ClientOptions as McpClientOptions,
+} from "@modelcontextprotocol/sdk/client";
+
 export interface JsonRpcRequest {
   jsonrpc: "2.0";
   id: string;
