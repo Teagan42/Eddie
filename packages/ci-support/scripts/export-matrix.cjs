@@ -13,7 +13,6 @@ const options =
 
 const matrices = {
   lint: loadWorkspaceMatrix("lint", options),
-  build: loadWorkspaceMatrix("build", options),
   test: loadWorkspaceMatrix("test", options),
 };
 

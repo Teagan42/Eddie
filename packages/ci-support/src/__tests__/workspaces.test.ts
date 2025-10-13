@@ -79,6 +79,14 @@ describe("loadWorkspaceMatrix", () => {
     expect(matrix.workspace.map((item) => item.name)).toContain("@eddie/api");
   });
 
+  it("ignores changed workspace filters for the build job", () => {
+    const matrix = loadWorkspaceMatrix("build", {
+      changedWorkspaces: ["@eddie/tools", "@eddie/context"],
+    });
+
+    expect(matrix.workspace.map((item) => item.name)).toEqual(EXPECTED_NAMES);
+  });
+
   it("limits the matrix to apps and changed packages", () => {
     const matrix = loadWorkspaceMatrix("lint", {
       changedWorkspaces: ["@eddie/tools"],
