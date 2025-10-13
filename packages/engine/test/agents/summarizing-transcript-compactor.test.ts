@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AgentInvocation } from "../../src/agents/agent-invocation";
-import { SummarizingTranscriptCompactor } from "../../src/agents/summarizing-transcript-compactor";
+import { SummarizingTranscriptCompactor } from "../../src/transcript-compactors/summarizing-transcript-compactor";
 
 describe("SummarizingTranscriptCompactor", () => {
   it("returns null plan when total messages do not exceed max", () => {

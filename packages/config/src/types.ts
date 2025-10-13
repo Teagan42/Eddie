@@ -186,24 +186,27 @@ export interface AgentsConfig {
   enableSubagents: boolean;
 }
 
-export type TranscriptCompactorStrategy = "simple" | "token_budget";
+export type TranscriptCompactorStrategy = string;
 
-export interface SimpleTranscriptCompactorConfig {
+export interface TranscriptCompactorConfig {
+  strategy: TranscriptCompactorStrategy;
+  [key: string]: unknown;
+}
+
+export interface SimpleTranscriptCompactorConfig
+  extends TranscriptCompactorConfig {
   strategy: "simple";
   maxMessages?: number;
   keepLast?: number;
 }
 
-export interface TokenBudgetTranscriptCompactorConfig {
+export interface TokenBudgetTranscriptCompactorConfig
+  extends TranscriptCompactorConfig {
   strategy: "token_budget";
   tokenBudget: number;
   keepTail?: number;
   hardFloor?: number;
 }
-
-export type TranscriptCompactorConfig =
-  | SimpleTranscriptCompactorConfig
-  | TokenBudgetTranscriptCompactorConfig;
 
 export interface TranscriptConfig {
   compactor?: TranscriptCompactorConfig;

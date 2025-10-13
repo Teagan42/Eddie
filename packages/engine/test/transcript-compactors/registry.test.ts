@@ -1,0 +1,154 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { EngineService } from "../../src/engine.service";
+import type { EddieConfig, TranscriptCompactorConfig } from "@eddie/config";
+import {
+  registerTranscriptCompactor,
+  resetTranscriptCompactorRegistry,
+} from "../../src/transcript-compactors/registry";
+import type { TranscriptCompactor } from "../../src/transcript-compactors/types";
+import type {
+  AgentInvocation,
+  AgentRuntimeDescriptor,
+} from "../../src/agents/agent-runtime.types";
+
+class FakeCompactor implements TranscriptCompactor {
+  constructor(readonly tag: string) {}
+
+  compact(invocation: AgentInvocation, descriptor?: AgentRuntimeDescriptor) {
+    return {
+      ...invocation,
+      definition: {
+        ...invocation.definition,
+        name: `${descriptor?.name ?? invocation.definition.name ?? ""}-${this.tag}`,
+      },
+    };
+  }
+}
+
+const baseConfig: EddieConfig = {
+  model: "base-model",
+  provider: { name: "provider" },
+  projectDir: "/tmp/project",
+  context: { include: [], baseDir: "/tmp/project" },
+  api: undefined,
+  systemPrompt: "You are Eddie.",
+  logLevel: "info",
+  logging: { level: "info" },
+  output: { jsonlAppend: true },
+  tools: { enabled: [], disabled: [], autoApprove: false },
+  hooks: {},
+  tokenizer: { provider: "provider" },
+  agents: {
+    mode: "manager",
+    manager: {
+      prompt: "Manage the run.",
+    },
+    subagents: [],
+    enableSubagents: false,
+  },
+  transcript: {},
+};
+
+function createService(overrides: Partial<EddieConfig> = {}) {
+  const config: EddieConfig = { ...baseConfig, ...overrides };
+  const configStore = { getSnapshot: vi.fn(() => config) };
+  const contextService = {
+    pack: vi.fn(async () => ({
+      files: [],
+      totalBytes: 0,
+      text: "",
+      resources: [],
+    })),
+  };
+  const providerFactory = {
+    create: vi.fn(() => ({ name: "adapter" })),
+  };
+  const hooks = {
+    emitAsync: vi.fn(async () => ({})),
+  };
+  const hooksService = { load: vi.fn(async () => hooks) };
+  const confirmService = { create: vi.fn(() => ({ confirm: vi.fn() })) };
+  const tokenizerService = {
+    create: vi.fn(() => ({ countTokens: vi.fn(() => 0) })),
+  };
+  const logger = {
+    debug: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+  };
+  const loggerService = {
+    configure: vi.fn(),
+    getLogger: vi.fn(() => logger),
+  };
+  const agentOrchestrator = {
+    setStreamRenderer: vi.fn(),
+    runAgent: vi.fn(async () => ({
+      messages: [],
+      definition: { id: "manager" },
+    })),
+    collectInvocations: vi.fn(() => []),
+  };
+  const mcpToolSourceService = {
+    collectTools: vi.fn(async () => ({
+      tools: [],
+      resources: [],
+      prompts: [],
+    })),
+  };
+
+  const service = new EngineService(
+    configStore as any,
+    contextService as any,
+    providerFactory as any,
+    hooksService as any,
+    confirmService as any,
+    tokenizerService as any,
+    loggerService as any,
+    agentOrchestrator as any,
+    mcpToolSourceService as any,
+  );
+
+  return { service, config };
+}
+
+describe("Transcript compactor registry", () => {
+  beforeEach(() => {
+    resetTranscriptCompactorRegistry();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("creates registered compactors via the registry", () => {
+    registerTranscriptCompactor({
+      strategy: "fake",
+      create(config, context) {
+        expect(context.agentId).toBe("global");
+        expect(config).toMatchObject({ strategy: "fake", tag: "alpha" });
+        return new FakeCompactor(`${config.tag}`);
+      },
+    });
+
+    const transcriptConfig: TranscriptCompactorConfig = {
+      strategy: "fake",
+      tag: "alpha",
+    };
+
+    const { service, config } = createService({
+      transcript: { compactor: transcriptConfig },
+    });
+
+    const selector = (service as any).resolveTranscriptCompactor(config);
+
+    expect(typeof selector).toBe("object");
+    const compactor = selector as TranscriptCompactor;
+    const invocation: AgentInvocation = {
+      definition: { id: "manager", name: "Manager" },
+      messages: [],
+    } as AgentInvocation;
+
+    const result = compactor.compact(invocation);
+    expect(result.definition?.name).toBe("Manager-alpha");
+  });
+});

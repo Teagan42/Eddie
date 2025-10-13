@@ -1,9 +1,12 @@
 import type {
+  SimpleTranscriptCompactorConfig,
   TranscriptCompactionPlan,
   TranscriptCompactionResult,
   TranscriptCompactor,
-} from "./agent-orchestrator.service";
-import type { AgentInvocation } from "./agent-invocation";
+  TranscriptCompactorFactory,
+} from "./types";
+import type { AgentInvocation } from "../agents/agent-invocation";
+import { registerTranscriptCompactor } from "./registry";
 
 type InvocationMessage = AgentInvocation["messages"][number];
 
@@ -45,7 +48,7 @@ export class SimpleTranscriptCompactor implements TranscriptCompactor {
           const head = messages[0];
           if (head?.role === "system") {
             const nextIndex = messages.findIndex(
-              (message: InvocationMessage) => message.role !== "system"
+              (message: InvocationMessage) => message.role !== "system",
             );
             if (nextIndex === -1) {
               return false;
@@ -75,17 +78,28 @@ export class SimpleTranscriptCompactor implements TranscriptCompactor {
   private computeTargetKeep(): number {
     return Math.min(
       this.maxMessages,
-      Math.max(this.keepLast, Math.floor(this.maxMessages / 3))
+      Math.max(this.keepLast, Math.floor(this.maxMessages / 3)),
     );
   }
 
   private hasRemovableNonSystem(messages: InvocationMessage[]): boolean {
-    return messages.some(
-      (message: InvocationMessage) => message.role !== "system"
-    );
+    return messages.some((message: InvocationMessage) => message.role !== "system");
   }
 
   private describeCompaction(removableCount: number, iteration: number): string {
     return `truncate ${removableCount} oldest messages (limit ${this.maxMessages}; iteration ${iteration})`;
   }
 }
+
+const factory: TranscriptCompactorFactory<SimpleTranscriptCompactorConfig> = {
+  strategy: "simple",
+  create: (config) =>
+    new SimpleTranscriptCompactor(
+      typeof config.maxMessages === "number" ? config.maxMessages : undefined,
+      typeof config.keepLast === "number" ? config.keepLast : undefined,
+    ),
+};
+
+registerTranscriptCompactor(factory, { builtin: true });
+
+export const SimpleTranscriptCompactorStrategy = factory.strategy;

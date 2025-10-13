@@ -3,8 +3,8 @@ import type {
   TranscriptCompactionPlan,
   TranscriptCompactionResult,
   TranscriptCompactor,
-} from "./agent-orchestrator.service";
-import type { AgentInvocation } from "./agent-invocation";
+} from "./types";
+import type { AgentInvocation } from "../agents/agent-invocation";
 
 export class SummarizingTranscriptCompactor implements TranscriptCompactor {
   constructor(

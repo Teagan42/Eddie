@@ -31,6 +31,13 @@ import { AgentInvocationFactory } from "./agent-invocation.factory";
 import type { AgentRuntimeCatalog, AgentRuntimeDescriptor } from "./agent-runtime.types";
 import { AgentRunner, type AgentTraceEvent } from "./agent-runner";
 import type { TemplateVariables } from "@eddie/templates";
+import type { TranscriptCompactorSelector } from "../transcript-compactors/types";
+export type {
+  TranscriptCompactionPlan,
+  TranscriptCompactionResult,
+  TranscriptCompactor,
+  TranscriptCompactorSelector,
+} from "../transcript-compactors/types";
 
 interface SpawnToolArguments {
     agent: string;
@@ -55,30 +62,6 @@ export interface AgentRunRequest extends AgentInvocationOptions {
     definition: AgentDefinition;
     parent?: AgentInvocation;
 }
-
-export interface TranscriptCompactionResult {
-    removedMessages?: number;
-}
-
-export interface TranscriptCompactionPlan {
-    reason?: string;
-    apply(): Promise<TranscriptCompactionResult | void> | TranscriptCompactionResult | void;
-}
-
-export interface TranscriptCompactor {
-    plan(
-        invocation: AgentInvocation,
-        iteration: number
-    ): Promise<TranscriptCompactionPlan | null | undefined> |
-        TranscriptCompactionPlan | null | undefined;
-}
-
-export type TranscriptCompactorSelector =
-    | TranscriptCompactor
-    | ((
-        invocation: AgentInvocation,
-        descriptor: AgentRuntimeDescriptor
-    ) => TranscriptCompactor | null | undefined);
 
 @Injectable()
 export class AgentOrchestratorService {
