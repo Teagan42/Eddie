@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import { Theme } from "@radix-ui/themes";
+import { AuthProvider } from "@/auth/auth-context";
 import { ChatPage } from "./ChatPage";
 
 const catalogMock = vi.fn();
@@ -77,9 +78,11 @@ function renderChatPage(): void {
 
   render(
     <Theme>
-      <QueryClientProvider client={client}>
-        <ChatPage />
-      </QueryClientProvider>
+      <AuthProvider>
+        <QueryClientProvider client={client}>
+          <ChatPage />
+        </QueryClientProvider>
+      </AuthProvider>
     </Theme>,
   );
 }

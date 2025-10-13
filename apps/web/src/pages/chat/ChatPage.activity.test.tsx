@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Theme } from "@radix-ui/themes";
+import { AuthProvider } from "@/auth/auth-context";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatPage } from "./ChatPage";
 
@@ -91,9 +92,11 @@ function renderChatPage(): QueryClient {
 
   render(
     <Theme>
-      <QueryClientProvider client={client}>
-        <ChatPage />
-      </QueryClientProvider>
+      <AuthProvider>
+        <QueryClientProvider client={client}>
+          <ChatPage />
+        </QueryClientProvider>
+      </AuthProvider>
     </Theme>
   );
 
@@ -139,6 +142,10 @@ describe("ChatPage agent activity indicator", () => {
       toolInvocations: [],
       agentHierarchy: [],
     });
+  });
+
+  it("wraps ChatPage in an auth provider for test renders", () => {
+    expect(() => renderChatPage()).not.toThrow();
   });
 
   it("reflects agent activity events for the active session", async () => {

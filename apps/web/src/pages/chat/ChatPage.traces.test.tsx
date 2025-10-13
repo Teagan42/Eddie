@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, waitFor } from "@testing-library/react";
 import { Theme } from "@radix-ui/themes";
+import { AuthProvider } from "@/auth/auth-context";
 import type { TraceDto } from "@eddie/api-client";
 import { ChatPage } from "./ChatPage";
 
@@ -99,9 +100,11 @@ function renderChatPage(): QueryClient {
 
   render(
     <Theme>
-      <QueryClientProvider client={client}>
-        <ChatPage />
-      </QueryClientProvider>
+      <AuthProvider>
+        <QueryClientProvider client={client}>
+          <ChatPage />
+        </QueryClientProvider>
+      </AuthProvider>
     </Theme>
   );
 

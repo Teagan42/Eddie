@@ -2,6 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { Theme } from "@radix-ui/themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AuthProvider } from "@/auth/auth-context";
 
 import type { ChatMessageDto } from "@eddie/api-client";
 
@@ -88,9 +89,11 @@ function renderChatPage(): void {
   });
   render(
     <Theme>
-      <QueryClientProvider client={client}>
-        <ChatPage />
-      </QueryClientProvider>
+      <AuthProvider>
+        <QueryClientProvider client={client}>
+          <ChatPage />
+        </QueryClientProvider>
+      </AuthProvider>
     </Theme>
   );
 }

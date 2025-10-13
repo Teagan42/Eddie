@@ -2,6 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Theme } from "@radix-ui/themes";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AuthProvider } from "@/auth/auth-context";
 import { ChatPage } from "./ChatPage";
 
 const listSessionsMock = vi.fn();
@@ -111,9 +112,11 @@ describe("ChatPage tool metadata merging", () => {
 
     render(
       <Theme>
-        <QueryClientProvider client={client}>
-          <ChatPage />
-        </QueryClientProvider>
+        <AuthProvider>
+          <QueryClientProvider client={client}>
+            <ChatPage />
+          </QueryClientProvider>
+        </AuthProvider>
       </Theme>
     );
 

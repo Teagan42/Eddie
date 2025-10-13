@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { Theme } from "@radix-ui/themes";
+import { AuthProvider } from "@/auth/auth-context";
 import { ChatPage } from "./ChatPage";
 
 const catalogMock = vi.fn();
@@ -45,9 +46,16 @@ vi.mock("@/hooks/useLayoutPreferences", () => {
   };
 });
 
-vi.mock("@/auth/auth-context", () => ({
-  useAuth: () => useAuthMock(),
-}));
+vi.mock("@/auth/auth-context", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/auth/auth-context")
+  >("@/auth/auth-context");
+
+  return {
+    ...actual,
+    useAuth: () => useAuthMock(),
+  };
+});
 
 vi.mock("@/api/api-provider", () => ({
   useApi: () => ({
@@ -83,18 +91,24 @@ vi.mock("./useChatMessagesRealtime", () => ({
   useChatMessagesRealtime: vi.fn(),
 }));
 
+function renderWithProviders(client: QueryClient): JSX.Element {
+  return (
+    <Theme>
+      <AuthProvider>
+        <QueryClientProvider client={client}>
+          <ChatPage />
+        </QueryClientProvider>
+      </AuthProvider>
+    </Theme>
+  );
+}
+
 function renderChatPage(): void {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
 
-  render(
-    <Theme>
-      <QueryClientProvider client={client}>
-        <ChatPage />
-      </QueryClientProvider>
-    </Theme>,
-  );
+  render(renderWithProviders(client));
 }
 
 describe("ChatPage authentication behaviours", () => {
@@ -169,26 +183,14 @@ describe("ChatPage authentication behaviours", () => {
     const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => currentTime);
     createSessionMock.mockRejectedValue(new Error("invalid key"));
 
-    const view = render(
-      <Theme>
-        <QueryClientProvider client={client}>
-          <ChatPage />
-        </QueryClientProvider>
-      </Theme>,
-    );
+    const view = render(renderWithProviders(client));
 
     try {
       await waitFor(() => expect(createSessionMock).toHaveBeenCalledTimes(1));
 
       act(() => {
         currentTime += 31_000;
-        view.rerender(
-          <Theme>
-            <QueryClientProvider client={client}>
-              <ChatPage />
-            </QueryClientProvider>
-          </Theme>,
-        );
+        view.rerender(renderWithProviders(client));
       });
 
       await waitFor(

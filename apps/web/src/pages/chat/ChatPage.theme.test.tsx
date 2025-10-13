@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import { Theme } from "@radix-ui/themes";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AuthProvider } from "@/auth/auth-context";
 import { ChatPage } from "./ChatPage";
 
 type ChatMessageDto = {
@@ -138,9 +139,11 @@ describe("ChatPage message surfaces", () => {
 
     render(
       <Theme>
-        <QueryClientProvider client={client}>
-          <ChatPage />
-        </QueryClientProvider>
+        <AuthProvider>
+          <QueryClientProvider client={client}>
+            <ChatPage />
+          </QueryClientProvider>
+        </AuthProvider>
       </Theme>
     );
 
