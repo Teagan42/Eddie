@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { Buffer } from "buffer";
 import { performance } from "node:perf_hooks";
+import { URL } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp";
 import type {
@@ -320,7 +321,8 @@ export class McpToolSourceService {
   ): Promise<T> {
     const cached = this.sessionCache.get(source.id);
     const headers = this.buildHeaders(source);
-    const transport = new StreamableHTTPClientTransport(source.url, {
+    const transportUrl = new URL(source.url);
+    const transport = new StreamableHTTPClientTransport(transportUrl, {
       requestInit: { headers },
       sessionId: cached?.sessionId,
     });

@@ -29,10 +29,30 @@ const packageAliases = packageNames.flatMap((name) => {
   ];
 });
 
+const mcpSdkBasePath = path.resolve(
+  workspaceRoot,
+  "node_modules",
+  "@modelcontextprotocol",
+  "sdk",
+  "dist",
+  "cjs"
+);
+
+const externalAliases = [
+  {
+    find: "@modelcontextprotocol/sdk",
+    replacement: path.join(mcpSdkBasePath, "client", "index.js"),
+  },
+  {
+    find: "@modelcontextprotocol/sdk/client/streamableHttp",
+    replacement: path.join(mcpSdkBasePath, "client", "streamableHttp.js"),
+  },
+];
+
 export const createPackageVitestConfig = (packageName: string) =>
   defineConfig({
     resolve: {
-      alias: packageAliases,
+      alias: [...packageAliases, ...externalAliases],
     },
     test: {
       globals: true,

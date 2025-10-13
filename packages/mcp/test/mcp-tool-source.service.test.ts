@@ -23,7 +23,7 @@ interface MockClientInstance {
 const mockTransportInstances: MockTransportInstance[] = [];
 
 interface MockTransportInstance {
-  url: string;
+  url: URL;
   options: unknown;
 }
 
@@ -49,7 +49,7 @@ vi.mock("@modelcontextprotocol/sdk", () => ({
 
 vi.mock("@modelcontextprotocol/sdk/client/streamableHttp", () => ({
   StreamableHTTPClientTransport: class MockTransport {
-    constructor(public url: string, public options: unknown) {
+    constructor(public url: URL, public options: unknown) {
       mockTransportInstances.push(this as unknown as MockTransportInstance);
     }
   },
@@ -102,7 +102,8 @@ describe("McpToolSourceService", () => {
     expect(instance.constructorArgs[1]).toEqual({ capabilities: source.capabilities });
     expect(instance.connect).toHaveBeenCalledTimes(1);
     expect(mockTransportInstances).toHaveLength(1);
-    expect(mockTransportInstances[0].url).toBe(source.url);
+    expect(mockTransportInstances[0].url).toBeInstanceOf(URL);
+    expect(mockTransportInstances[0].url.href).toBe(source.url);
     expect(logger.info).toHaveBeenCalledWith(
       expect.objectContaining({
         event: "mcp.initialize",
