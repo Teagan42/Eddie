@@ -56,4 +56,8 @@ describe("ApiModule configuration", () => {
     expect(dynamicModule.imports).toContain(registrationResult);
   });
 
+  it("exposes MCP tooling without requiring direct SDK resolution", async () => {
+    await expect(import("@eddie/mcp")).resolves.toBeDefined();
+  });
+
 });

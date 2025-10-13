@@ -21,9 +21,29 @@ const packageAliases = fs
     ];
   });
 
+const mcpSdkBasePath = path.resolve(
+  workspaceRoot,
+  "node_modules",
+  "@modelcontextprotocol",
+  "sdk",
+  "dist",
+  "cjs",
+);
+
+const externalAliases = [
+  {
+    find: "@modelcontextprotocol/sdk/client/index.js",
+    replacement: path.join(mcpSdkBasePath, "client", "index.js"),
+  },
+  {
+    find: "@modelcontextprotocol/sdk/client/streamableHttp.js",
+    replacement: path.join(mcpSdkBasePath, "client", "streamableHttp.js"),
+  },
+];
+
 export default defineConfig({
   resolve: {
-    alias: packageAliases,
+    alias: [...packageAliases, ...externalAliases],
   },
   esbuild: {
     tsconfigRaw: {
