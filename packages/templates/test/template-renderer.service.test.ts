@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import fs from "fs/promises";
 import os from "os";
 import path from "path";
+import nunjucks from "nunjucks";
 import { TemplateRendererService } from "../src/template-renderer.service";
 
 describe("TemplateRendererService", () => {
@@ -38,5 +39,30 @@ describe("TemplateRendererService", () => {
     );
 
     expect(secondRender).toBe("Updated World");
+  });
+
+  it("rebuilds cached template when stored instance is missing", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "template-cache-"));
+    tempDirs.push(tmpDir);
+
+    const templatePath = path.join(tmpDir, "welcome.njk");
+    await fs.writeFile(templatePath, "Hi {{ name }}", "utf-8");
+
+    const stats = await fs.stat(templatePath);
+    const searchPaths = [path.dirname(templatePath)];
+    const cacheKey = `${searchPaths.join("|")}:${templatePath}`;
+    service["templateCache"].set(cacheKey, {
+      template: undefined as unknown as nunjucks.Template,
+      mtimeMs: stats.mtimeMs,
+    });
+
+    const rendered = await service.renderTemplate(
+      { file: templatePath },
+      { name: "Coder" }
+    );
+
+    expect(rendered).toBe("Hi Coder");
+    const cacheEntry = service["templateCache"].get(cacheKey);
+    expect(cacheEntry?.template).toBeInstanceOf(nunjucks.Template);
   });
 });

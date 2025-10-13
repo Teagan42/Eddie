@@ -47,10 +47,12 @@ export class TemplateRendererService {
     const cacheKey = `${key}:${absolutePath}`;
 
     const cachedEntry = this.templateCache.get(cacheKey);
-    let template = cachedEntry?.template;
+    let template: nunjucks.Template | undefined = cachedEntry?.template;
+    const needsRebuild =
+      !template || this.isCacheEntryStale(cachedEntry, mtimeMs);
 
-    if (this.isCacheEntryStale(cachedEntry, mtimeMs)) {
-      template = new nunjucks.Template(source, env, absolutePath, true);
+    if (needsRebuild) {
+      template = this.createTemplate(source, env, absolutePath);
       this.templateCache.set(cacheKey, { template, mtimeMs });
     }
 
@@ -65,14 +67,17 @@ export class TemplateRendererService {
   ): Promise<string> {
     const searchPaths = this.computeSearchPaths({ filename });
     const { env } = this.getEnvironment(searchPaths);
-    const templateInstance = new nunjucks.Template(
-      template,
-      env,
-      filename,
-      true
-    );
+    const templateInstance = this.createTemplate(template, env, filename);
     const rendered = templateInstance.render(variables);
     return rendered ?? "";
+  }
+
+  private createTemplate(
+    source: string,
+    env: nunjucks.Environment,
+    filename?: string
+  ): nunjucks.Template {
+    return new nunjucks.Template(source, env, filename, true);
   }
 
   private resolvePath(descriptor: TemplateDescriptor): string {
