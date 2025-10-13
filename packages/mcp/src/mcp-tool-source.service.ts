@@ -111,18 +111,17 @@ export class McpToolSourceService {
       return [];
     }
 
-    const discoveries: McpToolSourceDiscovery[] = [];
-    for (const source of sources) {
+    const discoveryPromises = sources.map(async (source) => {
       const discovery = await this.discoverSource(source);
-      discoveries.push({
+      return {
         sourceId: source.id,
         tools: discovery.tools,
         resources: discovery.resources,
         prompts: discovery.prompts,
-      });
-    }
+      } satisfies McpToolSourceDiscovery;
+    });
 
-    return discoveries;
+    return Promise.all(discoveryPromises);
   }
 
   private async discoverSource(source: MCPToolSourceConfig): Promise<{

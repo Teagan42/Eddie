@@ -84,6 +84,16 @@ const createLoggerService = (logger: Logger): LoggerService => ({
   getLogger: vi.fn().mockReturnValue(logger),
 } as unknown as LoggerService);
 
+const createDeferred = <T>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
+
 describe("McpToolSourceService", () => {
   beforeEach(() => {
     mockClientInstances.length = 0;
@@ -171,6 +181,69 @@ describe("McpToolSourceService", () => {
       }),
       "Connected to MCP server"
     );
+  });
+
+  it("runs discovery for all sources concurrently and preserves ordering", async () => {
+    const logger = createLogger();
+    const loggerService = createLoggerService(logger);
+    const service = new McpToolSourceService(loggerService);
+    const sources: MCPToolSourceConfig[] = [
+      { id: "one", type: "mcp", url: "https://example.com/one" },
+      { id: "two", type: "mcp", url: "https://example.com/two" },
+    ];
+
+    const firstDeferred = createDeferred<{
+      tools: unknown[];
+      resources: unknown[];
+      prompts: unknown[];
+    }>();
+    const secondDeferred = createDeferred<{
+      tools: unknown[];
+      resources: unknown[];
+      prompts: unknown[];
+    }>();
+
+    const discoverSpy = vi
+      .spyOn(service as unknown as { discoverSource: unknown }, "discoverSource")
+      .mockImplementationOnce(() => firstDeferred.promise)
+      .mockImplementationOnce(() => secondDeferred.promise);
+
+    const discoveryPromise = service.discoverSources(sources);
+
+    expect(discoverSpy).toHaveBeenCalledTimes(2);
+    expect(discoverSpy).toHaveBeenNthCalledWith(1, sources[0]);
+    expect(discoverSpy).toHaveBeenNthCalledWith(2, sources[1]);
+
+    const secondResult = {
+      tools: [{ name: "second", jsonSchema: {}, handler: vi.fn() }],
+      resources: [{ name: "resource-two", uri: "two://" }],
+      prompts: [{ name: "prompt-two", messages: [] }],
+    };
+    const firstResult = {
+      tools: [{ name: "first", jsonSchema: {}, handler: vi.fn() }],
+      resources: [{ name: "resource-one", uri: "one://" }],
+      prompts: [{ name: "prompt-one", messages: [] }],
+    };
+
+    secondDeferred.resolve(secondResult);
+    firstDeferred.resolve(firstResult);
+
+    await expect(discoveryPromise).resolves.toEqual([
+      {
+        sourceId: sources[0].id,
+        tools: firstResult.tools,
+        resources: firstResult.resources,
+        prompts: firstResult.prompts,
+      },
+      {
+        sourceId: sources[1].id,
+        tools: secondResult.tools,
+        resources: secondResult.resources,
+        prompts: secondResult.prompts,
+      },
+    ]);
+
+    discoverSpy.mockRestore();
   });
 });
 
