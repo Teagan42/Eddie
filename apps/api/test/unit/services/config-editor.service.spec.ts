@@ -75,7 +75,7 @@ describe("ConfigEditorService", () => {
       ...snapshot,
       config: snapshot.config,
     });
-    expect(configService.readSnapshot).toHaveBeenCalledWith({});
+    expect(configService.readSnapshot).toHaveBeenCalledWith();
   });
 
   it("populates the snapshot config from the config store", async () => {

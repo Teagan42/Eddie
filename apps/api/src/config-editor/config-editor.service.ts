@@ -23,7 +23,7 @@ export class ConfigEditorService {
   }
 
   async getSnapshot(): Promise<ConfigFileSnapshot> {
-    const snapshot = await this.configService.readSnapshot({});
+    const snapshot = await this.configService.readSnapshot();
     const config = this.configStore.getSnapshot();
     return { ...snapshot, config } satisfies ConfigFileSnapshot;
   }

@@ -91,7 +91,7 @@ export class ConfigService {
   }
 
   async load(options: CliRuntimeOptions): Promise<EddieConfig> {
-    const configPath = await this.resolveConfigPath(options);
+    const configPath = await resolveConfigFilePath(options);
     const fileConfig = configPath ? await this.readConfigFile(configPath) : {};
     const config = await this.compose(fileConfig, options);
     if (this.configStore) {
@@ -231,7 +231,7 @@ export class ConfigService {
 
       resolvedTarget = candidate;
     } else {
-      resolvedTarget = await this.resolveConfigPath(options);
+      resolvedTarget = await resolveConfigFilePath(options);
     }
 
     const destination =
@@ -280,22 +280,6 @@ export class ConfigService {
     } catch {
       return {};
     }
-  }
-
-  private async resolveConfigPath(
-    options: CliRuntimeOptions
-  ): Promise<string | null> {
-    if (options.config) {
-      const explicit = path.resolve(options.config);
-      try {
-        await fs.access(explicit);
-        return explicit;
-      } catch {
-        throw new Error(`Config file not found at ${explicit}`);
-      }
-    }
-
-    return resolveConfigFilePath(options);
   }
 
   parseSource(source: string, format: ConfigFileFormat): EddieConfigInput {
