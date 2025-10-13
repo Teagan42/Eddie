@@ -216,15 +216,26 @@ export function mergeCliRuntimeOptions(
   base: CliRuntimeOptions,
   overrides: CliRuntimeOptions,
 ): CliRuntimeOptions {
-  const merged: CliRuntimeOptions = { ...base };
+  const merged = cloneCliRuntimeOptions(base);
+  const overrideClone = cloneCliRuntimeOptions(overrides);
+  const target =
+    merged as Record<
+      keyof CliRuntimeOptions,
+      CliRuntimeOptions[keyof CliRuntimeOptions]
+    >;
+  const source =
+    overrideClone as Record<
+      keyof CliRuntimeOptions,
+      CliRuntimeOptions[keyof CliRuntimeOptions]
+    >;
 
-  for (const key of Object.keys(overrides) as (keyof CliRuntimeOptions)[]) {
-    const value = overrides[key];
+  for (const key of Object.keys(source) as (keyof CliRuntimeOptions)[]) {
+    const value = source[key];
     if (typeof value === "undefined") {
       continue;
     }
 
-    merged[key] = Array.isArray(value) ? [...value] : value;
+    target[key] = value;
   }
 
   return merged;
