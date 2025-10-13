@@ -296,7 +296,7 @@ export function ChatPage(): JSX.Element {
   const sessionsLoaded = sessionsQuery.isSuccess;
 
   const selectedSessionIdRef = useRef<string | null>(null);
-  const autoSessionAttemptRef = useRef<AutoSessionAttemptState>({
+  const [autoSessionAttempt, setAutoSessionAttempt] = useState<AutoSessionAttemptState>({
     status: 'idle',
     apiKey: null,
     lastAttemptAt: null,
@@ -304,7 +304,7 @@ export function ChatPage(): JSX.Element {
   });
   const setAutoSessionAttemptState = useCallback(
     (updates: Partial<AutoSessionAttemptState>) => {
-      Object.assign(autoSessionAttemptRef.current, updates);
+      setAutoSessionAttempt((previous) => ({ ...previous, ...updates }));
     },
     [],
   );
@@ -640,11 +640,12 @@ export function ChatPage(): JSX.Element {
       setAutoSessionAttemptState({ status: 'failed', lastFailureAt: Date.now() });
     },
   });
+  const { mutate: runCreateSession } = createSessionMutation;
   const isCreatingSession = createSessionMutation.isPending;
 
   useEffect(() => {
     const currentKey = apiKey ?? null;
-    if (autoSessionAttemptRef.current.apiKey !== currentKey) {
+    if (autoSessionAttempt.apiKey !== currentKey) {
       setAutoSessionAttemptState({
         apiKey: currentKey,
         status: 'idle',
@@ -652,36 +653,35 @@ export function ChatPage(): JSX.Element {
         lastFailureAt: null,
       });
     }
-  }, [apiKey]);
+  }, [apiKey, autoSessionAttempt.apiKey, setAutoSessionAttemptState]);
 
   useEffect(() => {
     if (sessions.length > 0) {
       setAutoSessionAttemptState({ status: 'idle', lastAttemptAt: null, lastFailureAt: null });
     }
-  }, [sessions.length]);
+  }, [sessions.length, setAutoSessionAttemptState]);
 
   useEffect(() => {
     if (!apiKey || !sessionsLoaded || sessions.length > 0) {
       return;
     }
 
-    const attemptState = autoSessionAttemptRef.current;
-
-    if (attemptState.status === 'failed' && attemptState.lastFailureAt) {
-      const elapsedSinceFailure = Date.now() - attemptState.lastFailureAt;
+    if (autoSessionAttempt.status === 'failed' && autoSessionAttempt.lastFailureAt) {
+      const elapsedSinceFailure = Date.now() - autoSessionAttempt.lastFailureAt;
       if (elapsedSinceFailure < 30_000) {
         return;
       }
 
       setAutoSessionAttemptState({ status: 'idle', lastAttemptAt: null, lastFailureAt: null });
+      return;
     }
 
-    if (attemptState.status !== 'idle' || isCreatingSession) {
+    if (autoSessionAttempt.status !== 'idle' || isCreatingSession) {
       return;
     }
 
     const now = Date.now();
-    if (attemptState.lastAttemptAt && now - attemptState.lastAttemptAt < 5_000) {
+    if (autoSessionAttempt.lastAttemptAt && now - autoSessionAttempt.lastAttemptAt < 5_000) {
       return;
     }
 
@@ -691,11 +691,21 @@ export function ChatPage(): JSX.Element {
       lastAttemptAt: now,
       lastFailureAt: null,
     });
-    createSessionMutation.mutate({
+    runCreateSession({
       title: 'New orchestrator session',
       description: '',
     });
-  }, [apiKey, createSessionMutation, isCreatingSession, sessions.length, sessionsLoaded]);
+  }, [
+    apiKey,
+    autoSessionAttempt.lastAttemptAt,
+    autoSessionAttempt.lastFailureAt,
+    autoSessionAttempt.status,
+    runCreateSession,
+    isCreatingSession,
+    sessions.length,
+    sessionsLoaded,
+    setAutoSessionAttemptState,
+  ]);
 
   const sendMessageMutation = useMutation({
     mutationFn: (input: { sessionId: string; message: CreateChatMessageDto }) =>
