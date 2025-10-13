@@ -17,6 +17,26 @@ const createStream = (events: StreamEvent[]): AsyncIterable<StreamEvent> => ({
   },
 });
 
+const completeOrTimeout = async (
+  promise: Promise<void>,
+  timeoutMs = 100
+): Promise<"completed" | "timeout"> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const completion = promise.then(() => {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+    return "completed" as const;
+  });
+
+  const timeout = new Promise<"timeout">((resolve) => {
+    timeoutId = setTimeout(() => resolve("timeout"), timeoutMs);
+  });
+
+  return Promise.race([completion, timeout]);
+};
+
 const baseDefinition = {
   id: "agent-1",
   systemPrompt: "You are helpful.",
@@ -182,12 +202,21 @@ describe("AgentRunner", () => {
         return {};
       });
 
-    const providerStream = vi.fn().mockReturnValue(
-      createStream([
-        { type: "tool_call", id: "call_1", name: "math", arguments: { x: 1 } },
-        { type: "end" },
-      ])
-    );
+    const providerStream = vi
+      .fn()
+      .mockReturnValueOnce(
+        createStream([
+          { type: "tool_call", id: "call_1", name: "math", arguments: { x: 1 } },
+          { type: "end" },
+        ])
+      )
+      .mockReturnValueOnce(
+        createStream([
+          { type: "delta", text: "All done" },
+          { type: "end" },
+        ])
+      )
+      .mockImplementation(() => createStream([{ type: "end" }]));
 
     const descriptor = createDescriptor({ provider: { name: "openai", stream: providerStream } });
 
@@ -200,7 +229,13 @@ describe("AgentRunner", () => {
       composeToolSchemas: () => [],
     });
 
-    await runner.run();
+    await expect(completeOrTimeout(runner.run())).resolves.toBe("completed");
+
+    expect(providerStream).toHaveBeenCalledTimes(2);
+    expect(invocation.messages.at(-1)).toMatchObject({
+      role: "assistant",
+      content: "All done",
+    });
 
     expect(dispatchHookOrThrow).toHaveBeenCalledWith(
       HOOK_EVENTS.preToolUse,
@@ -216,7 +251,7 @@ describe("AgentRunner", () => {
       id: "call_1",
       result: toolResult,
     });
-    expect(invocation.messages.at(-1)).toMatchObject({
+    expect(invocation.messages.at(-2)).toMatchObject({
       role: "tool",
       name: "math",
       tool_call_id: "call_1",
