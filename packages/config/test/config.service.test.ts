@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import * as runtimeEnv from "../src/runtime-env";
 
 import type { ConfigStore } from "../src/config.store";
 import { ConfigService } from "../src/config.service";
@@ -25,7 +26,26 @@ const createService = (defaults?: Partial<EddieConfig>) => {
   return { service, configStore };
 };
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("ConfigService compose precedence", () => {
+  it("does not re-resolve CLI runtime options from the environment", () => {
+    const resolverSpy = vi.spyOn(runtimeEnv, "resolveCliRuntimeOptionsFromEnv");
+    const moduleOptions = { model: "module-model" } as CliRuntimeOptions;
+
+    new ConfigService(undefined, moduleOptions);
+
+    expect(resolverSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not expose an onApplicationBootstrap hook", () => {
+    const service = new ConfigService(undefined, {} as CliRuntimeOptions);
+
+    expect("onApplicationBootstrap" in service).toBe(false);
+  });
+
   it("starts from the module defaults when no provider overrides exist", async () => {
     const { service } = createService();
 

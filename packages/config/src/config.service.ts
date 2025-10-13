@@ -1,4 +1,4 @@
-import { forwardRef, Inject, Injectable, OnApplicationBootstrap, Optional } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Optional } from "@nestjs/common";
 import {
   ConfigType,
 } from "@nestjs/config";
@@ -11,7 +11,6 @@ import { MODULE_OPTIONS_TOKEN } from './config.const';
 import { eddieConfig } from "./config.namespace";
 import { ConfigStore } from './config.store';
 import { DEFAULT_CONFIG } from "./defaults";
-import { resolveCliRuntimeOptionsFromEnv } from "./runtime-env";
 import type {
   AgentProviderConfig,
   AgentsConfig,
@@ -75,7 +74,7 @@ const SQL_CONNECTION_SCHEMA = z
  * runtime overrides, normalising legacy fields along the way.
  */
 @Injectable()
-export class ConfigService implements OnApplicationBootstrap {
+export class ConfigService {
   private readonly writeSubject = new Subject<ConfigFileSnapshot>();
 
   readonly writes$ = this.writeSubject.asObservable();
@@ -93,15 +92,7 @@ export class ConfigService implements OnApplicationBootstrap {
     @Inject(eddieConfig.KEY)
     private readonly defaultsProvider?: ConfigType<typeof eddieConfig>,
   ) {
-    const envOptions = resolveCliRuntimeOptionsFromEnv(process.env);
-    this.moduleOptions = {
-      ...envOptions,
-      ...(moduleOptions ?? {}),
-    };
-  }
-
-  async onApplicationBootstrap() {
-    await this.load(this.moduleOptions);
+    this.moduleOptions = moduleOptions ?? {};
   }
 
   async load(options: CliRuntimeOptions): Promise<EddieConfig> {
