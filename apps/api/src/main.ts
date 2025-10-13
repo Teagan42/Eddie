@@ -4,13 +4,27 @@ import { WsAdapter } from "@nestjs/platform-ws";
 import { ApiModule } from "./api.module";
 import { initTracing } from "./telemetry/tracing";
 import { HttpLoggerMiddleware } from "./middleware/http-logger.middleware";
-import { ConfigStore } from "@eddie/config";
-import type { EddieConfig } from "@eddie/config";
+import {
+  ConfigStore,
+  mergeCliRuntimeOptions,
+  parseCliRuntimeOptionsFromArgv,
+  resolveCliRuntimeOptionsFromEnv,
+} from "@eddie/config";
+import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
 import { LoggerService } from "@eddie/io";
 import { applyCorsConfig } from "./cors";
 import { ensureDefaultConfigRoot } from "./config-root";
 import { configureOpenApi } from "./openapi-config";
-import { getRuntimeOptions } from "./runtime-options";
+import {
+  getRuntimeOptions,
+  setRuntimeOptions,
+} from "./runtime-options";
+
+function resolveRuntimeOverrides(): CliRuntimeOptions {
+  const envRuntimeOptions = resolveCliRuntimeOptionsFromEnv(process.env);
+  const cliRuntimeOptions = parseCliRuntimeOptionsFromArgv(process.argv.slice(2));
+  return mergeCliRuntimeOptions(envRuntimeOptions, cliRuntimeOptions);
+}
 
 function configureLogging(
   config: EddieConfig,
@@ -26,6 +40,8 @@ function configureLogging(
 export async function bootstrap(): Promise<void> {
   ensureDefaultConfigRoot();
 
+  const overrides = resolveRuntimeOverrides();
+  setRuntimeOptions(overrides);
   const runtimeOptions = getRuntimeOptions();
 
   const app = await NestFactory.create(

@@ -4,36 +4,64 @@ import {
   setRuntimeOptionsFromArgv,
 } from "../../../src/runtime-options";
 
-const stubs = vi.hoisted(() => ({
-  loadMock: vi.fn(),
-  ensureMock: vi.fn(),
-  getSnapshotMock: vi.fn(),
-  setSnapshotMock: vi.fn(),
-  configureOpenApiMock: vi.fn(),
-  applyCorsMock: vi.fn(),
-  useMock: vi.fn(),
-  listenMock: vi.fn(),
-  createMock: vi.fn(),
-  configureLoggerMock: vi.fn(),
-  apiForRootMock: vi.fn(),
-}));
+const hoisted = vi.hoisted(() => {
+  const loadMock = vi.fn();
+  const ensureMock = vi.fn();
+  const getSnapshotMock = vi.fn();
+  const setSnapshotMock = vi.fn();
+  const configureOpenApiMock = vi.fn();
+  const applyCorsMock = vi.fn();
+  const useMock = vi.fn();
+  const listenMock = vi.fn();
+  const createMock = vi.fn();
+  const configureLoggerMock = vi.fn();
+  const apiForRootMock = vi.fn();
 
-class ConfigServiceStub {
-  load = stubs.loadMock;
-}
+  class ConfigServiceStub {
+    load = loadMock;
+  }
 
-class ConfigStoreStub {
-  setSnapshot = stubs.setSnapshotMock;
-  getSnapshot = stubs.getSnapshotMock;
-}
+  class ConfigStoreStub {
+    setSnapshot = setSnapshotMock;
+    getSnapshot = getSnapshotMock;
+  }
 
-class LoggerServiceStub {
-  configure = stubs.configureLoggerMock;
-}
+  class LoggerServiceStub {
+    configure = configureLoggerMock;
+  }
 
-class HttpLoggerMiddlewareStub {
-  use = stubs.useMock;
-}
+  class HttpLoggerMiddlewareStub {
+    use = useMock;
+  }
+
+  return {
+    stubs: {
+      loadMock,
+      ensureMock,
+      getSnapshotMock,
+      setSnapshotMock,
+      configureOpenApiMock,
+      applyCorsMock,
+      useMock,
+      listenMock,
+      createMock,
+      configureLoggerMock,
+      apiForRootMock,
+    },
+    ConfigServiceStub,
+    ConfigStoreStub,
+    LoggerServiceStub,
+    HttpLoggerMiddlewareStub,
+  };
+});
+
+const {
+  stubs,
+  ConfigServiceStub,
+  ConfigStoreStub,
+  LoggerServiceStub,
+  HttpLoggerMiddlewareStub,
+} = hoisted;
 
 vi.mock("../../../src/api.module", () => ({
   ApiModule: {
@@ -64,8 +92,8 @@ vi.mock(
     return {
       ...actual,
       ConfigModule: class {},
-      ConfigService: ConfigServiceStub,
-      ConfigStore: ConfigStoreStub,
+      ConfigService: hoisted.ConfigServiceStub,
+      ConfigStore: hoisted.ConfigStoreStub,
     };
   },
 );
@@ -97,9 +125,11 @@ vi.mock("../../../src/openapi-config", () => ({
 }));
 
 describe("bootstrap runtime options", () => {
+  const originalEnv = { ...process.env };
   const originalArgv = process.argv.slice();
 
   beforeEach(() => {
+    process.env = { ...originalEnv };
     process.argv = originalArgv.slice(0, 2);
     resetRuntimeOptionsCache();
     vi.clearAllMocks();
@@ -133,6 +163,7 @@ describe("bootstrap runtime options", () => {
   });
 
   afterEach(() => {
+    process.env = { ...originalEnv };
     process.argv = originalArgv.slice();
     resetRuntimeOptionsCache();
     vi.resetModules();
@@ -230,5 +261,38 @@ describe("bootstrap runtime options", () => {
     expect(createArgs?.[0]).toBe(moduleRef);
 
     getRuntimeOptionsSpy.mockRestore();
+  });
+
+  it("merges CLI arguments with environment overrides before bootstrap", async () => {
+    stubs.listenMock.mockResolvedValue(undefined);
+
+    process.env.EDDIE_CLI_TOOLS = "lint,format";
+    process.env.EDDIE_CLI_LOG_LEVEL = "info";
+    process.env.EDDIE_CLI_MODEL = "env-model";
+
+    process.argv = [
+      "node",
+      "main.js",
+      "--model",
+      "cli-model",
+      "--context",
+      "src",
+      "--context",
+      "docs",
+      "--log-level",
+      "debug",
+    ];
+
+    const { bootstrap } = await import("../../../src/main");
+
+    await bootstrap();
+
+    const lastCall = stubs.apiForRootMock.mock.calls.at(-1);
+    expect(lastCall?.[0]).toMatchObject({
+      context: ["src", "docs"],
+      tools: ["lint", "format"],
+      logLevel: "debug",
+      model: "cli-model",
+    });
   });
 });
