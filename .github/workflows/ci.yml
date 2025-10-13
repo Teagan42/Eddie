@@ -14,7 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       lint: ${{ steps.export.outputs.lint }}
-      build: ${{ steps.export.outputs.build }}
       test: ${{ steps.export.outputs.test }}
     steps:
       - name: Checkout
@@ -82,59 +81,12 @@ jobs:
       - name: Run lint
         run: npm run lint --workspace ${{ matrix.workspace.name }}
 
-  build:
-    name: Build (${{ matrix.workspace.name }})
+  build-test:
+    name: Build & Test (${{ matrix.workspace.name }} @ Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
     needs:
       - workspace-matrix
       - lint
-    strategy:
-      matrix: ${{ fromJson(needs['workspace-matrix'].outputs.build) }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: Cache npm dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
-
-      - name: Install dependencies
-        run: ./scripts/install.sh
-
-      - name: Restore build cache
-        id: restore-build
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ matrix.workspace.dist }}
-            ${{ matrix.workspace.tsbuildinfo }}
-          key: ${{ runner.os }}-build-${{ matrix.workspace.name }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ matrix.workspace.name }}-
-
-      - name: Run prebuild commands
-        if: ${{ matrix.workspace.prebuild }}
-        run: |
-          set -euo pipefail
-          ${{ join(matrix.workspace.prebuild, '\n          ') }}
-
-      - name: Run build
-        if: steps.restore-build.outputs.cache-hit != 'true'
-        run: npm run build --workspace ${{ matrix.workspace.name }}
-
-  test:
-    name: Test (${{ matrix.workspace.name }} @ Node ${{ matrix.node-version }})
-    runs-on: ubuntu-latest
-    needs:
-      - workspace-matrix
-      - build
     strategy:
       matrix: ${{ fromJson(needs['workspace-matrix'].outputs.test) }}
     steps:
@@ -154,6 +106,9 @@ jobs:
 
       - name: Install dependencies
         run: ./scripts/install.sh
+
+      - name: Build entire project
+        run: npm run build --workspaces
 
       - name: Run tests
         run: npm run test --workspace ${{ matrix.workspace.name }} -- --coverage
@@ -181,25 +136,25 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - lint
-      - build
-      - test
+      - build-test
     if: ${{ always() }}
     steps:
       - name: Report overall status
         run: |
           declare -A results
           results[lint]="${{ needs.lint.result }}"
-          results[build]="${{ needs.build.result }}"
-          results[test]="${{ needs.test.result }}"
+          results["build-test"]="${{ needs['build-test'].result }}"
 
           printf "%-10s %s\n" "Job" "Result"
-          for job in "${!results[@]}"; do
-            printf "%-10s %s\n" "$job" "${results[$job]}"
+          declare -a jobs=("${!results[@]}")
+
+          for job in "${jobs[@]}"; do
+            printf "%-10s %s\n" "$job" "${results["$job"]}"
           done
 
-          for job in "${!results[@]}"; do
-            if [ "${results[$job]}" != "success" ]; then
-              echo "::error title=CI summary::Job '$job' finished with status '${results[$job]}'"
+          for job in "${jobs[@]}"; do
+            if [ "${results["$job"]}" != "success" ]; then
+              echo "::error title=CI summary::Job '$job' finished with status '${results["$job"]}'"
               exit 1
             fi
           done

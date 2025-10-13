@@ -106,7 +106,12 @@ export const selectWorkspaceNamesForPaths = (
 export const loadWorkspaceMatrix = (
   job: WorkspaceMatrixJob,
   options?: LoadWorkspaceMatrixOptions
-): WorkspaceMatrix => ({
-  "node-version": [...nodeVersions[job]],
-  workspace: selectWorkspaces(options),
-});
+): WorkspaceMatrix => {
+  const workspaceList =
+    job === "build" ? loadWorkspaces() : selectWorkspaces(options);
+
+  return {
+    "node-version": [...nodeVersions[job]],
+    workspace: workspaceList,
+  };
+};
