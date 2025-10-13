@@ -18,6 +18,7 @@ interface MockClientInstance {
   callTool: ReturnType<typeof vi.fn>;
   getServerCapabilities: ReturnType<typeof vi.fn>;
   getServerVersion: ReturnType<typeof vi.fn>;
+  getServerInfo: ReturnType<typeof vi.fn>;
   close: ReturnType<typeof vi.fn>;
   cacheToolOutputSchemas: ReturnType<typeof vi.fn>;
   constructorArgs: unknown[];
@@ -30,6 +31,14 @@ interface MockTransportInstance {
   options: unknown;
 }
 
+const mockServerCapabilities = vi.fn().mockReturnValue({ tools: { list: true } });
+const mockServerVersion = vi
+  .fn()
+  .mockReturnValue({ name: "mock-server", version: "1.0.0" });
+const mockServerInfo = vi
+  .fn()
+  .mockReturnValue({ name: "mock-server", version: "1.0.0" });
+
 vi.mock("@modelcontextprotocol/sdk/client/index.js", () => ({
   Client: class MockClient {
     connect = vi.fn().mockResolvedValue(undefined);
@@ -38,8 +47,9 @@ vi.mock("@modelcontextprotocol/sdk/client/index.js", () => ({
     listPrompts = vi.fn().mockResolvedValue({ prompts: [] });
     getPrompt = vi.fn();
     callTool = vi.fn();
-    getServerCapabilities = vi.fn().mockReturnValue({ tools: { list: true } });
-    getServerVersion = vi.fn().mockReturnValue({ name: "mock-server", version: "1.0.0" });
+    getServerCapabilities = mockServerCapabilities;
+    getServerVersion = mockServerVersion;
+    getServerInfo = mockServerInfo;
     close = vi.fn().mockResolvedValue(undefined);
     cacheToolOutputSchemas = vi.fn();
 
@@ -79,6 +89,9 @@ describe("McpToolSourceService", () => {
     mockClientInstances.length = 0;
     mockTransportInstances.length = 0;
     vi.stubGlobal("fetch", vi.fn());
+    mockServerCapabilities.mockReturnValue({ tools: { list: true } });
+    mockServerVersion.mockReturnValue({ name: "mock-server", version: "1.0.0" });
+    mockServerInfo.mockReturnValue({ name: "mock-server", version: "1.0.0" });
   });
 
   afterEach(() => {
@@ -130,6 +143,34 @@ describe("McpToolSourceService", () => {
     };
 
     await expect(service.discoverSources([source])).resolves.toBeInstanceOf(Array);
+  });
+
+  it("derives server identity from getServerInfo when provided", async () => {
+    const logger = createLogger();
+    const loggerService = createLoggerService(logger);
+    const service = new McpToolSourceService(loggerService);
+    const source: MCPToolSourceConfig = {
+      id: "default",
+      type: "mcp",
+      url: "https://example.com/mcp",
+      capabilities: { tools: { call: true } },
+    };
+
+    mockServerInfo.mockReturnValue({ name: "info-server", version: "9.9.9" });
+    mockServerVersion.mockReturnValue(undefined);
+
+    await service.discoverSources([source]);
+
+    expect(mockServerInfo).toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "mcp.initialize",
+        sourceId: source.id,
+        serverName: "info-server",
+        serverVersion: "9.9.9",
+      }),
+      "Connected to MCP server"
+    );
   });
 });
 

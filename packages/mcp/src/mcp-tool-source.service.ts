@@ -367,9 +367,7 @@ export class McpToolSourceService {
     const serverCapabilities =
       (client.getServerCapabilities() as Record<string, unknown> | undefined) ??
       cached?.capabilities;
-    const serverInfo =
-      (client.getServerVersion() as Record<string, unknown> | undefined) ??
-      cached?.serverInfo;
+    const serverInfo = this.resolveServerInfo(client, cached?.serverInfo);
     const identity = this.resolveServerIdentity(serverInfo);
 
     const shouldLogHandshake = !cached?.capabilities;
@@ -405,6 +403,48 @@ export class McpToolSourceService {
     } finally {
       await client.close().catch(() => undefined);
     }
+  }
+
+  private normalizeServerInfo(
+    info: unknown
+  ): Record<string, unknown> | undefined {
+    if (!info) {
+      return undefined;
+    }
+
+    if (typeof info === "string") {
+      return { version: info };
+    }
+
+    if (typeof info === "object") {
+      return info as Record<string, unknown>;
+    }
+
+    return undefined;
+  }
+
+  private resolveServerInfo(
+    client: Client,
+    cached?: Record<string, unknown>
+  ): Record<string, unknown> | undefined {
+    const info =
+      typeof (client as { getServerInfo?: unknown }).getServerInfo === "function"
+        ? (
+            client as unknown as {
+              getServerInfo: () => unknown;
+            }
+          ).getServerInfo()
+        : undefined;
+    const version =
+      typeof client.getServerVersion === "function"
+        ? client.getServerVersion()
+        : undefined;
+
+    return (
+      this.normalizeServerInfo(info) ??
+      this.normalizeServerInfo(version) ??
+      cached
+    );
   }
 
   private async executeRequest<T>(

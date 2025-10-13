@@ -15,6 +15,7 @@ interface RecordedRequest {
 describe("MCP tool source integration", () => {
   const requests: RecordedRequest[] = [];
   const expectedToken = "mock-token";
+  const handshakeMethods = ["initialize", "notifications/initialized"] as const;
   const toolSchema = {
     type: "object",
     additionalProperties: false,
@@ -45,13 +46,11 @@ describe("MCP tool source integration", () => {
   ];
   const promptMessages = [
     {
-      role: "system",
-      content: [
-        {
-          type: "text",
-          text: "You are a helpful assistant for mock data.",
-        },
-      ],
+      role: "assistant",
+      content: {
+        type: "text",
+        text: "You are a helpful assistant for mock data.",
+      },
     },
   ];
 
@@ -102,6 +101,7 @@ describe("MCP tool source integration", () => {
               sessionId: "mock-session",
               protocolVersion: "2024-11-05",
               capabilities: { tools: {}, resources: {} },
+              serverInfo: { name: "mock-mcp", version: "2.0.0" },
             },
           };
           break;
@@ -148,6 +148,7 @@ describe("MCP tool source integration", () => {
                   name: "mock_prompt",
                   description: "Provides a mock prompt",
                   arguments: promptArguments,
+                  messages: promptMessages,
                 },
               ],
             },
@@ -164,6 +165,7 @@ describe("MCP tool source integration", () => {
                 arguments: promptArguments,
                 messages: promptMessages,
               },
+              messages: promptMessages,
             },
           };
           break;
@@ -172,10 +174,18 @@ describe("MCP tool source integration", () => {
             jsonrpc: "2.0",
             id: message.id,
             result: {
-              schema: outputSchema.$id,
-              content: `results for ${message.params?.arguments?.query}`,
-              data: { items: ["alpha", "beta"] },
-              metadata: { tookMs: 12 },
+              content: [
+                {
+                  type: "text",
+                  text: `results for ${message.params?.arguments?.query}`,
+                },
+              ],
+              structuredContent: {
+                schema: outputSchema.$id,
+                content: `results for ${message.params?.arguments?.query}`,
+                data: { items: ["alpha", "beta"] },
+                metadata: { tookMs: 12 },
+              },
             },
           };
           break;
@@ -245,19 +255,30 @@ describe("MCP tool source integration", () => {
       },
     ]);
 
-    expect(requests.map((req) => req.method)).toEqual([
-      "initialize",
+    const methods = requests.map((req) => req.method);
+    expect(methods).toEqual([
+      ...handshakeMethods,
       "tools/list",
       "resources/list",
       "prompts/list",
       "prompts/get",
     ]);
     expect(requests[0].headers.authorization).toBe(`Bearer ${expectedToken}`);
-    expect(requests[1].params?.sessionId).toBe("mock-session");
-    expect(requests[2].params?.sessionId).toBe("mock-session");
-    expect(requests[3].params?.sessionId).toBe("mock-session");
-    expect(requests[4].params?.sessionId).toBe("mock-session");
-    expect(requests[4].params?.name).toBe("mock_prompt");
+    const promptRequestIndex = handshakeMethods.length + 3;
+    expect(requests[promptRequestIndex].params?.name).toBe("mock_prompt");
+
+    const cache = (
+      service as unknown as {
+        sessionCache: Map<
+          string,
+          { serverInfo?: Record<string, unknown> }
+        >;
+      }
+    ).sessionCache;
+    expect(cache.get("mock")?.serverInfo).toEqual({
+      name: "mock-mcp",
+      version: "2.0.0",
+    });
 
     const registry = new ToolRegistryFactory().create(discovery.tools);
     const result = await registry.execute(
@@ -270,15 +291,16 @@ describe("MCP tool source integration", () => {
     );
 
     expect(requests.map((req) => req.method)).toEqual([
-      "initialize",
+      ...handshakeMethods,
       "tools/list",
       "resources/list",
       "prompts/list",
       "prompts/get",
+      ...handshakeMethods,
       "tools/call",
     ]);
-    expect(requests[5].params?.sessionId).toBe("mock-session");
-    expect(requests[5].params?.arguments).toEqual({ query: "beta" });
+    const toolCallIndex = handshakeMethods.length * 2 + 4;
+    expect(requests[toolCallIndex].params?.arguments).toEqual({ query: "beta" });
 
     expect(result).toEqual({
       schema: outputSchema.$id,
