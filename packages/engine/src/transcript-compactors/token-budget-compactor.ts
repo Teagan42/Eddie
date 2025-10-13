@@ -1,15 +1,18 @@
-import type { AgentInvocation } from "./agent-invocation";
+import type { AgentInvocation } from "../agents/agent-invocation";
 import type {
+  TokenBudgetTranscriptCompactorConfig,
   TranscriptCompactor,
   TranscriptCompactionPlan,
   TranscriptCompactionResult,
-} from "./agent-orchestrator.service";
+  TranscriptCompactorFactory,
+} from "./types";
+import { registerTranscriptCompactor } from "./registry";
 import type { ChatMessage } from "@eddie/types";
 
 const DEFAULT_HARD_FLOOR = 2048;
 
 export type SummarizeFn = (
-  messages: ChatMessage[]
+  messages: ChatMessage[],
 ) => Promise<string> | string;
 
 export class TokenBudgetCompactor implements TranscriptCompactor {
@@ -19,14 +22,14 @@ export class TokenBudgetCompactor implements TranscriptCompactor {
     private readonly tokenBudget: number,
     private readonly keepTail: number = 6,
     private readonly summarize: SummarizeFn = naiveSummarize,
-    hardFloor: number = DEFAULT_HARD_FLOOR
+    hardFloor: number = DEFAULT_HARD_FLOOR,
   ) {
     this.hardFloor = resolveHardFloor(this.tokenBudget, hardFloor);
   }
 
   async plan(
     invocation: AgentInvocation,
-    iteration: number
+    iteration: number,
   ): Promise<TranscriptCompactionPlan | null> {
     const tokens = estimateTokens(invocation.messages);
     if (tokens <= this.tokenBudget) {
@@ -43,7 +46,7 @@ export class TokenBudgetCompactor implements TranscriptCompactor {
           this.tokenBudget,
           this.keepTail,
           this.summarize,
-          this.hardFloor
+          this.hardFloor,
         );
         const after = invocation.messages.length;
         return { removedMessages: Math.max(0, before - after) };
@@ -51,6 +54,38 @@ export class TokenBudgetCompactor implements TranscriptCompactor {
     };
   }
 }
+
+const factory: TranscriptCompactorFactory<TokenBudgetTranscriptCompactorConfig> = {
+  strategy: "token_budget",
+  create: (config, context) => {
+    if (
+      typeof config.tokenBudget !== "number" ||
+      Number.isNaN(config.tokenBudget) ||
+      config.tokenBudget <= 0
+    ) {
+      throw new Error(
+        `Transcript compactor for ${context.agentId} requires a positive tokenBudget value.`,
+      );
+    }
+
+    const keepTail =
+      typeof config.keepTail === "number" ? config.keepTail : undefined;
+    const hardFloor =
+      typeof config.hardFloor === "number" ? config.hardFloor : undefined;
+
+    return new TokenBudgetCompactor(
+      config.tokenBudget,
+      keepTail,
+      undefined,
+      hardFloor,
+    );
+  },
+};
+
+registerTranscriptCompactor(factory, { builtin: true });
+
+export const TokenBudgetCompactorStrategy = factory.strategy;
+export type { TokenBudgetTranscriptCompactorConfig };
 
 /* ---------------- helpers ---------------- */
 
@@ -68,13 +103,13 @@ async function compactInPlace(
   budget: number,
   keepTail: number,
   summarize: SummarizeFn,
-  hardFloor: number
+  hardFloor: number,
 ): Promise<void> {
   const systemMessages = invocation.messages.filter(
-    (message) => message.role === "system"
+    (message) => message.role === "system",
   );
   const otherMessages = invocation.messages.filter(
-    (message) => message.role !== "system"
+    (message) => message.role !== "system",
   );
 
   const tail = takeTailWithToolPairs(otherMessages, keepTail);
@@ -119,7 +154,7 @@ async function compactInPlace(
 
 function takeTailWithToolPairs(
   messages: ChatMessage[],
-  keepTail: number
+  keepTail: number,
 ): ChatMessage[] {
   const tail: ChatMessage[] = [];
   const seen = new Set<ChatMessage>();
@@ -143,7 +178,7 @@ function takeTailWithToolPairs(
         (candidate) =>
           candidate.role === "tool" &&
           candidate.tool_call_id === message.tool_call_id,
-        index - 1
+        index - 1,
       );
       if (match) {
         include(match);
@@ -156,7 +191,7 @@ function takeTailWithToolPairs(
         (candidate) =>
           candidate.role === "assistant" &&
           candidate.tool_call_id === message.tool_call_id,
-        index - 1
+        index - 1,
       );
       if (match) {
         include(match);
@@ -172,7 +207,7 @@ function takeTailWithToolPairs(
 function findLast<T>(
   items: T[],
   predicate: (item: T) => boolean,
-  startIndex: number
+  startIndex: number,
 ): T | undefined {
   for (let index = startIndex; index >= 0; index -= 1) {
     const candidate = items[index];
@@ -198,37 +233,27 @@ function bytesToHuman(bytes: number): string {
 }
 
 function stripMarkdown(value: string): string {
-  return value.replace(/[#*_`>-]+/g, "").trim();
+  return value.replace(/\*\*(.*?)\*\*/g, "$1").replace(/`(.*?)`/g, "$1");
 }
 
 function naiveSummarize(messages: ChatMessage[]): string {
-  const lines: string[] = [];
-
-  for (const message of messages) {
-    if (!message.content) {
-      continue;
-    }
-    if (message.role === "tool") {
-      continue;
-    }
-    const text = message.content.replace(/\s+/g, " ").trim();
-    if (text.length === 0) {
-      continue;
-    }
-    lines.push(
-      `- ${message.role}: ${text.slice(0, 240)}${text.length > 240 ? "…" : ""}`
-    );
-    if (lines.length >= 10) {
-      break;
-    }
+  if (messages.length === 0) {
+    return "";
   }
 
-  return lines.join("\n");
+  const preview = messages
+    .slice(0, 4)
+    .map((message) => `${message.role}: ${message.content}`)
+    .join("\n");
+  return `${preview}\n...`;
 }
 
-function resolveHardFloor(tokenBudget: number, requestedFloor: number): number {
-  if (requestedFloor !== DEFAULT_HARD_FLOOR) {
-    return requestedFloor;
+function resolveHardFloor(budget: number, explicit: number): number {
+  if (!Number.isFinite(explicit) || explicit <= 0) {
+    return Math.min(DEFAULT_HARD_FLOOR, budget);
   }
-  return Math.min(requestedFloor, tokenBudget);
+
+  const headroom = Math.floor(budget * 0.25);
+  const resolved = Math.max(explicit, headroom);
+  return Math.min(resolved, budget);
 }

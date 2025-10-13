@@ -42,8 +42,7 @@ import type { AgentRuntimeCatalog, AgentRuntimeDescriptor } from "./agents/agent
 import type { Logger } from "pino";
 import { McpToolSourceService } from "@eddie/mcp";
 import type { DiscoveredMcpResource } from "@eddie/mcp";
-import { SimpleTranscriptCompactor } from "./agents/simple-transcript-compactor";
-import { TokenBudgetCompactor } from "./agents/token-budget-compactor";
+import { createTranscriptCompactor as instantiateTranscriptCompactor } from "./transcript-compactors";
 
 export interface EngineOptions extends CliRuntimeOptions {
     history?: ChatMessage[];
@@ -561,40 +560,7 @@ export class EngineService {
     config: TranscriptCompactorConfig,
     agentId: string,
   ): TranscriptCompactor {
-    if (config.strategy === "simple") {
-      return new SimpleTranscriptCompactor(
-        config.maxMessages,
-        config.keepLast,
-      );
-    }
-
-    if (config.strategy === "token_budget") {
-      if (
-        typeof config.tokenBudget !== "number" ||
-        Number.isNaN(config.tokenBudget) ||
-        config.tokenBudget <= 0
-      ) {
-        throw new Error(
-          `Transcript compactor for ${agentId} requires a positive tokenBudget value.`,
-        );
-      }
-
-      const keepTail =
-        typeof config.keepTail === "number" ? config.keepTail : undefined;
-      const hardFloor =
-        typeof config.hardFloor === "number" ? config.hardFloor : undefined;
-
-      return new TokenBudgetCompactor(
-        config.tokenBudget,
-        keepTail,
-        undefined,
-        hardFloor,
-      );
-    }
-
-    throw new Error(
-      `Unsupported transcript compactor strategy "${(config as { strategy?: unknown }).strategy}" for ${agentId}.`,
-    );
+    return instantiateTranscriptCompactor(config, { agentId });
   }
 
   private cloneProviderConfig(config: ProviderConfig): ProviderConfig {

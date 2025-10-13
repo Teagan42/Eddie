@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TokenBudgetCompactor } from "../../src/agents/token-budget-compactor";
+import { TokenBudgetCompactor } from "../../src/transcript-compactors/token-budget-compactor";
 import type { AgentInvocation } from "../../src/agents/agent-invocation";
 
 const createInvocation = (messages: AgentInvocation["messages"]): AgentInvocation => ({

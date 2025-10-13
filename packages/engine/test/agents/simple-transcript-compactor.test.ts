@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AgentInvocation } from "../../src/agents/agent-invocation";
 import type { ChatMessage } from "@eddie/types";
-import { SimpleTranscriptCompactor } from "../../src/agents/simple-transcript-compactor";
+import { SimpleTranscriptCompactor } from "../../src/transcript-compactors/simple-transcript-compactor";
 
 describe("SimpleTranscriptCompactor", () => {
   const buildInvocation = (messages: ChatMessage[]): AgentInvocation => ({
