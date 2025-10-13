@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { ConfigService, ConfigStore, hasRuntimeOverrides } from "@eddie/config";
+import { ConfigStore } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { TokenizerService } from "@eddie/tokenizers";
 import { LoggerService } from "@eddie/io";
@@ -16,7 +16,6 @@ export class ContextCommand implements CliCommand {
 
   constructor(
     private readonly optionsService: CliOptionsService,
-    private readonly configService: ConfigService,
     private readonly configStore: ConfigStore,
     private readonly loggerService: LoggerService,
     private readonly contextService: ContextService,
@@ -24,10 +23,7 @@ export class ContextCommand implements CliCommand {
   ) {}
 
   async execute(args: CliArguments): Promise<void> {
-    const engineOptions = this.optionsService.parse(args.options);
-    if (hasRuntimeOverrides(engineOptions)) {
-      await this.configService.load(engineOptions);
-    }
+    this.optionsService.parse(args.options);
     const cfg = this.configStore.getSnapshot();
 
     this.loggerService.configure({

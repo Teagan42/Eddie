@@ -9,7 +9,7 @@ import type {
   ProviderConfig,
   TranscriptCompactorConfig,
 } from "@eddie/config";
-import { ConfigService, ConfigStore, hasRuntimeOverrides } from "@eddie/config";
+import { ConfigStore } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { ProviderFactoryService } from "@eddie/providers";
 import { builtinTools } from "@eddie/tools";
@@ -66,7 +66,6 @@ export interface EngineResult {
 @Injectable()
 export class EngineService {
   constructor(
-        private readonly configService: ConfigService,
         private readonly configStore: ConfigStore,
         private readonly contextService: ContextService,
         private readonly providerFactory: ProviderFactoryService,
@@ -76,7 +75,7 @@ export class EngineService {
         private readonly loggerService: LoggerService,
         private readonly agentOrchestrator: AgentOrchestratorService,
         private readonly mcpToolSourceService: McpToolSourceService
-  ) { }
+  ) {}
 
   setStreamRenderer(streamRenderer: StreamRendererService): void {
     this.agentOrchestrator.setStreamRenderer(streamRenderer);
@@ -290,18 +289,8 @@ export class EngineService {
   private async resolveRuntimeConfig(
     options: EngineOptions
   ): Promise<EddieConfig> {
-    const overrides = this.extractRuntimeOverrides(options);
-
-    if (hasRuntimeOverrides(overrides)) {
-      await this.configService.load(overrides);
-    }
-
+    void options;
     return this.configStore.getSnapshot();
-  }
-
-  private extractRuntimeOverrides({ history, ...overrides }: EngineOptions): CliRuntimeOptions {
-    void history;
-    return overrides;
   }
 
   private applyMcpResourcesToContext(

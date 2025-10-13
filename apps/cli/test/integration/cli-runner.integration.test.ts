@@ -11,7 +11,7 @@ import { ContextCommand } from "../../src/cli/commands/context.command";
 import { ChatCommand } from "../../src/cli/commands/chat.command";
 import { TraceCommand } from "../../src/cli/commands/trace.command";
 import { EngineService } from "@eddie/engine";
-import { ConfigService, ConfigStore } from "@eddie/config";
+import { ConfigStore } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { TokenizerService } from "@eddie/tokenizers";
 import { LoggerService } from "@eddie/io";
@@ -68,7 +68,6 @@ describe("CliRunnerService integration", () => {
   let moduleRef: TestingModule;
   let runner: CliRunnerService;
   let engine: { run: ReturnType<typeof vi.fn> };
-  let configService: { load: ReturnType<typeof vi.fn> };
   let configStore: { getSnapshot: ReturnType<typeof vi.fn> };
   let contextService: { pack: ReturnType<typeof vi.fn> };
   let tokenizerService: { create: ReturnType<typeof vi.fn> };
@@ -81,7 +80,6 @@ describe("CliRunnerService integration", () => {
     engine = {
       run: vi.fn().mockResolvedValue({ messages: [], context: { files: [], totalBytes: 0, text: "" } }),
     };
-    configService = { load: vi.fn() };
     contextService = { pack: vi.fn() };
     configStore = { getSnapshot: vi.fn() };
     tokenizerService = {
@@ -112,15 +110,13 @@ describe("CliRunnerService integration", () => {
           provide: ContextCommand,
           useFactory: (
             options: CliOptionsService,
-            config: ConfigService,
             store: ConfigStore,
             logger: LoggerService,
             contextSvc: ContextService,
             tokenizer: TokenizerService
-          ) => new ContextCommand(options, config, store, logger, contextSvc, tokenizer),
+          ) => new ContextCommand(options, store, logger, contextSvc, tokenizer),
           inject: [
             CliOptionsService,
-            ConfigService,
             ConfigStore,
             LoggerService,
             ContextService,
@@ -147,7 +143,6 @@ describe("CliRunnerService integration", () => {
         { provide: ChatCommand, useValue: createStubCommand("chat") },
         { provide: TraceCommand, useValue: createStubCommand("trace") },
         { provide: EngineService, useValue: engine },
-        { provide: ConfigService, useValue: configService },
         { provide: ConfigStore, useValue: configStore as ConfigStore },
         { provide: ContextService, useValue: contextService },
         { provide: TokenizerService, useValue: tokenizerService },
@@ -216,16 +211,13 @@ describe("CliRunnerService integration", () => {
     const countTokens = vi.fn().mockReturnValue(128);
     tokenizerService.create.mockReturnValue({ countTokens });
     configStore.getSnapshot.mockReturnValue(mockConfig);
-    configService.load.mockResolvedValue(mockConfig);
     contextService.pack.mockResolvedValue(packed);
 
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
     await runner.run(["context", "-C", "src/**/*.ts"]);
 
-    expect(configService.load).toHaveBeenCalledWith(
-      expect.objectContaining({ context: ["src/**/*.ts"] })
-    );
+    expect(configStore.getSnapshot).toHaveBeenCalledTimes(1);
     expect(contextService.pack).toHaveBeenCalledWith(mockConfig.context);
     expect(loggerService.configure).toHaveBeenCalledWith({
       level: mockConfig.logging?.level ?? mockConfig.logLevel,
@@ -254,7 +246,6 @@ describe("CliRunnerService integration", () => {
 
     await runner.run(["context"]);
 
-    expect(configService.load).not.toHaveBeenCalled();
     expect(configStore.getSnapshot).toHaveBeenCalledTimes(1);
   });
 });
