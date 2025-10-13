@@ -5,7 +5,12 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { WebSocketClientTransport } from "@modelcontextprotocol/sdk/client/websocket.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { ErrorCode, McpError, ResultSchema } from "@modelcontextprotocol/sdk/types.js";
+import {
+  CallToolResultSchema,
+  ErrorCode,
+  McpError,
+} from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type {
   MCPAuthConfig,
@@ -22,13 +27,14 @@ import type {
 import type { ToolCallArguments, ToolDefinition, ToolResult } from "@eddie/types";
 import type { EventSourceInit } from "eventsource";
 const CLIENT_INFO = { name: "eddie", version: "unknown" } as const;
-type CallToolResultPayload = Record<string, unknown> & {
-  schema?: unknown;
-  content?: unknown;
-  data?: unknown;
-  metadata?: unknown;
-  messages?: unknown;
-};
+const CALL_TOOL_RESULT_FLEXIBLE_MESSAGES_SCHEMA =
+  CallToolResultSchema.extend({
+    content: z.string(),
+    messages: z.unknown().optional(),
+  });
+type CallToolResultPayload = z.infer<
+  typeof CALL_TOOL_RESULT_FLEXIBLE_MESSAGES_SCHEMA
+>;
 
 interface BuildHttpHeadersOptions {
   accept?: string;
@@ -191,33 +197,22 @@ export class McpToolSourceService {
   }
 
   private normalizeToolResult(
-    result: unknown,
+    result: CallToolResultPayload,
     context: { toolName: string; sourceId: string }
   ): ToolResult {
-    if (
-      !result ||
-      typeof result !== "object" ||
-      typeof (result as { schema?: unknown }).schema !== "string" ||
-      typeof (result as { content?: unknown }).content !== "string"
-    ) {
+    const { schema, content, data, metadata } = result ?? {};
+
+    if (typeof schema !== "string" || typeof content !== "string") {
       throw new Error(
         `Tool ${context.toolName} returned an invalid result payload from MCP source ${context.sourceId}.`
       );
     }
 
-    const typedResult = result as CallToolResultPayload & {
-      schema: string;
-      content: string;
-    };
-
     return {
-      schema: typedResult.schema,
-      content: typedResult.content,
-      data:
-        typedResult.data !== undefined
-          ? structuredClone(typedResult.data)
-          : undefined,
-      metadata: this.cloneRecord(typedResult.metadata),
+      schema,
+      content,
+      data: data !== undefined ? structuredClone(data) : undefined,
+      metadata: this.cloneRecord(metadata),
     };
   }
 
@@ -388,8 +383,8 @@ export class McpToolSourceService {
         name: toolName,
         arguments: structuredClone(args ?? {}),
       },
-      ResultSchema
-    ) as Promise<CallToolResultPayload>;
+      CALL_TOOL_RESULT_FLEXIBLE_MESSAGES_SCHEMA
+    );
   }
 
   private normalizePromptDefinition(

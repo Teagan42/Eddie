@@ -1,4 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+import { ResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { MCPToolSourceConfig } from "@eddie/config";
 import type { ToolDefinition } from "@eddie/types";
 
@@ -372,6 +373,71 @@ describe("McpToolSourceService streamable HTTP transport", () => {
       metadata: { tookMs: 12 },
     });
     expect(fallbackCallTool).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes a tailored schema when invoking callTool", async () => {
+    const service = new McpToolSourceService();
+    const config: StreamableHttpConfiguredSource = {
+      id: "mock",
+      type: "mcp",
+      url: "https://mcp.example.com/rpc",
+    };
+
+    let providedSchema: unknown;
+    const originalImplementation = hoisted.Client.getMockImplementation();
+    const fallbackCallTool = vi
+      .fn()
+      .mockImplementation(
+        async (
+          params: { name: string; arguments?: Record<string, unknown> },
+          schema?: unknown,
+        ) => {
+          providedSchema = schema;
+
+          const result = {
+            schema: hoisted.outputSchema.$id,
+            content: `results for ${params.arguments?.query}`,
+            metadata: { tookMs: 7 },
+            messages: "unexpected string value",
+          };
+
+          if (schema && typeof schema === "object") {
+            const parser = schema as { parse(value: unknown): unknown };
+            return parser.parse(result);
+          }
+
+          return result;
+        },
+      );
+
+    hoisted.Client.mockImplementationOnce(
+      (info: unknown, options: unknown) =>
+        originalImplementation!(info, options),
+    );
+    hoisted.Client.mockImplementationOnce((info: unknown, options: unknown) => {
+      const instance = originalImplementation!(info, options);
+      instance.callTool = fallbackCallTool as unknown as typeof instance.callTool;
+      return instance;
+    });
+
+    const discoveries = await service.discoverSources([config]);
+    const [tool] = discoveries[0].tools;
+    const handler = tool.handler as ToolHandler;
+
+    await handler({ query: "beta" });
+
+    expect(fallbackCallTool).toHaveBeenCalledTimes(1);
+    expect(providedSchema).toBeDefined();
+    expect(providedSchema).not.toBe(ResultSchema);
+
+    const parser = providedSchema as { parse(value: unknown): unknown };
+    expect(() =>
+      parser.parse({
+        schema: hoisted.outputSchema.$id,
+        content: "ok",
+        messages: "still a string",
+      }),
+    ).not.toThrow();
   });
 
   it("rejects when a prompt payload omits mandatory fields", async () => {
