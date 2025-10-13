@@ -7,10 +7,11 @@ import path from "path";
 import { Subject } from "rxjs";
 import yaml from "yaml";
 import { z } from "zod";
-import { MODULE_OPTIONS_TOKEN } from './config.const';
+import { CONFIG_FILE_PATH_TOKEN, MODULE_OPTIONS_TOKEN } from './config.const';
 import { eddieConfig } from "./config.namespace";
 import { ConfigStore } from './config.store';
 import { DEFAULT_CONFIG } from "./defaults";
+import { getConfigRoot, resolveConfigFilePath } from "./config-path";
 import type {
   AgentProviderConfig,
   AgentsConfig,
@@ -30,8 +31,6 @@ import type {
   TranscriptConfig,
 } from "./types";
 
-const DEFAULT_CONFIG_ROOT = path.resolve(process.cwd(), "config");
-
 export type ConfigFileFormat = "yaml" | "json";
 
 export interface ConfigFileSnapshot {
@@ -42,15 +41,6 @@ export interface ConfigFileSnapshot {
   config?: EddieConfig;
   error?: string;
 }
-
-const CONFIG_FILENAMES = [
-  "eddie.config.json",
-  "eddie.config.yaml",
-  "eddie.config.yml",
-  ".eddierc",
-  ".eddierc.json",
-  ".eddierc.yaml",
-];
 
 const SQL_DRIVERS = ["postgres", "mysql", "mariadb"] as const;
 const SQL_DRIVER_SET = new Set<string>(SQL_DRIVERS);
@@ -80,6 +70,7 @@ export class ConfigService {
   readonly writes$ = this.writeSubject.asObservable();
 
   private readonly moduleOptions: CliRuntimeOptions;
+  private readonly configFilePath: string | null;
 
   constructor(
     @Optional()
@@ -91,12 +82,16 @@ export class ConfigService {
     @Optional()
     @Inject(eddieConfig.KEY)
     private readonly defaultsProvider?: ConfigType<typeof eddieConfig>,
+    @Optional()
+    @Inject(CONFIG_FILE_PATH_TOKEN)
+    configFilePath?: string | null,
   ) {
     this.moduleOptions = moduleOptions ?? {};
+    this.configFilePath = configFilePath ?? null;
   }
 
   async load(options: CliRuntimeOptions): Promise<EddieConfig> {
-    const configPath = await this.resolveConfigPath(options);
+    const configPath = await resolveConfigFilePath(options);
     const fileConfig = configPath ? await this.readConfigFile(configPath) : {};
     const config = await this.compose(fileConfig, options);
     if (this.configStore) {
@@ -168,10 +163,8 @@ export class ConfigService {
     return undefined;
   }
 
-  async readSnapshot(
-    options: CliRuntimeOptions = {}
-  ): Promise<ConfigFileSnapshot> {
-    const configPath = await this.resolveConfigPath(options);
+  async readSnapshot(): Promise<ConfigFileSnapshot> {
+    const configPath = this.configFilePath;
     const format = configPath ? this.detectFormat(configPath) : "yaml";
 
     let content: string;
@@ -189,7 +182,7 @@ export class ConfigService {
     let error: string | undefined;
 
     try {
-      config = await this.compose(input, options);
+      config = await this.compose(input, this.moduleOptions);
     } catch (composeError) {
       error = composeError instanceof Error
         ? composeError.message
@@ -212,7 +205,7 @@ export class ConfigService {
     options: CliRuntimeOptions = {},
     targetPath?: string | null
   ): Promise<ConfigFileSnapshot> {
-    const configRoot = this.getConfigRoot();
+    const configRoot = getConfigRoot();
     let resolvedTarget: string | null | undefined;
     if (targetPath) {
       if (path.isAbsolute(targetPath)) {
@@ -238,7 +231,7 @@ export class ConfigService {
 
       resolvedTarget = candidate;
     } else {
-      resolvedTarget = await this.resolveConfigPath(options);
+      resolvedTarget = await resolveConfigFilePath(options);
     }
 
     const destination =
@@ -287,50 +280,6 @@ export class ConfigService {
     } catch {
       return {};
     }
-  }
-
-  private async resolveConfigPath(
-    options: CliRuntimeOptions
-  ): Promise<string | null> {
-    if (options.config) {
-      const explicit = path.resolve(options.config);
-      try {
-        await fs.access(explicit);
-        return explicit;
-      } catch {
-        throw new Error(`Config file not found at ${explicit}`);
-      }
-    }
-
-    const searchRoots = this.collectConfigRoots();
-    for (const rootDir of searchRoots) {
-      for (const name of CONFIG_FILENAMES) {
-        const candidate = path.resolve(rootDir, name);
-        try {
-          await fs.access(candidate);
-          return candidate;
-        } catch {
-          // keep searching
-        }
-      }
-    }
-
-    return null;
-  }
-
-  private getConfigRoot(): string {
-    const override = process.env.CONFIG_ROOT;
-    if (override && override.trim().length > 0) {
-      return path.resolve(process.cwd(), override);
-    }
-    return DEFAULT_CONFIG_ROOT;
-  }
-
-  private collectConfigRoots(): string[] {
-    const roots = new Set<string>();
-    roots.add(this.getConfigRoot());
-    roots.add(process.cwd());
-    return Array.from(roots);
   }
 
   parseSource(source: string, format: ConfigFileFormat): EddieConfigInput {

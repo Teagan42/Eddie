@@ -9,14 +9,27 @@ import { ConfigWatcher } from "./config-watcher";
 import { ConfigStore } from './config.store';
 import { initialConfigProvider } from "./initial-config.provider";
 import type { CliRuntimeOptions } from "./types";
-import { ConfigurableModuleClass, MODULE_OPTIONS_TOKEN } from './config.const';
+import { CONFIG_FILE_PATH_TOKEN, ConfigurableModuleClass, MODULE_OPTIONS_TOKEN } from './config.const';
+import { configFilePathProvider } from "./config-file-path.provider";
 
 
 @Global()
 @Module({
   imports: [NestConfigModule.forFeature(eddieConfig)],
-  providers: [ConfigService, ConfigWatcher, initialConfigProvider, ConfigStore],
-  exports: [ConfigService, ConfigStore, ConfigWatcher, NestConfigModule],
+  providers: [
+    configFilePathProvider,
+    ConfigService,
+    ConfigWatcher,
+    initialConfigProvider,
+    ConfigStore,
+  ],
+  exports: [
+    CONFIG_FILE_PATH_TOKEN,
+    ConfigService,
+    ConfigStore,
+    ConfigWatcher,
+    NestConfigModule,
+  ],
 })
 export class ConfigModule extends ConfigurableModuleClass {
   static register(
