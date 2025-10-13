@@ -29,6 +29,8 @@ const packageAliases = packageNames.flatMap((name) => {
   ];
 });
 
+const coverageIncludeGlobs = ["src/**/*.ts"];
+
 const mcpSdkBasePath = path.resolve(
   workspaceRoot,
   "node_modules",
@@ -61,6 +63,7 @@ export const createPackageVitestConfig = (packageName: string) =>
       passWithNoTests: true,
       coverage: {
         reporter: ["text", "json-summary"],
+        include: coverageIncludeGlobs,
         reportsDirectory: path.resolve(
           workspaceRoot,
           "coverage",
