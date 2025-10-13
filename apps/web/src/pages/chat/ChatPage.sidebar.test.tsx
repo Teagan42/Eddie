@@ -1,9 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
-import { Theme } from "@radix-ui/themes";
-import { AuthProvider } from "@/auth/auth-context";
-import { ChatPage } from "./ChatPage";
+import { QueryClient } from "@tanstack/react-query";
+import { screen, waitFor } from "@testing-library/react";
+import { createChatPageRenderer } from "./test-utils";
 
 const catalogMock = vi.fn();
 const listSessionsMock = vi.fn();
@@ -71,21 +69,12 @@ vi.mock("@/api/api-provider", () => ({
   }),
 }));
 
-function renderChatPage(): void {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-
-  render(
-    <Theme>
-      <AuthProvider>
-        <QueryClientProvider client={client}>
-          <ChatPage />
-        </QueryClientProvider>
-      </AuthProvider>
-    </Theme>,
-  );
-}
+const renderChatPage = createChatPageRenderer(
+  () =>
+    new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    }),
+);
 
 describe("ChatPage sidebar accessibility", () => {
   beforeEach(() => {

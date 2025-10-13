@@ -1,12 +1,10 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
-import { Theme } from "@radix-ui/themes";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, screen, waitFor } from "@testing-library/react";
+import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthProvider } from "@/auth/auth-context";
 
 import type { ChatMessageDto } from "@eddie/api-client";
 
-import { ChatPage } from "./ChatPage";
+import { createChatPageRenderer } from "./test-utils";
 
 class ResizeObserverMock {
   observe(): void {}
@@ -83,20 +81,12 @@ vi.mock("@/api/api-provider", () => ({
   }),
 }));
 
-function renderChatPage(): void {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  render(
-    <Theme>
-      <AuthProvider>
-        <QueryClientProvider client={client}>
-          <ChatPage />
-        </QueryClientProvider>
-      </AuthProvider>
-    </Theme>
-  );
-}
+const renderChatPage = createChatPageRenderer(
+  () =>
+    new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    }),
+);
 
 describe("ChatPage message scrolling", () => {
   beforeEach(() => {

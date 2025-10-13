@@ -1,9 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
-import { Theme } from "@radix-ui/themes";
-import { AuthProvider } from "@/auth/auth-context";
-import { ChatPage } from "./ChatPage";
+import { QueryClient } from "@tanstack/react-query";
+import { act, screen, waitFor } from "@testing-library/react";
+import { createChatPageRenderer } from "./test-utils";
 
 const catalogMock = vi.fn();
 const listSessionsMock = vi.fn();
@@ -49,7 +47,7 @@ vi.mock("@/hooks/useLayoutPreferences", () => {
 vi.mock("@/auth/auth-context", async () => {
   const actual = await vi.importActual<
     typeof import("@/auth/auth-context")
-  >("@/auth/auth-context");
+      >("@/auth/auth-context");
 
   return {
     ...actual,
@@ -91,25 +89,12 @@ vi.mock("./useChatMessagesRealtime", () => ({
   useChatMessagesRealtime: vi.fn(),
 }));
 
-function renderWithProviders(client: QueryClient): JSX.Element {
-  return (
-    <Theme>
-      <AuthProvider>
-        <QueryClientProvider client={client}>
-          <ChatPage />
-        </QueryClientProvider>
-      </AuthProvider>
-    </Theme>
-  );
-}
-
-function renderChatPage(): void {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-
-  render(renderWithProviders(client));
-}
+const renderChatPage = createChatPageRenderer(
+  () =>
+    new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    }),
+);
 
 describe("ChatPage authentication behaviours", () => {
   beforeEach(() => {
@@ -175,22 +160,18 @@ describe("ChatPage authentication behaviours", () => {
   });
 
   it("does not retry automatic session creation after failure without an API key change", async () => {
-    const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-
     let currentTime = Date.now();
     const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => currentTime);
     createSessionMock.mockRejectedValue(new Error("invalid key"));
 
-    const view = render(renderWithProviders(client));
+    const view = renderChatPage();
 
     try {
       await waitFor(() => expect(createSessionMock).toHaveBeenCalledTimes(1));
 
       act(() => {
         currentTime += 31_000;
-        view.rerender(renderWithProviders(client));
+        view.rerender();
       });
 
       await waitFor(

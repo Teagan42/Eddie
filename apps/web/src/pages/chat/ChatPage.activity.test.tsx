@@ -1,9 +1,7 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Theme } from "@radix-ui/themes";
-import { AuthProvider } from "@/auth/auth-context";
+import { act, screen, waitFor } from "@testing-library/react";
+import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ChatPage } from "./ChatPage";
+import { createChatPageRenderer } from "./test-utils";
 
 const listSessionsMock = vi.fn();
 const listMessagesMock = vi.fn();
@@ -85,23 +83,11 @@ vi.mock("./useChatMessagesRealtime", () => ({
   useChatMessagesRealtime: vi.fn(),
 }));
 
-function renderChatPage(): QueryClient {
-  const client = new QueryClient({
+const renderChatPage = createChatPageRenderer(() =>
+  new QueryClient({
     defaultOptions: { queries: { retry: false } },
-  });
-
-  render(
-    <Theme>
-      <AuthProvider>
-        <QueryClientProvider client={client}>
-          <ChatPage />
-        </QueryClientProvider>
-      </AuthProvider>
-    </Theme>
-  );
-
-  return client;
-}
+  }),
+);
 
 const expectIndicatorText = async (pattern: RegExp) => {
   await waitFor(() => {
