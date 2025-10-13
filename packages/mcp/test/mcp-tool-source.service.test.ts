@@ -27,7 +27,7 @@ interface MockTransportInstance {
   options: unknown;
 }
 
-vi.mock("@modelcontextprotocol/sdk", () => ({
+vi.mock("@modelcontextprotocol/sdk/client/index.js", () => ({
   Client: class MockClient {
     connect = vi.fn().mockResolvedValue(undefined);
     listTools = vi.fn().mockResolvedValue({ tools: [] });
@@ -47,7 +47,7 @@ vi.mock("@modelcontextprotocol/sdk", () => ({
   },
 }));
 
-vi.mock("@modelcontextprotocol/sdk/client/streamableHttp", () => ({
+vi.mock("@modelcontextprotocol/sdk/client/streamableHttp.js", () => ({
   StreamableHTTPClientTransport: class MockTransport {
     constructor(public url: URL, public options: unknown) {
       mockTransportInstances.push(this as unknown as MockTransportInstance);

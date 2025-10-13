@@ -40,11 +40,11 @@ const mcpSdkBasePath = path.resolve(
 
 const externalAliases = [
   {
-    find: "@modelcontextprotocol/sdk",
+    find: "@modelcontextprotocol/sdk/client/index.js",
     replacement: path.join(mcpSdkBasePath, "client", "index.js"),
   },
   {
-    find: "@modelcontextprotocol/sdk/client/streamableHttp",
+    find: "@modelcontextprotocol/sdk/client/streamableHttp.js",
     replacement: path.join(mcpSdkBasePath, "client", "streamableHttp.js"),
   },
 ];

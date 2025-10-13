@@ -2,14 +2,14 @@ import { Injectable } from "@nestjs/common";
 import { Buffer } from "buffer";
 import { performance } from "node:perf_hooks";
 import { URL } from "node:url";
-import { Client } from "@modelcontextprotocol/sdk";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp";
 import type {
   MCPToolSourceConfig,
   MCPAuthConfig,
 } from "@eddie/config";
 import { LoggerService } from "@eddie/io";
 import type { Logger } from "pino";
+import type { Client } from "@modelcontextprotocol/sdk/dist/esm/client/index.js";
+import type { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/dist/esm/client/streamableHttp.js";
 import type {
   DiscoveredMcpResource,
   DiscoveredMcpPrompt,
@@ -58,6 +58,7 @@ const TRANSPORT_NAME = "streamable-http";
 export class McpToolSourceService {
   private readonly sessionCache = new Map<string, CachedSessionInfo>();
   private readonly logger: Logger;
+  private sdkModulesPromise?: Promise<SdkModules>;
 
   constructor(private readonly loggerService: LoggerService) {
     this.logger = this.loggerService.getLogger("mcp-tool-source");
@@ -319,6 +320,7 @@ export class McpToolSourceService {
     source: MCPToolSourceConfig,
     run: (context: ClientContext) => Promise<T>
   ): Promise<T> {
+    const { Client, StreamableHTTPClientTransport } = await this.loadSdkModules();
     const cached = this.sessionCache.get(source.id);
     const headers = this.buildHeaders(source);
     const transportUrl = new URL(source.url);
@@ -536,4 +538,39 @@ export class McpToolSourceService {
 
     return false;
   }
+
+  private async loadSdkModules(): Promise<SdkModules> {
+    if (!this.sdkModulesPromise) {
+      this.sdkModulesPromise = this.importSdkModules();
+    }
+
+    try {
+      return await this.sdkModulesPromise;
+    } catch (error) {
+      this.sdkModulesPromise = undefined;
+      throw error;
+    }
+  }
+
+  private async importSdkModules(): Promise<SdkModules> {
+    const [clientModule, transportModule] = await Promise.all([
+      import("@modelcontextprotocol/sdk/client/index.js"),
+      import("@modelcontextprotocol/sdk/client/streamableHttp.js"),
+    ]);
+
+    return {
+      Client: clientModule.Client,
+      StreamableHTTPClientTransport:
+        transportModule.StreamableHTTPClientTransport,
+    };
+  }
 }
+
+type SdkModules = {
+  Client: typeof import(
+    "@modelcontextprotocol/sdk/dist/esm/client/index.js"
+  ).Client;
+  StreamableHTTPClientTransport: typeof import(
+    "@modelcontextprotocol/sdk/dist/esm/client/streamableHttp.js"
+  ).StreamableHTTPClientTransport;
+};
