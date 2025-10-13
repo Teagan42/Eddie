@@ -17,7 +17,7 @@ const createStream = (events: StreamEvent[]): AsyncIterable<StreamEvent> => ({
 });
 
 describe("AgentOrchestratorService", () => {
-  it("threads previous response ids into subsequent provider calls", async () => {
+  it("delegates invocation execution to the agent runner", async () => {
     const agentDefinition = {
       id: "agent-1",
       systemPrompt: "You are helpful.",
@@ -46,33 +46,13 @@ describe("AgentOrchestratorService", () => {
       isRoot: true,
     } as unknown as AgentInvocation;
 
-    const firstStreamEvents: StreamEvent[] = [
-      {
-        type: "tool_call",
-        id: "call_1",
-        name: "bash",
-        arguments: {},
-      },
-      { type: "end", responseId: "resp_first" },
-    ];
-
-    const secondStreamEvents: StreamEvent[] = [
-      { type: "delta", text: "Done" },
-      { type: "end", responseId: "resp_second" },
-    ];
-
-    const providerStream = vi
-      .fn()
-      .mockReturnValueOnce(createStream(firstStreamEvents))
-      .mockReturnValueOnce(createStream(secondStreamEvents));
-
     const descriptor: AgentRuntimeDescriptor = {
       id: agentDefinition.id,
       definition: agentDefinition,
       model: "gpt-test",
       provider: {
         name: "openai",
-        stream: providerStream,
+        stream: vi.fn().mockReturnValue(createStream([{ type: "end" }])),
       },
     };
 
@@ -113,17 +93,20 @@ describe("AgentOrchestratorService", () => {
       traceWriter as any,
     );
 
-    const runSpy = vi.spyOn(AgentRunner.prototype as Record<string, unknown>, "run");
+    const runSpy = vi
+      .spyOn(AgentRunner.prototype as Record<string, unknown>, "run")
+      .mockResolvedValue(undefined);
 
     await orchestrator.runAgent(
       { definition: agentDefinition, prompt: "List files" },
       runtime as any,
     );
 
-    expect(providerStream).toHaveBeenCalledTimes(2);
-    expect(providerStream.mock.calls[1]?.[0]).toMatchObject({
-      previousResponseId: "resp_first",
-    });
+    expect(invocationFactory.create).toHaveBeenCalledWith(
+      agentDefinition,
+      expect.objectContaining({ prompt: "List files" }),
+      undefined,
+    );
     expect(runSpy).toHaveBeenCalled();
     runSpy.mockRestore();
   });
