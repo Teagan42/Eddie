@@ -1,8 +1,7 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Theme } from "@radix-ui/themes";
+import { act, screen, waitFor } from "@testing-library/react";
+import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ChatPage } from "./ChatPage";
+import { createChatPageRenderer } from "./test-utils";
 
 const listSessionsMock = vi.fn();
 const listMessagesMock = vi.fn();
@@ -78,6 +77,13 @@ vi.mock("./useChatMessagesRealtime", () => ({
   useChatMessagesRealtime: vi.fn(),
 }));
 
+const renderChatPage = createChatPageRenderer(
+  () =>
+    new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    }),
+);
+
 describe("ChatPage tool metadata merging", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -105,17 +111,7 @@ describe("ChatPage tool metadata merging", () => {
   });
 
   it("keeps existing metadata when snapshot provides null fields", async () => {
-    const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-
-    render(
-      <Theme>
-        <QueryClientProvider client={client}>
-          <ChatPage />
-        </QueryClientProvider>
-      </Theme>
-    );
+    const { client } = renderChatPage();
 
     await waitFor(() => expect(listSessionsMock).toHaveBeenCalledTimes(1));
     expect(toolCallHandler).toBeTypeOf("function");

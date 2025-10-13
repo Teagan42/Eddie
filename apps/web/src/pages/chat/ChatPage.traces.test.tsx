@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, waitFor } from "@testing-library/react";
-import { Theme } from "@radix-ui/themes";
+import { QueryClient } from "@tanstack/react-query";
+import { waitFor } from "@testing-library/react";
+import { createChatPageRenderer } from "./test-utils";
 import type { TraceDto } from "@eddie/api-client";
 import { ChatPage } from "./ChatPage";
 
@@ -92,21 +92,12 @@ vi.mock("@/api/api-provider", () => ({
   }),
 }));
 
-function renderChatPage(): QueryClient {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-
-  render(
-    <Theme>
-      <QueryClientProvider client={client}>
-        <ChatPage />
-      </QueryClientProvider>
-    </Theme>
-  );
-
-  return client;
-}
+const renderChatPage = createChatPageRenderer(
+  () =>
+    new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    }),
+);
 
 describe("ChatPage tool call tree realtime updates", () => {
   beforeEach(() => {

@@ -1,8 +1,7 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Theme } from "@radix-ui/themes";
+import { act, screen, waitFor } from "@testing-library/react";
+import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ChatPage } from "./ChatPage";
+import { createChatPageRenderer } from "./test-utils";
 
 const listSessionsMock = vi.fn();
 const listMessagesMock = vi.fn();
@@ -84,21 +83,11 @@ vi.mock("./useChatMessagesRealtime", () => ({
   useChatMessagesRealtime: vi.fn(),
 }));
 
-function renderChatPage(): QueryClient {
-  const client = new QueryClient({
+const renderChatPage = createChatPageRenderer(() =>
+  new QueryClient({
     defaultOptions: { queries: { retry: false } },
-  });
-
-  render(
-    <Theme>
-      <QueryClientProvider client={client}>
-        <ChatPage />
-      </QueryClientProvider>
-    </Theme>
-  );
-
-  return client;
-}
+  }),
+);
 
 const expectIndicatorText = async (pattern: RegExp) => {
   await waitFor(() => {
@@ -139,6 +128,10 @@ describe("ChatPage agent activity indicator", () => {
       toolInvocations: [],
       agentHierarchy: [],
     });
+  });
+
+  it("wraps ChatPage in an auth provider for test renders", () => {
+    expect(() => renderChatPage()).not.toThrow();
   });
 
   it("reflects agent activity events for the active session", async () => {

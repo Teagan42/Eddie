@@ -43,6 +43,7 @@ import type {
   ToolCallStatusDto,
 } from '@eddie/api-client';
 import { useApi } from '@/api/api-provider';
+import { useAuth } from '@/auth/auth-context';
 import { useLayoutPreferences } from '@/hooks/useLayoutPreferences';
 import type { LayoutPreferencesDto } from '@eddie/api-client';
 import { Panel } from "@/components/common";
@@ -126,6 +127,15 @@ const PANEL_IDS = {
 type ChatPreferences = NonNullable<LayoutPreferencesDto['chat']>;
 
 type ComposerRole = CreateChatMessageDto['role'];
+
+type AutoSessionAttemptStatus = 'idle' | 'pending' | 'failed';
+
+type AutoSessionAttemptState = {
+  status: AutoSessionAttemptStatus;
+  apiKey: string | null;
+  lastAttemptAt: number | null;
+  lastFailureAt: number | null;
+};
 
 // Small runtime type for realtime tool events forwarded over the "tools" socket.
 // We keep this conservative and shallow: server-side sanitization already
@@ -264,6 +274,7 @@ function normalizeOrchestratorMetadata(
 
 export function ChatPage(): JSX.Element {
   const api = useApi();
+  const { apiKey } = useAuth();
   const queryClient = useQueryClient();
   const { preferences, updatePreferences } = useLayoutPreferences();
   useChatMessagesRealtime(api);
@@ -282,8 +293,24 @@ export function ChatPage(): JSX.Element {
   });
 
   const sessions = useMemo(() => sortSessions(sessionsQuery.data ?? []), [sessionsQuery.data]);
+  const sessionsLoaded = sessionsQuery.isSuccess;
 
   const selectedSessionIdRef = useRef<string | null>(null);
+  const [autoSessionAttempt, setAutoSessionAttempt] = useState<AutoSessionAttemptState>({
+    status: 'idle',
+    apiKey: null,
+    lastAttemptAt: null,
+    lastFailureAt: null,
+  });
+  const setAutoSessionAttemptState = useCallback(
+    (updates: Partial<AutoSessionAttemptState>) => {
+      setAutoSessionAttempt((previous) => ({ ...previous, ...updates }));
+    },
+    [],
+  );
+  const resetAutoSessionAttempt = useCallback(() => {
+    setAutoSessionAttemptState({ status: 'idle', lastAttemptAt: null, lastFailureAt: null });
+  }, [setAutoSessionAttemptState]);
   const agentActivitySessionRef = useRef<string | null>(null);
   const toolInvocationCacheRef = useRef<Map<string, ToolInvocationNode[]>>(new Map());
 
@@ -606,12 +633,76 @@ export function ChatPage(): JSX.Element {
   const createSessionMutation = useMutation({
     mutationFn: (payload: CreateChatSessionDto) => api.http.chatSessions.create(payload),
     onSuccess: (session) => {
+      resetAutoSessionAttempt();
       queryClient.setQueryData<ChatSessionDto[]>(['chat-sessions'], (previous = []) =>
         sortSessions([session, ...previous]),
       );
       applyChatUpdate((chat) => ({ ...chat, selectedSessionId: session.id }));
     },
+    onError: () => {
+      setAutoSessionAttemptState({ status: 'failed', lastFailureAt: Date.now() });
+    },
   });
+  const { mutate: runCreateSession } = createSessionMutation;
+  const isCreatingSession = createSessionMutation.isPending;
+
+  useEffect(() => {
+    const currentKey = apiKey ?? null;
+    if (autoSessionAttempt.apiKey !== currentKey) {
+      setAutoSessionAttemptState({
+        apiKey: currentKey,
+        status: 'idle',
+        lastAttemptAt: null,
+        lastFailureAt: null,
+      });
+    }
+  }, [apiKey, autoSessionAttempt.apiKey, setAutoSessionAttemptState]);
+
+  useEffect(() => {
+    if (sessions.length > 0) {
+      resetAutoSessionAttempt();
+    }
+  }, [resetAutoSessionAttempt, sessions.length]);
+
+  useEffect(() => {
+    if (!apiKey || !sessionsLoaded || sessions.length > 0) {
+      return;
+    }
+
+    if (autoSessionAttempt.status === 'failed') {
+      return;
+    }
+
+    if (autoSessionAttempt.status !== 'idle' || isCreatingSession) {
+      return;
+    }
+
+    const now = Date.now();
+    if (autoSessionAttempt.lastAttemptAt && now - autoSessionAttempt.lastAttemptAt < 5_000) {
+      return;
+    }
+
+    setAutoSessionAttemptState({
+      status: 'pending',
+      apiKey: apiKey ?? null,
+      lastAttemptAt: now,
+      lastFailureAt: null,
+    });
+    runCreateSession({
+      title: 'New orchestrator session',
+      description: '',
+    });
+  }, [
+    apiKey,
+    autoSessionAttempt.lastAttemptAt,
+    autoSessionAttempt.lastFailureAt,
+    autoSessionAttempt.status,
+    runCreateSession,
+    isCreatingSession,
+    sessions.length,
+    sessionsLoaded,
+    setAutoSessionAttemptState,
+  ]);
 
   const sendMessageMutation = useMutation({
     mutationFn: (input: { sessionId: string; message: CreateChatMessageDto }) =>
@@ -713,8 +804,12 @@ export function ChatPage(): JSX.Element {
     [applyChatUpdate, selectedSessionId],
   );
 
+  const composerUnavailable = !apiKey || !selectedSessionId;
+  const composerSubmitDisabled = composerUnavailable || !composerValue.trim();
+  const composerInputDisabled = composerUnavailable || sendMessageMutation.isPending;
+
   const handleSendMessage = useCallback(() => {
-    if (!selectedSessionId || !composerValue.trim()) {
+    if (!apiKey || !selectedSessionId || !composerValue.trim()) {
       return;
     }
     sendMessageMutation.mutate({
@@ -724,7 +819,7 @@ export function ChatPage(): JSX.Element {
         content: composerValue.trim(),
       },
     });
-  }, [composerRole, composerValue, selectedSessionId, sendMessageMutation]);
+  }, [apiKey, composerRole, composerValue, selectedSessionId, sendMessageMutation]);
 
   const handleProviderChange = useCallback(
     (value: string) => {
@@ -1125,6 +1220,7 @@ export function ChatPage(): JSX.Element {
               <SegmentedControl.Root
                 value={composerRole}
                 onValueChange={(value) => setComposerRole(value as ComposerRole)}
+                disabled={composerUnavailable}
               >
                 <SegmentedControl.Item value="user">Ask</SegmentedControl.Item>
                 <SegmentedControl.Item value="system">Run</SegmentedControl.Item>
@@ -1134,12 +1230,12 @@ export function ChatPage(): JSX.Element {
                 onChange={(event) => setComposerValue(event.target.value)}
                 placeholder="Send a message to the orchestrator"
                 rows={4}
-                disabled={!selectedSessionId || sendMessageMutation.isPending}
+                disabled={composerInputDisabled}
               />
               <Flex justify="end" gap="2">
                 <Button
                   onClick={handleSendMessage}
-                  disabled={!selectedSessionId || !composerValue.trim()}
+                  disabled={composerSubmitDisabled}
                 >
                   <PaperPlaneIcon /> Send
                 </Button>

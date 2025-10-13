@@ -1,8 +1,7 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
-import { Theme } from "@radix-ui/themes";
+import { QueryClient } from "@tanstack/react-query";
+import { screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ChatPage } from "./ChatPage";
+import { createChatPageRenderer } from "./test-utils";
 
 type ChatMessageDto = {
   id: string;
@@ -77,6 +76,13 @@ vi.mock("./useChatMessagesRealtime", () => ({
   })),
 }));
 
+const renderChatPage = createChatPageRenderer(
+  () =>
+    new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    }),
+);
+
 describe("ChatPage message surfaces", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -132,17 +138,7 @@ describe("ChatPage message surfaces", () => {
   });
 
   it("renders darker, low-gradient surfaces for chat messages", async () => {
-    const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-
-    render(
-      <Theme>
-        <QueryClientProvider client={client}>
-          <ChatPage />
-        </QueryClientProvider>
-      </Theme>
-    );
+    renderChatPage();
 
     await waitFor(() => expect(listMessagesMock).toHaveBeenCalledTimes(1));
 
