@@ -1,9 +1,13 @@
 import { afterAll, describe, expect, it } from "vitest";
+import { execFile } from "node:child_process";
 import fs from "fs/promises";
 import os from "os";
 import path from "path";
 import nunjucks from "nunjucks";
 import { TemplateRendererService } from "../src/template-renderer.service";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 
 describe("TemplateRendererService", () => {
   const service = new TemplateRendererService();
@@ -64,5 +68,19 @@ describe("TemplateRendererService", () => {
     expect(rendered).toBe("Hi Coder");
     const cacheEntry = service["templateCache"].get(cacheKey);
     expect(cacheEntry?.template).toBeInstanceOf(nunjucks.Template);
+  });
+});
+
+describe("TypeScript build", () => {
+  it("completes without type errors", async () => {
+    const projectDir = path.resolve(__dirname, "..");
+    const tsconfigPath = path.join(projectDir, "tsconfig.build.json");
+    const tscBin = require.resolve("typescript/bin/tsc");
+
+    await expect(
+      execFileAsync(process.execPath, [tscBin, "--noEmit", "-p", tsconfigPath], {
+        cwd: projectDir,
+      })
+    ).resolves.toBeDefined();
   });
 });

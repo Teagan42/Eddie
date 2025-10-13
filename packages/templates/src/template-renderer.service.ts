@@ -47,11 +47,11 @@ export class TemplateRendererService {
     const cacheKey = `${key}:${absolutePath}`;
 
     const cachedEntry = this.templateCache.get(cacheKey);
-    let template: nunjucks.Template | undefined = cachedEntry?.template;
-    const needsRebuild =
-      !template || this.isCacheEntryStale(cachedEntry, mtimeMs);
+    let template: nunjucks.Template;
 
-    if (needsRebuild) {
+    if (this.isCacheEntryUsable(cachedEntry, mtimeMs)) {
+      template = cachedEntry.template;
+    } else {
       template = this.createTemplate(source, env, absolutePath);
       this.templateCache.set(cacheKey, { template, mtimeMs });
     }
@@ -123,10 +123,10 @@ export class TemplateRendererService {
     return { key, env };
   }
 
-  private isCacheEntryStale(
+  private isCacheEntryUsable(
     entry: CachedTemplateEntry | undefined,
     mtimeMs: number
-  ): boolean {
-    return !entry || entry.mtimeMs !== mtimeMs;
+  ): entry is CachedTemplateEntry {
+    return Boolean(entry && entry.template && entry.mtimeMs === mtimeMs);
   }
 }
