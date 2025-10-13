@@ -1,10 +1,238 @@
-import { describe, expect, it } from "vitest";
-import type { PackedContext } from "@eddie/types";
+import { describe, expect, it, vi } from "vitest";
+import type { PackedContext, StreamEvent, ToolResult, ToolSchema } from "@eddie/types";
+import { HOOK_EVENTS } from "@eddie/hooks";
+import type { HookBus } from "@eddie/hooks";
+import type { Logger } from "pino";
 import type { AgentInvocation } from "../../src/agents/agent-invocation";
 import type { AgentRuntimeDescriptor } from "../../src/agents/agent-runtime.types";
 import { AgentRunner } from "../../src/agents/agent-runner";
+import type { StreamRendererService } from "@eddie/io";
 
 describe("AgentRunner", () => {
+  it("runs the provider stream lifecycle and emits hooks, tool results, and compaction callbacks", async () => {
+    const agentDefinition = {
+      id: "agent-1",
+      systemPrompt: "You are helpful.",
+      tools: [],
+    };
+
+    const invocation = {
+      definition: agentDefinition,
+      prompt: "List files",
+      context: { files: [], totalBytes: 0, text: "" },
+      history: [],
+      messages: [
+        { role: "system", content: agentDefinition.systemPrompt },
+        { role: "user", content: "List files" },
+      ],
+      toolRegistry: {
+        schemas: vi.fn().mockReturnValue([]),
+        execute: vi
+          .fn()
+          .mockResolvedValue({
+            schema: "tool.echo.result",
+            content: "done",
+            data: { output: "done" },
+          } satisfies ToolResult),
+      },
+      children: [],
+      parent: undefined,
+      isRoot: false,
+      id: agentDefinition.id,
+    } as unknown as AgentInvocation;
+
+    const createStream = (events: StreamEvent[]): AsyncIterable<StreamEvent> => ({
+      [Symbol.asyncIterator]: async function* () {
+        for (const event of events) {
+          yield event;
+        }
+      },
+    });
+
+    const providerStream = vi
+      .fn()
+      .mockReturnValueOnce(
+        createStream([
+          {
+            type: "tool_call",
+            id: "call-1",
+            name: "echo",
+            arguments: { input: "value" },
+          },
+          { type: "end", responseId: "resp-1" },
+        ])
+      )
+      .mockReturnValueOnce(
+        createStream([
+          { type: "delta", text: "Hello" },
+          { type: "delta", text: " world" },
+          {
+            type: "notification",
+            payload: "Heads up",
+            metadata: { severity: "info" },
+          },
+          { type: "end" },
+        ])
+      );
+
+    const descriptor: AgentRuntimeDescriptor = {
+      id: agentDefinition.id,
+      definition: agentDefinition,
+      model: "gpt-test",
+      provider: {
+        name: "openai",
+        stream: providerStream,
+      },
+    };
+
+    const composeToolSchemas = vi
+      .fn<[], ToolSchema[] | undefined>()
+      .mockReturnValue([
+        {
+          type: "function",
+          name: "echo",
+          description: "Echo back",
+          parameters: { type: "object" },
+        },
+      ]);
+
+    const dispatchHookOrThrow = vi.fn().mockResolvedValue({ results: [] });
+
+    const writeTrace = vi.fn().mockResolvedValue(undefined);
+
+    const applyTranscriptCompactionIfNeeded = vi
+      .fn()
+      .mockResolvedValue(undefined);
+
+    const hooks = {
+      emitAsync: vi.fn().mockResolvedValue({}),
+    } as unknown as { emitAsync: HookBus["emitAsync"]; };
+
+    const logger: Logger = {
+      debug: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    } as unknown as Logger;
+
+    const streamRenderer: StreamRendererService = {
+      render: vi.fn(),
+      flush: vi.fn(),
+    } as unknown as StreamRendererService;
+
+    const lifecycle = {
+      metadata: {
+        id: invocation.id,
+        parentId: undefined,
+        depth: 0,
+        isRoot: false,
+        systemPrompt: agentDefinition.systemPrompt,
+        tools: [],
+      },
+      prompt: invocation.prompt,
+      context: { totalBytes: 0, fileCount: 0 },
+      historyLength: invocation.history.length,
+    };
+
+    const runner = new AgentRunner({
+      invocation,
+      descriptor,
+      streamRenderer,
+      hooks,
+      logger,
+      cwd: "/tmp",
+      confirm: vi.fn(),
+      composeToolSchemas,
+      executeSpawnTool: vi
+        .fn()
+        .mockImplementation(async () => ({
+          schema: "spawn.result",
+          content: "child",
+        } satisfies ToolResult)),
+      applyTranscriptCompactionIfNeeded,
+      dispatchHookOrThrow,
+      writeTrace,
+      lifecycle,
+      startTraceAppend: true,
+    });
+
+    await runner.run();
+
+    expect(providerStream).toHaveBeenCalledTimes(2);
+    expect(hooks.emitAsync).toHaveBeenCalledTimes(8);
+    expect(hooks.emitAsync.mock.calls.map((call) => call[0])).toEqual([
+      HOOK_EVENTS.beforeAgentStart,
+      HOOK_EVENTS.beforeModelCall,
+      HOOK_EVENTS.stop,
+      HOOK_EVENTS.beforeModelCall,
+      HOOK_EVENTS.notification,
+      HOOK_EVENTS.stop,
+      HOOK_EVENTS.afterAgentComplete,
+      HOOK_EVENTS.subagentStop,
+    ]);
+
+    expect(composeToolSchemas).toHaveBeenCalled();
+    expect(applyTranscriptCompactionIfNeeded).toHaveBeenCalledTimes(2);
+    expect(applyTranscriptCompactionIfNeeded).toHaveBeenNthCalledWith(
+      1,
+      1,
+      expect.objectContaining({ iteration: 1 })
+    );
+    expect(applyTranscriptCompactionIfNeeded).toHaveBeenNthCalledWith(
+      2,
+      2,
+      expect.objectContaining({ iteration: 2 })
+    );
+    expect(dispatchHookOrThrow).toHaveBeenCalledWith(
+      HOOK_EVENTS.preToolUse,
+      expect.objectContaining({
+        iteration: 1,
+        event: expect.objectContaining({ name: "echo" }),
+      })
+    );
+    expect(dispatchHookOrThrow).toHaveBeenCalledWith(
+      HOOK_EVENTS.postToolUse,
+      expect.objectContaining({
+        iteration: 1,
+        result: expect.objectContaining({ schema: "tool.echo.result" }),
+      })
+    );
+
+    expect(invocation.toolRegistry.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "echo" }),
+      expect.objectContaining({ cwd: "/tmp" })
+    );
+
+    const finalMessage = invocation.messages.at(-1);
+    expect(finalMessage).toEqual({ role: "assistant", content: "Hello world" });
+
+    const toolMessage = invocation.messages.at(-2);
+    expect(toolMessage).toMatchObject({
+      role: "tool",
+      name: "echo",
+      tool_call_id: "call-1",
+    });
+
+    const parsedToolPayload = JSON.parse(toolMessage?.content ?? "{}");
+    expect(parsedToolPayload).toEqual({
+      schema: "tool.echo.result",
+      content: "done",
+      data: { output: "done" },
+    });
+
+    expect(streamRenderer.flush).toHaveBeenCalled();
+    expect(streamRenderer.render).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "delta", text: "Hello" })
+    );
+    expect(streamRenderer.render).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "tool_result", id: "call-1" })
+    );
+
+    expect(writeTrace).toHaveBeenCalledWith(
+      expect.objectContaining({ phase: "agent_start" }),
+      true
+    );
+  });
+
   it("builds subagent results with cloned context and history metadata", () => {
     const childContext: PackedContext = {
       files: [

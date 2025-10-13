@@ -29,15 +29,8 @@ import {
 } from "./agent-invocation";
 import { AgentInvocationFactory } from "./agent-invocation.factory";
 import type { AgentRuntimeCatalog, AgentRuntimeDescriptor } from "./agent-runtime.types";
-import { AgentRunner } from "./agent-runner";
+import { AgentRunner, type AgentTraceEvent } from "./agent-runner";
 import type { TemplateVariables } from "@eddie/templates";
-
-interface AgentTraceEvent {
-    phase: string;
-    data?: Record<string, unknown>;
-}
-
-const SPAWN_TOOL_NAME = "spawn_subagent";
 
 interface SpawnToolArguments {
     agent: string;
@@ -236,9 +229,9 @@ export class AgentOrchestratorService {
 
     const lines = subagents.map((agent) => {
       const nameLabel =
-                agent.metadata?.name && agent.metadata.name !== agent.id
-                  ? `${ agent.id } (${ agent.metadata.name })`
-                  : agent.id;
+        agent.metadata?.name && agent.metadata.name !== agent.id
+          ? `${agent.id} (${agent.metadata.name})`
+          : agent.id;
       const description = agent.metadata?.description
         ? ` – ${ agent.metadata.description }`
         : "";
@@ -254,7 +247,7 @@ export class AgentOrchestratorService {
 
     return {
       type: "function",
-      name: SPAWN_TOOL_NAME,
+      name: AgentRunner.SPAWN_TOOL_NAME,
       description,
       parameters: {
         type: "object",
@@ -272,13 +265,13 @@ export class AgentOrchestratorService {
           variables: {
             type: "object",
             description:
-                            "Optional template variables merged into the subagent's prompt context.",
+              "Optional template variables merged into the subagent's prompt context.",
             additionalProperties: true,
           },
           metadata: {
             type: "object",
             description:
-                            "Optional metadata describing the delegation request for auditing.",
+              "Optional metadata describing the delegation request for auditing.",
             additionalProperties: true,
           },
         },
@@ -308,18 +301,18 @@ export class AgentOrchestratorService {
   private parseSpawnArguments(raw: unknown): SpawnToolArguments {
     const value = this.coerceToolArguments(raw);
     const agentValue =
-            value.agent ?? value.agentId ?? value.id ?? value.target ?? undefined;
+      value.agent ?? value.agentId ?? value.id ?? value.target ?? undefined;
     if (typeof agentValue !== "string" || agentValue.trim() === "") {
       throw new Error(
-        `${ SPAWN_TOOL_NAME } requires an "agent" property identifying the subagent to spawn.`
+        `${ AgentRunner.SPAWN_TOOL_NAME } requires an "agent" property identifying the subagent to spawn.`
       );
     }
 
     const promptValue =
-            value.prompt ?? value.message ?? value.input ?? value.instructions;
+      value.prompt ?? value.message ?? value.input ?? value.instructions;
     if (typeof promptValue !== "string" || promptValue.trim() === "") {
       throw new Error(
-        `${ SPAWN_TOOL_NAME } requires a non-empty "prompt" string describing the task.`
+        `${ AgentRunner.SPAWN_TOOL_NAME } requires a non-empty "prompt" string describing the task.`
       );
     }
 
@@ -557,382 +550,35 @@ export class AgentOrchestratorService {
 
     const descriptor = this.getInvocationDescriptor(invocation);
 
-    if (!invocation.isRoot) {
-      this.streamRenderer.flush();
-    }
-
     const lifecycle = this.createLifecyclePayload(invocation);
-    await runtime.hooks.emitAsync(HOOK_EVENTS.beforeAgentStart, lifecycle);
-
-    await this.writeTrace(
-      runtime,
+    const runner = new AgentRunner({
       invocation,
-      {
-        phase: "agent_start",
-        data: {
-          prompt: invocation.prompt,
-          systemPrompt: invocation.definition.systemPrompt,
-          model: descriptor.model,
-          provider: descriptor.provider.name,
-        },
-      },
-      invocation.isRoot ? runtime.traceAppend : true
-    );
-
-    let iteration = 0;
-    let agentFailed = false;
-    let continueConversation = true;
-    let subagentStopEmitted = false;
-    let previousResponseId: string | undefined;
-
-    const emitSubagentStop = async (): Promise<void> => {
-      if (invocation.isRoot || subagentStopEmitted) {
-        return;
-      }
-      subagentStopEmitted = true;
-      await runtime.hooks.emitAsync(HOOK_EVENTS.subagentStop, lifecycle);
-    };
-
-    try {
-      while (continueConversation) {
-        iteration += 1;
-        continueConversation = false;
-
-        const iterationPayload = {
-          ...lifecycle,
-          iteration,
-          messages: invocation.messages,
-        };
-
+      descriptor,
+      streamRenderer: this.streamRenderer,
+      hooks: runtime.hooks,
+      logger: runtime.logger,
+      cwd: runtime.cwd,
+      confirm: runtime.confirm,
+      lifecycle,
+      startTraceAppend: invocation.isRoot ? runtime.traceAppend : true,
+      composeToolSchemas: () => this.composeToolSchemas(invocation, runtime),
+      executeSpawnTool: (event) =>
+        this.executeSpawnTool(invocation, runtime, event, descriptor),
+      applyTranscriptCompactionIfNeeded: async (iteration) => {
         await this.applyTranscriptCompactionIfNeeded(
           runtime,
           invocation,
           iteration,
           lifecycle
         );
-
-        await runtime.hooks.emitAsync(
-          HOOK_EVENTS.beforeModelCall,
-          iterationPayload
-        );
-        await this.writeTrace(runtime, invocation, {
-          phase: "model_call",
-          data: {
-            iteration,
-            messageCount: invocation.messages.length,
-            model: descriptor.model,
-            provider: descriptor.provider.name,
-          },
-        });
-
-        const toolSchemas = this.composeToolSchemas(invocation, runtime);
-
-        const stream = descriptor.provider.stream({
-          model: descriptor.model,
-          messages: invocation.messages,
-          tools: toolSchemas,
-          ...(previousResponseId ? { previousResponseId } : {}),
-        });
-
-        let assistantBuffer = "";
-
-        for await (const event of stream) {
-          if (event.type === "delta") {
-            assistantBuffer += event.text;
-            this.streamRenderer.render(event);
-            continue;
-          }
-
-          if (event.type === "tool_call") {
-            this.streamRenderer.flush();
-            this.streamRenderer.render(event);
-
-            const preToolDispatch = await this.dispatchHookOrThrow(
-              runtime,
-              invocation,
-              HOOK_EVENTS.preToolUse,
-              {
-                ...lifecycle,
-                iteration,
-                event,
-              }
-            );
-            await this.writeTrace(runtime, invocation, {
-              phase: "tool_call",
-              data: {
-                iteration,
-                id: event.id,
-                name: event.name,
-                arguments: event.arguments,
-              },
-            });
-
-            invocation.messages.push({
-              role: "assistant",
-              content: "",
-              name: event.name,
-              tool_call_id: event.id,
-            });
-
-            const blockSignal = preToolDispatch.blocked;
-
-            if (blockSignal) {
-              const reason =
-                                blockSignal.reason ?? "Tool execution blocked by hook.";
-
-              invocation.messages.push({
-                role: "tool",
-                name: event.name,
-                tool_call_id: event.id,
-                content: reason,
-              });
-
-              runtime.logger.warn(
-                {
-                  tool: event.name,
-                  agent: invocation.id,
-                  reason,
-                },
-                "Tool execution vetoed by hook"
-              );
-
-              continueConversation = true;
-              continue;
-            }
-
-            try {
-              const result =
-                                event.name === SPAWN_TOOL_NAME
-                                  ? await this.executeSpawnTool(
-                                    invocation,
-                                    runtime,
-                                    event,
-                                    descriptor
-                                  )
-                                  : await invocation.toolRegistry.execute(event, {
-                                    cwd: runtime.cwd,
-                                    confirm: runtime.confirm,
-                                    env: process.env,
-                                  });
-
-              this.streamRenderer.render({
-                type: "tool_result",
-                name: event.name,
-                id: event.id,
-                result,
-              });
-
-              const messagePayload: Record<string, unknown> = {
-                schema: result.schema,
-                content: result.content,
-              };
-
-              if (result.data !== undefined) {
-                messagePayload.data = result.data;
-              }
-
-              if (result.metadata !== undefined) {
-                messagePayload.metadata = result.metadata;
-              }
-
-              invocation.messages.push({
-                role: "tool",
-                name: event.name,
-                tool_call_id: event.id,
-                content: JSON.stringify(messagePayload),
-              });
-
-              await this.dispatchHookOrThrow(
-                runtime,
-                invocation,
-                HOOK_EVENTS.postToolUse,
-                {
-                  ...lifecycle,
-                  iteration,
-                  event,
-                  result,
-                }
-              );
-
-              await this.writeTrace(runtime, invocation, {
-                phase: "tool_result",
-                data: {
-                  iteration,
-                  id: event.id,
-                  name: event.name,
-                  result,
-                },
-              });
-
-              continueConversation = true;
-            } catch (error) {
-              const serialized = this.serializeError(error);
-              const message = `Tool execution failed: ${ serialized.message }`;
-              const notification: Extract<StreamEvent, { type: "notification"; }> = {
-                type: "notification",
-                payload: message,
-                metadata: {
-                  tool: event.name,
-                  tool_call_id: event.id,
-                  severity: "error",
-                },
-              };
-
-              runtime.logger.warn(
-                { err: serialized.message, tool: event.name, agent: invocation.id },
-                "Tool execution failed"
-              );
-
-              this.streamRenderer.render(notification);
-
-              invocation.messages.push({
-                role: "tool",
-                name: event.name,
-                tool_call_id: event.id,
-                content: message,
-              });
-
-              await runtime.hooks.emitAsync(HOOK_EVENTS.notification, {
-                ...lifecycle,
-                iteration,
-                event: notification,
-              });
-
-              await this.writeTrace(runtime, invocation, {
-                phase: "tool_error",
-                data: {
-                  iteration,
-                  id: event.id,
-                  name: event.name,
-                  error: serialized,
-                },
-              });
-
-              continueConversation = true;
-              continue;
-            }
-
-            continue;
-          }
-
-          if (event.type === "error") {
-            this.streamRenderer.render(event);
-            agentFailed = true;
-
-            await this.dispatchHookOrThrow(
-              runtime,
-              invocation,
-              HOOK_EVENTS.onError,
-              {
-                ...lifecycle,
-                iteration,
-                error: event,
-              }
-            );
-            await this.dispatchHookOrThrow(
-              runtime,
-              invocation,
-              HOOK_EVENTS.onAgentError,
-              {
-                ...lifecycle,
-                error: {
-                  message: event.message,
-                  cause: event.cause,
-                },
-              }
-            );
-            await this.writeTrace(runtime, invocation, {
-              phase: "agent_error",
-              data: {
-                iteration,
-                message: event.message,
-                cause: event.cause,
-              },
-            });
-
-            break;
-          }
-
-          if (event.type === "notification") {
-            this.streamRenderer.render(event);
-            await runtime.hooks.emitAsync(HOOK_EVENTS.notification, {
-              ...lifecycle,
-              iteration,
-              event,
-            });
-            continue;
-          }
-
-          if (event.type === "end") {
-            this.streamRenderer.render(event);
-            if (event.responseId) {
-              previousResponseId = event.responseId;
-            }
-            if (assistantBuffer.trim().length > 0) {
-              invocation.messages.push({
-                role: "assistant",
-                content: assistantBuffer,
-              });
-            }
-
-            await runtime.hooks.emitAsync(HOOK_EVENTS.stop, {
-              ...lifecycle,
-              iteration,
-              messages: invocation.messages,
-            });
-            await this.writeTrace(runtime, invocation, {
-              phase: "iteration_complete",
-              data: {
-                iteration,
-                messageCount: invocation.messages.length,
-                finalMessage: invocation.messages.at(-1)?.content,
-              },
-            });
-
-            continue;
-          }
-
-          this.streamRenderer.render(event);
-        }
-
-        if (agentFailed) {
-          break;
-        }
-      }
-    } catch (error) {
-      agentFailed = true;
-      const serialized = this.serializeError(error);
-      await this.dispatchHookOrThrow(runtime, invocation, HOOK_EVENTS.onAgentError, {
-        ...lifecycle,
-        error: serialized,
-      });
-      await this.writeTrace(runtime, invocation, {
-        phase: "agent_error",
-        data: serialized,
-      });
-      await emitSubagentStop();
-      throw error;
-    }
-
-    if (agentFailed) {
-      await emitSubagentStop();
-      return;
-    }
-
-    await runtime.hooks.emitAsync(HOOK_EVENTS.afterAgentComplete, {
-      ...lifecycle,
-      iterations: iteration,
-      messages: invocation.messages,
-    });
-    await emitSubagentStop();
-    await this.writeTrace(runtime, invocation, {
-      phase: "agent_complete",
-      data: {
-        iterations: iteration,
-        messageCount: invocation.messages.length,
-        finalMessage: invocation.messages.at(-1)?.content,
       },
+      dispatchHookOrThrow: (event, payload) =>
+        this.dispatchHookOrThrow(runtime, invocation, event, payload),
+      writeTrace: (event, append) =>
+        this.writeTrace(runtime, invocation, event, append),
     });
+
+    await runner.run();
   }
 
   private async writeTrace(

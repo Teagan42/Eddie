@@ -1,7 +1,58 @@
+import type { Logger } from "pino";
+import { HOOK_EVENTS } from "@eddie/hooks";
+import type {
+  AgentLifecyclePayload,
+  HookBus,
+  HookDispatchResult,
+  HookEventMap,
+  HookEventName,
+} from "@eddie/hooks";
+import type { StreamRendererService } from "@eddie/io";
+import type {
+  ChatMessage,
+  PackedContext,
+  StreamEvent,
+  ToolResult,
+  ToolSchema,
+} from "@eddie/types";
 import type { TemplateVariables } from "@eddie/templates";
-import type { ChatMessage, PackedContext, ToolResult } from "@eddie/types";
 import type { AgentInvocation } from "./agent-invocation";
 import type { AgentRuntimeDescriptor } from "./agent-runtime.types";
+
+export interface AgentTraceEvent {
+  phase: string;
+  data?: Record<string, unknown>;
+}
+
+type AgentIterationPayload = AgentLifecyclePayload & {
+  iteration: number;
+  messages: ChatMessage[];
+};
+
+export interface AgentRunnerOptions {
+  invocation: AgentInvocation;
+  descriptor: AgentRuntimeDescriptor;
+  streamRenderer: StreamRendererService;
+  hooks: HookBus;
+  logger: Logger;
+  cwd: string;
+  confirm: (message: string) => Promise<boolean>;
+  lifecycle: AgentLifecyclePayload;
+  startTraceAppend: boolean | undefined;
+  composeToolSchemas: () => ToolSchema[] | undefined;
+  executeSpawnTool: (
+    event: Extract<StreamEvent, { type: "tool_call" }>
+  ) => Promise<ToolResult>;
+  applyTranscriptCompactionIfNeeded: (
+    iteration: number,
+    payload: AgentIterationPayload
+  ) => Promise<void>;
+  dispatchHookOrThrow: <E extends HookEventName>(
+    event: E,
+    payload: HookEventMap[E]
+  ) => Promise<HookDispatchResult<E>>;
+  writeTrace: (event: AgentTraceEvent, append?: boolean) => Promise<void>;
+}
 
 export interface SubagentRequestDetails {
   prompt: string;
@@ -33,7 +84,361 @@ interface SpawnResultData extends Record<string, unknown> {
 }
 
 export class AgentRunner {
+  static readonly SPAWN_TOOL_NAME = "spawn_subagent";
   static readonly SPAWN_TOOL_RESULT_SCHEMA = "eddie.tool.spawn_subagent.result.v1";
+
+  private previousResponseId: string | undefined;
+  private subagentStopEmitted = false;
+
+  constructor(private readonly options: AgentRunnerOptions) {}
+
+  async run(): Promise<void> {
+    const {
+      invocation,
+      descriptor,
+      streamRenderer,
+      hooks,
+      logger,
+      composeToolSchemas,
+      executeSpawnTool,
+      applyTranscriptCompactionIfNeeded,
+      dispatchHookOrThrow,
+      writeTrace,
+      lifecycle,
+      startTraceAppend,
+      confirm,
+      cwd,
+    } = this.options;
+
+    if (!invocation.isRoot) {
+      streamRenderer.flush();
+    }
+
+    await hooks.emitAsync(HOOK_EVENTS.beforeAgentStart, lifecycle);
+
+    await writeTrace(
+      {
+        phase: "agent_start",
+        data: {
+          prompt: invocation.prompt,
+          systemPrompt: invocation.definition.systemPrompt,
+          model: descriptor.model,
+          provider: descriptor.provider.name,
+        },
+      },
+      startTraceAppend
+    );
+
+    let iteration = 0;
+    let agentFailed = false;
+    let continueConversation = true;
+
+    try {
+      while (continueConversation) {
+        iteration += 1;
+        continueConversation = false;
+
+        const iterationPayload = this.createIterationPayload(iteration);
+
+        await applyTranscriptCompactionIfNeeded(iteration, iterationPayload);
+
+        await hooks.emitAsync(HOOK_EVENTS.beforeModelCall, iterationPayload);
+        await writeTrace({
+          phase: "model_call",
+          data: {
+            iteration,
+            messageCount: invocation.messages.length,
+            model: descriptor.model,
+            provider: descriptor.provider.name,
+          },
+        });
+
+        const toolSchemas = composeToolSchemas();
+
+        const stream = descriptor.provider.stream({
+          model: descriptor.model,
+          messages: invocation.messages,
+          tools: toolSchemas,
+          ...(this.previousResponseId ? { previousResponseId: this.previousResponseId } : {}),
+        });
+
+        let assistantBuffer = "";
+
+        for await (const event of stream) {
+          if (event.type === "delta") {
+            assistantBuffer += event.text;
+            streamRenderer.render(event);
+            continue;
+          }
+
+          if (event.type === "tool_call") {
+            streamRenderer.flush();
+            streamRenderer.render(event);
+
+            const preToolDispatch = await dispatchHookOrThrow(
+              HOOK_EVENTS.preToolUse,
+              {
+                ...iterationPayload,
+                event,
+              }
+            );
+
+            await writeTrace({
+              phase: "tool_call",
+              data: {
+                iteration,
+                id: event.id,
+                name: event.name,
+                arguments: event.arguments,
+              },
+            });
+
+            invocation.messages.push({
+              role: "assistant",
+              content: "",
+              name: event.name,
+              tool_call_id: event.id,
+            });
+
+            const blockSignal = preToolDispatch.blocked;
+
+            if (blockSignal) {
+              const reason =
+                blockSignal.reason ?? "Tool execution blocked by hook.";
+
+              invocation.messages.push({
+                role: "tool",
+                name: event.name,
+                tool_call_id: event.id,
+                content: reason,
+              });
+
+              logger.warn(
+                {
+                  tool: event.name,
+                  agent: invocation.id,
+                  reason,
+                },
+                "Tool execution vetoed by hook"
+              );
+
+              continueConversation = true;
+              continue;
+            }
+
+            try {
+              let result: ToolResult;
+              if (event.name === AgentRunner.SPAWN_TOOL_NAME) {
+                result = await executeSpawnTool(event);
+              } else {
+                result = await invocation.toolRegistry.execute(event, {
+                  cwd,
+                  confirm,
+                  env: process.env,
+                });
+              }
+
+              streamRenderer.render({
+                type: "tool_result",
+                name: event.name,
+                id: event.id,
+                result,
+              });
+
+              const messagePayload: Record<string, unknown> = {
+                schema: result.schema,
+                content: result.content,
+              };
+
+              if (result.data !== undefined) {
+                messagePayload.data = result.data;
+              }
+
+              if (result.metadata !== undefined) {
+                messagePayload.metadata = result.metadata;
+              }
+
+              invocation.messages.push({
+                role: "tool",
+                name: event.name,
+                tool_call_id: event.id,
+                content: JSON.stringify(messagePayload),
+              });
+
+              await dispatchHookOrThrow(HOOK_EVENTS.postToolUse, {
+                ...iterationPayload,
+                event,
+                result,
+              });
+
+              await writeTrace({
+                phase: "tool_result",
+                data: {
+                  iteration,
+                  id: event.id,
+                  name: event.name,
+                  result,
+                },
+              });
+
+              continueConversation = true;
+            } catch (error) {
+              const serialized = AgentRunner.serializeError(error);
+              const message = `Tool execution failed: ${ serialized.message }`;
+              const notification: Extract<StreamEvent, { type: "notification" }> = {
+                type: "notification",
+                payload: message,
+                metadata: {
+                  tool: event.name,
+                  tool_call_id: event.id,
+                  severity: "error",
+                },
+              };
+
+              logger.warn(
+                { err: serialized.message, tool: event.name, agent: invocation.id },
+                "Tool execution failed"
+              );
+
+              streamRenderer.render(notification);
+
+              invocation.messages.push({
+                role: "tool",
+                name: event.name,
+                tool_call_id: event.id,
+                content: message,
+              });
+
+              await hooks.emitAsync(HOOK_EVENTS.notification, {
+                ...iterationPayload,
+                event: notification,
+              });
+
+              await writeTrace({
+                phase: "tool_error",
+                data: {
+                  iteration,
+                  id: event.id,
+                  name: event.name,
+                  error: serialized,
+                },
+              });
+
+              continueConversation = true;
+              continue;
+            }
+
+            continue;
+          }
+
+          if (event.type === "error") {
+            streamRenderer.render(event);
+            agentFailed = true;
+
+            await dispatchHookOrThrow(HOOK_EVENTS.onError, {
+              ...lifecycle,
+              iteration,
+              error: event,
+            });
+            await dispatchHookOrThrow(HOOK_EVENTS.onAgentError, {
+              ...lifecycle,
+              error: {
+                message: event.message,
+                cause: event.cause,
+              },
+            });
+            await writeTrace({
+              phase: "agent_error",
+              data: {
+                iteration,
+                message: event.message,
+                cause: event.cause,
+              },
+            });
+
+            break;
+          }
+
+          if (event.type === "notification") {
+            streamRenderer.render(event);
+            await hooks.emitAsync(HOOK_EVENTS.notification, {
+              ...iterationPayload,
+              event,
+            });
+            continue;
+          }
+
+          if (event.type === "end") {
+            streamRenderer.render(event);
+            if (event.responseId) {
+              this.previousResponseId = event.responseId;
+            }
+            if (assistantBuffer.trim().length > 0) {
+              invocation.messages.push({
+                role: "assistant",
+                content: assistantBuffer,
+              });
+            }
+
+            await hooks.emitAsync(HOOK_EVENTS.stop, {
+              ...iterationPayload,
+              messages: invocation.messages,
+            });
+            await writeTrace({
+              phase: "iteration_complete",
+              data: {
+                iteration,
+                messageCount: invocation.messages.length,
+                finalMessage: invocation.messages.at(-1)?.content,
+              },
+            });
+
+            continue;
+          }
+
+          streamRenderer.render(event);
+        }
+
+        if (agentFailed) {
+          break;
+        }
+      }
+    } catch (error) {
+      agentFailed = true;
+      const serialized = AgentRunner.serializeError(error);
+      await dispatchHookOrThrow(HOOK_EVENTS.onAgentError, {
+        ...lifecycle,
+        error: serialized,
+      });
+      await writeTrace({
+        phase: "agent_error",
+        data: serialized,
+      });
+      await this.emitSubagentStop();
+      throw error;
+    }
+
+    if (agentFailed) {
+      await this.emitSubagentStop();
+      return;
+    }
+
+    await hooks.emitAsync(HOOK_EVENTS.afterAgentComplete, {
+      ...lifecycle,
+      iterations: iteration,
+      messages: invocation.messages,
+    });
+    await writeTrace({
+      phase: "agent_complete",
+      data: {
+        iterations: iteration,
+        messageCount: invocation.messages.length,
+        finalMessage: invocation.messages.at(-1)?.content,
+      },
+    });
+
+    await this.emitSubagentStop();
+  }
 
   static buildSubagentResult(
     options: BuildSubagentResultOptions
@@ -188,5 +593,42 @@ export class AgentRunner {
 
     const snippet = relevant.slice(-2).join(" | ");
     return snippet.length > 280 ? `${ snippet.slice(0, 277) }...` : snippet;
+  }
+
+  private async emitSubagentStop(): Promise<void> {
+    const { invocation, hooks, lifecycle } = this.options;
+    if (invocation.isRoot || this.subagentStopEmitted) {
+      return;
+    }
+
+    this.subagentStopEmitted = true;
+    await hooks.emitAsync(HOOK_EVENTS.subagentStop, lifecycle);
+  }
+
+  private createIterationPayload(
+    iteration: number
+  ): AgentIterationPayload {
+    const { lifecycle, invocation } = this.options;
+    return {
+      ...lifecycle,
+      iteration,
+      messages: invocation.messages,
+    };
+  }
+
+  private static serializeError(error: unknown): {
+    message: string;
+    stack?: string;
+    cause?: unknown;
+  } {
+    if (error instanceof Error) {
+      return {
+        message: error.message,
+        stack: error.stack,
+        cause: (error as { cause?: unknown }).cause,
+      };
+    }
+
+    return { message: String(error) };
   }
 }
