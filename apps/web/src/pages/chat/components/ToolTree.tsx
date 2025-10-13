@@ -2,6 +2,8 @@ import type { ComponentProps } from 'react';
 import { Badge, Box, Flex, Text } from '@radix-ui/themes';
 import type { OrchestratorMetadataDto, ToolCallStatusDto } from '@eddie/api-client';
 
+import { JsonExplorer } from '@/components/common/JsonExplorer';
+
 import { summarizeObject } from '../chat-utils';
 
 type BadgeColor = ComponentProps<typeof Badge>['color'];
@@ -56,12 +58,15 @@ export function ToolTree({ nodes }: ToolTreeProps): JSX.Element {
         const executedAtDisplay = executedAt ?? '—';
 
         const rawArgs = node.metadata?.arguments ?? node.metadata?.args ?? null;
-        const args =
+        const parsedArgs = parseJsonValue(rawArgs);
+        const hasExplorer = parsedArgs != null;
+        const argsSummary =
           rawArgs == null
             ? '—'
             : typeof rawArgs === 'string'
               ? rawArgs
               : summarizeObject(rawArgs) ?? '—';
+        const argsLabel = hasExplorer ? 'Args:' : `Args: ${argsSummary}`;
 
         return (
           <li key={node.id} className="rounded-xl border border-muted/40 bg-muted/10 p-4">
@@ -85,14 +90,24 @@ export function ToolTree({ nodes }: ToolTreeProps): JSX.Element {
               </Box>
             ) : null}
 
-            <Flex align="center" justify="between" className="mt-3" gap="2">
-              <Text size="1" color="gray">
-                Captured {executedAtDisplay}
-              </Text>
-              <Text size="1" color="gray">
-                Args: {args}
-              </Text>
-            </Flex>
+            <Box className="mt-3 space-y-2">
+              <Flex align="center" justify="between" gap="2">
+                <Text size="1" color="gray">
+                  Captured {executedAtDisplay}
+                </Text>
+                <Text size="1" color="gray">
+                  {argsLabel}
+                </Text>
+              </Flex>
+
+              {hasExplorer ? (
+                <JsonExplorer
+                  value={parsedArgs as unknown}
+                  collapsedByDefault
+                  className="text-left"
+                />
+              ) : null}
+            </Box>
 
             {node.children.length > 0 ? (
               <Box className="mt-3 border-l border-dashed border-muted/50 pl-3">
@@ -104,4 +119,24 @@ export function ToolTree({ nodes }: ToolTreeProps): JSX.Element {
       })}
     </ul>
   );
+}
+
+function parseJsonValue(value: unknown): unknown | null {
+  if (value == null) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+
+  if (typeof value === 'object') {
+    return value;
+  }
+
+  return null;
 }
