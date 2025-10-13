@@ -12,10 +12,15 @@ interface EnvironmentEntry {
   env: nunjucks.Environment;
 }
 
+interface CachedTemplateEntry {
+  template: nunjucks.Template;
+  mtimeMs: number;
+}
+
 @Injectable()
 export class TemplateRendererService {
   private readonly environments = new Map<string, nunjucks.Environment>();
-  private readonly templateCache = new Map<string, nunjucks.Template>();
+  private readonly templateCache = new Map<string, CachedTemplateEntry>();
 
   async renderTemplate(
     descriptor: TemplateDescriptor,
@@ -23,7 +28,11 @@ export class TemplateRendererService {
   ): Promise<string> {
     const absolutePath = this.resolvePath(descriptor);
     const encoding = descriptor.encoding ?? DEFAULT_ENCODING;
-    const source = await fs.readFile(absolutePath, { encoding });
+    const [source, stats] = await Promise.all([
+      fs.readFile(absolutePath, { encoding }),
+      fs.stat(absolutePath),
+    ]);
+    const mtimeMs = stats.mtimeMs;
 
     const mergedVariables: TemplateVariables = {
       ...(descriptor.variables ?? {}),
@@ -37,10 +46,12 @@ export class TemplateRendererService {
     const { env, key } = this.getEnvironment(searchPaths);
     const cacheKey = `${key}:${absolutePath}`;
 
-    let template = this.templateCache.get(cacheKey);
-    if (!template) {
+    const cachedEntry = this.templateCache.get(cacheKey);
+    let template = cachedEntry?.template;
+
+    if (this.isCacheEntryStale(cachedEntry, mtimeMs)) {
       template = new nunjucks.Template(source, env, absolutePath, true);
-      this.templateCache.set(cacheKey, template);
+      this.templateCache.set(cacheKey, { template, mtimeMs });
     }
 
     const rendered = template.render(mergedVariables);
@@ -105,5 +116,12 @@ export class TemplateRendererService {
     }
 
     return { key, env };
+  }
+
+  private isCacheEntryStale(
+    entry: CachedTemplateEntry | undefined,
+    mtimeMs: number
+  ): boolean {
+    return !entry || entry.mtimeMs !== mtimeMs;
   }
 }
