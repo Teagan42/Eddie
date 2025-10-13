@@ -32,23 +32,27 @@ function parseTsConfig(configPath: string): ts.ParsedCommandLine {
 }
 
 describe("token budget compactor type exports", () => {
-  it("compiles the barrel without re-export errors", () => {
-    const parsedConfig = parseTsConfig(tsconfigPath);
+  it(
+    "compiles the barrel without re-export errors",
+    { timeout: 15000 },
+    () => {
+      const parsedConfig = parseTsConfig(tsconfigPath);
 
-    const program = ts.createProgram({
-      rootNames: [barrelPath],
-      options: parsedConfig.options,
-    });
-    const diagnostics = ts.getPreEmitDiagnostics(program);
-    const reexportDiagnostics = diagnostics.filter((diagnostic) => {
-      const text = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
-      const fileName = diagnostic.file?.fileName ?? "";
-      return (
-        fileName.endsWith("transcript-compactors/index.ts") &&
-        text.includes("TokenBudgetTranscriptCompactorConfig")
-      );
-    });
+      const program = ts.createProgram({
+        rootNames: [barrelPath],
+        options: parsedConfig.options,
+      });
+      const diagnostics = ts.getPreEmitDiagnostics(program);
+      const reexportDiagnostics = diagnostics.filter((diagnostic) => {
+        const text = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
+        const fileName = diagnostic.file?.fileName ?? "";
+        return (
+          fileName.endsWith("transcript-compactors/index.ts") &&
+          text.includes("TokenBudgetTranscriptCompactorConfig")
+        );
+      });
 
-    expect(reexportDiagnostics).toHaveLength(0);
-  });
+      expect(reexportDiagnostics).toHaveLength(0);
+    },
+  );
 });

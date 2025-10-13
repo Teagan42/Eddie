@@ -250,9 +250,10 @@ function naiveSummarize(messages: ChatMessage[]): string {
 
 function resolveHardFloor(budget: number, explicit: number): number {
   if (!Number.isFinite(explicit) || explicit <= 0) {
-    return DEFAULT_HARD_FLOOR;
+    return Math.min(DEFAULT_HARD_FLOOR, budget);
   }
 
   const headroom = Math.floor(budget * 0.25);
-  return Math.max(explicit, headroom);
+  const resolved = Math.max(explicit, headroom);
+  return Math.min(resolved, budget);
 }
