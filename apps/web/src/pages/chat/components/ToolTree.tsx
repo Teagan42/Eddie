@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import type { ComponentProps } from 'react';
 import { Badge, Box, Flex, Text } from '@radix-ui/themes';
 import type { OrchestratorMetadataDto, ToolCallStatusDto } from '@eddie/api-client';
@@ -36,6 +37,23 @@ export interface ToolTreeProps {
 }
 
 export function ToolTree({ nodes }: ToolTreeProps): JSX.Element {
+  const [expandedNodeIds, setExpandedNodeIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  const toggleNode = useCallback((id: string) => {
+    setExpandedNodeIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+
+      return next;
+    });
+  }, []);
+
   if (nodes.length === 0) {
     return (
       <Text size="2" color="gray">
@@ -44,6 +62,26 @@ export function ToolTree({ nodes }: ToolTreeProps): JSX.Element {
     );
   }
 
+  return (
+    <ToolTreeList
+      nodes={nodes}
+      expandedNodeIds={expandedNodeIds}
+      onToggleNode={toggleNode}
+    />
+  );
+}
+
+interface ToolTreeListProps {
+  nodes: OrchestratorMetadataDto['toolInvocations'];
+  expandedNodeIds: ReadonlySet<string>;
+  onToggleNode: (id: string) => void;
+}
+
+function ToolTreeList({
+  nodes,
+  expandedNodeIds,
+  onToggleNode,
+}: ToolTreeListProps): JSX.Element {
   return (
     <ul className="space-y-3">
       {nodes.map((node) => {
@@ -67,11 +105,26 @@ export function ToolTree({ nodes }: ToolTreeProps): JSX.Element {
               ? rawArgs
               : summarizeObject(rawArgs) ?? '—';
         const argsLabel = hasExplorer ? 'Args:' : `Args: ${argsSummary}`;
+        const hasChildren = node.children.length > 0;
+        const isExpanded = expandedNodeIds.has(node.id);
+        const showChildren = hasChildren && isExpanded;
+        const toggleLabel = `Toggle ${node.name} children`;
 
         return (
           <li key={node.id} className="rounded-xl border border-muted/40 bg-muted/10 p-4">
             <Flex align="center" justify="between" gap="3">
               <Flex align="center" gap="2">
+                {hasChildren ? (
+                  <button
+                    type="button"
+                    onClick={() => onToggleNode(node.id)}
+                    aria-expanded={isExpanded}
+                    aria-label={toggleLabel}
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-muted/50 bg-background text-xs font-medium text-foreground/80 transition-colors hover:bg-muted/40"
+                  >
+                    {isExpanded ? '−' : '+'}
+                  </button>
+                ) : null}
                 <Badge variant="soft" color="gray">
                   Tool
                 </Badge>
@@ -109,9 +162,13 @@ export function ToolTree({ nodes }: ToolTreeProps): JSX.Element {
               ) : null}
             </Box>
 
-            {node.children.length > 0 ? (
+            {showChildren ? (
               <Box className="mt-3 border-l border-dashed border-muted/50 pl-3">
-                <ToolTree nodes={node.children} />
+                <ToolTreeList
+                  nodes={node.children}
+                  expandedNodeIds={expandedNodeIds}
+                  onToggleNode={onToggleNode}
+                />
               </Box>
             ) : null}
           </li>
