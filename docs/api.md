@@ -133,11 +133,64 @@ curl -X POST http://localhost:4000/chat-sessions \
 # Subscribe to agent activity for a session using wscat (trailing slash optional)
 wscat --connect ws://localhost:4000/chat-sessions/ \
   --header "x-api-key: $EDDIE_API_KEY"
+
+# Inspect the editable Eddie configuration schema and source
+curl -H "x-api-key: $EDDIE_API_KEY" \
+  http://localhost:4000/config/schema
+
+# Preview configuration changes before saving them to disk
+curl -X POST http://localhost:4000/config/editor/preview \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: $EDDIE_API_KEY" \
+  -d '{"content":"{}","format":"json"}'
+
+# Persist a configuration update
+curl -X PUT http://localhost:4000/config/editor \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: $EDDIE_API_KEY" \
+  -d '{"content":"{}","format":"json","path":"./eddie.config.json"}'
 ```
 
 Connected WebSocket clients receive JSON payloads with `event` and `data` fields
 mirroring the gateway events above, allowing dashboards to reflect live agent
 progress.【F:apps/api/src/chat-sessions/chat-sessions.gateway.ts†L21-L76】【F:apps/api/src/websocket/utils.ts†L1-L33】
+
+## Configuration Editor
+
+Operate on the running Eddie configuration through the dedicated editor routes:
+
+- **`GET /config/schema`** – return the bundled configuration schema and input
+  schema used by the editor UI.【F:apps/api/src/config-editor/config-editor.controller.ts†L14-L24】
+- **`GET /config/editor`** – fetch the currently loaded configuration source,
+  including parsing results and validation errors.【F:apps/api/src/config-editor/config-editor.controller.ts†L26-L44】
+- **`POST /config/editor/preview`** – validate and preview an arbitrary
+  configuration payload without persisting it.【F:apps/api/src/config-editor/config-editor.controller.ts†L46-L58】
+- **`PUT /config/editor`** – persist configuration changes and return the new
+  snapshot from disk.【F:apps/api/src/config-editor/config-editor.controller.ts†L60-L78】
+
+## Provider Catalog
+
+Discover supported model providers and identifiers exposed by the API:
+
+- **`GET /providers/catalog`** – list provider names, display labels, and
+  available model identifiers for each adapter.【F:apps/api/src/providers/providers.controller.ts†L7-L20】
+
+## User Preferences
+
+Persist lightweight per-user preferences keyed by the caller's API key:
+
+- **`GET /user/preferences/layout`** – resolve the caller's layout preferences,
+  defaulting to an anonymous profile when no API key is present.【F:apps/api/src/user-preferences/user-preferences.controller.ts†L14-L28】
+- **`PUT /user/preferences/layout`** – update layout settings for the resolved
+  user identifier.【F:apps/api/src/user-preferences/user-preferences.controller.ts†L30-L34】
+
+## Orchestrator Metadata
+
+Fetch high-level orchestrator state to drive dashboards or debugging tools:
+
+- **`GET /orchestrator/metadata`** – return current orchestrator metadata, with
+  an optional `sessionId` query parameter to scope results to a specific chat
+  session.【F:apps/api/src/orchestrator/orchestrator.controller.ts†L7-L15】
 
 ## Telemetry
 
