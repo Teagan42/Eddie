@@ -5,11 +5,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { WebSocketClientTransport } from "@modelcontextprotocol/sdk/client/websocket.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import {
-  CallToolResultSchema,
-  ErrorCode,
-  McpError,
-} from "@modelcontextprotocol/sdk/types.js";
+import { ErrorCode, McpError, ResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type {
   MCPAuthConfig,
@@ -25,10 +21,31 @@ import type {
 } from "./types";
 import type { ToolCallArguments, ToolDefinition, ToolResult } from "@eddie/types";
 import type { EventSourceInit } from "eventsource";
+import { z } from "zod";
 
 const CLIENT_INFO = { name: "eddie", version: "unknown" } as const;
-const CALL_TOOL_RESULT_OPTIONAL_MESSAGES_SCHEMA =
-  CallToolResultSchema.partial({ messages: true });
+const CALL_TOOL_RESULT_OPTIONAL_MESSAGES_SCHEMA = ResultSchema.extend({
+  schema: z.string(),
+  content: z.string(),
+  data: z.unknown().optional(),
+  metadata: z
+    .record(z.unknown())
+    .optional(),
+  messages: z
+    .array(
+      z
+        .object({
+          role: z.string(),
+          content: z.unknown(),
+        })
+        .passthrough()
+    )
+    .optional(),
+});
+
+type CallToolResultWithOptionalMessages = z.infer<
+  typeof CALL_TOOL_RESULT_OPTIONAL_MESSAGES_SCHEMA
+>;
 
 interface BuildHttpHeadersOptions {
   accept?: string;
@@ -195,12 +212,7 @@ export class McpToolSourceService {
         );
       }
 
-      const typedResult = result as {
-        schema: string;
-        content: string;
-        data?: unknown;
-        metadata?: unknown;
-      };
+      const typedResult = result as CallToolResultWithOptionalMessages;
 
       const toolResult: ToolResult = {
         schema: typedResult.schema,
@@ -377,14 +389,14 @@ export class McpToolSourceService {
     client: Client,
     toolName: string,
     args: ToolCallArguments
-  ): Promise<unknown> {
+  ): Promise<CallToolResultWithOptionalMessages> {
     return client.callTool(
       {
         name: toolName,
         arguments: structuredClone(args ?? {}),
       },
       CALL_TOOL_RESULT_OPTIONAL_MESSAGES_SCHEMA
-    );
+    ) as Promise<CallToolResultWithOptionalMessages>;
   }
 
   private normalizePromptDefinition(
