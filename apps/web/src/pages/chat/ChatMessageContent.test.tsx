@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { ChatMessageContent } from "./ChatMessageContent";
 
@@ -85,7 +86,9 @@ describe("ChatMessageContent", () => {
     expect(list.tagName).toBe("UL");
   });
 
-  it("pretty prints JSON message bodies for readability", () => {
+  it("renders JSON explorer for structured messages", async () => {
+    const user = userEvent.setup();
+
     render(
       <ChatMessageContent
         messageRole="assistant"
@@ -93,23 +96,25 @@ describe("ChatMessageContent", () => {
       />
     );
 
-    const codeElement = screen.getByText(/"baz": \{/u, { selector: "code" });
+    expect(screen.getByText('"foo"')).toBeInTheDocument();
+    expect(screen.queryByTestId("json-entry-baz.qux")).not.toBeInTheDocument();
 
-    expect(codeElement.textContent).toBe(
-      '{\n  "foo": "bar",\n  "baz": {\n    "qux": 1\n  }\n}'
+    await user.click(screen.getByRole("button", { name: "Toggle baz" }));
+
+    expect(screen.getByTestId("json-entry-baz.qux")).toHaveTextContent(
+      '"qux"'
     );
+    expect(screen.getByTestId("json-entry-baz.qux")).toHaveTextContent("1");
   });
 
-  it("formats primitive JSON values within code blocks", () => {
+  it("displays primitive JSON values within the explorer", () => {
     render(
       <ChatMessageContent messageRole="assistant" content="null" />
     );
 
-    const codeElement = screen.getByText("null", { selector: "code" });
-    const pre = codeElement.closest("pre");
+    const primitiveEntry = screen.getByTestId("json-entry-root");
 
-    expect(pre).not.toBeNull();
-    expect(codeElement).toHaveClass("language-json");
+    expect(primitiveEntry).toHaveTextContent("null");
   });
 
   it("renders ordered lists with numeric markers", () => {

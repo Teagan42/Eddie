@@ -3,6 +3,7 @@ import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ChatMessageDto } from "@eddie/api-client";
 import { cn } from "@/vendor/lib/utils";
+import { JsonExplorer } from "@/components/common/JsonExplorer";
 
 const CODE_BLOCK_CONTAINER_CLASSES =
   "mt-4 overflow-x-auto rounded-lg bg-slate-900/70 p-4 font-mono text-sm";
@@ -130,12 +131,14 @@ export function ChatMessageContent({
   content,
   className,
 }: ChatMessageContentProps): JSX.Element {
-  const formattedJsonContent = formatJsonContent(content);
+  const { success: hasJsonContent, value: jsonValue } = parseJsonContent(content);
   const containerClassName = cn("whitespace-pre-wrap break-words", className);
-  const renderedContent = formattedJsonContent ? (
-    <pre className={CODE_BLOCK_CONTAINER_CLASSES}>
-      <code className="language-json">{formattedJsonContent}</code>
-    </pre>
+  const renderedContent = hasJsonContent ? (
+    <JsonExplorer
+      value={jsonValue}
+      collapsedByDefault
+      className="mt-4 text-left"
+    />
   ) : (
     <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
       {content}
@@ -153,16 +156,21 @@ export function ChatMessageContent({
   );
 }
 
-function formatJsonContent(content: string): string | null {
+interface JsonParseResult {
+  success: boolean;
+  value: unknown;
+}
+
+function parseJsonContent(content: string): JsonParseResult {
   const trimmed = content.trim();
 
   if (!trimmed) {
-    return null;
+    return { success: false, value: null };
   }
 
   try {
-    return JSON.stringify(JSON.parse(trimmed), null, 2);
+    return { success: true, value: JSON.parse(trimmed) };
   } catch {
-    return null;
+    return { success: false, value: null };
   }
 }
