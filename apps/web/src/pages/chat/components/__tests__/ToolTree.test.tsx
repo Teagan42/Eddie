@@ -10,7 +10,9 @@ describe('ToolTree', () => {
     expect(screen.getByText(/no tool calls/i)).toBeInTheDocument();
   });
 
-  it('renders nested tool nodes with metadata summaries', () => {
+  it('renders nested tool nodes with metadata summaries', async () => {
+    const user = userEvent.setup();
+
     render(
       <ToolTree
         nodes={[
@@ -48,6 +50,13 @@ describe('ToolTree', () => {
     expect(getAllByText(/completed/i)[0]).toBeInTheDocument();
     expect(getByText('ls')).toBeInTheDocument();
     expect(getAllByText(/args:/i)[0]).toHaveTextContent('Args: --all');
+
+    await user.click(
+      within(rootNode!).getByRole('button', {
+        name: 'Toggle shell children',
+      }),
+    );
+
     expect(within(rootNode!).getByText('write')).toBeInTheDocument();
   });
 
@@ -102,5 +111,45 @@ describe('ToolTree', () => {
     );
     expect(subjectEntry).toHaveTextContent('"subject"');
     expect(subjectEntry).toHaveTextContent('"Plan mission"');
+  });
+
+  it('allows collapsing and expanding child tool nodes', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ToolTree
+        nodes={[
+          {
+            id: 'root',
+            name: 'shell',
+            status: 'completed',
+            metadata: { createdAt: '2024-01-01T00:00:00.000Z' },
+            children: [
+              {
+                id: 'child',
+                name: 'write',
+                status: 'completed',
+                metadata: { createdAt: '2024-01-01T00:05:00.000Z' },
+                children: [],
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    const toggleButton = screen.getByRole('button', {
+      name: 'Toggle shell children',
+    });
+
+    expect(screen.queryByText('write')).not.toBeInTheDocument();
+
+    await user.click(toggleButton);
+
+    expect(screen.getByText('write')).toBeInTheDocument();
+
+    await user.click(toggleButton);
+
+    expect(screen.queryByText('write')).not.toBeInTheDocument();
   });
 });
