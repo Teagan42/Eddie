@@ -119,6 +119,18 @@ describe("McpToolSourceService", () => {
       "Connected to MCP server"
     );
   });
+
+  it("constructs with a default logger when no LoggerService is provided", async () => {
+    const service = new McpToolSourceService();
+    const source: MCPToolSourceConfig = {
+      id: "default",
+      type: "mcp",
+      url: "https://example.com/mcp",
+      capabilities: { tools: { call: true } },
+    };
+
+    await expect(service.discoverSources([source])).resolves.toBeInstanceOf(Array);
+  });
 });
 
 describe("SDK module loading", () => {

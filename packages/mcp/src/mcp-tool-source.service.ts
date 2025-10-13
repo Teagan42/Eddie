@@ -55,6 +55,7 @@ const CLIENT_MODULE_PATH =
   "@modelcontextprotocol/sdk/client/index.js" as const;
 const STREAMABLE_TRANSPORT_MODULE_PATH =
   "@modelcontextprotocol/sdk/client/streamableHttp.js" as const;
+const LOGGER_SCOPE = "mcp-tool-source" as const;
 
 type Client = typeof import("@modelcontextprotocol/sdk/client/index.js").Client;
 
@@ -62,10 +63,20 @@ type Client = typeof import("@modelcontextprotocol/sdk/client/index.js").Client;
 export class McpToolSourceService {
   private readonly sessionCache = new Map<string, CachedSessionInfo>();
   private readonly logger: Logger;
+  private readonly loggerService: LoggerService;
   private sdkModulesPromise?: Promise<SdkModules>;
 
-  constructor(private readonly loggerService: LoggerService) {
-    this.logger = this.loggerService.getLogger("mcp-tool-source");
+  constructor(loggerService?: LoggerService) {
+    this.loggerService = this.resolveLoggerService(loggerService);
+    this.logger = this.loggerService.getLogger(LOGGER_SCOPE);
+  }
+
+  private resolveLoggerService(loggerService?: LoggerService): LoggerService {
+    if (loggerService) {
+      return loggerService;
+    }
+
+    return new LoggerService();
   }
 
   async collectTools(
