@@ -85,6 +85,33 @@ describe("ChatMessageContent", () => {
     expect(list.tagName).toBe("UL");
   });
 
+  it("pretty prints JSON message bodies for readability", () => {
+    render(
+      <ChatMessageContent
+        messageRole="assistant"
+        content='{"foo":"bar","baz":{"qux":1}}'
+      />
+    );
+
+    const codeElement = screen.getByText(/"baz": \{/u, { selector: "code" });
+
+    expect(codeElement.textContent).toBe(
+      '{\n  "foo": "bar",\n  "baz": {\n    "qux": 1\n  }\n}'
+    );
+  });
+
+  it("formats primitive JSON values within code blocks", () => {
+    render(
+      <ChatMessageContent messageRole="assistant" content="null" />
+    );
+
+    const codeElement = screen.getByText("null", { selector: "code" });
+    const pre = codeElement.closest("pre");
+
+    expect(pre).not.toBeNull();
+    expect(codeElement).toHaveClass("language-json");
+  });
+
   it("renders ordered lists with numeric markers", () => {
     render(
       <ChatMessageContent
