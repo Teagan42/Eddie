@@ -130,18 +130,39 @@ export function ChatMessageContent({
   content,
   className,
 }: ChatMessageContentProps): JSX.Element {
+  const formattedJsonContent = formatJsonContent(content);
+  const containerClassName = cn("whitespace-pre-wrap break-words", className);
+  const renderedContent = formattedJsonContent ? (
+    <pre className={CODE_BLOCK_CONTAINER_CLASSES}>
+      <code className="language-json">{formattedJsonContent}</code>
+    </pre>
+  ) : (
+    <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+      {content}
+    </ReactMarkdown>
+  );
+
   return (
     <div
-      className={cn("whitespace-pre-wrap break-words", className)}
+      className={containerClassName}
       data-chat-role={messageRole}
       data-testid="chat-message-content"
     >
-      <ReactMarkdown
-        components={markdownComponents}
-        remarkPlugins={[remarkGfm]}
-      >
-        {content}
-      </ReactMarkdown>
+      {renderedContent}
     </div>
   );
+}
+
+function formatJsonContent(content: string): string | null {
+  const trimmed = content.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    return JSON.stringify(JSON.parse(trimmed), null, 2);
+  } catch {
+    return null;
+  }
 }
