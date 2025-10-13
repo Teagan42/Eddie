@@ -9,7 +9,7 @@ import type {
   ProviderConfig,
   TranscriptCompactorConfig,
 } from "@eddie/config";
-import { ConfigService, ConfigStore } from "@eddie/config";
+import { ConfigStore } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { ProviderFactoryService } from "@eddie/providers";
 import { builtinTools } from "@eddie/tools";
@@ -66,7 +66,6 @@ export interface EngineResult {
 @Injectable()
 export class EngineService {
   constructor(
-        configService: ConfigService,
         private readonly configStore: ConfigStore,
         private readonly contextService: ContextService,
         private readonly providerFactory: ProviderFactoryService,
@@ -76,9 +75,7 @@ export class EngineService {
         private readonly loggerService: LoggerService,
         private readonly agentOrchestrator: AgentOrchestratorService,
         private readonly mcpToolSourceService: McpToolSourceService
-  ) {
-    void configService;
-  }
+  ) {}
 
   setStreamRenderer(streamRenderer: StreamRendererService): void {
     this.agentOrchestrator.setStreamRenderer(streamRenderer);

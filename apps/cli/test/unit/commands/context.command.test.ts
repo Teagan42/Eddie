@@ -7,9 +7,12 @@ afterEach(() => {
 });
 
 describe("ContextCommand", () => {
+  it("does not declare a ConfigService dependency", () => {
+    expect(ContextCommand.length).toBe(5);
+  });
+
   it("does not reload configuration before previewing context", async () => {
     const optionsService = { parse: vi.fn(() => ({ provider: "override" })) };
-    const configService = { load: vi.fn() };
     const configStore = { getSnapshot: vi.fn(() => createBaseConfig()) };
     const logger = { debug: vi.fn() };
     const loggerService = {
@@ -29,18 +32,16 @@ describe("ContextCommand", () => {
     };
     const command = new ContextCommand(
       optionsService as any,
-      configService as any,
       configStore as any,
       loggerService as any,
       contextService as any,
       tokenizerService as any,
     );
 
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
 
     await command.execute({ options: {} } as any);
 
-    expect(configService.load).not.toHaveBeenCalled();
-    logSpy.mockRestore();
+    expect(configStore.getSnapshot).toHaveBeenCalledTimes(1);
   });
 });

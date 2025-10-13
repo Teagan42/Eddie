@@ -8,25 +8,25 @@ afterEach(() => {
 });
 
 describe("TraceCommand", () => {
+  it("does not declare a ConfigService dependency", () => {
+    expect(TraceCommand.length).toBe(2);
+  });
+
   it("does not reload configuration before printing traces", async () => {
     const optionsService = { parse: vi.fn(() => ({ provider: "override" })) };
-    const configService = { load: vi.fn() };
     const config = createBaseConfig();
     config.output = { jsonlTrace: "./trace.jsonl", jsonlAppend: true };
     const configStore = { getSnapshot: vi.fn(() => config) };
     const command = new TraceCommand(
       optionsService as any,
-      configService as any,
       configStore as any,
     );
 
     vi.spyOn(fs, "readFile").mockRejectedValue(new Error("missing"));
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     await command.execute({ options: {} } as any);
 
-    expect(configService.load).not.toHaveBeenCalled();
-
-    errorSpy.mockRestore();
+    expect(configStore.getSnapshot).toHaveBeenCalledTimes(1);
   });
 });

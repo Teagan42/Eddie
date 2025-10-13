@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { Injectable } from "@nestjs/common";
-import { ConfigService, ConfigStore } from "@eddie/config";
+import { ConfigStore } from "@eddie/config";
 import type { CliArguments } from "../cli-arguments";
 import { CliOptionsService } from "../cli-options.service";
 import type { CliCommand, CliCommandMetadata } from "./cli-command";
@@ -15,11 +15,8 @@ export class TraceCommand implements CliCommand {
 
   constructor(
     private readonly optionsService: CliOptionsService,
-    configService: ConfigService,
     private readonly configStore: ConfigStore
-  ) {
-    void configService;
-  }
+  ) {}
 
   async execute(args: CliArguments): Promise<void> {
     const engineOptions = this.optionsService.parse(args.options);

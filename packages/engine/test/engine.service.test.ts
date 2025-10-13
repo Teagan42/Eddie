@@ -29,7 +29,6 @@ const baseConfig: EddieConfig = {
 
 function createService(overrides: Partial<EddieConfig> = {}) {
   const config: EddieConfig = { ...baseConfig, ...overrides };
-  const configService = { load: vi.fn() };
   const configStore = { getSnapshot: vi.fn(() => config) };
   const contextService = {
     pack: vi.fn(async () => ({
@@ -76,7 +75,6 @@ function createService(overrides: Partial<EddieConfig> = {}) {
   };
 
   const service = new EngineService(
-    configService as any,
     configStore as any,
     contextService as any,
     providerFactory as any,
@@ -88,7 +86,7 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     mcpToolSourceService as any,
   );
 
-  return { service, configService };
+  return { service, configStore };
 }
 
 beforeEach(() => {
@@ -102,11 +100,15 @@ afterEach(() => {
 });
 
 describe("EngineService", () => {
+  it("does not declare a ConfigService dependency", () => {
+    expect(EngineService.length).toBe(9);
+  });
+
   it("does not reload configuration when runtime overrides are provided", async () => {
-    const { service, configService } = createService();
+    const { service, configStore } = createService();
 
     await service.run("prompt", { provider: "override" });
 
-    expect(configService.load).not.toHaveBeenCalled();
+    expect(configStore.getSnapshot).toHaveBeenCalledTimes(1);
   });
 });
