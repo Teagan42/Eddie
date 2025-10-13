@@ -429,11 +429,9 @@ export class McpToolSourceService {
   ): Record<string, unknown> | undefined {
     const info =
       typeof (client as { getServerInfo?: unknown }).getServerInfo === "function"
-        ? (
-            client as unknown as {
-              getServerInfo: () => unknown;
-            }
-          ).getServerInfo()
+        ? (client as unknown as {
+            getServerInfo: () => unknown;
+          }).getServerInfo()
         : undefined;
     const version =
       typeof client.getServerVersion === "function"
