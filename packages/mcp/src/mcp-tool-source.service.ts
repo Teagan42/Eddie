@@ -9,7 +9,6 @@ import type {
 import { LoggerService } from "@eddie/io";
 import type { Logger } from "pino";
 import type { Client } from "@modelcontextprotocol/sdk/dist/esm/client/index.js";
-import type { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/dist/esm/client/streamableHttp.js";
 import type {
   DiscoveredMcpResource,
   DiscoveredMcpPrompt,
@@ -53,6 +52,10 @@ interface CallToolResultPayload {
 const DEFAULT_CLIENT_NAME = "eddie";
 const DEFAULT_CLIENT_VERSION = "unknown";
 const TRANSPORT_NAME = "streamable-http";
+const CLIENT_MODULE_PATH =
+  "@modelcontextprotocol/sdk/client/index.js" as const;
+const STREAMABLE_TRANSPORT_MODULE_PATH =
+  "@modelcontextprotocol/sdk/client/streamableHttp.js" as const;
 
 @Injectable()
 export class McpToolSourceService {
@@ -554,8 +557,8 @@ export class McpToolSourceService {
 
   private async importSdkModules(): Promise<SdkModules> {
     const [clientModule, transportModule] = await Promise.all([
-      import("@modelcontextprotocol/sdk/client/index.js"),
-      import("@modelcontextprotocol/sdk/client/streamableHttp.js"),
+      import(CLIENT_MODULE_PATH),
+      import(STREAMABLE_TRANSPORT_MODULE_PATH),
     ]);
 
     return {
@@ -567,10 +570,8 @@ export class McpToolSourceService {
 }
 
 type SdkModules = {
-  Client: typeof import(
-    "@modelcontextprotocol/sdk/dist/esm/client/index.js"
-  ).Client;
+  Client: typeof import("@modelcontextprotocol/sdk/client/index.js").Client;
   StreamableHTTPClientTransport: typeof import(
-    "@modelcontextprotocol/sdk/dist/esm/client/streamableHttp.js"
+    "@modelcontextprotocol/sdk/client/streamableHttp.js"
   ).StreamableHTTPClientTransport;
 };

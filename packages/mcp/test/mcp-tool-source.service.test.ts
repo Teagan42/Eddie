@@ -1,4 +1,7 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { MCPToolSourceConfig } from "@eddie/config";
 import { McpToolSourceService } from "../src/mcp-tool-source.service";
 import type { Logger } from "pino";
@@ -115,5 +118,18 @@ describe("McpToolSourceService", () => {
       }),
       "Connected to MCP server"
     );
+  });
+});
+
+describe("SDK module loading", () => {
+  const serviceSourcePath = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../src/mcp-tool-source.service.ts"
+  );
+
+  it("avoids static imports for the streamable transport", () => {
+    const source = readFileSync(serviceSourcePath, "utf8");
+
+    expect(source).not.toMatch(/^import\s+[^\n]*streamableHttp/m);
   });
 });
