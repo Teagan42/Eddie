@@ -1,33 +1,32 @@
 import type { FactoryProvider } from "@nestjs/common";
 import type { ConfigType } from "@nestjs/config";
 import { ConfigService } from "./config.service";
-import { MODULE_OPTIONS_TOKEN, INITIAL_CONFIG_TOKEN } from "./config.const";
+import { MODULE_OPTIONS_TOKEN, INITIAL_CONFIG_TOKEN, CONFIG_FILE_PATH_TOKEN } from "./config.const";
 import { eddieConfig } from "./config.namespace";
 import type { CliRuntimeOptions, EddieConfig } from "./types";
-import { resolveCliRuntimeOptionsFromEnv } from "./runtime-env";
+import { resolveRuntimeOptions } from "./runtime-env";
 
 export const initialConfigProvider: FactoryProvider<Promise<EddieConfig>> = {
   provide: INITIAL_CONFIG_TOKEN,
   inject: [
     { token: MODULE_OPTIONS_TOKEN, optional: true },
     { token: eddieConfig.KEY, optional: true },
+    { token: CONFIG_FILE_PATH_TOKEN, optional: true },
   ],
   useFactory: async (
     moduleOptions?: CliRuntimeOptions,
     defaults?: ConfigType<typeof eddieConfig>,
+    configFilePath?: string | null,
   ): Promise<EddieConfig> => {
-    const envOptions = resolveCliRuntimeOptionsFromEnv(process.env);
-    const combinedOptions = {
-      ...envOptions,
-      ...(moduleOptions ?? {}),
-    };
+    const combinedOptions = resolveRuntimeOptions(moduleOptions);
     const service = new ConfigService(
       undefined,
-      moduleOptions,
+      combinedOptions,
       defaults,
+      configFilePath ?? null,
     );
 
-    const { config, input } = await service.readSnapshot(combinedOptions);
+    const { config, input } = await service.readSnapshot();
     if (config) {
       return config;
     }

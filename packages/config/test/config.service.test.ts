@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import fs from "fs/promises";
 import * as runtimeEnv from "../src/runtime-env";
 
 import type { ConfigStore } from "../src/config.store";
@@ -21,7 +22,7 @@ const createService = (defaults?: Partial<EddieConfig>) => {
   } as unknown as ConfigStore;
   const moduleOptions = {} as CliRuntimeOptions;
 
-  const service = new ConfigService(configStore, moduleOptions, providerDefaults);
+  const service = new ConfigService(configStore, moduleOptions, providerDefaults, null);
 
   return { service, configStore };
 };
@@ -35,13 +36,13 @@ describe("ConfigService compose precedence", () => {
     const resolverSpy = vi.spyOn(runtimeEnv, "resolveCliRuntimeOptionsFromEnv");
     const moduleOptions = { model: "module-model" } as CliRuntimeOptions;
 
-    new ConfigService(undefined, moduleOptions);
+    new ConfigService(undefined, moduleOptions, undefined, null);
 
     expect(resolverSpy).not.toHaveBeenCalled();
   });
 
   it("does not expose an onApplicationBootstrap hook", () => {
-    const service = new ConfigService(undefined, {} as CliRuntimeOptions);
+    const service = new ConfigService(undefined, {} as CliRuntimeOptions, undefined, null);
 
     expect("onApplicationBootstrap" in service).toBe(false);
   });
@@ -138,6 +139,40 @@ describe("ConfigService load lifecycle", () => {
     expect(configStore.getSnapshot).toHaveBeenCalled();
     const lastSnapshot = configStore.getSnapshot.mock.results.at(-1)?.value;
     expect(lastSnapshot).toEqual(config);
+  });
+});
+
+describe("ConfigService readSnapshot", () => {
+  it("uses the injected config file path and module options", async () => {
+    const configPath = "/virtual/config/eddie.config.yaml";
+    const moduleOptions = {
+      config: configPath,
+      model: "module-model",
+    } as CliRuntimeOptions;
+    const service = new ConfigService(undefined, moduleOptions, undefined, configPath);
+
+    const readFile = vi
+      .spyOn(fs, "readFile")
+      .mockResolvedValue("model: file-model");
+    const readConfigFile = vi
+      .spyOn(
+        service as unknown as {
+          readConfigFile(candidate: string): Promise<EddieConfigInput>;
+        },
+        "readConfigFile",
+      )
+      .mockResolvedValue({ model: "file-model" });
+    const compose = vi
+      .spyOn(service, "compose")
+      .mockResolvedValue({ model: "composed" } as EddieConfig);
+
+    const snapshot = await service.readSnapshot();
+
+    expect(readFile).toHaveBeenCalledWith(configPath, "utf-8");
+    expect(readConfigFile).toHaveBeenCalledWith(configPath);
+    expect(compose).toHaveBeenCalledWith({ model: "file-model" }, moduleOptions);
+    expect(snapshot.path).toBe(configPath);
+    expect(snapshot.config?.model).toBe("composed");
   });
 });
 

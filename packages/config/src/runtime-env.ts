@@ -140,3 +140,14 @@ export function resolveCliRuntimeOptionsFromEnv(
 
   return options;
 }
+
+export function resolveRuntimeOptions(
+  moduleOptions?: CliRuntimeOptions,
+  env: NodeJS.ProcessEnv = process.env,
+): CliRuntimeOptions {
+  const envOptions = resolveCliRuntimeOptionsFromEnv(env);
+  return {
+    ...envOptions,
+    ...(moduleOptions ?? {}),
+  } satisfies CliRuntimeOptions;
+}
