@@ -6,7 +6,7 @@ describe("CliOptionsService", () => {
   it("parses disable tool lists from CLI options", () => {
     const service = new CliOptionsService();
     const result = service.parse({
-      disableTools: ["bash", "edit"],
+      disabledTools: ["bash", "edit"],
       tools: "format",
     });
 
@@ -17,7 +17,7 @@ describe("CliOptionsService", () => {
   it("splits comma-delimited disable strings", () => {
     const service = new CliOptionsService();
     const result = service.parse({
-      disableTools: "bash, edit",
+      disabledTools: "bash, edit",
     });
 
     expect(result.disabledTools).toEqual(["bash", "edit"]);
@@ -26,7 +26,7 @@ describe("CliOptionsService", () => {
   it("marks context as disabled when requested", () => {
     const service = new CliOptionsService();
     const result = service.parse({
-      noContext: true,
+      disableContext: true,
     });
 
     expect(result.disableContext).toBe(true);

@@ -33,7 +33,7 @@ describe("CliParserService", () => {
       options: {
         model: "gpt-4",
         tools: ["bash", "edit"],
-        disableTools: ["write", "exec"],
+        disabledTools: ["write", "exec"],
         context: "context-dir",
       },
       positionals: ["prompt", "question"],
@@ -44,6 +44,7 @@ describe("CliParserService", () => {
     const result = parser.parse([
       "run",
       "--auto-approve",
+      "--auto",
       "--non-interactive",
       "--no-context",
       "--",
@@ -56,7 +57,7 @@ describe("CliParserService", () => {
       options: {
         autoApprove: true,
         nonInteractive: true,
-        noContext: true,
+        disableContext: true,
       },
       positionals: ["--not-an-option", "file.txt"],
     });

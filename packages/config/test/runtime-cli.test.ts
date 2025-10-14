@@ -1,6 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
-import { mergeCliRuntimeOptions } from "../src/runtime-cli";
+import {
+  CLI_BOOLEAN_OPTION_DEFINITIONS,
+  CLI_VALUE_OPTION_DEFINITIONS,
+} from "../src/runtime-cli-options";
+import {
+  mergeCliRuntimeOptions,
+  parseCliRuntimeOptionsFromArgv,
+} from "../src/runtime-cli";
+import type { CliBooleanOptionRuntimeKey } from "../src/runtime-cli-options";
 import type { CliRuntimeOptions } from "../src/types";
 
 describe("mergeCliRuntimeOptions", () => {
@@ -22,5 +30,74 @@ describe("mergeCliRuntimeOptions", () => {
     expect(merged.context).not.toBe(base.context);
     expect(merged.tools).not.toBe(base.tools);
     expect(merged.disabledTools).not.toBe(base.disabledTools);
+  });
+});
+
+describe("parseCliRuntimeOptionsFromArgv", () => {
+  it("parses shared boolean flags into canonical runtime keys", () => {
+    const argv = CLI_BOOLEAN_OPTION_DEFINITIONS.flatMap((definition) => [
+      definition.keys[0],
+    ]);
+
+    const parsed = parseCliRuntimeOptionsFromArgv(argv);
+
+    for (const definition of CLI_BOOLEAN_OPTION_DEFINITIONS) {
+      expect(parsed[definition.runtimeKey]).toBe(true);
+    }
+  });
+
+  it("parses shared value options according to their definition type", () => {
+    const argv = CLI_VALUE_OPTION_DEFINITIONS.flatMap((definition) => {
+      const [flag] = definition.keys;
+      switch (definition.valueType) {
+        case "list":
+          return [flag, "alpha,beta"];
+        case "logLevel":
+          return [flag, "debug"];
+        default:
+          return [flag, `${definition.runtimeKey}-value`];
+      }
+    });
+
+    const parsed = parseCliRuntimeOptionsFromArgv(argv);
+
+    for (const definition of CLI_VALUE_OPTION_DEFINITIONS) {
+      const value = parsed[definition.runtimeKey];
+      if (definition.valueType === "list") {
+        expect(value).toEqual(["alpha", "beta"]);
+        continue;
+      }
+
+      if (definition.runtimeKey === "logLevel") {
+        expect(value).toBe("debug");
+        continue;
+      }
+
+      expect(value).toBe(`${definition.runtimeKey}-value`);
+    }
+  });
+});
+
+describe("CLI option definitions", () => {
+  it("derives boolean runtime option keys from the runtime options contract", () => {
+    expectTypeOf<CliBooleanOptionRuntimeKey>().toEqualTypeOf<
+      | "autoApprove"
+      | "disableContext"
+      | "disableSubagents"
+      | "nonInteractive"
+    >();
+  });
+
+  it("exposes all boolean runtime keys through shared metadata", () => {
+    const runtimeKeys = CLI_BOOLEAN_OPTION_DEFINITIONS.map(
+      (definition) => definition.runtimeKey,
+    ).sort();
+
+    expect(runtimeKeys).toEqual([
+      "autoApprove",
+      "disableContext",
+      "disableSubagents",
+      "nonInteractive",
+    ]);
   });
 });
