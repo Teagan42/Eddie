@@ -2,6 +2,8 @@ import fs from "fs/promises";
 import path from "path";
 import type { ToolDefinition } from "@eddie/types";
 
+const UTF8_SAFETY_MARGIN = 4;
+
 const isContinuationByte = (byte: number): boolean =>
   (byte & 0b1100_0000) === 0b1000_0000;
 
@@ -71,24 +73,53 @@ export const fileReadTool: ToolDefinition = {
   async handler(args, ctx) {
     const relPath = String(args.path ?? "");
     const absolute = path.resolve(ctx.cwd, relPath);
-    const fileBuffer = await fs.readFile(absolute);
-    const maxBytes = args.maxBytes ? Number(args.maxBytes) : undefined;
-    const shouldTruncate =
-      typeof maxBytes === "number" && fileBuffer.byteLength > maxBytes;
-    const truncatedBuffer = shouldTruncate
-      ? trimToUtf8Boundary(fileBuffer.subarray(0, maxBytes))
-      : fileBuffer;
-    const content = truncatedBuffer.toString("utf-8");
-    const outputBytes = truncatedBuffer.byteLength;
-    return {
-      schema: "eddie.tool.file_read.result.v1",
-      content,
+
+    const createResult = (buffer: Buffer, truncated: boolean) => ({
+      schema: "eddie.tool.file_read.result.v1" as const,
+      content: buffer.toString("utf-8"),
       data: {
         path: relPath,
-        bytes: outputBytes,
-        truncated: shouldTruncate,
+        bytes: buffer.byteLength,
+        truncated,
       },
-    };
+    });
+
+    const maxBytesValue =
+      args.maxBytes !== undefined ? Number(args.maxBytes) : undefined;
+
+    if (Number.isFinite(maxBytesValue)) {
+      const maxBytes = Math.max(0, Math.floor(maxBytesValue as number));
+      const fileHandle = await fs.open(absolute, "r");
+
+      try {
+        const stats = await fileHandle.stat();
+        const maxReadable = Math.min(
+          stats.size,
+          maxBytes + UTF8_SAFETY_MARGIN,
+        );
+
+        let slice = Buffer.alloc(0);
+        if (maxReadable > 0) {
+          const buffer = Buffer.alloc(maxReadable);
+          const { bytesRead } = await fileHandle.read(
+            buffer,
+            0,
+            maxReadable,
+            0,
+          );
+          slice = buffer.subarray(0, bytesRead);
+        }
+
+        const trimmed = trimToUtf8Boundary(slice);
+        const limited = trimmed.subarray(0, Math.min(trimmed.length, maxBytes));
+        return createResult(limited, stats.size > limited.byteLength);
+      } finally {
+        await fileHandle.close();
+      }
+    }
+
+    const fileBuffer = await fs.readFile(absolute);
+    return createResult(trimToUtf8Boundary(fileBuffer), false);
   },
 };
 
