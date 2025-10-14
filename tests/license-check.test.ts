@@ -132,6 +132,36 @@ describe('collectLicenses', () => {
       { name: 'omega', version: '9.9.9', license: 'BSD-3-Clause', path: 'node_modules/omega' },
     ]);
   });
+
+  it('reads license files when package metadata omits the license field', () => {
+    const dir = createTempDir('license-lock-license-fallback-');
+    const lockfilePath = join(dir, 'package-lock.json');
+    const nodeModules = join(dir, 'node_modules');
+    mkdirSync(nodeModules);
+
+    const thetaDir = join(nodeModules, 'theta');
+    mkdirSync(thetaDir, { recursive: true });
+    writeFileSync(join(thetaDir, 'LICENSE'), 'MIT License');
+
+    const lockfile = {
+      name: 'fixture',
+      version: '0.0.0-test',
+      lockfileVersion: 3,
+      packages: {
+        '': { name: 'fixture', version: '0.0.0-test', license: 'BUSL-1.1' },
+        'node_modules/theta': {
+          name: 'theta',
+          version: '1.0.0',
+        },
+      },
+    };
+
+    writeFileSync(lockfilePath, JSON.stringify(lockfile, null, 2));
+
+    expect(collectLicenses(lockfilePath, { rootDir: dir })).toEqual([
+      { name: 'theta', version: '1.0.0', license: 'MIT', path: 'node_modules/theta' },
+    ]);
+  });
 });
 
 describe('assertLicensesAllowed', () => {
