@@ -14,12 +14,59 @@ import type { ApiPersistenceConfig } from "@eddie/config";
 import { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
 import { CHAT_SESSIONS_REPOSITORY_PROVIDER } from "../../../src/chat-sessions/chat-sessions.module";
 import { ChatMessageRole } from "../../../src/chat-sessions/dto/create-chat-message.dto";
-import { KNEX_INSTANCE } from "../../../src/persistence/knex.provider";
+import {
+  createKnexConfig,
+  KNEX_INSTANCE,
+} from "../../../src/persistence/knex.provider";
 import { KnexChatSessionsRepository } from "../../../src/chat-sessions/chat-sessions.repository";
+
+type SqlDriver = "postgres" | "mysql" | "mariadb";
 
 const createTempFilename = (): string => {
   const directory = mkdtempSync(path.join(tmpdir(), "eddie-chat-sessions-"));
   return path.join(directory, "chat.sqlite");
+};
+
+const shouldTestDriver = (driver: SqlDriver): boolean => {
+  const env = process.env.E2E_DB;
+  if (!env) {
+    return false;
+  }
+  const requested = env
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  return requested.includes(driver) || requested.includes("all");
+};
+
+const createFakeKnex = (config: Knex.Config): Knex =>
+  ({
+    schema: {
+      hasTable: vi.fn().mockResolvedValue(true),
+      createTable: vi.fn(),
+    },
+    client: { config },
+    destroy: vi.fn().mockResolvedValue(undefined),
+  } as unknown as Knex);
+
+const defaultCreateKnexInstance = (
+  persistence: ApiPersistenceConfig,
+  config: Knex.Config
+): Knex | undefined => {
+  if (persistence.driver === "sqlite") {
+    const instance = knex(config);
+    void instance.raw?.("PRAGMA foreign_keys = ON");
+    return instance;
+  }
+  return createFakeKnex(config);
+};
+
+type BuildModuleOptions = {
+  createKnex?: (
+    persistence: ApiPersistenceConfig,
+    knexConfig: Knex.Config
+  ) => Knex | undefined;
+  onConfig?: (config: Knex.Config) => void;
 };
 
 describe("ChatSessionsRepository persistence", () => {
@@ -45,39 +92,51 @@ describe("ChatSessionsRepository persistence", () => {
     }
   });
 
-  const buildTestingModule = async () => {
+  const buildTestingModule = async (
+    persistence: ApiPersistenceConfig,
+    options: BuildModuleOptions = {}
+  ) => {
     const config = structuredClone(DEFAULT_CONFIG);
     config.api = {
       ...(config.api ?? {}),
-      persistence: {
-        driver: "sqlite",
-        sqlite: { filename },
-      },
+      persistence,
     };
 
     const load = vi.fn().mockResolvedValue(config);
     const getSnapshot = vi.fn().mockReturnValue(config);
-    const database = knex({
-      client: "better-sqlite3",
-      connection: { filename },
-      useNullAsDefault: true,
-    });
-    void database.raw("PRAGMA foreign_keys = ON");
+
     const moduleRef = await Test.createTestingModule({
       providers: [
         { provide: ConfigService, useValue: { load } },
         { provide: ConfigStore, useValue: { getSnapshot } },
-        { provide: KNEX_INSTANCE, useValue: database },
+        {
+          provide: KNEX_INSTANCE,
+          useFactory: () => {
+            const knexConfig = createKnexConfig(persistence);
+            options.onConfig?.(knexConfig);
+            const createInstance = options.createKnex ?? defaultCreateKnexInstance;
+            return createInstance(persistence, knexConfig);
+          },
+        },
         CHAT_SESSIONS_REPOSITORY_PROVIDER,
         ChatSessionsService,
       ],
     }).compile();
 
+    const database = moduleRef.get<Knex | undefined>(KNEX_INSTANCE, {
+      strict: false,
+    });
+
     return { moduleRef, database };
   };
 
   it("persists messages to disk across service lifecycles", async () => {
-    const first = await buildTestingModule();
+    const persistence: ApiPersistenceConfig = {
+      driver: "sqlite",
+      sqlite: { filename },
+    };
+
+    const first = await buildTestingModule(persistence);
     const firstService = first.moduleRef.get(ChatSessionsService);
 
     const session = await firstService.createSession({ title: "Persisted" });
@@ -87,9 +146,9 @@ describe("ChatSessionsRepository persistence", () => {
     });
 
     await first.moduleRef.close();
-    await first.database.destroy();
+    await first.database?.destroy();
 
-    const second = await buildTestingModule();
+    const second = await buildTestingModule(persistence);
     const secondService = second.moduleRef.get(ChatSessionsService);
 
     const messages = await secondService.listMessages(session.id);
@@ -98,71 +157,126 @@ describe("ChatSessionsRepository persistence", () => {
     expect(messages[0]?.content).toBe("Hello");
 
     await second.moduleRef.close();
-    await second.database.destroy();
+    await second.database?.destroy();
   });
 
-  it("supports the postgres persistence driver", async () => {
-    const config = structuredClone(DEFAULT_CONFIG);
-    config.api = {
-      ...(config.api ?? {}),
-      persistence: {
-        driver: "postgres",
-        postgres: { connection: {} },
+  const buildSqlPersistence = (
+    driver: SqlDriver,
+    overrides: Partial<ApiPersistenceConfig[typeof driver]> = {}
+  ): ApiPersistenceConfig => {
+    const base = {
+      connection: {
+        host: "localhost",
+        port: driver === "postgres" ? 5432 : 3306,
+        database: "eddie",
+        user: driver === "postgres" ? "postgres" : "root",
+        password: "password",
       },
-    };
+      pool: { min: 0, max: 4 },
+      ...overrides,
+    } satisfies ApiPersistenceConfig[typeof driver];
 
-    const load = vi.fn().mockResolvedValue(config);
-    const getSnapshot = vi.fn().mockReturnValue(config);
-    const knexStub = {
-      schema: {
-        hasTable: vi.fn().mockResolvedValue(true),
-        createTable: vi.fn(),
-      },
-      client: { config: { client: "pg" } },
-      destroy: vi.fn(),
-    } as unknown as Knex;
+    return {
+      driver,
+      [driver]: base,
+    } as ApiPersistenceConfig;
+  };
 
-    const moduleRef = await Test.createTestingModule({
-      providers: [
-        { provide: ConfigService, useValue: { load } },
-        { provide: ConfigStore, useValue: { getSnapshot } },
-        { provide: KNEX_INSTANCE, useValue: knexStub },
-        CHAT_SESSIONS_REPOSITORY_PROVIDER,
-        ChatSessionsService,
-      ],
-    }).compile();
+  const runSqlTest = (driver: SqlDriver) =>
+    shouldTestDriver(driver) ? it : it.skip;
 
-    const repository = moduleRef.get(CHAT_SESSIONS_REPOSITORY_PROVIDER.provide);
-    expect(repository).toBeInstanceOf(KnexChatSessionsRepository);
+  runSqlTest("postgres")(
+    "configures the postgres driver via the knex provider",
+    async () => {
+      const persistence = buildSqlPersistence("postgres");
+      const captured: Knex.Config[] = [];
 
-    await moduleRef.close();
-  });
+      const { moduleRef, database } = await buildTestingModule(persistence, {
+        onConfig: (config) => captured.push(config),
+      });
 
-  it("throws when configured with an unknown persistence driver string", async () => {
-    const config = structuredClone(DEFAULT_CONFIG);
-    const persistence = {
-      driver: "cockroach",
-    } as unknown as ApiPersistenceConfig;
-    config.api = {
-      ...(config.api ?? {}),
-      persistence,
-    };
+      const repository = moduleRef.get(
+        CHAT_SESSIONS_REPOSITORY_PROVIDER.provide
+      );
 
-    const load = vi.fn().mockResolvedValue(config);
-    const getSnapshot = vi.fn().mockReturnValue(config);
+      expect(repository).toBeInstanceOf(KnexChatSessionsRepository);
+      expect(database?.client.config).toMatchObject({ client: "pg" });
+      expect(captured.at(-1)).toMatchObject({
+        client: "pg",
+        connection: expect.objectContaining({
+          host: "localhost",
+          port: 5432,
+          database: "eddie",
+          user: "postgres",
+          password: "password",
+        }),
+        pool: { min: 0, max: 4 },
+      });
 
-    const module = Test.createTestingModule({
-      providers: [
-        { provide: ConfigService, useValue: { load } },
-        { provide: ConfigStore, useValue: { getSnapshot } },
-        { provide: KNEX_INSTANCE, useValue: undefined },
-        CHAT_SESSIONS_REPOSITORY_PROVIDER,
-        ChatSessionsService,
-      ],
-    });
+      await moduleRef.close();
+    }
+  );
 
-    await expect(module.compile()).rejects.toThrow(
-      'Unsupported chat sessions persistence driver "cockroach". Supported drivers: memory, sqlite, postgres, mysql, mariadb.'
-    );
-  });
+  runSqlTest("mysql")(
+    "configures the mysql driver via the knex provider",
+    async () => {
+      const persistence = buildSqlPersistence("mysql", {
+        ssl: false,
+      });
+      const captured: Knex.Config[] = [];
+
+      const { moduleRef, database } = await buildTestingModule(persistence, {
+        onConfig: (config) => captured.push(config),
+      });
+
+      const repository = moduleRef.get(
+        CHAT_SESSIONS_REPOSITORY_PROVIDER.provide
+      );
+
+      expect(repository).toBeInstanceOf(KnexChatSessionsRepository);
+      expect(database?.client.config).toMatchObject({ client: "mysql2" });
+      expect(captured.at(-1)).toMatchObject({
+        client: "mysql2",
+        connection: expect.objectContaining({
+          host: "localhost",
+          port: 3306,
+          database: "eddie",
+          user: "root",
+          password: "password",
+          ssl: false,
+        }),
+        pool: { min: 0, max: 4 },
+      });
+
+      await moduleRef.close();
+    }
+  );
+
+  runSqlTest("mariadb")(
+    "configures the mariadb driver via the knex provider",
+    async () => {
+      const persistence = buildSqlPersistence("mariadb", {
+        url: "mysql://root:password@localhost:3306/eddie",
+      });
+      const captured: Knex.Config[] = [];
+
+      const { moduleRef, database } = await buildTestingModule(persistence, {
+        onConfig: (config) => captured.push(config),
+      });
+
+      const repository = moduleRef.get(
+        CHAT_SESSIONS_REPOSITORY_PROVIDER.provide
+      );
+
+      expect(repository).toBeInstanceOf(KnexChatSessionsRepository);
+      expect(database?.client.config).toMatchObject({ client: "mysql2" });
+      expect(captured.at(-1)).toMatchObject({
+        client: "mysql2",
+        connection: "mysql://root:password@localhost:3306/eddie",
+        pool: { min: 0, max: 4 },
+      });
+
+      await moduleRef.close();
+    }
+  );
 });

@@ -52,10 +52,6 @@ export function createKnexConfig(persistence: ApiPersistenceConfig): Knex.Config
   }
 }
 
-type SqlConfigRecord = ApiPersistenceSqlConfig & {
-  connection: Record<string, unknown>;
-};
-
 function buildSqlConnection(
   config: ApiPersistenceSqlConfig
 ): string | Record<string, unknown> {
@@ -63,7 +59,7 @@ function buildSqlConnection(
     return config.url;
   }
 
-  const connection: SqlConfigRecord["connection"] = {
+  const connection: Record<string, unknown> = {
     ...config.connection,
   };
 
@@ -90,11 +86,21 @@ function createSqlKnexConfig(
 ): Knex.Config {
   const driver = persistence.driver as SqlDriver;
   const driverConfig = getSqlDriverConfig(persistence);
+  const {
+    connection: connectionIgnored,
+    url: urlIgnored,
+    ssl: sslIgnored,
+    ...rest
+  } = driverConfig;
+  void connectionIgnored;
+  void urlIgnored;
+  void sslIgnored;
   const connection = buildSqlConnection(driverConfig);
 
   return {
     client: SQL_CLIENTS[driver],
     connection,
+    ...rest,
   } satisfies Knex.Config;
 }
 
