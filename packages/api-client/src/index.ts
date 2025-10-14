@@ -12,6 +12,7 @@ import type { TraceDto } from "./generated/models/TraceDto";
 import type { LogEntryDto } from "./generated/models/LogEntryDto";
 import type { RuntimeConfigDto } from "./generated/models/RuntimeConfigDto";
 import type { UpdateRuntimeConfigDto } from "./generated/models/UpdateRuntimeConfigDto";
+import type { UpdateChatSessionDto } from "./generated/models/UpdateChatSessionDto";
 
 export type {
   ChatSessionDto,
@@ -22,6 +23,7 @@ export type {
   LogEntryDto,
   RuntimeConfigDto,
   UpdateRuntimeConfigDto,
+  UpdateChatSessionDto,
 };
 
 export type ConfigFileFormat = "yaml" | "json";
@@ -247,6 +249,9 @@ export interface LogsListOptions {
     limit?: number;
 }
 
+const DEFAULT_LOGS_OFFSET = 0;
+const DEFAULT_LOGS_LIMIT = 50;
+
 export interface ConfigSocket {
     onConfigUpdated(handler: (config: RuntimeConfigDto) => void): Unsubscribe;
 }
@@ -257,6 +262,8 @@ export interface ApiClient {
             list(): Promise<ChatSessionDto[]>;
             create(input: CreateChatSessionDto): Promise<ChatSessionDto>;
             get(id: string): Promise<ChatSessionDto>;
+            rename(id: string, input: UpdateChatSessionDto): Promise<ChatSessionDto>;
+            delete(id: string): Promise<void>;
             archive(id: string): Promise<ChatSessionDto>;
             listMessages(id: string): Promise<ChatMessageDto[]>;
             createMessage(
@@ -476,6 +483,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         list: () => ChatSessionsService.chatSessionsControllerList(),
         create: (input) => ChatSessionsService.chatSessionsControllerCreate(input),
         get: (id) => ChatSessionsService.chatSessionsControllerGet(id),
+        rename: (id, input) =>
+          ChatSessionsService.chatSessionsControllerRename(id, input),
+        delete: (id) => ChatSessionsService.chatSessionsControllerDelete(id),
         archive: (id) => ChatSessionsService.chatSessionsControllerArchive(id),
         listMessages: (id) => ChatSessionsService.chatSessionsControllerListMessages(id),
         createMessage: (id, input) =>
@@ -487,7 +497,10 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       },
       logs: {
         list: (params?: LogsListOptions) =>
-          LogsService.logsControllerList(params ?? {}),
+          LogsService.logsControllerList(
+            params?.offset ?? DEFAULT_LOGS_OFFSET,
+            params?.limit ?? DEFAULT_LOGS_LIMIT
+          ),
         emit: () => LogsService.logsControllerEmit(),
       },
       config: {

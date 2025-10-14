@@ -51,7 +51,10 @@ export class ChatSessionsController {
     return this.chatSessions.getSession(id);
   }
 
-  @ApiOperation({ summary: "Rename a chat session" })
+  @ApiOperation({
+    summary: "Rename a chat session",
+    operationId: "chatSessionsControllerRename",
+  })
   @ApiOkResponse({ type: ChatSessionDto })
   @Patch(":id")
   async rename(
@@ -70,7 +73,10 @@ export class ChatSessionsController {
     return this.chatSessions.archiveSession(id);
   }
 
-  @ApiOperation({ summary: "Delete a chat session" })
+  @ApiOperation({
+    summary: "Delete a chat session",
+    operationId: "chatSessionsControllerDelete",
+  })
   @ApiNoContentResponse()
   @HttpCode(204)
   @Delete(":id")
