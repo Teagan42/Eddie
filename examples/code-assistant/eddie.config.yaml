@@ -22,6 +22,7 @@ agents:
   manager:
     name: TDD Router Manager
     description: "Orchestrates strict TDD workflow through RED → GREEN → REFACTOR cycles"
+    tools: ["spawn_subagent", "get_plan", "update_plan", "complete_task", "get_folder_structure"]
     promptTemplate:
       file: router_manager.jinja
       baseDir: ./examples/code-assistant/prompts
@@ -80,7 +81,7 @@ agents:
     - id: planner
       name: TDD Planning Specialist
       description: "Creates surgical, dependency-ordered TDD step sequences"
-      tools: ["file_read"]
+      tools: ["file_read", "get_plan", "update_plan", "get_folder_structure"]
       promptTemplate:
         file: subagents/planner.jinja
         baseDir: ./examples/code-assistant/prompts

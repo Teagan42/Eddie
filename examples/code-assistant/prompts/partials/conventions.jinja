@@ -57,3 +57,16 @@ tool calls are clearer and preferred.
 
 Keep delegations minimal: include only the files, variables, and instructions
 the callee needs. Cite files by path when referencing repository context.
+
+### Planning Synchronization (get_plan, update_plan)
+- Use the get_plan tool to retrieve the latest shared execution plan before making routing or scope decisions.
+- Persist revisions through the update_plan tool so every agent shares the same RED → GREEN → REFACTOR expectations.
+- Provide a clear reason for each update and keep the delta incremental.
+
+### Task Closure (complete_task)
+- Call the complete_task tool once acceptance criteria are satisfied and quality gates pass.
+- Include a succinct summary of the delivered behavior and reference the final verification commands.
+
+### Repository Navigation (get_folder_structure)
+- Call the get_folder_structure tool when you need a concise map of directories or filenames before planning or delegating work.
+- Request only the minimal depth and breadth required to avoid noise, and cite any discovered paths when communicating instructions.
