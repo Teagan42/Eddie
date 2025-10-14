@@ -131,7 +131,45 @@ describe("OpenAIAdapter stream tool calls", () => {
 
     expect(streamMock).toHaveBeenCalledTimes(1);
     const [payload] = streamMock.mock.calls[0] ?? [];
-    expect(payload).toMatchObject({ text: { format: spawnTool.outputSchema } });
+    expect(payload).toMatchObject({
+      text: {
+        format: {
+          ...spawnTool.outputSchema,
+          name: "eddie_tool_spawn_subagent_result_v1",
+        },
+      },
+    });
+  });
+
+  it("normalizes response format names to OpenAI-safe characters", async () => {
+    const responseFormat = {
+      type: "json_schema",
+      name: "eddie.tool.spawn_subagent.result.v1",
+      strict: true,
+      schema: { type: "object", required: [] },
+    } satisfies NonNullable<StreamOptions["responseFormat"]>;
+
+    const finalResponse = { id: "resp_schema", status: "completed", output: [] };
+    streamMock.mockResolvedValueOnce(createStream([], finalResponse));
+
+    const adapter = new OpenAIAdapter({});
+    await collectStream(
+      adapter.stream({
+        model: "gpt-4o-mini",
+        messages: [],
+        responseFormat,
+      }),
+    );
+
+    expect(streamMock).toHaveBeenCalledTimes(1);
+    const [payload] = streamMock.mock.calls[0] ?? [];
+    expect(payload).toMatchObject({
+      text: {
+        format: {
+          name: "eddie_tool_spawn_subagent_result_v1",
+        },
+      },
+    });
   });
 
   it("passes previous response id to the OpenAI stream request", async () => {
