@@ -1,6 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { EventEmitter } from "events";
 import type {
+  HookAgentRunOptions,
+  HookAgentRunResult,
+  HookAgentRunner,
   HookDispatchResult,
   HookEventMap,
   HookEventName,
@@ -19,6 +22,7 @@ import { isHookBlockResponse } from "./types";
 @Injectable()
 export class HookBus extends EventEmitter {
   private readonly logger = new Logger(HookBus.name);
+  private agentRunner?: HookAgentRunner;
 
   constructor() {
     super();
@@ -64,5 +68,25 @@ export class HookBus extends EventEmitter {
     listener: HookListener<K>
   ): this {
     return super.on(event, listener as (...args: unknown[]) => void);
+  }
+
+  setAgentRunner(runner: HookAgentRunner): void {
+    this.agentRunner = runner;
+  }
+
+  clearAgentRunner(): void {
+    this.agentRunner = undefined;
+  }
+
+  hasAgentRunner(): boolean {
+    return this.agentRunner !== undefined;
+  }
+
+  async runAgent(options: HookAgentRunOptions): Promise<HookAgentRunResult> {
+    if (!this.agentRunner) {
+      throw new Error("No agent runner is registered for this hook bus.");
+    }
+
+    return this.agentRunner(options);
   }
 }

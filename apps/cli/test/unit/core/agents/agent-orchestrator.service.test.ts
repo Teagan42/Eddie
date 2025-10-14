@@ -352,6 +352,72 @@ describe("AgentOrchestratorService", () => {
     expect(workerCall?.[1]?.context?.text).toBe("planner summary");
   });
 
+  it("allows hooks to run additional agents via the hook bus", async () => {
+    const provider = new MockProvider([
+      createStream([
+        { type: "delta", text: "manager response" },
+        { type: "end" },
+      ]),
+      createStream([
+        { type: "delta", text: "review complete" },
+        { type: "end" },
+      ]),
+    ]);
+
+    const hookBus = new HookBus();
+    const hookRuns: Array<{
+      prompt: string;
+      messages: ChatMessage[];
+      target: { id: string };
+    }> = [];
+
+    hookBus.on(HOOK_EVENTS.afterAgentComplete, async (payload) => {
+      if (payload.metadata.id !== "manager") {
+        return;
+      }
+
+      const run = await hookBus.runAgent({
+        agentId: "reviewer",
+        prompt: "Review manager output",
+        context: contextSlice("review context"),
+      });
+
+      hookRuns.push(run);
+    });
+
+    const runtime = baseRuntime(provider, {
+      hooks: hookBus,
+      catalogDescriptors: {
+        reviewer: {
+          id: "reviewer",
+          definition: {
+            id: "reviewer",
+            systemPrompt: "Provide a review",
+          },
+          provider,
+          model: "review-model",
+        },
+      },
+    });
+
+    await orchestrator.runAgent(
+      {
+        definition: {
+          id: "manager",
+          systemPrompt: "coordinate",
+        },
+        prompt: "delegate work",
+        context: contextSlice("root"),
+      },
+      runtime
+    );
+
+    expect(hookRuns).toHaveLength(1);
+    expect(hookRuns[0]?.target.id).toBe("reviewer");
+    expect(hookRuns[0]?.prompt).toBe("Review manager output");
+    expect(hookRuns[0]?.messages.at(-1)?.content).toBe("review complete");
+  });
+
   it("emits lifecycle hooks with metadata for nested agents", async () => {
     const provider = new MockProvider([
       createStream([

@@ -251,6 +251,24 @@ export interface SpawnSubagentDelegateResult {
   target: SpawnSubagentTargetSummary;
 }
 
+/**
+ * Options used when a hook triggers an auxiliary agent run through the shared
+ * {@link HookBus}. Mirrors {@link SpawnSubagentDelegateOptions} so hooks can
+ * reuse the same payload structure when delegating or performing out-of-band
+ * evaluations.
+ */
+export type HookAgentRunOptions = SpawnSubagentDelegateOptions;
+
+/**
+ * Result returned from {@link HookBus.runAgent}, exposing the spawned
+ * transcript and target summary for downstream policy checks.
+ */
+export type HookAgentRunResult = SpawnSubagentDelegateResult;
+
+export type HookAgentRunner = (
+  options: HookAgentRunOptions
+) => Promise<HookAgentRunResult>;
+
 export interface SpawnSubagentOverride {
   prompt?: string;
   variables?: TemplateVariables;
