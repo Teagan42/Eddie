@@ -10,9 +10,9 @@ describe("README documentation", () => {
   it("mentions template cache freshness based on file changes", async () => {
     const readmePath = path.resolve(__dirname, "..", "README.md");
     const contents = await fs.readFile(readmePath, "utf-8");
-    const normalizedContents = contents.toLowerCase();
+    const normalizedContents = contents.replace(/\r\n/g, "\n").toLowerCase();
     const expectedPhrase =
-      "cache entry tracks the source file's last modification time";
+      "cache entry tracks the source file's last modification time (mtime)";
 
     expect(normalizedContents).toContain(expectedPhrase);
   });

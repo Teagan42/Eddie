@@ -28,10 +28,7 @@ export class TemplateRendererService {
   ): Promise<string> {
     const absolutePath = this.resolvePath(descriptor);
     const encoding = descriptor.encoding ?? DEFAULT_ENCODING;
-    const [source, stats] = await Promise.all([
-      fs.readFile(absolutePath, { encoding }),
-      fs.stat(absolutePath),
-    ]);
+    const stats = await fs.stat(absolutePath);
     const mtimeMs = stats.mtimeMs;
 
     const mergedVariables: TemplateVariables = {
@@ -47,14 +44,14 @@ export class TemplateRendererService {
     const cacheKey = `${key}:${absolutePath}`;
 
     const cachedEntry = this.templateCache.get(cacheKey);
-    let template: nunjucks.Template;
-
-    if (this.isCacheEntryUsable(cachedEntry, mtimeMs)) {
-      template = cachedEntry.template;
-    } else {
-      template = this.createTemplate(source, env, absolutePath);
-      this.templateCache.set(cacheKey, { template, mtimeMs });
-    }
+    const template = await this.getOrCreateTemplate({
+      absolutePath,
+      cacheKey,
+      cachedEntry,
+      encoding,
+      env,
+      mtimeMs,
+    });
 
     const rendered = template.render(mergedVariables);
     return rendered ?? "";
@@ -128,5 +125,26 @@ export class TemplateRendererService {
     mtimeMs: number
   ): entry is CachedTemplateEntry {
     return Boolean(entry && entry.template && entry.mtimeMs === mtimeMs);
+  }
+
+  private async getOrCreateTemplate(options: {
+    absolutePath: string;
+    cacheKey: string;
+    cachedEntry: CachedTemplateEntry | undefined;
+    encoding: BufferEncoding;
+    env: nunjucks.Environment;
+    mtimeMs: number;
+  }): Promise<nunjucks.Template> {
+    const { absolutePath, cacheKey, cachedEntry, encoding, env, mtimeMs } =
+      options;
+
+    if (this.isCacheEntryUsable(cachedEntry, mtimeMs)) {
+      return cachedEntry.template;
+    }
+
+    const source = await fs.readFile(absolutePath, { encoding });
+    const template = this.createTemplate(source, env, absolutePath);
+    this.templateCache.set(cacheKey, { template, mtimeMs });
+    return template;
   }
 }
