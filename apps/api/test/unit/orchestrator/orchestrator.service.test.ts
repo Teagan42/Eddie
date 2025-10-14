@@ -457,6 +457,7 @@ describe("OrchestratorMetadataService", () => {
     );
     expect(writerNode?.metadata?.finalMessage).toBe("Writer ready");
     expect(writerNode?.metadata?.contextBundleIds).toEqual(["bundle-1"]);
+    expect(writerNode?.metadata?.prompt).toBe("Draft documentation");
 
     expect(writerNode?.children).toHaveLength(1);
     const [researcherNode] = writerNode?.children ?? [];
@@ -467,5 +468,6 @@ describe("OrchestratorMetadataService", () => {
     expect(researcherNode?.metadata?.messageCount).toBe(
       agentInvocations[0]?.children[0]?.children[0]?.messages.length
     );
+    expect(researcherNode?.metadata?.prompt).toBe("Collect references");
   });
 });
