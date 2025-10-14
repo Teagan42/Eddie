@@ -46,6 +46,8 @@ interface SpawnToolArguments {
     metadata?: Record<string, unknown>;
 }
 
+const SUBAGENT_DISABLED_ERROR = "Subagent delegation is disabled for this run.";
+
 export interface AgentRuntimeOptions {
     catalog: AgentRuntimeCatalog;
     hooks: HookBus;
@@ -85,6 +87,14 @@ export class AgentOrchestratorService {
     request: AgentRunRequest,
     runtime: AgentRuntimeOptions
   ): Promise<AgentInvocation> {
+    if (!runtime.catalog.enableSubagents) {
+      const managerId = runtime.catalog.getManager().id;
+      const isManager = request.definition.id === managerId;
+      if (request.parent || !isManager) {
+        throw new Error(SUBAGENT_DISABLED_ERROR);
+      }
+    }
+
     const invocation = await this.agentInvocationFactory.create(
       request.definition,
       {
@@ -327,7 +337,7 @@ export class AgentOrchestratorService {
     parentDescriptor: AgentRuntimeDescriptor
   ): Promise<ToolResult> {
     if (!runtime.catalog.enableSubagents) {
-      throw new Error("Subagent delegation is disabled for this run.");
+      throw new Error(SUBAGENT_DISABLED_ERROR);
     }
 
     const args = this.parseSpawnArguments(event.arguments);

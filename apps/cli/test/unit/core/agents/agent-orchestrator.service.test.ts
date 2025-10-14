@@ -423,6 +423,47 @@ describe("AgentOrchestratorService", () => {
     );
   });
 
+  it("rejects hook-triggered subagents when delegation is disabled", async () => {
+    const provider = new MockProvider([
+      createStream([
+        { type: "delta", text: "manager output" },
+        { type: "end" },
+      ]),
+      createStream([
+        { type: "delta", text: "worker output" },
+        { type: "end" },
+      ]),
+    ]);
+
+    const runtime = baseRuntime(provider, { catalogEnableSubagents: false });
+    const manager = await orchestrator.runAgent(
+      {
+        definition: {
+          id: "manager",
+          systemPrompt: "coordinate",
+        },
+        prompt: "lead work",
+        context: contextSlice("root"),
+      },
+      runtime
+    );
+
+    await expect(
+      orchestrator.runAgent(
+        {
+          definition: {
+            id: "worker",
+            systemPrompt: "assist",
+          },
+          prompt: "do task",
+          context: contextSlice("child"),
+          parent: manager,
+        },
+        runtime
+      )
+    ).rejects.toThrowError("Subagent delegation is disabled for this run.");
+  });
+
   it("emits lifecycle hooks with metadata for nested agents", async () => {
     const provider = new MockProvider([
       createStream([
