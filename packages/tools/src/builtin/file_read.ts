@@ -111,7 +111,10 @@ export const fileReadTool: ToolDefinition = {
         }
 
         const trimmed = trimToUtf8Boundary(slice);
-        const limited = trimmed.subarray(0, Math.min(trimmed.length, maxBytes));
+        let limited = trimmed;
+        if (trimmed.length > maxBytes) {
+          limited = trimToUtf8Boundary(trimmed.subarray(0, maxBytes));
+        }
         return createResult(limited, stats.size > limited.byteLength);
       } finally {
         await fileHandle.close();
