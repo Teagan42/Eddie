@@ -1,3 +1,7 @@
+import {
+  CLI_BOOLEAN_OPTIONS_BY_FLAG,
+  CLI_VALUE_OPTIONS_BY_FLAG,
+} from "@eddie/config";
 import { Injectable } from "@nestjs/common";
 import type { CliArguments } from "./cli-arguments";
 
@@ -5,33 +9,6 @@ export class CliParseError extends Error {}
 
 @Injectable()
 export class CliParserService {
-  private static readonly OPTION_ALIASES = new Map<string, string>([
-    ["--context", "context"],
-    ["-C", "context"],
-    ["--config", "config"],
-    ["-c", "config"],
-    ["--model", "model"],
-    ["-m", "model"],
-    ["--provider", "provider"],
-    ["-p", "provider"],
-    ["--tools", "tools"],
-    ["-t", "tools"],
-    ["--disable-tools", "disableTools"],
-    ["-D", "disableTools"],
-    ["--jsonl-trace", "jsonlTrace"],
-    ["--log-level", "logLevel"],
-    ["--log-file", "logFile"],
-    ["--agent-mode", "agentMode"],
-  ]);
-
-  private static readonly BOOLEAN_FLAGS = new Map<string, string>([
-    ["--auto-approve", "autoApprove"],
-    ["--auto", "auto"],
-    ["--non-interactive", "nonInteractive"],
-    ["--disable-subagents", "disableSubagents"],
-    ["--no-context", "noContext"],
-  ]);
-
   parse(argv: string[]): CliArguments {
     if (argv.length === 0) {
       throw new CliParseError("No command provided.");
@@ -57,15 +34,14 @@ export class CliParserService {
         continue;
       }
 
-      if (CliParserService.BOOLEAN_FLAGS.has(token)) {
-        const key = CliParserService.BOOLEAN_FLAGS.get(token);
-        if (!key) continue;
-        options[key] = true;
+      const booleanDefinition = CLI_BOOLEAN_OPTIONS_BY_FLAG.get(token);
+      if (booleanDefinition) {
+        options[booleanDefinition.runtimeKey] = true;
         continue;
       }
 
-      const optionKey = CliParserService.OPTION_ALIASES.get(token);
-      if (!optionKey) {
+      const optionDefinition = CLI_VALUE_OPTIONS_BY_FLAG.get(token);
+      if (!optionDefinition) {
         throw new CliParseError(`Unknown option: ${token}`);
       }
 
@@ -75,6 +51,7 @@ export class CliParserService {
       }
 
       i += 1;
+      const optionKey = optionDefinition.runtimeKey;
       const existing = options[optionKey];
       if (existing === undefined) {
         options[optionKey] = next;

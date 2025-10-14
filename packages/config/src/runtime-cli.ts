@@ -1,67 +1,12 @@
+import {
+  CLI_BOOLEAN_OPTIONS_BY_FLAG,
+  CLI_LOG_LEVEL_VALUES,
+  CLI_VALUE_OPTIONS_BY_FLAG,
+  isCliListOption,
+  isCliLogLevelOption,
+  isCliStringOption,
+} from "./runtime-cli-options";
 import type { CliRuntimeOptions, LogLevel } from "./types";
-
-const LOG_LEVEL_VALUES = new Set<LogLevel>(["silent", "info", "debug"]);
-
-const STRING_OPTION_KEYS = [
-  "config",
-  "model",
-  "provider",
-  "jsonlTrace",
-  "logFile",
-  "agentMode",
-] as const;
-type StringOptionKey = (typeof STRING_OPTION_KEYS)[number];
-const STRING_OPTION_SET = new Set<StringOptionKey>(STRING_OPTION_KEYS);
-
-const LIST_OPTION_KEYS = ["context", "tools", "disabledTools"] as const;
-type ListOptionKey = (typeof LIST_OPTION_KEYS)[number];
-const LIST_OPTION_SET = new Set<ListOptionKey>(LIST_OPTION_KEYS);
-
-type ValueOptionKey = StringOptionKey | ListOptionKey | "logLevel";
-
-const VALUE_OPTIONS = new Map<string, ValueOptionKey>([
-  ["--config", "config"],
-  ["-c", "config"],
-  ["--context", "context"],
-  ["-C", "context"],
-  ["--model", "model"],
-  ["-m", "model"],
-  ["--provider", "provider"],
-  ["-p", "provider"],
-  ["--tools", "tools"],
-  ["-t", "tools"],
-  ["--disable-tools", "disabledTools"],
-  ["-D", "disabledTools"],
-  ["--jsonl-trace", "jsonlTrace"],
-  ["--log-level", "logLevel"],
-  ["--log-file", "logFile"],
-  ["--agent-mode", "agentMode"],
-]);
-
-type BooleanOptionKey =
-  | "autoApprove"
-  | "nonInteractive"
-  | "disableSubagents"
-  | "disableContext";
-const BOOLEAN_OPTIONS = new Map<string, BooleanOptionKey>([
-  ["--auto-approve", "autoApprove"],
-  ["--auto", "autoApprove"],
-  ["--non-interactive", "nonInteractive"],
-  ["--disable-subagents", "disableSubagents"],
-  ["--no-context", "disableContext"],
-]);
-
-function isListOptionKey(key: ValueOptionKey): key is ListOptionKey {
-  return LIST_OPTION_SET.has(key as ListOptionKey);
-}
-
-function isStringOptionKey(key: ValueOptionKey): key is StringOptionKey {
-  return STRING_OPTION_SET.has(key as StringOptionKey);
-}
-
-function isLogLevel(value: string): value is LogLevel {
-  return LOG_LEVEL_VALUES.has(value as LogLevel);
-}
 
 function mergeUniqueList(
   existing: readonly string[] | undefined,
@@ -167,14 +112,14 @@ export function parseCliRuntimeOptionsFromArgv(
       break;
     }
 
-    const booleanKey = BOOLEAN_OPTIONS.get(token);
-    if (booleanKey) {
-      accumulator[booleanKey] = true;
+    const booleanDefinition = CLI_BOOLEAN_OPTIONS_BY_FLAG.get(token);
+    if (booleanDefinition) {
+      accumulator[booleanDefinition.runtimeKey] = true;
       continue;
     }
 
-    const optionKey = VALUE_OPTIONS.get(token);
-    if (!optionKey) {
+    const optionDefinition = CLI_VALUE_OPTIONS_BY_FLAG.get(token);
+    if (!optionDefinition) {
       continue;
     }
 
@@ -185,27 +130,31 @@ export function parseCliRuntimeOptionsFromArgv(
 
     i += 1;
 
-    if (isListOptionKey(optionKey)) {
+    if (isCliListOption(optionDefinition)) {
       const list = normalizeList(next);
       if (list.length === 0) {
         continue;
       }
-      const existing = accumulator[optionKey];
+      const existing = accumulator[
+        optionDefinition.runtimeKey
+      ] as CliRuntimeOptions[typeof optionDefinition.runtimeKey];
       const merged = mergeUniqueList(existing, list);
-      accumulator[optionKey] = merged;
+      accumulator[optionDefinition.runtimeKey] = merged;
       continue;
     }
 
-    if (optionKey === "logLevel") {
-      if (!isLogLevel(next)) {
+    if (isCliLogLevelOption(optionDefinition)) {
+      if (!CLI_LOG_LEVEL_VALUES.has(next as LogLevel)) {
         continue;
       }
-      accumulator.logLevel = next;
+      accumulator.logLevel = next as CliRuntimeOptions["logLevel"];
       continue;
     }
 
-    if (isStringOptionKey(optionKey)) {
-      accumulator[optionKey] = next;
+    if (isCliStringOption(optionDefinition)) {
+      accumulator[optionDefinition.runtimeKey] = next as CliRuntimeOptions[
+        typeof optionDefinition.runtimeKey
+      ];
     }
   }
 
