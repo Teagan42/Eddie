@@ -105,12 +105,12 @@ async function compactInPlace(
   summarize: SummarizeFn,
   hardFloor: number,
 ): Promise<void> {
-  const systemMessages = invocation.messages.filter(
-    (message) => message.role === "system",
-  );
-  const otherMessages = invocation.messages.filter(
-    (message) => message.role !== "system",
-  );
+  const systemMessages: ChatMessage[] = [];
+  const otherMessages: ChatMessage[] = [];
+  for (const message of invocation.messages) {
+    const bucket = message.role === "system" ? systemMessages : otherMessages;
+    bucket.push(message);
+  }
 
   const tail = takeTailWithToolPairs(otherMessages, keepTail);
   const head = otherMessages.slice(0, otherMessages.length - tail.length);
