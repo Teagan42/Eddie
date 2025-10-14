@@ -4,6 +4,7 @@ import type { ProviderConfig } from "@eddie/config";
 import type { ProviderAdapter, StreamEvent, StreamOptions } from "@eddie/types";
 import type { ProviderAdapterFactory } from "./provider.tokens";
 import { extractNotificationEvents } from "./notifications";
+import { resolveResponseFormat } from "./response-format";
 
 interface AnthropicConfig {
   baseUrl?: string;
@@ -26,6 +27,8 @@ export class AnthropicAdapter implements ProviderAdapter {
   }
 
   async *stream(options: StreamOptions): AsyncIterable<StreamEvent> {
+    const responseFormat = resolveResponseFormat(options);
+
     const response = await fetch(this.endpoint(), {
       method: "POST",
       headers: {
@@ -39,6 +42,7 @@ export class AnthropicAdapter implements ProviderAdapter {
         messages: options.messages,
         tools: options.tools,
         stream: true,
+        ...(responseFormat ? { response_format: responseFormat } : {}),
       }),
     });
 

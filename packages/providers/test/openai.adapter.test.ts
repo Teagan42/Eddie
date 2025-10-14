@@ -103,6 +103,37 @@ describe("OpenAIAdapter stream tool calls", () => {
     expect(functionCallOutput?.output).toBe(spawnResultPayload);
   });
 
+  it("derives response text format from tool output schema", async () => {
+    const spawnTool = {
+      type: "function" as const,
+      name: "spawn_subagent",
+      description: "Delegates work to a configured subagent.",
+      parameters: { type: "object" },
+      outputSchema: {
+        type: "json_schema",
+        name: "eddie.tool.spawn_subagent.result.v1",
+        strict: true,
+        schema: { type: "object", required: [] },
+      },
+    };
+
+    const finalResponse = { id: "resp_spawn", status: "completed", output: [] };
+    streamMock.mockResolvedValueOnce(createStream([], finalResponse));
+
+    const adapter = new OpenAIAdapter({});
+    await collectStream(
+      adapter.stream({
+        model: "gpt-4o-mini",
+        messages: [],
+        tools: [spawnTool as NonNullable<StreamOptions["tools"]>[number]],
+      } as StreamOptions),
+    );
+
+    expect(streamMock).toHaveBeenCalledTimes(1);
+    const [payload] = streamMock.mock.calls[0] ?? [];
+    expect(payload).toMatchObject({ text: { format: spawnTool.outputSchema } });
+  });
+
   it("passes previous response id to the OpenAI stream request", async () => {
     const finalResponse = {
       id: "resp_prev",
