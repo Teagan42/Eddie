@@ -28,6 +28,20 @@ export const initialChatSessionsMigration = async (db: Knex): Promise<void> => {
     });
   }
 
+  if (!(await db.schema.hasTable("chat_session_api_keys"))) {
+    await db.schema.createTable("chat_session_api_keys", (table) => {
+      table
+        .uuid("session_id")
+        .notNullable()
+        .references("id")
+        .inTable("chat_sessions")
+        .onDelete("CASCADE");
+      table.string("api_key", 255).notNullable();
+      table.primary(["api_key", "session_id"], "chat_session_api_keys_pk");
+      table.index(["api_key"], "chat_session_api_keys_api_key_idx");
+    });
+  }
+
   if (!(await db.schema.hasTable("chat_messages"))) {
     await db.schema.createTable("chat_messages", (table) => {
       table.uuid("id").primary();
