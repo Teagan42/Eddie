@@ -155,6 +155,10 @@ export class AgentRunner {
 
         const toolSchemas = composeToolSchemas();
 
+        const renderWithAgent = (incoming: StreamEvent): void => {
+          streamRenderer.render({ ...incoming, agentId: invocation.id });
+        };
+
         const stream = descriptor.provider.stream({
           model: descriptor.model,
           messages: invocation.messages,
@@ -167,13 +171,13 @@ export class AgentRunner {
         for await (const event of stream) {
           if (event.type === "delta") {
             assistantBuffer += event.text;
-            streamRenderer.render(event);
+            renderWithAgent(event);
             continue;
           }
 
           if (event.type === "tool_call") {
             streamRenderer.flush();
-            streamRenderer.render(event);
+            renderWithAgent(event);
 
             const preToolDispatch = await dispatchHookOrThrow(
               HOOK_EVENTS.preToolUse,
@@ -238,7 +242,7 @@ export class AgentRunner {
                 });
               }
 
-              streamRenderer.render({
+              renderWithAgent({
                 type: "tool_result",
                 name: event.name,
                 id: event.id,
@@ -300,7 +304,7 @@ export class AgentRunner {
                 "Tool execution failed"
               );
 
-              streamRenderer.render(notification);
+              renderWithAgent(notification);
 
               invocation.messages.push({
                 role: "tool",
@@ -332,7 +336,7 @@ export class AgentRunner {
           }
 
           if (event.type === "error") {
-            streamRenderer.render(event);
+            renderWithAgent(event);
             agentFailed = true;
 
             await dispatchHookOrThrow(HOOK_EVENTS.onError, {
@@ -360,7 +364,7 @@ export class AgentRunner {
           }
 
           if (event.type === "notification") {
-            streamRenderer.render(event);
+            renderWithAgent(event);
             await hooks.emitAsync(HOOK_EVENTS.notification, {
               ...iterationPayload,
               event,
@@ -369,7 +373,7 @@ export class AgentRunner {
           }
 
           if (event.type === "end") {
-            streamRenderer.render(event);
+            renderWithAgent(event);
             if (event.responseId) {
               this.previousResponseId = event.responseId;
             }
@@ -396,7 +400,7 @@ export class AgentRunner {
             continue;
           }
 
-          streamRenderer.render(event);
+          renderWithAgent(event);
         }
 
         if (agentFailed) {

@@ -42,41 +42,45 @@ export interface ToolResult<TData = unknown> {
 
 export type ToolOutput<TData = unknown> = ToolResult<TData>;
 
+type AgentScopedEvent = {
+  agentId?: string;
+};
+
 export type StreamEvent =
-  | {
-      type: "delta";
-      text: string;
-      id?: string;
-    }
-  | {
-      type: "tool_call";
-      name: string;
-      arguments: ToolCallArguments;
-      id?: string;
-      raw?: unknown;
-    }
-  | {
-      type: "tool_result";
-      name: string;
-      result: ToolResult;
-      id?: string;
-    }
-  | {
-      type: "error";
-      message: string;
-      cause?: unknown;
-    }
-  | {
-      type: "notification";
-      payload: unknown;
-      metadata?: Record<string, unknown>;
-    }
-  | {
-      type: "end";
-      reason?: string;
-      usage?: Record<string, unknown>;
-      responseId?: string;
-    };
+  | ({
+        type: "delta";
+        text: string;
+        id?: string;
+      } & AgentScopedEvent)
+  | ({
+        type: "tool_call";
+        name: string;
+        arguments: ToolCallArguments;
+        id?: string;
+        raw?: unknown;
+      } & AgentScopedEvent)
+  | ({
+        type: "tool_result";
+        name: string;
+        result: ToolResult;
+        id?: string;
+      } & AgentScopedEvent)
+  | ({
+        type: "error";
+        message: string;
+        cause?: unknown;
+      } & AgentScopedEvent)
+  | ({
+        type: "notification";
+        payload: unknown;
+        metadata?: Record<string, unknown>;
+      } & AgentScopedEvent)
+  | ({
+        type: "end";
+        reason?: string;
+        usage?: Record<string, unknown>;
+        responseId?: string;
+      } & AgentScopedEvent);
 
 export interface StreamOptions {
   model: string;

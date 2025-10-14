@@ -843,7 +843,10 @@ describe("AgentOrchestratorService", () => {
     const renderedNotification = renderer.events.find(
       (event) => event.type === "notification"
     );
-    expect(renderedNotification).toEqual(notifications[0]);
+    expect(renderedNotification).toMatchObject({
+      ...notifications[0],
+      agentId: "manager",
+    });
   });
 
   it("skips tool execution when a PreToolUse hook vetoes the call", async () => {
