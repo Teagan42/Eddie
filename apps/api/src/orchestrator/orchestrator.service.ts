@@ -155,6 +155,12 @@ export class OrchestratorMetadataService {
   ): ToolCallNodeDto[] {
     const nodes: ToolCallNodeDto[] = [];
     const pending = new Map<string, ToolCallNodeDto>();
+    const appendAgentMetadata = (
+      metadata: Record<string, unknown> | undefined
+    ): Record<string, unknown> => ({
+      ...(metadata ?? {}),
+      agentId: agent.id,
+    });
 
     for (const message of agent.messages) {
       const toolCallId = message.toolCallId;
@@ -171,8 +177,9 @@ export class OrchestratorMetadataService {
           this.extractToolName(message.content);
         node.status = ToolCallStatusDto.Pending;
         const payload = this.parseToolPayload(message.content);
+        const baseMetadata = appendAgentMetadata(node.metadata);
         node.metadata = {
-          ...(node.metadata ?? {}),
+          ...baseMetadata,
           preview: payload.preview,
           ...(toolCallId ? { toolCallId } : {}),
           ...(node.metadata?.toolName
@@ -201,8 +208,9 @@ export class OrchestratorMetadataService {
           existing.name ??
           message.name ??
           this.extractToolName(message.content);
+        const baseMetadata = appendAgentMetadata(existing.metadata);
         existing.metadata = {
-          ...(existing.metadata ?? {}),
+          ...baseMetadata,
           preview: payload.preview,
           ...(payload.isJson
             ? { payload: payload.value }
@@ -224,14 +232,14 @@ export class OrchestratorMetadataService {
       node.name =
         resolvedToolName ?? this.extractToolName(message.content);
       node.status = ToolCallStatusDto.Completed;
-      node.metadata = {
+      node.metadata = appendAgentMetadata({
         preview: payload.preview,
         ...(payload.isJson
           ? { payload: payload.value }
           : { command: message.content }),
         ...(toolCallId ? { toolCallId } : {}),
         ...(resolvedToolName ? { toolName: resolvedToolName } : {}),
-      };
+      });
       node.children = [];
       nodes.push(node);
     }

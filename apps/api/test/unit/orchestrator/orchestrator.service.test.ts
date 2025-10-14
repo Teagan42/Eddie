@@ -254,6 +254,7 @@ describe("OrchestratorMetadataService", () => {
     const [completedNode] = metadata.toolInvocations;
 
     expect(completedNode?.status).toBe(ToolCallStatusDto.Completed);
+    expect(completedNode?.metadata?.agentId).toBe('manager');
     expect(completedNode?.metadata?.payload).toEqual({
       schema: "eddie.tool.command.result.v1",
       content: "README.md\npackage.json",

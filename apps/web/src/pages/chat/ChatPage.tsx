@@ -1281,7 +1281,10 @@ export function ChatPage(): JSX.Element {
               collapsed={Boolean(collapsedPanels[PANEL_IDS.tools])}
               onToggle={handleTogglePanel}
             >
-              <ToolTree nodes={orchestratorMetadata?.toolInvocations ?? []} />
+              <ToolTree
+                nodes={orchestratorMetadata?.toolInvocations ?? []}
+                agentHierarchy={orchestratorMetadata?.agentHierarchy ?? []}
+              />
             </CollapsiblePanel>
 
             <CollapsiblePanel

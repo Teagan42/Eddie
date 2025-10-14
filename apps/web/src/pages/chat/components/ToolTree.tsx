@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { ComponentProps } from 'react';
 import { Badge, Box, Flex, Text } from '@radix-ui/themes';
 import type { OrchestratorMetadataDto, ToolCallStatusDto } from '@eddie/api-client';
@@ -15,6 +15,27 @@ const TOOL_STATUS_COLORS: Record<ToolCallStatusDto, BadgeColor> = {
   completed: 'green',
   failed: 'red',
 };
+
+type ToolInvocationNode = OrchestratorMetadataDto['toolInvocations'][number];
+type AgentHierarchyNode = OrchestratorMetadataDto['agentHierarchy'][number];
+
+const TOOL_SECTION_PREFIX = 'tool:';
+const AGENT_TOOLS_PREFIX = 'agent-tools:';
+const AGENT_CHILDREN_PREFIX = 'agent-children:';
+const TOGGLE_BUTTON_CLASS =
+  'inline-flex h-6 w-6 items-center justify-center rounded-md border border-muted/50 bg-background text-xs font-medium text-foreground/80 transition-colors hover:bg-muted/40';
+
+function createToolSectionId(id: string): string {
+  return `${TOOL_SECTION_PREFIX}${id}`;
+}
+
+function createAgentToolsSectionId(id: string): string {
+  return `${AGENT_TOOLS_PREFIX}${id}`;
+}
+
+function createAgentChildrenSectionId(id: string): string {
+  return `${AGENT_CHILDREN_PREFIX}${id}`;
+}
 
 function formatDateTime(value: unknown): string | null {
   if (typeof value !== 'string') {
@@ -34,15 +55,19 @@ function formatDateTime(value: unknown): string | null {
 
 export interface ToolTreeProps {
   nodes: OrchestratorMetadataDto['toolInvocations'];
+  agentHierarchy?: OrchestratorMetadataDto['agentHierarchy'];
 }
 
-export function ToolTree({ nodes }: ToolTreeProps): JSX.Element {
-  const [expandedNodeIds, setExpandedNodeIds] = useState<Set<string>>(
+export function ToolTree({
+  nodes,
+  agentHierarchy = [],
+}: ToolTreeProps): JSX.Element {
+  const [expandedSectionIds, setExpandedSectionIds] = useState<Set<string>>(
     () => new Set(),
   );
 
-  const toggleNode = useCallback((id: string) => {
-    setExpandedNodeIds((previous) => {
+  const toggleSection = useCallback((id: string) => {
+    setExpandedSectionIds((previous) => {
       const next = new Set(previous);
       if (next.has(id)) {
         next.delete(id);
@@ -54,7 +79,39 @@ export function ToolTree({ nodes }: ToolTreeProps): JSX.Element {
     });
   }, []);
 
-  if (nodes.length === 0) {
+  const nodesByAgent = useMemo(() => {
+    const map = new Map<string, OrchestratorMetadataDto['toolInvocations']>();
+
+    const assignNodeToAgent = (node: ToolInvocationNode): void => {
+      const agentId =
+        typeof node.metadata?.agentId === 'string' ? node.metadata.agentId : null;
+      if (agentId) {
+        const existing = map.get(agentId) ?? [];
+        existing.push(node);
+        map.set(agentId, existing);
+      }
+
+      for (const child of node.children) {
+        assignNodeToAgent(child);
+      }
+    };
+
+    for (const node of nodes) {
+      assignNodeToAgent(node);
+    }
+
+    return map;
+  }, [nodes]);
+
+  const getAgentTools = useCallback(
+    (agentId: string) => nodesByAgent.get(agentId) ?? [],
+    [nodesByAgent],
+  );
+
+  const hasAgentHierarchy = agentHierarchy.length > 0;
+  const hasToolInvocations = nodes.length > 0;
+
+  if (!hasToolInvocations && !hasAgentHierarchy) {
     return (
       <Text size="2" color="gray">
         No tool calls recorded for this session yet.
@@ -62,25 +119,190 @@ export function ToolTree({ nodes }: ToolTreeProps): JSX.Element {
     );
   }
 
+  if (!hasAgentHierarchy) {
+    return (
+      <ToolTreeList
+        nodes={nodes}
+        expandedSectionIds={expandedSectionIds}
+        onToggleSection={toggleSection}
+      />
+    );
+  }
+
   return (
-    <ToolTreeList
-      nodes={nodes}
-      expandedNodeIds={expandedNodeIds}
-      onToggleNode={toggleNode}
-    />
+    <ul className="space-y-3">
+      {agentHierarchy.map((agent) => (
+        <AgentToolTreeNode
+          key={agent.id}
+          agent={agent}
+          getAgentTools={getAgentTools}
+          expandedSectionIds={expandedSectionIds}
+          onToggleSection={toggleSection}
+        />
+      ))}
+    </ul>
+  );
+}
+
+function cloneToolNodesForAgent(
+  nodes: ToolInvocationNode[],
+  agentId: string,
+): ToolInvocationNode[] {
+  return nodes
+    .filter((node) => node.metadata?.agentId === agentId)
+    .map((node) => cloneToolNodeForAgent(node, agentId));
+}
+
+function cloneToolNodeForAgent(
+  node: ToolInvocationNode,
+  agentId: string,
+): ToolInvocationNode {
+  const filteredChildren = node.children
+    .filter((child) => child.metadata?.agentId === agentId)
+    .map((child) => cloneToolNodeForAgent(child, agentId));
+
+  return {
+    ...node,
+    children: filteredChildren,
+  };
+}
+
+interface AgentToolTreeNodeProps {
+  agent: AgentHierarchyNode;
+  expandedSectionIds: ReadonlySet<string>;
+  onToggleSection: (id: string) => void;
+  getAgentTools: (agentId: string) => ToolInvocationNode[];
+}
+
+function AgentToolTreeNode({
+  agent,
+  expandedSectionIds,
+  onToggleSection,
+  getAgentTools,
+}: AgentToolTreeNodeProps): JSX.Element {
+  const agentChildrenKey = createAgentChildrenSectionId(agent.id);
+  const agentToolsKey = createAgentToolsSectionId(agent.id);
+  const hasChildAgents = agent.children.length > 0;
+  const showChildAgents =
+    hasChildAgents && expandedSectionIds.has(agentChildrenKey);
+  const rawAgentTools = getAgentTools(agent.id);
+  const agentTools = cloneToolNodesForAgent(rawAgentTools, agent.id);
+  const hasAgentTools = agentTools.length > 0;
+  const showAgentTools = expandedSectionIds.has(agentToolsKey);
+  const depthLabel =
+    typeof agent.depth === 'number' ? `depth ${agent.depth}` : null;
+  const messageCount =
+    typeof agent.metadata?.messageCount === 'number'
+      ? agent.metadata.messageCount
+      : null;
+
+  return (
+    <li className="rounded-xl border border-muted/40 bg-muted/5 p-4">
+      <Flex direction="column" gap="3">
+        <Flex align="center" justify="between" gap="3">
+          <Flex align="center" gap="2">
+            {hasChildAgents ? (
+              <button
+                type="button"
+                onClick={() => onToggleSection(agentChildrenKey)}
+                aria-expanded={showChildAgents}
+                aria-label={`Toggle ${agent.name} agents`}
+                className={TOGGLE_BUTTON_CLASS}
+              >
+                {showChildAgents ? '−' : '+'}
+              </button>
+            ) : null}
+            <Badge variant="soft" color="violet">
+              Agent
+            </Badge>
+            <Text weight="medium">{agent.name}</Text>
+            {depthLabel ? (
+              <Badge variant="soft" color="gray">
+                {depthLabel}
+              </Badge>
+            ) : null}
+          </Flex>
+          <Flex align="center" gap="2">
+            {agent.provider ? (
+              <Badge variant="soft" color="blue">
+                {agent.provider}
+              </Badge>
+            ) : null}
+            {agent.model ? (
+              <Badge variant="soft" color="gray">
+                {agent.model}
+              </Badge>
+            ) : null}
+          </Flex>
+        </Flex>
+
+        {messageCount !== null ? (
+          <Text size="1" color="gray">
+            Messages observed: {messageCount}
+          </Text>
+        ) : null}
+
+        {hasAgentTools ? (
+          <Flex align="center" gap="2">
+            <button
+              type="button"
+              onClick={() => onToggleSection(agentToolsKey)}
+              aria-expanded={showAgentTools}
+              aria-label={`Toggle ${agent.name} tools`}
+              className={TOGGLE_BUTTON_CLASS}
+            >
+              {showAgentTools ? '−' : '+'}
+            </button>
+            <Text size="1" color="gray">
+              Tools recorded: {agentTools.length}
+            </Text>
+          </Flex>
+        ) : (
+          <Text size="1" color="gray">
+            No tool calls recorded for this agent yet.
+          </Text>
+        )}
+
+        {showAgentTools ? (
+          <Box className="border-l border-dashed border-muted/50 pl-3">
+            <ToolTreeList
+              nodes={agentTools}
+              expandedSectionIds={expandedSectionIds}
+              onToggleSection={onToggleSection}
+            />
+          </Box>
+        ) : null}
+
+        {showChildAgents ? (
+          <Box className="border-l border-dashed border-muted/50 pl-3">
+            <ul className="space-y-3">
+              {agent.children.map((child) => (
+                <AgentToolTreeNode
+                  key={child.id}
+                  agent={child}
+                  expandedSectionIds={expandedSectionIds}
+                  onToggleSection={onToggleSection}
+                  getAgentTools={getAgentTools}
+                />
+              ))}
+            </ul>
+          </Box>
+        ) : null}
+      </Flex>
+    </li>
   );
 }
 
 interface ToolTreeListProps {
   nodes: OrchestratorMetadataDto['toolInvocations'];
-  expandedNodeIds: ReadonlySet<string>;
-  onToggleNode: (id: string) => void;
+  expandedSectionIds: ReadonlySet<string>;
+  onToggleSection: (id: string) => void;
 }
 
 function ToolTreeList({
   nodes,
-  expandedNodeIds,
-  onToggleNode,
+  expandedSectionIds,
+  onToggleSection,
 }: ToolTreeListProps): JSX.Element {
   return (
     <ul className="space-y-3">
@@ -106,7 +328,8 @@ function ToolTreeList({
               : summarizeObject(rawArgs) ?? '—';
         const argsLabel = hasExplorer ? 'Args:' : `Args: ${argsSummary}`;
         const hasChildren = node.children.length > 0;
-        const isExpanded = expandedNodeIds.has(node.id);
+        const sectionId = createToolSectionId(node.id);
+        const isExpanded = expandedSectionIds.has(sectionId);
         const showChildren = hasChildren && isExpanded;
         const toggleLabel = `Toggle ${node.name} children`;
 
@@ -117,10 +340,10 @@ function ToolTreeList({
                 {hasChildren ? (
                   <button
                     type="button"
-                    onClick={() => onToggleNode(node.id)}
+                    onClick={() => onToggleSection(sectionId)}
                     aria-expanded={isExpanded}
                     aria-label={toggleLabel}
-                    className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-muted/50 bg-background text-xs font-medium text-foreground/80 transition-colors hover:bg-muted/40"
+                    className={TOGGLE_BUTTON_CLASS}
                   >
                     {isExpanded ? '−' : '+'}
                   </button>
@@ -166,8 +389,8 @@ function ToolTreeList({
               <Box className="mt-3 border-l border-dashed border-muted/50 pl-3">
                 <ToolTreeList
                   nodes={node.children}
-                  expandedNodeIds={expandedNodeIds}
-                  onToggleNode={onToggleNode}
+                  expandedSectionIds={expandedSectionIds}
+                  onToggleSection={onToggleSection}
                 />
               </Box>
             ) : null}

@@ -152,4 +152,118 @@ describe('ToolTree', () => {
 
     expect(screen.queryByText('write')).not.toBeInTheDocument();
   });
+
+  it('groups tool invocations beneath collapsable agent levels', async () => {
+    const user = userEvent.setup();
+
+    const props = {
+      nodes: [
+        {
+          id: 'tool-root',
+          name: 'spawn_subagent',
+          status: 'completed',
+          metadata: {
+            createdAt: '2024-02-01T00:00:00.000Z',
+            arguments: '--verbose',
+            agentId: 'session-1',
+          },
+          children: [],
+        },
+        {
+          id: 'tool-manager',
+          name: 'fetch_documents',
+          status: 'completed',
+          metadata: {
+            createdAt: '2024-02-01T00:05:00.000Z',
+            args: { source: 'wiki' },
+            agentId: 'manager',
+          },
+          children: [],
+        },
+        {
+          id: 'tool-writer',
+          name: 'write_report',
+          status: 'pending',
+          metadata: {
+            createdAt: '2024-02-01T00:10:00.000Z',
+            args: { topic: 'status update' },
+            agentId: 'writer',
+          },
+          children: [],
+        },
+      ],
+      agentHierarchy: [
+        {
+          id: 'session-1',
+          name: 'Orchestrator session',
+          provider: 'orchestrator',
+          model: 'delegator',
+          depth: 0,
+          metadata: { messageCount: 2 },
+          children: [
+            {
+              id: 'manager',
+              name: 'Manager',
+              provider: 'openai',
+              model: 'gpt-4o-mini',
+              depth: 1,
+              metadata: { messageCount: 3 },
+              children: [
+                {
+                  id: 'writer',
+                  name: 'Writer',
+                  provider: 'anthropic',
+                  model: 'claude-3-5-sonnet',
+                  depth: 2,
+                  metadata: { messageCount: 1 },
+                  children: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    render(<ToolTree {...(props as any)} />);
+
+    expect(
+      screen.getByRole('button', { name: 'Toggle Orchestrator session agents' }),
+    ).toBeInTheDocument();
+
+    expect(screen.queryByText('Manager')).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Toggle Orchestrator session agents',
+      }),
+    );
+
+    const managerAgent = screen.getByText('Manager').closest('li');
+    expect(managerAgent).not.toBeNull();
+
+    await user.click(
+      within(managerAgent!).getByRole('button', {
+        name: 'Toggle Manager agents',
+      }),
+    );
+
+    expect(screen.getByText('Writer')).toBeInTheDocument();
+
+    await user.click(
+      within(managerAgent!).getByRole('button', {
+        name: 'Toggle Manager tools',
+      }),
+    );
+
+    expect(screen.getByText('fetch_documents')).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Toggle Writer tools',
+      }),
+    );
+
+    expect(screen.getByText('write_report')).toBeInTheDocument();
+  });
 });
