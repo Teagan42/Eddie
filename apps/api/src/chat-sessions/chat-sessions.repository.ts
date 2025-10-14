@@ -1,6 +1,6 @@
 import { OnModuleDestroy } from "@nestjs/common";
 import { randomUUID } from "crypto";
-import type { Knex } from "knex";
+import knex, { type Knex } from "knex";
 
 import { ChatMessageRole } from "./dto/create-chat-message.dto";
 import { initialChatSessionsMigration } from "./migrations/initial";
@@ -564,5 +564,28 @@ export class KnexChatSessionsRepository implements ChatSessionsRepository, OnMod
         throw error;
       }
     }
+  }
+}
+
+export interface SqliteChatSessionsRepositoryOptions {
+  filename: string;
+  migrations?: readonly ChatSessionsMigration[];
+}
+
+export class SqliteChatSessionsRepository extends KnexChatSessionsRepository {
+  constructor(options: SqliteChatSessionsRepositoryOptions) {
+    const connection = knex({
+      client: "better-sqlite3",
+      connection: {
+        filename: options.filename,
+      },
+      useNullAsDefault: true,
+    });
+    void connection.raw("PRAGMA foreign_keys = ON");
+    super({
+      knex: connection,
+      ownsConnection: true,
+      migrations: options.migrations,
+    });
   }
 }

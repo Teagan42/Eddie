@@ -26,14 +26,16 @@ export class OrchestratorMetadataService {
 
   constructor(private readonly chatSessions: ChatSessionsService) {}
 
-  getMetadata(sessionId?: string): OrchestratorMetadataDto {
+  async getMetadata(sessionId?: string): Promise<OrchestratorMetadataDto> {
     if (!sessionId) {
       return this.createEmptySnapshot();
     }
 
-    const session = this.chatSessions.getSession(sessionId);
-    const messages = this.chatSessions.listMessages(sessionId);
-    const agentInvocations = this.chatSessions.listAgentInvocations(sessionId);
+    const session = await this.chatSessions.getSession(sessionId);
+    const messages = await this.chatSessions.listMessages(sessionId);
+    const agentInvocations = await this.chatSessions.listAgentInvocations(
+      sessionId
+    );
 
     const contextBundles = this.createContextBundles(sessionId, messages.length);
     const toolInvocations =
@@ -82,7 +84,7 @@ export class OrchestratorMetadataService {
 
   private createToolInvocationsFromMessages(
     sessionId: string,
-    messages: ReturnType<ChatSessionsService["listMessages"]>
+    messages: ChatMessageDto[]
   ): ToolCallNodeDto[] {
     const toolMessages = messages
       .filter(

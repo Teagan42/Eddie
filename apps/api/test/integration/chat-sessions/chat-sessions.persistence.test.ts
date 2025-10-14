@@ -70,10 +70,10 @@ describe("ChatSessionsRepository persistence", () => {
     const first = await buildTestingModule();
     const firstService = first.moduleRef.get(ChatSessionsService);
 
-    const session = firstService.createSession({ title: "Persisted" });
-    firstService.addMessage(session.id, {
+    const session = await firstService.createSession({ title: "Persisted" });
+    await firstService.addMessage(session.id, {
       role: ChatMessageRole.User,
-      content: "Hello", 
+      content: "Hello",
     });
 
     await first.moduleRef.close();
@@ -81,7 +81,7 @@ describe("ChatSessionsRepository persistence", () => {
     const second = await buildTestingModule();
     const secondService = second.moduleRef.get(ChatSessionsService);
 
-    const messages = secondService.listMessages(session.id);
+    const messages = await secondService.listMessages(session.id);
 
     expect(messages).toHaveLength(1);
     expect(messages[0]?.content).toBe("Hello");

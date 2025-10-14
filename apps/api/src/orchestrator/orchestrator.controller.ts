@@ -10,7 +10,9 @@ export class OrchestratorController {
 
   @Get("metadata")
   @ApiQuery({ name: "sessionId", required: false })
-  getMetadata(@Query("sessionId") sessionId?: string): OrchestratorMetadataDto {
+  async getMetadata(
+    @Query("sessionId") sessionId?: string
+  ): Promise<OrchestratorMetadataDto> {
     return this.service.getMetadata(sessionId);
   }
 }

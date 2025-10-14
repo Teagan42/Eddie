@@ -46,12 +46,12 @@ describe("ChatSessionsService", () => {
     >();
   });
 
-  it("creates sessions and notifies listeners", () => {
+  it("creates sessions and notifies listeners", async () => {
     const listener = new ListenerSpy();
     service.registerListener(listener);
 
     const dto: CreateChatSessionDto = { title: "My Session" };
-    const session = service.createSession(dto);
+    const session = await service.createSession(dto);
 
     expect(session.title).toBe("My Session");
     expect(listener.created).toBe(1);
@@ -61,15 +61,15 @@ describe("ChatSessionsService", () => {
       role: "user",
       content: "Hello world",
     };
-    const { message } = service.addMessage(session.id, messageDto);
+    const { message } = await service.addMessage(session.id, messageDto);
 
     expect(message.content).toBe("Hello world");
     expect(listener.messages).toBe(1);
     expect(listener.updated).toBe(1);
   });
 
-  it("persists tool identifiers and names on stored messages", () => {
-    const session = service.createSession({ title: "Tool capture" });
+  it("persists tool identifiers and names on stored messages", async () => {
+    const session = await service.createSession({ title: "Tool capture" });
 
     const dto = {
       role: "tool",
@@ -78,18 +78,18 @@ describe("ChatSessionsService", () => {
       name: "bash",
     } as CreateChatMessageDto;
 
-    const { message } = service.addMessage(session.id, dto);
+    const { message } = await service.addMessage(session.id, dto);
 
     expect((message as Record<string, unknown>).toolCallId).toBe("call-1");
     expect((message as Record<string, unknown>).name).toBe("bash");
 
-    const [stored] = service.listMessages(session.id);
+    const [stored] = await service.listMessages(session.id);
     expect((stored as Record<string, unknown>).toolCallId).toBe("call-1");
     expect((stored as Record<string, unknown>).name).toBe("bash");
   });
 
-  it("records agent invocation snapshots for orchestrator metadata", () => {
-    const session = service.createSession({ title: "Delegation" });
+  it("records agent invocation snapshots for orchestrator metadata", async () => {
+    const session = await service.createSession({ title: "Delegation" });
 
     const snapshots = [
       {
@@ -119,26 +119,26 @@ describe("ChatSessionsService", () => {
       },
     ];
 
-    service.saveAgentInvocations(session.id, snapshots);
+    await service.saveAgentInvocations(session.id, snapshots);
 
-    const stored = service.listAgentInvocations(session.id);
+    const stored = await service.listAgentInvocations(session.id);
     expect(stored).toEqual(snapshots);
     expect(stored).not.toBe(snapshots);
     expect(stored[0]).not.toBe(snapshots[0]);
-    expect(service.listAgentInvocations("unknown")).toEqual([]);
+    await expect(service.listAgentInvocations("unknown")).resolves.toEqual([]);
   });
 
-  it("updates message content without reordering sessions", () => {
+  it("updates message content without reordering sessions", async () => {
     const listener = new ListenerSpy();
     service.registerListener(listener);
 
-    const session = service.createSession({ title: "Streaming" });
-    const { message } = service.addMessage(session.id, {
+    const session = await service.createSession({ title: "Streaming" });
+    const { message } = await service.addMessage(session.id, {
       role: "assistant",
       content: "Partial",
     });
 
-    const updated = service.updateMessageContent(
+    const updated = await service.updateMessageContent(
       session.id,
       message.id,
       "Final response"
@@ -147,6 +147,7 @@ describe("ChatSessionsService", () => {
     expect(updated.content).toBe("Final response");
     expect(listener.messageUpdates).toBe(1);
     expect(listener.updated).toBe(1);
-    expect(service.listMessages(session.id)[0]?.content).toBe("Final response");
+    const messages = await service.listMessages(session.id);
+    expect(messages[0]?.content).toBe("Final response");
   });
 });
