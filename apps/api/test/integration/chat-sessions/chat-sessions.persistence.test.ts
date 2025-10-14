@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Test } from "@nestjs/testing";
+import knex, { type Knex } from "knex";
 import {
   ConfigService,
   ConfigStore,
@@ -13,6 +14,8 @@ import type { ApiPersistenceConfig } from "@eddie/config";
 import { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
 import { CHAT_SESSIONS_REPOSITORY_PROVIDER } from "../../../src/chat-sessions/chat-sessions.module";
 import { ChatMessageRole } from "../../../src/chat-sessions/dto/create-chat-message.dto";
+import { KNEX_INSTANCE } from "../../../src/persistence/knex.provider";
+import { KnexChatSessionsRepository } from "../../../src/chat-sessions/chat-sessions.repository";
 
 const createTempFilename = (): string => {
   const directory = mkdtempSync(path.join(tmpdir(), "eddie-chat-sessions-"));
@@ -54,16 +57,23 @@ describe("ChatSessionsRepository persistence", () => {
 
     const load = vi.fn().mockResolvedValue(config);
     const getSnapshot = vi.fn().mockReturnValue(config);
+    const database = knex({
+      client: "better-sqlite3",
+      connection: { filename },
+      useNullAsDefault: true,
+    });
+    void database.raw("PRAGMA foreign_keys = ON");
     const moduleRef = await Test.createTestingModule({
       providers: [
         { provide: ConfigService, useValue: { load } },
         { provide: ConfigStore, useValue: { getSnapshot } },
+        { provide: KNEX_INSTANCE, useValue: database },
         CHAT_SESSIONS_REPOSITORY_PROVIDER,
         ChatSessionsService,
       ],
     }).compile();
 
-    return { moduleRef };
+    return { moduleRef, database };
   };
 
   it("persists messages to disk across service lifecycles", async () => {
@@ -77,6 +87,7 @@ describe("ChatSessionsRepository persistence", () => {
     });
 
     await first.moduleRef.close();
+    await first.database.destroy();
 
     const second = await buildTestingModule();
     const secondService = second.moduleRef.get(ChatSessionsService);
@@ -87,32 +98,44 @@ describe("ChatSessionsRepository persistence", () => {
     expect(messages[0]?.content).toBe("Hello");
 
     await second.moduleRef.close();
+    await second.database.destroy();
   });
 
-  it("throws when configured with an unsupported persistence driver", async () => {
+  it("supports the postgres persistence driver", async () => {
     const config = structuredClone(DEFAULT_CONFIG);
     config.api = {
       ...(config.api ?? {}),
       persistence: {
         driver: "postgres",
+        postgres: { connection: {} },
       },
     };
 
     const load = vi.fn().mockResolvedValue(config);
     const getSnapshot = vi.fn().mockReturnValue(config);
+    const knexStub = {
+      schema: {
+        hasTable: vi.fn().mockResolvedValue(true),
+        createTable: vi.fn(),
+      },
+      client: { config: { client: "pg" } },
+      destroy: vi.fn(),
+    } as unknown as Knex;
 
-    const module = Test.createTestingModule({
+    const moduleRef = await Test.createTestingModule({
       providers: [
         { provide: ConfigService, useValue: { load } },
         { provide: ConfigStore, useValue: { getSnapshot } },
+        { provide: KNEX_INSTANCE, useValue: knexStub },
         CHAT_SESSIONS_REPOSITORY_PROVIDER,
         ChatSessionsService,
       ],
-    });
+    }).compile();
 
-    await expect(module.compile()).rejects.toThrow(
-      'Unsupported chat sessions persistence driver "postgres". Supported drivers: memory, sqlite. Set "api.persistence.driver" to either "memory" or "sqlite".'
-    );
+    const repository = moduleRef.get(CHAT_SESSIONS_REPOSITORY_PROVIDER.provide);
+    expect(repository).toBeInstanceOf(KnexChatSessionsRepository);
+
+    await moduleRef.close();
   });
 
   it("throws when configured with an unknown persistence driver string", async () => {
@@ -132,13 +155,14 @@ describe("ChatSessionsRepository persistence", () => {
       providers: [
         { provide: ConfigService, useValue: { load } },
         { provide: ConfigStore, useValue: { getSnapshot } },
+        { provide: KNEX_INSTANCE, useValue: undefined },
         CHAT_SESSIONS_REPOSITORY_PROVIDER,
         ChatSessionsService,
       ],
     });
 
     await expect(module.compile()).rejects.toThrow(
-      'Unsupported chat sessions persistence driver "cockroach". Supported drivers: memory, sqlite. Set "api.persistence.driver" to either "memory" or "sqlite".'
+      'Unsupported chat sessions persistence driver "cockroach". Supported drivers: memory, sqlite, postgres, mysql, mariadb.'
     );
   });
 });

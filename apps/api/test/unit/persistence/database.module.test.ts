@@ -53,4 +53,25 @@ describe("DatabaseModule", () => {
 
     await moduleRef.close();
   });
+
+  it("does not attempt to create a knex client when using the memory driver", async () => {
+    const config: EddieConfig = structuredClone(DEFAULT_CONFIG);
+    config.api = {
+      ...(config.api ?? {}),
+      persistence: {
+        driver: "memory",
+      },
+    };
+
+    const getSnapshot = vi.fn().mockReturnValue(config);
+
+    await expect(
+      Test.createTestingModule({
+        imports: [DatabaseModule],
+      })
+        .overrideProvider(ConfigStore)
+        .useValue({ getSnapshot })
+        .compile()
+    ).resolves.not.toThrow();
+  });
 });

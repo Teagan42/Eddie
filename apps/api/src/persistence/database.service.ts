@@ -1,6 +1,12 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from "@nestjs/common";
+import {
+  Inject,
+  Injectable,
+  Optional,
+  type OnModuleDestroy,
+  type OnModuleInit,
+} from "@nestjs/common";
 import type { Knex } from "knex";
 
 import { KNEX_INSTANCE } from "./knex.provider";
@@ -13,22 +19,38 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     tableName: "knex_migrations",
   } satisfies Knex.MigratorConfig;
 
-  constructor(@Inject(KNEX_INSTANCE) private readonly knex: Knex) {}
+  constructor(
+    @Optional()
+    @Inject(KNEX_INSTANCE)
+    private readonly knex?: Knex
+  ) {}
 
   getClient(): Knex {
+    if (!this.hasKnex()) {
+      throw new Error("SQL persistence is not configured for the database module.");
+    }
     return this.knex;
   }
 
   async onModuleInit(): Promise<void> {
+    if (!this.hasKnex()) {
+      return;
+    }
     await this.ensureMigrationsDirectory();
     await this.knex.migrate.latest(this.migrationsConfig);
   }
 
   async onModuleDestroy(): Promise<void> {
+    if (!this.hasKnex()) {
+      return;
+    }
     await this.knex.destroy();
   }
 
   private async ensureMigrationsDirectory(): Promise<void> {
+    if (!this.hasKnex()) {
+      return;
+    }
     const { directory } = this.migrationsConfig;
     if (!directory) {
       return;
@@ -46,5 +68,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     if (typeof directory === "string") {
       await ensureDirectory(directory);
     }
+  }
+
+  private hasKnex(): this is { knex: Knex } {
+    return typeof this.knex !== "undefined";
   }
 }
