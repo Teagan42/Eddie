@@ -73,6 +73,31 @@ const sanitiseTasks = (input: unknown): PlanTask[] => {
   });
 };
 
+const sanitisePlanPayload = (
+  input: unknown,
+): Record<string, unknown> => {
+  if (input === undefined) {
+    return {};
+  }
+
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("plan must be an object if provided");
+  }
+
+  const entries = Object.entries(input as Record<string, unknown>);
+  const payload: Record<string, unknown> = {};
+
+  for (const [key, value] of entries) {
+    if (key === "tasks" || key === "updatedAt") {
+      continue;
+    }
+
+    payload[key] = value;
+  }
+
+  return payload;
+};
+
 export const updatePlanTool: ToolDefinition = {
   name: "update_plan",
   description: "Persist the current execution plan for the workspace.",
@@ -85,6 +110,16 @@ export const updatePlanTool: ToolDefinition = {
       },
       abridged: { type: "boolean" },
       filename: { type: "string", minLength: 1 },
+      plan: {
+        type: "object",
+        properties: {
+          tasks: {
+            type: "array",
+            items: TASK_SCHEMA,
+          },
+        },
+        additionalProperties: true,
+      },
     },
     required: ["tasks"],
     additionalProperties: false,
@@ -92,7 +127,13 @@ export const updatePlanTool: ToolDefinition = {
   outputSchema: PLAN_RESULT_SCHEMA,
   async handler(args, ctx) {
     const abridged = Boolean(args.abridged);
-    const tasks = sanitiseTasks(args.tasks);
+    const planTasks =
+      args.plan && typeof args.plan === "object"
+        ? (args.plan as { tasks?: unknown }).tasks
+        : undefined;
+    const tasksInput = planTasks ?? args.tasks;
+    const tasks = sanitiseTasks(tasksInput);
+    const planPayload = sanitisePlanPayload(args.plan);
     const filename = sanitisePlanFilename(args.filename);
 
     const approved = await ctx.confirm(
@@ -111,12 +152,10 @@ export const updatePlanTool: ToolDefinition = {
       };
     }
 
-    const document = await writePlanDocument(
-      ctx.cwd,
+    const document = await writePlanDocument(ctx.cwd, {
+      ...planPayload,
       tasks,
-      ctx.env,
-      filename,
-    );
+    }, ctx.env, filename);
     const content = renderPlanContent(document, abridged);
 
     return {

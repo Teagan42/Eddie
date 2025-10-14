@@ -206,6 +206,68 @@ describe("plan tools", () => {
     }
   });
 
+  it("persists additional plan metadata when provided", async () => {
+    const updateTool = findTool("update_plan");
+    const getTool = findTool("get_plan");
+
+    expect(updateTool).toBeDefined();
+    expect(getTool).toBeDefined();
+    if (!updateTool || !getTool) {
+      throw new Error("plan tools not registered");
+    }
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "eddie-plan-tools-"));
+    const ctx = {
+      cwd: tmpDir,
+      confirm: vi.fn(async () => true),
+      env: process.env,
+    };
+
+    const tasks = [
+      {
+        title: "Capture initial metadata",
+        status: "pending",
+        completed: false,
+        details: "Collect summary and owner fields for the plan.",
+      },
+    ];
+
+    const plan = {
+      summary: "Implementation roadmap",
+      owner: "planner",
+      tasks,
+    };
+
+    try {
+      const result = await updateTool.handler(
+        {
+          tasks,
+          plan,
+          abridged: false,
+        },
+        ctx,
+      );
+
+      expect(ctx.confirm).toHaveBeenCalledWith("Update plan with 1 tasks?");
+      expect(result.data.plan.tasks).toEqual(tasks);
+      expect(result.data.plan.summary).toBe("Implementation roadmap");
+      expect(result.data.plan.owner).toBe("planner");
+
+      const stored = await getTool.handler(
+        {
+          abridged: false,
+        },
+        ctx,
+      );
+
+      expect(stored.data.plan.tasks).toEqual(tasks);
+      expect(stored.data.plan.summary).toBe("Implementation roadmap");
+      expect(stored.data.plan.owner).toBe("planner");
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it("marks a plan task as complete", async () => {
     const updateTool = findTool("update_plan");
     const getTool = findTool("get_plan");

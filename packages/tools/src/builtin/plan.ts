@@ -14,6 +14,7 @@ export interface PlanTask {
 export interface PlanDocument {
   tasks: PlanTask[];
   updatedAt: string | null;
+  [key: string]: unknown;
 }
 
 export const PLAN_RESULT_SCHEMA = {
@@ -254,6 +255,21 @@ export const markTaskComplete = (tasks: PlanTask[], index: number): PlanTask[] =
       : task,
   );
 
+const mergeAdditionalFields = (
+  target: PlanDocument,
+  source: Record<string, unknown>,
+): PlanDocument => {
+  for (const [key, value] of Object.entries(source)) {
+    if (key === "tasks" || key === "updatedAt") {
+      continue;
+    }
+
+    target[key] = value;
+  }
+
+  return target;
+};
+
 export const readPlanDocument = async (
   cwd: string,
   env?: NodeJS.ProcessEnv,
@@ -262,13 +278,15 @@ export const readPlanDocument = async (
   try {
     const location = await resolvePlanLocation(cwd, env, filename);
     const file = await fs.readFile(location.filePath, "utf-8");
-    const parsed = JSON.parse(file) as Partial<PlanDocument>;
-    return {
+    const parsed = JSON.parse(file) as Record<string, unknown>;
+    const document: PlanDocument = {
       tasks: Array.isArray(parsed.tasks)
         ? normaliseStoredTasks(parsed.tasks as PlanTask[])
         : [],
       updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : null,
     };
+
+    return mergeAdditionalFields(document, parsed);
   } catch (error) {
     if (error && typeof error === "object" && "code" in error) {
       const { code } = error as NodeJS.ErrnoException;
@@ -281,15 +299,21 @@ export const readPlanDocument = async (
   }
 };
 
+export type PlanPayload = Record<string, unknown> & {
+  tasks: PlanTask[];
+};
+
 export const writePlanDocument = async (
   cwd: string,
-  tasks: PlanTask[],
+  plan: PlanPayload,
   env?: NodeJS.ProcessEnv,
   filename?: string,
 ): Promise<PlanDocument> => {
   const location = await resolvePlanLocation(cwd, env, filename);
   await ensurePlanDirectory(location);
+  const tasks = normaliseStoredTasks(plan.tasks);
   const document: PlanDocument = {
+    ...plan,
     tasks,
     updatedAt: new Date().toISOString(),
   };
@@ -301,6 +325,12 @@ export const writePlanDocument = async (
   );
 
   return document;
+};
+
+export const stripUpdatedAt = (plan: PlanDocument): PlanPayload => {
+  const { updatedAt, ...rest } = plan;
+  void updatedAt;
+  return rest as PlanPayload;
 };
 
 const STATUS_SYMBOLS: Record<PlanTaskStatus, string> = {

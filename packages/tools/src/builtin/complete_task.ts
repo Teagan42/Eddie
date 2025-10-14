@@ -7,6 +7,7 @@ import {
   sanitisePlanFilename,
   markTaskComplete,
   writePlanDocument,
+  stripUpdatedAt,
 } from "./plan";
 
 const sanitiseTaskNumber = (value: unknown): number => {
@@ -48,8 +49,17 @@ export const completeTaskTool: ToolDefinition = {
     }
 
     const tasks = markTaskComplete(current.tasks, index);
+    const metadata = stripUpdatedAt(current);
 
-    const document = await writePlanDocument(ctx.cwd, tasks, ctx.env, filename);
+    const document = await writePlanDocument(
+      ctx.cwd,
+      {
+        ...metadata,
+        tasks,
+      },
+      ctx.env,
+      filename,
+    );
     const content = renderPlanContent(document, abridged);
 
     return {
