@@ -266,4 +266,35 @@ describe('ToolTree', () => {
 
     expect(screen.getByText('write_report')).toBeInTheDocument();
   });
+
+  it('renders unassigned tool nodes when agent hierarchy is present', () => {
+    render(
+      <ToolTree
+        nodes={[
+          {
+            id: 'call-1',
+            name: 'search_documents',
+            status: 'pending',
+            metadata: {
+              createdAt: '2024-03-01T00:00:00.000Z',
+            },
+            children: [],
+          },
+        ]}
+        agentHierarchy={[
+          {
+            id: 'manager',
+            name: 'Manager',
+            provider: 'openai',
+            model: 'gpt-4o-mini',
+            depth: 0,
+            metadata: {},
+            children: [],
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText('search_documents')).toBeInTheDocument();
+  });
 });

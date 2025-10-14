@@ -79,13 +79,29 @@ export function ToolTree({
     });
   }, []);
 
+  const recognizedAgentIds = useMemo(() => {
+    const ids = new Set<string>();
+
+    const visit = (agent: AgentHierarchyNode): void => {
+      ids.add(agent.id);
+      for (const child of agent.children) {
+        visit(child);
+      }
+    };
+
+    for (const agent of agentHierarchy) {
+      visit(agent);
+    }
+
+    return ids;
+  }, [agentHierarchy]);
+
   const nodesByAgent = useMemo(() => {
     const map = new Map<string, OrchestratorMetadataDto['toolInvocations']>();
 
     const assignNodeToAgent = (node: ToolInvocationNode): void => {
-      const agentId =
-        typeof node.metadata?.agentId === 'string' ? node.metadata.agentId : null;
-      if (agentId) {
+      const agentId = getToolAgentId(node);
+      if (agentId && recognizedAgentIds.has(agentId)) {
         const existing = map.get(agentId) ?? [];
         existing.push(node);
         map.set(agentId, existing);
@@ -101,7 +117,14 @@ export function ToolTree({
     }
 
     return map;
-  }, [nodes]);
+  }, [nodes, recognizedAgentIds]);
+
+  const unassignedNodes = useMemo(() => {
+    return nodes.filter((node) => {
+      const agentId = getToolAgentId(node);
+      return !agentId || !recognizedAgentIds.has(agentId);
+    });
+  }, [nodes, recognizedAgentIds]);
 
   const getAgentTools = useCallback(
     (agentId: string) => nodesByAgent.get(agentId) ?? [],
@@ -130,17 +153,26 @@ export function ToolTree({
   }
 
   return (
-    <ul className="space-y-3">
-      {agentHierarchy.map((agent) => (
-        <AgentToolTreeNode
-          key={agent.id}
-          agent={agent}
-          getAgentTools={getAgentTools}
+    <div className="space-y-3">
+      {unassignedNodes.length > 0 ? (
+        <ToolTreeList
+          nodes={unassignedNodes}
           expandedSectionIds={expandedSectionIds}
           onToggleSection={toggleSection}
         />
-      ))}
-    </ul>
+      ) : null}
+      <ul className="space-y-3">
+        {agentHierarchy.map((agent) => (
+          <AgentToolTreeNode
+            key={agent.id}
+            agent={agent}
+            getAgentTools={getAgentTools}
+            expandedSectionIds={expandedSectionIds}
+            onToggleSection={toggleSection}
+          />
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -165,6 +197,11 @@ function cloneToolNodeForAgent(
     ...node,
     children: filteredChildren,
   };
+}
+
+function getToolAgentId(node: ToolInvocationNode): string | null {
+  const raw = node.metadata?.agentId;
+  return typeof raw === 'string' ? raw : null;
 }
 
 interface AgentToolTreeNodeProps {
