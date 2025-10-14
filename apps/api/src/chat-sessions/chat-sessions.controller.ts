@@ -11,6 +11,7 @@ import {
 } from "@nestjs/common";
 import {
   ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -70,6 +71,7 @@ export class ChatSessionsController {
   }
 
   @ApiOperation({ summary: "Delete a chat session" })
+  @ApiNoContentResponse()
   @HttpCode(204)
   @Delete(":id")
   async delete(@Param("id", ParseUUIDPipe) id: string): Promise<void> {
