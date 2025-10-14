@@ -66,6 +66,49 @@ const trimToUtf8Boundary = (buffer: Buffer): Buffer => {
   return buffer;
 };
 
+const alignOffsetToCodePoint = async (
+  fileHandle: fs.FileHandle,
+  offset: number,
+): Promise<number> => {
+  if (offset === 0) {
+    return 0;
+  }
+
+  const lookBehind = Math.min(offset, UTF8_SAFETY_MARGIN);
+  if (lookBehind === 0) {
+    return offset;
+  }
+
+  const buffer = Buffer.alloc(lookBehind);
+  const { bytesRead } = await fileHandle.read(
+    buffer,
+    0,
+    lookBehind,
+    offset - lookBehind,
+  );
+
+  if (bytesRead === 0) {
+    return offset;
+  }
+
+  let leadIndex = bytesRead - 1;
+  while (leadIndex >= 0 && isContinuationByte(buffer[leadIndex])) {
+    leadIndex -= 1;
+  }
+
+  if (leadIndex < 0) {
+    return offset - bytesRead;
+  }
+
+  const continuationCount = bytesRead - leadIndex;
+  const sequenceLength = expectedSequenceLength(buffer[leadIndex]);
+  if (sequenceLength > continuationCount) {
+    return offset - continuationCount;
+  }
+
+  return offset;
+};
+
 export const fileReadTool: ToolDefinition = {
   name: "file_read",
   description: "Read UTF-8 text content from a file relative to the workspace.",
@@ -110,7 +153,8 @@ export const fileReadTool: ToolDefinition = {
     try {
       const stats = await fileHandle.stat();
       const totalBytes = stats.size;
-      const offset = (page - 1) * pageSize;
+      const rawOffset = (page - 1) * pageSize;
+      const offset = await alignOffsetToCodePoint(fileHandle, rawOffset);
       const remaining = Math.max(totalBytes - offset, 0);
 
       const maxReadable = Math.min(
