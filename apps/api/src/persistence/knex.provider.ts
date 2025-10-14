@@ -7,10 +7,18 @@ import {
 } from "@eddie/config";
 
 export const KNEX_INSTANCE = "KNEX_INSTANCE" as const;
+export const KNEX_FACTORY = "KNEX_FACTORY" as const;
+
+export type KnexFactory = (config: Knex.Config) => Knex;
+
+export const KNEX_FACTORY_PROVIDER: Provider = {
+  provide: KNEX_FACTORY,
+  useValue: knex as KnexFactory,
+};
 
 export const KNEX_PROVIDER: Provider = {
   provide: KNEX_INSTANCE,
-  useFactory: (configStore: ConfigStore) => {
+  useFactory: (configStore: ConfigStore, knexFactory: KnexFactory) => {
     const config = configStore.getSnapshot();
     const persistence = config.api?.persistence;
 
@@ -19,9 +27,9 @@ export const KNEX_PROVIDER: Provider = {
     }
 
     const knexConfig = createKnexConfig(persistence);
-    return knex(knexConfig);
+    return knexFactory(knexConfig);
   },
-  inject: [ ConfigStore ],
+  inject: [ConfigStore, KNEX_FACTORY],
 };
 
 export function createKnexConfig(persistence: ApiPersistenceConfig): Knex.Config {
@@ -52,21 +60,22 @@ export function createKnexConfig(persistence: ApiPersistenceConfig): Knex.Config
   }
 }
 
-type SqlConfigRecord = ApiPersistenceSqlConfig & {
-  connection: Record<string, unknown>;
-};
+type KnexConnectionConfig = Exclude<Knex.Config["connection"], undefined>;
 
 function buildSqlConnection(
   config: ApiPersistenceSqlConfig
-): string | Record<string, unknown> {
+): KnexConnectionConfig {
   if (typeof config.url === "string") {
-    return config.url;
+    return applySsl({ connectionString: config.url }, config);
   }
 
-  const connection: SqlConfigRecord["connection"] = {
-    ...config.connection,
-  };
+  return applySsl({ ...config.connection }, config);
+}
 
+function applySsl(
+  connection: Record<string, unknown>,
+  config: ApiPersistenceSqlConfig
+): Record<string, unknown> {
   if (typeof config.ssl !== "undefined") {
     connection.ssl = config.ssl;
   }
