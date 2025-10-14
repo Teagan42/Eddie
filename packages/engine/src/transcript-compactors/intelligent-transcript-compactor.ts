@@ -407,7 +407,9 @@ export class IntelligentTranscriptCompactor implements TranscriptCompactor {
       if (
         msg.role === "user" &&
         !capturedUserMessage &&
-        (requirements.needsHistory || requirements.needsTaskPlan)
+        (requirements.needsHistory ||
+          requirements.needsTaskPlan ||
+          requirements.needsParentContext)
       ) {
         indicesToKeep.add(i);
         capturedUserMessage = true;

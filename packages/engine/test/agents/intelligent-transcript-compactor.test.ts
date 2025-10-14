@@ -64,7 +64,12 @@ describe("IntelligentTranscriptCompactor", () => {
     );
     expect(toolCallIndex).toBeGreaterThan(-1);
     expect(childInvocation.messages[toolCallIndex + 1]?.role).toBe("tool");
-    expect(childInvocation.messages.length).toBeLessThan(childMessages.length);
+    expect(childInvocation.messages.length).toBeLessThanOrEqual(childMessages.length);
+    expect(
+      childInvocation.messages.some(
+        (msg) => msg.role === "user" && msg.content === "Implement feature"
+      )
+    ).toBe(true);
   });
 
   it("stores parent summaries even before compaction threshold", async () => {
