@@ -787,18 +787,11 @@ const SPAWN_SUBAGENT_DATA_REQUIRED_FIELDS = [
   "agentId",
   "messageCount",
   "prompt",
-  "blocked",
-  "finalMessage",
-  "history",
-  "transcriptSummary",
-  "historySnippet",
 ] as const;
 
 const SPAWN_SUBAGENT_HISTORY_REQUIRED_FIELDS = [
   "role",
   "content",
-  "name",
-  "tool_call_id",
 ] as const;
 
 const SPAWN_SUBAGENT_METADATA_REQUIRED_FIELDS = [
@@ -806,16 +799,6 @@ const SPAWN_SUBAGENT_METADATA_REQUIRED_FIELDS = [
   "model",
   "provider",
   "parentAgentId",
-  "blocked",
-  "name",
-  "description",
-  "profileId",
-  "routingThreshold",
-  "finalMessage",
-  "transcriptSummary",
-  "historySnippet",
-  "contextBundleIds",
-  "request",
 ] as const;
 
 const SPAWN_SUBAGENT_REQUEST_REQUIRED_FIELDS = ["prompt"] as const;
