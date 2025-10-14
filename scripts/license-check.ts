@@ -67,6 +67,34 @@ function normalizeLicense(license: any): string | undefined {
   return undefined;
 }
 
+const LICENSE_PATTERNS: Array<[RegExp, string]> = [
+  [/\bmit license\b/i, 'MIT'],
+  [/apache license[^\n]*version\s*2\.0/i, 'Apache-2.0'],
+  [/bsd\s*2-clause/i, 'BSD-2-Clause'],
+  [/bsd\s*3-clause/i, 'BSD-3-Clause'],
+  [/isc license/i, 'ISC'],
+  [/mozilla public license[^\n]*version\s*2\.0/i, 'MPL-2.0'],
+  [/blue oak model license/i, 'BlueOak-1.0.0'],
+  [/business source license/i, 'BUSL-1.1'],
+  [/\bthe unlicense\b/i, 'Unlicense'],
+  [/creative commons zero/i, 'CC0-1.0'],
+  [/creative commons attribution[^\n]*4\.0/i, 'CC-BY-4.0'],
+];
+
+function inferLicenseFromText(text: string | undefined): string | undefined {
+  if (!text) {
+    return undefined;
+  }
+
+  for (const [pattern, license] of LICENSE_PATTERNS) {
+    if (pattern.test(text)) {
+      return license;
+    }
+  }
+
+  return undefined;
+}
+
 function resolveLicenseFromManifest(rootDir: string | undefined, path: string): string | undefined {
   if (!rootDir) {
     return undefined;
@@ -129,6 +157,14 @@ export function collectLicenses(lockfilePath: string, options: CollectOptions = 
     }
 
     license ??= 'UNKNOWN';
+
+    if (license === 'UNKNOWN' && rootDir) {
+      const fallbackText = readFirstExistingFile(join(rootDir, path), LICENSE_CANDIDATES);
+      const inferred = inferLicenseFromText(fallbackText);
+      if (inferred) {
+        license = inferred;
+      }
+    }
 
     const key = `${name}@${version}`;
     if (seen.has(key)) {
