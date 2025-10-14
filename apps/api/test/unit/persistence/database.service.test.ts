@@ -53,4 +53,17 @@ describe("DatabaseService", () => {
     expect(destroy).toHaveBeenCalledTimes(1);
     expect(latest).not.toHaveBeenCalled();
   });
+
+  it("skips migrations when knex is not configured", async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [DatabaseService],
+    }).compile();
+
+    const service = moduleRef.get(DatabaseService);
+
+    await expect(service.onModuleInit()).resolves.toBeUndefined();
+    expect(() => service.getClient()).toThrow(
+      "SQL persistence is not configured for the database module."
+    );
+  });
 });

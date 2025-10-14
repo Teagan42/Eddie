@@ -14,8 +14,8 @@ export const KNEX_PROVIDER: Provider = {
     const config = configStore.getSnapshot();
     const persistence = config.api?.persistence;
 
-    if (!persistence) {
-      throw new Error("api.persistence must be configured for SQL persistence.");
+    if (!persistence || persistence.driver === "memory") {
+      return undefined;
     }
 
     const knexConfig = createKnexConfig(persistence);
