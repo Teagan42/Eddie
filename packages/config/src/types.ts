@@ -193,11 +193,30 @@ export interface TranscriptCompactorConfig {
   [key: string]: unknown;
 }
 
+export interface AgentContextRequirements {
+  needsTaskPlan: boolean;
+  needsHistory: boolean;
+  needsParentContext: boolean;
+  maxHistoryMessages: number;
+  preserveToolPairs: boolean;
+}
+
 export interface SimpleTranscriptCompactorConfig
   extends TranscriptCompactorConfig {
   strategy: "simple";
   maxMessages?: number;
   keepLast?: number;
+}
+
+export interface IntelligentTranscriptCompactorConfig
+  extends TranscriptCompactorConfig {
+  strategy: "intelligent";
+  minMessagesBeforeCompaction?: number;
+  enableParentContextStorage?: boolean;
+  agentContextRequirements?: Record<
+    string,
+    Partial<AgentContextRequirements>
+  >;
 }
 
 export interface TokenBudgetTranscriptCompactorConfig

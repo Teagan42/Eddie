@@ -66,6 +66,11 @@ export interface EngineResult {
  */
 @Injectable()
 export class EngineService {
+  private readonly transcriptCompactorCache = new Map<
+    string,
+    { signature: string; compactor: TranscriptCompactor }
+  >();
+
   constructor(
         private readonly configStore: ConfigStore,
         private readonly contextService: ContextService,
@@ -564,10 +569,11 @@ export class EngineService {
     const globalConfig = cfg.transcript?.compactor;
     const perAgent = new Map<string, TranscriptCompactor>();
     const register = (id: string, config?: TranscriptCompactorConfig): void => {
-      if (!config) {
+      const compactor = this.resolveTranscriptCompactorConfig(id, config);
+      if (!compactor) {
         return;
       }
-      perAgent.set(id, this.createTranscriptCompactor(config, id));
+      perAgent.set(id, compactor);
     };
 
     register("manager", cfg.agents.manager.transcript?.compactor);
@@ -576,9 +582,10 @@ export class EngineService {
       register(subagent.id, subagent.transcript?.compactor);
     }
 
-    const globalCompactor = globalConfig
-      ? this.createTranscriptCompactor(globalConfig, "global")
-      : undefined;
+    const globalCompactor = this.resolveTranscriptCompactorConfig(
+      "global",
+      globalConfig,
+    );
 
     if (perAgent.size === 0) {
       return globalCompactor;
@@ -595,6 +602,54 @@ export class EngineService {
     agentId: string,
   ): TranscriptCompactor {
     return instantiateTranscriptCompactor(config, { agentId });
+  }
+
+  private getOrCreateTranscriptCompactor(
+    agentId: string,
+    config: TranscriptCompactorConfig,
+  ): TranscriptCompactor {
+    const signature = EngineService.stableStringify(config);
+    const cached = this.transcriptCompactorCache.get(agentId);
+    if (cached && cached.signature === signature) {
+      return cached.compactor;
+    }
+
+    const compactor = this.createTranscriptCompactor(config, agentId);
+    this.transcriptCompactorCache.set(agentId, { signature, compactor });
+    return compactor;
+  }
+
+  private resolveTranscriptCompactorConfig(
+    agentId: string,
+    config?: TranscriptCompactorConfig,
+  ): TranscriptCompactor | undefined {
+    if (!config) {
+      return undefined;
+    }
+    return this.getOrCreateTranscriptCompactor(agentId, config);
+  }
+
+  private static stableStringify(value: unknown): string {
+    if (value === null) {
+      return "null";
+    }
+    if (typeof value !== "object") {
+      return `${typeof value}:${String(value)}`;
+    }
+    if (Array.isArray(value)) {
+      return `[${value.map((entry) => EngineService.stableStringify(entry)).join(",")}]`;
+    }
+
+    const entries = Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map(
+        (key) =>
+          `${key}:${EngineService.stableStringify(
+            (value as Record<string, unknown>)[key],
+          )}`,
+      );
+
+    return `{${entries.join(",")}}`;
   }
 
   private cloneProviderConfig(config: ProviderConfig): ProviderConfig {

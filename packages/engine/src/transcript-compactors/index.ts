@@ -2,6 +2,7 @@ import { resetTranscriptCompactorRegistry } from "./registry";
 import "./simple-transcript-compactor";
 import "./token-budget-compactor";
 import "./summarizing-transcript-compactor";
+import "./intelligent-transcript-compactor";
 
 resetTranscriptCompactorRegistry();
 
@@ -17,3 +18,7 @@ export {
   type TokenBudgetTranscriptCompactorConfig,
 } from "./token-budget-compactor";
 export { SummarizingTranscriptCompactor } from "./summarizing-transcript-compactor";
+export {
+  IntelligentTranscriptCompactor,
+  IntelligentTranscriptCompactorStrategy,
+} from "./intelligent-transcript-compactor";

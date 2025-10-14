@@ -496,6 +496,33 @@ const TRANSCRIPT_COMPACTOR_SIMPLE_SCHEMA: JSONSchema7 = {
   },
 };
 
+const AGENT_CONTEXT_REQUIREMENTS_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    needsTaskPlan: { type: "boolean" },
+    needsHistory: { type: "boolean" },
+    needsParentContext: { type: "boolean" },
+    maxHistoryMessages: { type: "integer", minimum: 0 },
+    preserveToolPairs: { type: "boolean" },
+  },
+};
+
+const TRANSCRIPT_COMPACTOR_INTELLIGENT_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["strategy"],
+  properties: {
+    strategy: { const: "intelligent" },
+    minMessagesBeforeCompaction: { type: "integer", minimum: 0 },
+    enableParentContextStorage: { type: "boolean" },
+    agentContextRequirements: {
+      type: "object",
+      additionalProperties: AGENT_CONTEXT_REQUIREMENTS_SCHEMA,
+    },
+  },
+};
+
 const TRANSCRIPT_COMPACTOR_TOKEN_BUDGET_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
@@ -511,6 +538,7 @@ const TRANSCRIPT_COMPACTOR_TOKEN_BUDGET_SCHEMA: JSONSchema7 = {
 const TRANSCRIPT_COMPACTOR_SCHEMA: JSONSchema7 = {
   oneOf: [
     TRANSCRIPT_COMPACTOR_SIMPLE_SCHEMA,
+    TRANSCRIPT_COMPACTOR_INTELLIGENT_SCHEMA,
     TRANSCRIPT_COMPACTOR_TOKEN_BUDGET_SCHEMA,
   ],
 };
