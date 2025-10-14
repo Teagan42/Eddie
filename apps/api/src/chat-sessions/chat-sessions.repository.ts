@@ -46,6 +46,11 @@ export interface CreateChatSessionInput {
   description?: string;
 }
 
+export interface UpdateChatSessionMetadataInput {
+  title?: string;
+  description?: string | null;
+}
+
 export interface CreateChatMessageInput {
   sessionId: string;
   role: ChatMessageRole;
@@ -61,6 +66,10 @@ export interface ChatSessionsRepository {
   renameSession(
     id: string,
     title: string
+  ): Promise<ChatSessionRecord | undefined>;
+  updateSessionMetadata(
+    id: string,
+    patch: UpdateChatSessionMetadataInput
   ): Promise<ChatSessionRecord | undefined>;
   updateSessionStatus(
     id: string,
@@ -112,6 +121,13 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     AgentInvocationSnapshot[]
   >();
 
+  private touchSession(session: ChatSessionRecord, timestamp?: number): void {
+    const current = session.updatedAt.getTime();
+    const next = timestamp ?? Date.now();
+    session.updatedAt =
+      next > current ? new Date(next) : new Date(current + 1);
+  }
+
   async listSessions(): Promise<ChatSessionRecord[]> {
     return Array.from(this.sessions.values())
       .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
@@ -149,7 +165,29 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
       return undefined;
     }
     session.title = title;
-    session.updatedAt = new Date();
+    this.touchSession(session);
+    return cloneSession(session);
+  }
+
+  async updateSessionMetadata(
+    id: string,
+    patch: UpdateChatSessionMetadataInput
+  ): Promise<ChatSessionRecord | undefined> {
+    const session = this.sessions.get(id);
+    if (!session) {
+      return undefined;
+    }
+    if (
+      Object.prototype.hasOwnProperty.call(patch, "title") &&
+      patch.title !== undefined
+    ) {
+      session.title = patch.title;
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, "description")) {
+      session.description =
+        patch.description === null ? undefined : patch.description ?? undefined;
+    }
+    this.touchSession(session);
     return cloneSession(session);
   }
 
@@ -162,7 +200,7 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
       return undefined;
     }
     session.status = status;
-    session.updatedAt = new Date();
+    this.touchSession(session);
     return cloneSession(session);
   }
 
@@ -191,7 +229,7 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     } else {
       collection.push(message);
     }
-    session.updatedAt = now;
+    this.touchSession(session, now.getTime());
     return {
       message: cloneMessage(message),
       session: cloneSession(session),
@@ -420,6 +458,49 @@ export class KnexChatSessionsRepository implements ChatSessionsRepository, OnMod
     return this.getSessionById(id);
   }
 
+  async updateSessionMetadata(
+    id: string,
+    patch: UpdateChatSessionMetadataInput
+  ): Promise<ChatSessionRecord | undefined> {
+    await this.ensureReady();
+    return this.knex.transaction(async (trx) => {
+      const now = new Date();
+      const update: Record<string, unknown> = { updated_at: now };
+      const hasTitle = Object.prototype.hasOwnProperty.call(patch, "title");
+      const hasDescription = Object.prototype.hasOwnProperty.call(
+        patch,
+        "description"
+      );
+      if (hasTitle && patch.title !== undefined) {
+        update.title = patch.title;
+      }
+      if (hasDescription) {
+        update.description = patch.description ?? null;
+      }
+      const affected = await trx("chat_sessions").update(update).where({ id });
+      if (affected === 0) {
+        return undefined;
+      }
+      const row = await trx<ChatSessionRow>("chat_sessions")
+        .select(
+          "id",
+          "title",
+          "description",
+          "status",
+          "created_at",
+          "updated_at"
+        )
+        .where({ id })
+        .first();
+      if (!row) {
+        throw new Error(
+          `Failed to load chat session ${id} after metadata update.`
+        );
+      }
+      return mapSessionRow(row);
+    });
+  }
+
   async updateSessionStatus(
     id: string,
     status: ChatSessionStatus
@@ -505,8 +586,10 @@ export class KnexChatSessionsRepository implements ChatSessionsRepository, OnMod
 
   async deleteSession(id: string): Promise<boolean> {
     await this.ensureReady();
-    const deleted = await this.knex("chat_sessions").where({ id }).delete();
-    return deleted > 0;
+    return this.knex.transaction(async (trx) => {
+      const deleted = await trx("chat_sessions").where({ id }).delete();
+      return deleted > 0;
+    });
   }
 
   async listMessages(sessionId: string): Promise<ChatMessageRecord[]> {
