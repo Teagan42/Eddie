@@ -12,11 +12,19 @@ export interface ToolCallArguments {
   [key: string]: unknown;
 }
 
+export interface ToolOutputSchema extends Record<string, unknown> {
+  type: string;
+  name: string;
+  schema: Record<string, unknown>;
+  strict?: boolean;
+}
+
 export interface ToolSchema {
   type: "function";
   name: string;
   description?: string;
   parameters: Record<string, unknown>;
+  outputSchema?: ToolOutputSchema;
 }
 
 export interface ToolResult<TData = unknown> {

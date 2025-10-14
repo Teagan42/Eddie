@@ -13,6 +13,7 @@ import type { ProviderConfig } from "@eddie/config";
 import type { ProviderAdapter, StreamEvent, StreamOptions, ToolSchema } from "@eddie/types";
 import type { ProviderAdapterFactory } from "./provider.tokens";
 import { extractNotificationEvents } from "./notifications";
+import { resolveResponseFormat } from "./response-format";
 
 interface OpenAIConfig {
   baseUrl?: string;
@@ -92,6 +93,8 @@ export class OpenAIAdapter implements ProviderAdapter {
     const resolveOutputIndex = (value: { output_index?: number }): number =>
       typeof value.output_index === "number" ? value.output_index : -1;
 
+    const responseFormat = resolveResponseFormat(options);
+
     const streamParams = {
       model: options.model,
       input: this.formatMessages(options.messages),
@@ -100,8 +103,8 @@ export class OpenAIAdapter implements ProviderAdapter {
       ...(options.previousResponseId
         ? { previous_response_id: options.previousResponseId }
         : {}),
-      ...(options.responseFormat
-        ? { text: this.formatResponseTextConfig(options.responseFormat) }
+      ...(responseFormat
+        ? { text: this.formatResponseTextConfig(responseFormat) }
         : {}),
     } satisfies ResponseStreamCreateParams;
 

@@ -4,6 +4,7 @@ import type { ProviderConfig } from "@eddie/config";
 import type { ProviderAdapter, StreamEvent, StreamOptions, ToolSchema } from "@eddie/types";
 import type { ProviderAdapterFactory } from "./provider.tokens";
 import { extractNotificationEvents } from "./notifications";
+import { resolveResponseFormat } from "./response-format";
 
 interface OpenAICompatConfig {
   baseUrl?: string;
@@ -34,6 +35,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
     };
 
     const formattedTools = this.formatTools(options.tools);
+    const responseFormat = resolveResponseFormat(options);
     const response = await fetch(this.endpoint(), {
       method: "POST",
       headers,
@@ -43,6 +45,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
         messages: options.messages,
         tools: formattedTools,
         tool_choice: formattedTools ? "auto" : undefined,
+        ...(responseFormat ? { response_format: responseFormat } : {}),
       }),
     });
 
