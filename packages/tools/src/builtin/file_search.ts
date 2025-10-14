@@ -36,14 +36,52 @@ const coercePositiveInteger = (value: unknown): number | undefined => {
   return Math.max(1, Math.floor(numeric));
 };
 
-async function listFiles(root: string): Promise<string[]> {
+interface ListFilesOptions {
+  excludedDirectories: ReadonlySet<string>;
+}
+
+const DEFAULT_DEPENDENCY_DIRECTORIES: ReadonlySet<string> = new Set([
+  "node_modules",
+  "bower_components",
+  "vendor",
+  ".venv",
+  "venv",
+  ".tox",
+  "__pycache__",
+  ".mypy_cache",
+  "dist",
+  "build",
+  "target",
+  ".gradle",
+  ".idea",
+  ".yarn",
+  ".pnpm-store",
+  "Pods",
+]);
+
+const EMPTY_DIRECTORY_SET: ReadonlySet<string> = new Set();
+
+const createExcludedDirectorySet = (
+  includeDependencies: boolean,
+): ReadonlySet<string> =>
+  includeDependencies ? EMPTY_DIRECTORY_SET : DEFAULT_DEPENDENCY_DIRECTORIES;
+
+const DEFAULT_PAGE_SIZE = 20;
+
+const resolvePageSize = (value: unknown): number =>
+  coercePositiveInteger(value) ?? DEFAULT_PAGE_SIZE;
+
+async function listFiles(root: string, options: ListFilesOptions): Promise<string[]> {
   const entries = await fs.readdir(root, { withFileTypes: true });
   const results: string[] = [];
 
   for (const entry of entries) {
     const absolutePath = path.join(root, entry.name);
     if (entry.isDirectory()) {
-      const nested = await listFiles(absolutePath);
+      if (options.excludedDirectories.has(entry.name)) {
+        continue;
+      }
+      const nested = await listFiles(absolutePath, options);
       results.push(...nested);
     } else if (entry.isFile()) {
       results.push(absolutePath);
@@ -153,6 +191,7 @@ export const fileSearchTool: ToolDefinition = {
       name: { type: "string" },
       include: { type: "array", items: { type: "string" } },
       exclude: { type: "array", items: { type: "string" } },
+      includeDependencies: { type: "boolean", default: false },
       page: { type: "number", minimum: 1 },
       pageSize: { type: "number", minimum: 1 },
     },
@@ -220,7 +259,9 @@ export const fileSearchTool: ToolDefinition = {
     const includePatterns = buildPatternList(args.include, "include");
     const excludePatterns = buildPatternList(args.exclude, "exclude");
 
-    const files = await listFiles(absoluteRoot);
+    const includeDependencies = Boolean(args.includeDependencies);
+    const excludedDirectories = createExcludedDirectorySet(includeDependencies);
+    const files = await listFiles(absoluteRoot, { excludedDirectories });
     const entries = files
       .map((filePath) => {
         const relativePath = toPosix(path.relative(ctx.cwd, filePath));
@@ -271,8 +312,7 @@ export const fileSearchTool: ToolDefinition = {
 
     const totalResults = matches.length;
     const rawPage = coercePositiveInteger(args.page) ?? 1;
-    const defaultPageSize = totalResults > 0 ? totalResults : 1;
-    const pageSize = coercePositiveInteger(args.pageSize) ?? defaultPageSize;
+    const pageSize = resolvePageSize(args.pageSize);
     const totalPages = pageSize > 0 ? Math.ceil(totalResults / pageSize) : 0;
     const maxPage = Math.max(totalPages, 1);
     const page = Math.min(rawPage, maxPage);
