@@ -38,6 +38,37 @@ describe("TokenBudgetCompactor", () => {
 
     expect(estimateTokens(invocation.messages)).toBeLessThanOrEqual(120);
   });
+
+  it("reads system message roles only once during compaction", async () => {
+    let systemRoleReads = 0;
+    const systemMessage = {
+      get role(): "system" {
+        systemRoleReads += 1;
+        if (systemRoleReads > 1) {
+          throw new Error("system role accessed multiple times");
+        }
+        return "system";
+      },
+      content: "Guardrails",
+    } as const;
+    const userMessage = {
+      role: "user" as const,
+      content: "u".repeat(2000),
+    };
+    const invocation = createInvocation([systemMessage, userMessage]);
+    const compactor = new TokenBudgetCompactor(100);
+
+    const plan = await compactor.plan(invocation, 1);
+
+    expect(plan).not.toBeNull();
+    if (!plan) {
+      throw new Error("expected compaction plan to be created");
+    }
+
+    await expect(plan.apply()).resolves.toEqual(
+      expect.objectContaining({ removedMessages: expect.any(Number) }),
+    );
+  });
 });
 
 const estimateTokens = (messages: AgentInvocation["messages"]): number => {
