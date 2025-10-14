@@ -11,6 +11,7 @@ function readApiDoc(): string {
 
 describe('api documentation reference examples', () => {
   let apiDoc: string;
+  const renameExamplePayload = '{\n  "name": "Renamed session title"\n}';
 
   beforeAll(() => {
     apiDoc = readApiDoc();
@@ -40,6 +41,19 @@ describe('api documentation reference examples', () => {
   it('mentions orchestrator metadata endpoint with optional session query', () => {
     expect(apiDoc).toMatch(/GET\s+\/orchestrator\/metadata/);
     expect(apiDoc).toMatch(/sessionId/);
+  });
+
+  it('documents chat session rename and delete routes with responses', () => {
+    expect(apiDoc).toMatch(/PATCH\s+\/chat-sessions\/:id(?!\/archive)/);
+    expect(apiDoc).toContain(renameExamplePayload);
+    expect(apiDoc).toMatch(/responds\s+with\s+200\s+OK/);
+    expect(apiDoc).toMatch(/DELETE\s+\/chat-sessions\/:id/);
+    expect(apiDoc).toMatch(/returns\s+a\s+204\s+No\s+Content/);
+  });
+
+  it('covers real-time session.deleted events for websocket consumers', () => {
+    expect(apiDoc).toMatch(/session\.deleted/);
+    expect(apiDoc).toMatch(/clients\s+should\s+drop\s+local\s+copies/);
   });
 
   it('details persistence configuration for sql drivers', () => {

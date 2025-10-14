@@ -2,6 +2,8 @@
 
 The Eddie Web UI provides a control plane for orchestrating chat sessions, traces, logs, and runtime configuration that are exposed by the NestJS API. It relies on the generated API client for HTTP and WebSocket access, so the backend and the UI need to share consistent configuration.
 
+Session controls allow operators to rename or delete chat sessions directly from the browser. These actions call the REST endpoints documented in [docs/api.md](docs/api.md) and watch for `session.updated` and `session.deleted` events so local state stays aligned with other clients.
+
 ## Prerequisites
 
 - Node.js 20 or newer (the same requirement as the CLI and API).
@@ -63,3 +65,4 @@ To create an optimized production build, run `npm run web:build`. Vite will emit
 ## What the UI expects from the API
 
 The generated API client calls REST endpoints for chat sessions, traces, logs, runtime configuration, user preferences, and orchestrator metadata, and opens WebSocket connections to the `/chat-sessions`, `/traces`, `/logs`, and `/config` endpoints for realtime updates.【F:packages/api-client/src/index.ts†L242-L443】 Ensure those modules stay enabled in the API module graph so that UI interactions succeed without 404s or connection failures.【F:apps/api/src/api.module.ts†L1-L61】
+The chat workspace expects the API to respond with `200 OK` for rename operations and `204 No Content` for deletions. When a session is removed, the UI listens for the corresponding `session.deleted` broadcast before removing the thread from local lists.

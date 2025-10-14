@@ -18,6 +18,9 @@ The NestJS API exposes REST and WebSocket entry points for hosted automations, m
 registries. It reuses the same configuration and tracing primitives as the CLI, letting you deploy the same workflows on
 servers, CI pipelines, or collaborative environments without rewriting prompts.
 
+Session management endpoints let you rename or delete chat sessions remotely while keeping connected clients in sync via
+`session.updated` and `session.deleted` events.
+
 #### Persistence drivers
 
 Set `api.persistence.driver` to control how chat sessions and messages are stored. Memory mode keeps everything ephemeral for
@@ -33,6 +36,7 @@ See [docs/api.md](docs/api.md) for driver-specific YAML examples and migration n
 The React-powered UI layers conversation management on top of the API. It includes a prompt builder with live context previews,
 run history with diff visualisation, environment configuration editors, and trace inspection tools for every agent iteration.
 It is ideal for product teams who want to approve tool calls, share transcripts, or debug complex workflows together.
+Use the session list to rename or delete chat sessions; changes are broadcast immediately to the CLI and API subscribers.
 
 ## Features
 
