@@ -73,8 +73,10 @@ implements ChatSessionsListener, OnModuleInit, OnModuleDestroy
       forbidNonWhitelisted: true,
     })
   )
-  handleSendMessage(@MessageBody() payload: SendChatMessagePayloadDto): void {
+  async handleSendMessage(
+    @MessageBody() payload: SendChatMessagePayloadDto
+  ): Promise<void> {
     const { sessionId, message } = payload;
-    this.service.addMessage(sessionId, message);
+    await this.service.addMessage(sessionId, message);
   }
 }

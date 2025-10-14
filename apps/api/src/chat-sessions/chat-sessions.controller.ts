@@ -29,46 +29,50 @@ export class ChatSessionsController {
   @ApiOperation({ summary: "List chat sessions" })
   @ApiOkResponse({ type: ChatSessionDto, isArray: true })
   @Get()
-  list(): ChatSessionDto[] {
+  async list(): Promise<ChatSessionDto[]> {
     return this.chatSessions.listSessions();
   }
 
   @ApiOperation({ summary: "Create a new chat session" })
   @ApiCreatedResponse({ type: ChatSessionDto })
   @Post()
-  create(@Body() dto: CreateChatSessionDto): ChatSessionDto {
+  async create(@Body() dto: CreateChatSessionDto): Promise<ChatSessionDto> {
     return this.chatSessions.createSession(dto);
   }
 
   @ApiOperation({ summary: "Fetch a single chat session" })
   @ApiOkResponse({ type: ChatSessionDto })
   @Get(":id")
-  get(@Param("id", ParseUUIDPipe) id: string): ChatSessionDto {
+  async get(@Param("id", ParseUUIDPipe) id: string): Promise<ChatSessionDto> {
     return this.chatSessions.getSession(id);
   }
 
   @ApiOperation({ summary: "Archive a chat session" })
   @ApiOkResponse({ type: ChatSessionDto })
   @Patch(":id/archive")
-  archive(@Param("id", ParseUUIDPipe) id: string): ChatSessionDto {
+  async archive(
+    @Param("id", ParseUUIDPipe) id: string
+  ): Promise<ChatSessionDto> {
     return this.chatSessions.archiveSession(id);
   }
 
   @ApiOperation({ summary: "List session messages" })
   @ApiOkResponse({ type: ChatMessageDto, isArray: true })
   @Get(":id/messages")
-  listMessages(@Param("id", ParseUUIDPipe) id: string): ChatMessageDto[] {
+  async listMessages(
+    @Param("id", ParseUUIDPipe) id: string
+  ): Promise<ChatMessageDto[]> {
     return this.chatSessions.listMessages(id);
   }
 
   @ApiOperation({ summary: "Append a message to the session" })
   @ApiCreatedResponse({ type: ChatMessageDto })
   @Post(":id/messages")
-  createMessage(
+  async createMessage(
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: CreateChatMessageDto
-  ): ChatMessageDto {
-    const { message } = this.chatSessions.addMessage(id, dto);
+  ): Promise<ChatMessageDto> {
+    const { message } = await this.chatSessions.addMessage(id, dto);
     return message;
   }
 }

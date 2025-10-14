@@ -10,7 +10,7 @@ import { OrchestratorMetadataService } from "../../../src/orchestrator/orchestra
 import { ToolCallStatusDto } from "../../../src/orchestrator/dto/orchestrator-metadata.dto";
 
 describe("OrchestratorMetadataService", () => {
-  it("includes tool call nodes when tool messages are present", () => {
+  it("includes tool call nodes when tool messages are present", async () => {
     const session: ChatSessionDto = {
       id: "session-1",
       title: "Formatter run",
@@ -37,20 +37,20 @@ describe("OrchestratorMetadataService", () => {
     ];
 
     const chatSessions = {
-      getSession: () => session,
-      listMessages: () => messages,
-      listAgentInvocations: () => [],
+      getSession: async () => session,
+      listMessages: async () => messages,
+      listAgentInvocations: async () => [],
     } as unknown as ChatSessionsService;
 
     const service = new OrchestratorMetadataService(chatSessions);
 
-    const metadata = service.getMetadata(session.id);
+    const metadata = await service.getMetadata(session.id);
 
     expect(metadata.toolInvocations).toHaveLength(1);
     expect(metadata.toolInvocations[0]?.name).toBe("formatter");
   });
 
-  it("uses the recorded tool call id for metadata nodes", () => {
+  it("uses the recorded tool call id for metadata nodes", async () => {
     const session: ChatSessionDto = {
       id: "session-2",
       title: "Tool invocation tracking",
@@ -75,20 +75,20 @@ describe("OrchestratorMetadataService", () => {
     }));
 
     const chatSessions = {
-      getSession: () => session,
-      listMessages: () => enrichedMessages,
-      listAgentInvocations: () => [],
+      getSession: async () => session,
+      listMessages: async () => enrichedMessages,
+      listAgentInvocations: async () => [],
     } as unknown as ChatSessionsService;
 
     const service = new OrchestratorMetadataService(chatSessions);
 
-    const metadata = service.getMetadata(session.id);
+    const metadata = await service.getMetadata(session.id);
 
     expect(metadata.toolInvocations).toHaveLength(1);
     expect(metadata.toolInvocations[0]?.id).toBe("call-123");
   });
 
-  it("nests tool invocations beneath their spawning calls", () => {
+  it("nests tool invocations beneath their spawning calls", async () => {
     const session: ChatSessionDto = {
       id: "session-3",
       title: "Delegation run",
@@ -144,14 +144,14 @@ describe("OrchestratorMetadataService", () => {
     ];
 
     const chatSessions = {
-      getSession: () => session,
-      listMessages: () => messages,
-      listAgentInvocations: () => agentInvocations,
+      getSession: async () => session,
+      listMessages: async () => messages,
+      listAgentInvocations: async () => agentInvocations,
     } as unknown as ChatSessionsService;
 
     const service = new OrchestratorMetadataService(chatSessions);
 
-    const metadata = service.getMetadata(session.id);
+    const metadata = await service.getMetadata(session.id);
 
     expect(metadata.toolInvocations).toHaveLength(1);
     const spawnNode = metadata.toolInvocations[0];
@@ -162,7 +162,7 @@ describe("OrchestratorMetadataService", () => {
     expect(childNode?.name).toBe("bash");
   });
 
-  it("marks agent tool requests without responses as pending", () => {
+  it("marks agent tool requests without responses as pending", async () => {
     const session: ChatSessionDto = {
       id: "session-pending",
       title: "Pending tool calls",
@@ -190,14 +190,14 @@ describe("OrchestratorMetadataService", () => {
     ];
 
     const chatSessions = {
-      getSession: () => session,
-      listMessages: () => [],
-      listAgentInvocations: () => agentInvocations,
+      getSession: async () => session,
+      listMessages: async () => [],
+      listAgentInvocations: async () => agentInvocations,
     } as unknown as ChatSessionsService;
 
     const service = new OrchestratorMetadataService(chatSessions);
 
-    const metadata = service.getMetadata(session.id);
+    const metadata = await service.getMetadata(session.id);
     const [pendingNode] = metadata.toolInvocations;
 
     expect(pendingNode?.status).toBe(ToolCallStatusDto.Pending);
@@ -206,7 +206,7 @@ describe("OrchestratorMetadataService", () => {
     expect(pendingNode?.metadata?.payload).toBeUndefined();
   });
 
-  it("marks agent tool responses as completed when paired with tool output", () => {
+  it("marks agent tool responses as completed when paired with tool output", async () => {
     const session: ChatSessionDto = {
       id: "session-completed",
       title: "Completed tool calls",
@@ -243,14 +243,14 @@ describe("OrchestratorMetadataService", () => {
     ];
 
     const chatSessions = {
-      getSession: () => session,
-      listMessages: () => [],
-      listAgentInvocations: () => agentInvocations,
+      getSession: async () => session,
+      listMessages: async () => [],
+      listAgentInvocations: async () => agentInvocations,
     } as unknown as ChatSessionsService;
 
     const service = new OrchestratorMetadataService(chatSessions);
 
-    const metadata = service.getMetadata(session.id);
+    const metadata = await service.getMetadata(session.id);
     const [completedNode] = metadata.toolInvocations;
 
     expect(completedNode?.status).toBe(ToolCallStatusDto.Completed);
@@ -260,7 +260,7 @@ describe("OrchestratorMetadataService", () => {
     });
   });
 
-  it("includes both pending and completed tool calls when mixed", () => {
+  it("includes both pending and completed tool calls when mixed", async () => {
     const session: ChatSessionDto = {
       id: "session-mixed",
       title: "Mixed tool calls",
@@ -306,21 +306,21 @@ describe("OrchestratorMetadataService", () => {
     ];
 
     const chatSessions = {
-      getSession: () => session,
-      listMessages: () => [],
-      listAgentInvocations: () => agentInvocations,
+      getSession: async () => session,
+      listMessages: async () => [],
+      listAgentInvocations: async () => agentInvocations,
     } as unknown as ChatSessionsService;
 
     const service = new OrchestratorMetadataService(chatSessions);
 
-    const metadata = service.getMetadata(session.id);
+    const metadata = await service.getMetadata(session.id);
     const statuses = metadata.toolInvocations.map((node) => node.status);
 
     expect(statuses).toContain(ToolCallStatusDto.Pending);
     expect(statuses).toContain(ToolCallStatusDto.Completed);
   });
 
-  it("builds a nested agent hierarchy from invocation snapshots", () => {
+  it("builds a nested agent hierarchy from invocation snapshots", async () => {
     const session: ChatSessionDto = {
       id: "session-hierarchy",
       title: "Hierarchy run",
@@ -423,14 +423,14 @@ describe("OrchestratorMetadataService", () => {
     ];
 
     const chatSessions = {
-      getSession: () => session,
-      listMessages: () => messages,
-      listAgentInvocations: () => agentInvocations,
+      getSession: async () => session,
+      listMessages: async () => messages,
+      listAgentInvocations: async () => agentInvocations,
     } as unknown as ChatSessionsService;
 
     const service = new OrchestratorMetadataService(chatSessions);
 
-    const metadata = service.getMetadata(session.id);
+    const metadata = await service.getMetadata(session.id);
 
     expect(metadata.agentHierarchy).toHaveLength(1);
     const [sessionNode] = metadata.agentHierarchy;

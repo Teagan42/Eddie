@@ -1,0 +1,69 @@
+import type { Knex } from "knex";
+
+type JsonStorageDialect = "jsonb" | "json" | "text";
+
+const resolveJsonDialect = (client?: Knex.Config["client"]): JsonStorageDialect => {
+  if (!client) {
+    return "text";
+  }
+  const normalized = typeof client === "string" ? client : String(client);
+  if (normalized === "pg") {
+    return "jsonb";
+  }
+  if (normalized === "mysql" || normalized === "mysql2") {
+    return "json";
+  }
+  return "text";
+};
+
+export const initialChatSessionsMigration = async (db: Knex): Promise<void> => {
+  if (!(await db.schema.hasTable("chat_sessions"))) {
+    await db.schema.createTable("chat_sessions", (table) => {
+      table.uuid("id").primary();
+      table.string("title", 255).notNullable();
+      table.text("description").nullable();
+      table.string("status", 32).notNullable().defaultTo("active");
+      table.timestamp("created_at", { useTz: true }).notNullable();
+      table.timestamp("updated_at", { useTz: true }).notNullable();
+    });
+  }
+
+  if (!(await db.schema.hasTable("chat_messages"))) {
+    await db.schema.createTable("chat_messages", (table) => {
+      table.uuid("id").primary();
+      table
+        .uuid("session_id")
+        .notNullable()
+        .references("id")
+        .inTable("chat_sessions")
+        .onDelete("CASCADE");
+      table.string("role", 32).notNullable();
+      table.text("content").notNullable();
+      table.timestamp("created_at", { useTz: true }).notNullable();
+      table.string("tool_call_id", 255).nullable();
+      table.string("name", 255).nullable();
+      table.index(["session_id", "created_at"], "chat_messages_session_created_idx");
+    });
+  }
+
+  if (!(await db.schema.hasTable("agent_invocations"))) {
+    const dialect = resolveJsonDialect(db.client.config?.client);
+
+    await db.schema.createTable("agent_invocations", (table) => {
+      table
+        .uuid("session_id")
+        .primary()
+        .references("id")
+        .inTable("chat_sessions")
+        .onDelete("CASCADE");
+
+      if (dialect === "jsonb") {
+        table.jsonb("payload").notNullable();
+      } else if (dialect === "json") {
+        table.json("payload").notNullable();
+      } else {
+        table.text("payload").notNullable();
+      }
+    });
+  }
+};

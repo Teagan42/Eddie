@@ -27,6 +27,13 @@ const DEFAULT_ALLOWED_LICENSES = [
   'Unlicense',
 ];
 
+const THIRD_PARTY_NOTICE_HEADER = [
+  '# Third-Party Notices',
+  '',
+  'This document lists open-source dependencies bundled with this project alongside their associated licenses.',
+  '',
+].join('\n');
+
 function createTempDir(prefix: string) {
   return mkdtempSync(join(tmpdir(), prefix));
 }
@@ -388,5 +395,13 @@ describe('repository automation', () => {
         check: true,
       }),
     ).not.toThrow();
+  });
+});
+
+describe('THIRD_PARTY_NOTICES document', () => {
+  it('begins with the standard header and description', () => {
+    const noticePath = join(process.cwd(), 'THIRD_PARTY_NOTICES.md');
+    const contents = readFileSync(noticePath, 'utf8');
+    expect(contents.startsWith(THIRD_PARTY_NOTICE_HEADER)).toBe(true);
   });
 });

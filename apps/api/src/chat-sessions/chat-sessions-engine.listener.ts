@@ -61,7 +61,7 @@ implements
     sessionId: string,
     messageId: string
   ): Promise<void> {
-    const messages = this.chatSessions.listMessages(sessionId);
+    const messages = await this.chatSessions.listMessages(sessionId);
     const message = messages.find((entry) => entry.id === messageId);
     if (!message || !this.shouldInvokeEngine(message)) {
       return;
@@ -112,7 +112,10 @@ implements
 
       const result = capture.result!;
       const snapshots = this.snapshotAgentInvocations(result.agents);
-      this.chatSessions.saveAgentInvocations(message.sessionId, snapshots);
+      await this.chatSessions.saveAgentInvocations(
+        message.sessionId,
+        snapshots
+      );
 
       const baseline = history.length + 2;
       const novelMessages = result.messages.slice(baseline);
@@ -134,7 +137,7 @@ implements
         }
 
         if (!streamedHandled && capture.state.messageId) {
-          this.chatSessions.updateMessageContent(
+          await this.chatSessions.updateMessageContent(
             message.sessionId,
             capture.state.messageId,
             content
@@ -143,12 +146,12 @@ implements
           continue;
         }
 
-        this.appendAssistantMessage(message.sessionId, content);
+        await this.appendAssistantMessage(message.sessionId, content);
         responseCount += 1;
       }
 
       if (!streamedHandled && capture.state.messageId && streamedContent) {
-        this.chatSessions.updateMessageContent(
+        await this.chatSessions.updateMessageContent(
           message.sessionId,
           capture.state.messageId,
           streamedContent
@@ -185,13 +188,13 @@ implements
       });
 
       if (capture?.state.messageId) {
-        this.chatSessions.updateMessageContent(
+        await this.chatSessions.updateMessageContent(
           message.sessionId,
           capture.state.messageId,
           DEFAULT_ENGINE_FAILURE_MESSAGE
         );
       } else {
-        this.appendAssistantMessage(
+        await this.appendAssistantMessage(
           message.sessionId,
           DEFAULT_ENGINE_FAILURE_MESSAGE
         );
@@ -285,13 +288,16 @@ implements
       }));
   }
 
-  private appendAssistantMessage(sessionId: string, content: string): void {
+  private async appendAssistantMessage(
+    sessionId: string,
+    content: string
+  ): Promise<void> {
     const payload: CreateChatMessageDto = {
       role: ChatMessageRole.Assistant,
       content,
     };
 
-    this.chatSessions.addMessage(sessionId, payload);
+    await this.chatSessions.addMessage(sessionId, payload);
   }
 
   private snapshotAgentInvocations(

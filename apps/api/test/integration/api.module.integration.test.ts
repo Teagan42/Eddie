@@ -178,13 +178,37 @@ describe("ApiModule integration", () => {
 
     chatSessionsServiceStub = {
       registerListener: vi.fn(() => vi.fn()),
-      listSessions: vi.fn(() => []),
-      createSession: vi.fn(),
-      getSession: vi.fn(),
-      archiveSession: vi.fn(),
-      listMessages: vi.fn(() => []),
-      addMessage: vi.fn(() => ({
-        message: { id: "", sessionId: "", role: "user", content: "", createdAt: new Date().toISOString() },
+      listSessions: vi.fn().mockResolvedValue([]),
+      createSession: vi.fn().mockResolvedValue({
+        id: "",
+        title: "",
+        status: "active",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
+      getSession: vi.fn().mockResolvedValue({
+        id: "",
+        title: "",
+        status: "active",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
+      archiveSession: vi.fn().mockResolvedValue({
+        id: "",
+        title: "",
+        status: "archived",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
+      listMessages: vi.fn().mockResolvedValue([]),
+      addMessage: vi.fn().mockResolvedValue({
+        message: {
+          id: "",
+          sessionId: "",
+          role: "user",
+          content: "",
+          createdAt: new Date().toISOString(),
+        },
         session: {
           id: "",
           title: "",
@@ -192,7 +216,17 @@ describe("ApiModule integration", () => {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
-      })),
+      }),
+      updateMessageContent: vi.fn().mockResolvedValue({
+        id: "",
+        sessionId: "",
+        role: "assistant",
+        content: "",
+        createdAt: new Date().toISOString(),
+      }),
+      saveAgentInvocations: vi.fn().mockResolvedValue(undefined),
+      listAgentInvocations: vi.fn().mockResolvedValue([]),
+      setAgentActivity: vi.fn().mockResolvedValue(undefined),
     } as unknown as ChatSessionsService;
 
     chatSessionsEngineListenerStub = {
