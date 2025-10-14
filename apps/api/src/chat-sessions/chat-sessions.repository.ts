@@ -58,10 +58,15 @@ export interface ChatSessionsRepository {
   listSessions(): Promise<ChatSessionRecord[]>;
   getSessionById(id: string): Promise<ChatSessionRecord | undefined>;
   createSession(input: CreateChatSessionInput): Promise<ChatSessionRecord>;
+  renameSession(
+    id: string,
+    title: string
+  ): Promise<ChatSessionRecord | undefined>;
   updateSessionStatus(
     id: string,
     status: ChatSessionStatus
   ): Promise<ChatSessionRecord | undefined>;
+  deleteSession(id: string): Promise<boolean>;
   appendMessage(
     input: CreateChatMessageInput
   ): Promise<
@@ -135,6 +140,19 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     return cloneSession(session);
   }
 
+  async renameSession(
+    id: string,
+    title: string
+  ): Promise<ChatSessionRecord | undefined> {
+    const session = this.sessions.get(id);
+    if (!session) {
+      return undefined;
+    }
+    session.title = title;
+    session.updatedAt = new Date();
+    return cloneSession(session);
+  }
+
   async updateSessionStatus(
     id: string,
     status: ChatSessionStatus
@@ -178,6 +196,13 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
       message: cloneMessage(message),
       session: cloneSession(session),
     };
+  }
+
+  async deleteSession(id: string): Promise<boolean> {
+    const removed = this.sessions.delete(id);
+    this.messages.delete(id);
+    this.agentInvocations.delete(id);
+    return removed;
   }
 
   async listMessages(sessionId: string): Promise<ChatMessageRecord[]> {
@@ -380,6 +405,21 @@ export class KnexChatSessionsRepository implements ChatSessionsRepository, OnMod
     return session;
   }
 
+  async renameSession(
+    id: string,
+    title: string
+  ): Promise<ChatSessionRecord | undefined> {
+    await this.ensureReady();
+    const now = new Date();
+    const updated = await this.knex("chat_sessions")
+      .update({ title, updated_at: now })
+      .where({ id });
+    if (updated === 0) {
+      return undefined;
+    }
+    return this.getSessionById(id);
+  }
+
   async updateSessionStatus(
     id: string,
     status: ChatSessionStatus
@@ -461,6 +501,12 @@ export class KnexChatSessionsRepository implements ChatSessionsRepository, OnMod
         session: mapSessionRow(sessionRow),
       };
     });
+  }
+
+  async deleteSession(id: string): Promise<boolean> {
+    await this.ensureReady();
+    const deleted = await this.knex("chat_sessions").where({ id }).delete();
+    return deleted > 0;
   }
 
   async listMessages(sessionId: string): Promise<ChatMessageRecord[]> {

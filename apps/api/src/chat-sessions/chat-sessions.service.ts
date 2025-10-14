@@ -136,6 +136,17 @@ export class ChatSessionsService {
     return sessionDto;
   }
 
+  async renameSession(id: string, title: string): Promise<ChatSessionDto> {
+    await this.ensureSessionExists(id);
+    const session = await this.repository.renameSession(id, title);
+    if (!session) {
+      throw new NotFoundException(`Chat session ${id} not found`);
+    }
+    const dto = this.toDto(session);
+    this.notifySessionUpdated(dto);
+    return dto;
+  }
+
   async archiveSession(id: string): Promise<ChatSessionDto> {
     const session = await this.repository.updateSessionStatus(id, "archived");
     if (!session) {
@@ -207,6 +218,16 @@ export class ChatSessionsService {
       state,
       timestamp: new Date().toISOString(),
     });
+  }
+
+  async deleteSession(id: string): Promise<void> {
+    const existing = await this.ensureSessionExists(id);
+    const sessionDto = this.toDto(existing);
+    const deleted = await this.repository.deleteSession(id);
+    if (!deleted) {
+      throw new NotFoundException(`Chat session ${id} not found`);
+    }
+    this.notifySessionUpdated(sessionDto);
   }
 
   private async ensureSessionExists(id: string): Promise<ChatSessionRecord> {
