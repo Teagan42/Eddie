@@ -5,6 +5,7 @@ import path from "path";
 import type {
   AgentProviderConfig,
   CliRuntimeOptions,
+  ContextConfig,
   EddieConfig,
   ProviderConfig,
   TranscriptCompactorConfig,
@@ -43,6 +44,8 @@ import type { Logger } from "pino";
 import { McpToolSourceService } from "@eddie/mcp";
 import type { DiscoveredMcpResource } from "@eddie/mcp";
 import { createTranscriptCompactor as instantiateTranscriptCompactor } from "./transcript-compactors";
+
+const DEFAULT_CONTEXT_MAX_BYTES = 250_000;
 
 export interface EngineOptions extends CliRuntimeOptions {
     history?: ChatMessage[];
@@ -167,7 +170,11 @@ export class EngineService {
       void discoveredPrompts;
 
       if (discoveredResources.length > 0) {
-        this.applyMcpResourcesToContext(context, discoveredResources);
+        this.applyMcpResourcesToContext(
+          context,
+          discoveredResources,
+          cfg.context
+        );
       }
 
       const afterContextPack = await hooks.emitAsync(
@@ -294,21 +301,54 @@ export class EngineService {
 
   private applyMcpResourcesToContext(
     context: PackedContext,
-    discoveredResources: DiscoveredMcpResource[]
+    discoveredResources: DiscoveredMcpResource[],
+    contextConfig: ContextConfig
   ): void {
-    const packedResources = discoveredResources.map((resource) =>
-      this.toPackedResource(resource)
-    );
-
-    if (packedResources.length === 0) {
+    if (discoveredResources.length === 0) {
       return;
     }
 
-    context.resources = [ ...(context.resources ?? []), ...packedResources ];
+    const logger = this.loggerService.getLogger("engine");
+    const maxBytes = contextConfig.maxBytes ?? DEFAULT_CONTEXT_MAX_BYTES;
+    let remainingBudget = Math.max(0, maxBytes - context.totalBytes);
 
-    const resourceSections = packedResources
-      .map((resource) => this.composeResourceText(resource))
-      .filter((section) => section.trim().length > 0);
+    const acceptedResources: PackedResource[] = [];
+    const resourceSections: string[] = [];
+    let acceptedBytes = 0;
+
+    for (const resource of discoveredResources) {
+      const packed = this.toPackedResource(resource);
+      const resourceBytes = Buffer.byteLength(packed.text, "utf-8");
+
+      if (resourceBytes > remainingBudget) {
+        logger.debug(
+          {
+            resourceId: packed.id,
+            resourceName: packed.name,
+            resourceBytes,
+            remainingBudget,
+            maxBytes,
+          },
+          "Skipping MCP resource beyond context byte budget"
+        );
+        continue;
+      }
+
+      acceptedResources.push(packed);
+      remainingBudget -= resourceBytes;
+      acceptedBytes += resourceBytes;
+
+      const section = this.composeResourceText(packed);
+      if (section.trim().length > 0) {
+        resourceSections.push(section);
+      }
+    }
+
+    if (acceptedResources.length === 0) {
+      return;
+    }
+
+    context.resources = [ ...(context.resources ?? []), ...acceptedResources ];
 
     if (resourceSections.length > 0) {
       const baseSections =
@@ -316,11 +356,7 @@ export class EngineService {
       context.text = [ ...baseSections, ...resourceSections ].join("\n\n");
     }
 
-    const additionalBytes = packedResources.reduce(
-      (total, resource) => total + Buffer.byteLength(resource.text, "utf-8"),
-      0
-    );
-    context.totalBytes += additionalBytes;
+    context.totalBytes += acceptedBytes;
   }
 
   private toPackedResource(resource: DiscoveredMcpResource): PackedResource {

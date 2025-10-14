@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { EngineService } from "../src/engine.service";
 import type { EddieConfig } from "@eddie/config";
 import type { PackedContext } from "@eddie/types";
+import type { DiscoveredMcpResource } from "@eddie/mcp";
 
 const baseConfig: EddieConfig = {
   model: "base-model",
@@ -27,16 +28,30 @@ const baseConfig: EddieConfig = {
   transcript: {},
 };
 
-function createService(overrides: Partial<EddieConfig> = {}) {
+interface ServiceOptions {
+  packedContext?: PackedContext;
+  discoveredResources?: DiscoveredMcpResource[];
+  logger?: {
+    debug: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+  };
+}
+
+function createService(
+  overrides: Partial<EddieConfig> = {},
+  options: ServiceOptions = {}
+) {
   const config: EddieConfig = { ...baseConfig, ...overrides };
   const configStore = { getSnapshot: vi.fn(() => config) };
+  const packedContext: PackedContext = options.packedContext ?? {
+    files: [],
+    totalBytes: 0,
+    text: "",
+    resources: [],
+  };
   const contextService = {
-    pack: vi.fn(async () => ({
-      files: [],
-      totalBytes: 0,
-      text: "",
-      resources: [],
-    }) as PackedContext),
+    pack: vi.fn(async () => packedContext),
   };
   const providerFactory = {
     create: vi.fn(() => ({ name: "adapter" })),
@@ -50,9 +65,9 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     create: vi.fn(() => ({ countTokens: vi.fn(() => 0) })),
   };
   const logger = {
-    debug: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
+    debug: options.logger?.debug ?? vi.fn(),
+    error: options.logger?.error ?? vi.fn(),
+    warn: options.logger?.warn ?? vi.fn(),
   };
   const loggerService = {
     configure: vi.fn(),
@@ -69,7 +84,7 @@ function createService(overrides: Partial<EddieConfig> = {}) {
   const mcpToolSourceService = {
     collectTools: vi.fn(async () => ({
       tools: [],
-      resources: [],
+      resources: options.discoveredResources ?? [],
       prompts: [],
     })),
   };
@@ -86,7 +101,13 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     mcpToolSourceService as any,
   );
 
-  return { service, configStore };
+  return {
+    service,
+    configStore,
+    contextService,
+    mcpToolSourceService,
+    logger,
+  };
 }
 
 beforeEach(() => {
@@ -110,5 +131,72 @@ describe("EngineService", () => {
     await service.run("prompt", { provider: "override" });
 
     expect(configStore.getSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips discovered MCP resources beyond the remaining byte budget", async () => {
+    const initialContext: PackedContext = {
+      files: [],
+      totalBytes: 16,
+      text: "Existing context",
+      resources: [],
+    };
+
+    const smallResource: DiscoveredMcpResource = {
+      sourceId: "alpha",
+      name: "Accepted",
+      uri: "https://example.com/accepted",
+      description: "Helpful resource",
+    };
+
+    const largeResource: DiscoveredMcpResource = {
+      sourceId: "beta",
+      name: "Rejected",
+      uri: "https://example.com/rejected",
+      description: "Too large resource",
+      metadata: {
+        details: "x".repeat(200),
+      },
+    };
+
+    const startingBytes = initialContext.totalBytes;
+
+    const { service, logger } = createService(
+      {
+        context: {
+          ...baseConfig.context,
+          maxBytes: 64,
+        },
+      },
+      {
+        packedContext: initialContext,
+        discoveredResources: [ smallResource, largeResource ],
+      }
+    );
+
+    const result = await service.run("prompt");
+
+    const acceptedResources = result.context.resources ?? [];
+    const acceptedIds = acceptedResources.map((resource) => resource.name);
+    const acceptedBytes = acceptedResources.reduce(
+      (total, resource) => total + Buffer.byteLength(resource.text, "utf-8"),
+      0
+    );
+
+    expect(acceptedIds).toContain("Accepted");
+    expect(acceptedIds).not.toContain("Rejected");
+    expect(result.context.totalBytes).toBe(startingBytes + acceptedBytes);
+    expect(result.context.text).toContain("// Resource: Accepted");
+    expect(result.context.text).not.toContain("Rejected");
+
+    const debugCalls = logger.debug.mock.calls;
+    expect(
+      debugCalls.some((call) =>
+        call.some(
+          (arg) =>
+            typeof arg === "string" &&
+            arg.includes("Skipping MCP resource beyond context byte budget")
+        )
+      )
+    ).toBe(true);
   });
 });
