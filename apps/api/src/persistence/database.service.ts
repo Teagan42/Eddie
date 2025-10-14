@@ -1,3 +1,4 @@
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from "@nestjs/common";
 import type { Knex } from "knex";
@@ -19,10 +20,29 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit(): Promise<void> {
+    await this.ensureMigrationsDirectory();
     await this.knex.migrate.latest(this.migrationsConfig);
   }
 
   async onModuleDestroy(): Promise<void> {
     await this.knex.destroy();
+  }
+
+  private async ensureMigrationsDirectory(): Promise<void> {
+    const { directory } = this.migrationsConfig;
+    if (!directory) {
+      return;
+    }
+
+    const ensureDirectory = async (dir: string): Promise<void> => {
+      await mkdir(dir, { recursive: true });
+    };
+
+    if (Array.isArray(directory)) {
+      await Promise.all(directory.map(ensureDirectory));
+      return;
+    }
+
+    await ensureDirectory(directory);
   }
 }
