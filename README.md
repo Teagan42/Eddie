@@ -1,22 +1,68 @@
-# Eddie CLI
+# Eddie: Multi-surface Agent Platform
 
-Provider-agnostic AI assistant for the command line. Eddie hydrates prompts with context from your workspace, streams responses from multiple model providers, orchestrates tool calls, and records structured traces for reproducible automation. The CLI is now backed by a Nest application context so every command benefits from dependency injection, a shared logger, and cohesive lifecycle management.
+Eddie unifies command-line power, hosted APIs, and a collaborative web workspace into a single agent platform. The CLI hydrates
+prompts with repository context, the NestJS API hosts shared agents and tooling, and the web UI visualises every run so teams can
+triage, replay, and collaborate on automation.
+
+## Surface overview
+
+### Command Line Interface
+
+The CLI remains the fastest way to experiment locally. It streams tool and model events in real time, honours configuration from
+`eddie.config.*`, and produces JSONL traces that any surface can replay. Developer ergonomics come from a Nest application context
+that provides dependency injection, consistent logging, and lifecycle hooks for tools and agents.
+
+### API Services
+
+The NestJS API exposes REST and WebSocket entry points for hosted automations, multi-agent orchestration, and shared tool
+registries. It reuses the same configuration and tracing primitives as the CLI, letting you deploy the same workflows on
+servers, CI pipelines, or collaborative environments without rewriting prompts.
+
+### Web UI
+
+The React-powered UI layers conversation management on top of the API. It includes a prompt builder with live context previews,
+run history with diff visualisation, environment configuration editors, and trace inspection tools for every agent iteration.
+It is ideal for product teams who want to approve tool calls, share transcripts, or debug complex workflows together.
 
 ## Features
 
-- Multi-provider adapters (OpenAI, Anthropic, Groq-compatible) with streaming support
+- Multi-surface agent orchestration across CLI, API, and browser
+- Provider-agnostic model adapters (OpenAI, Anthropic, Groq-compatible) with streaming support
 - Context service that packs workspace files via glob patterns, budgets tokens, and feeds models rich snippets
 - Tool registry with built-in `bash`, `file_read`, and `file_write` helpers plus confirmation prompts
 - Jinja prompt templating with reusable layouts, partials, and inline variables
 - Nested agent orchestrator that lets manager agents spawn task-specific subagents with their own prompts, context slices, and tools
-- Lifecycle hooks, optional OpenTelemetry spans, and JSONL traces for observability
-- Interactive chat, single-shot prompts, context previews, and automated run mode
+- Lifecycle hooks, optional OpenTelemetry spans, and JSONL traces for observability that every surface can replay
+- Interactive chat, single-shot prompts, context previews, automated run mode, and collaborative UI approvals
+
+## Web UI
+
+Start the full-stack experience locally by running the API and UI together:
+
+```bash
+npm run dev
+```
+
+This command launches the Nest API and the Vite-powered UI with hot reloads. When running the surfaces independently, use
+`npm run dev:api` or `npm run start:api` for the backend and `npm run web:dev` or `npm run web:start` for the frontend.
+
+- Navigate to `http://localhost:4200` to access the dashboard.
+- Connect the UI to a configured API environment or switch providers directly from the sidebar.
+- Replay prior runs, inspect the structured trace viewer, and promote successful automations to shared templates.
+
+![Dashboard](docs/assets/ui-dashboard.png)
+![Chat](docs/assets/ui-run-history.png)
+
+Refer to [docs/web-ui.md](docs/web-ui.md) for advanced deployment guidance, environment variables, and authentication
+recommendations.
 
 ## Getting Started
 
-Requires Node.js 20 or newer (Node 22 is used in development and CI). The bundled dependencies rely on modern ESM support that is not available in Node 18.
+Requires Node.js 20 or newer (Node 22 is used in development and CI). The bundled dependencies rely on modern ESM support that is
+not available in Node 18.
 
-1. Install dependencies and compile the Nest application. The `build` script runs `nest build`, emitting the `apps/cli/dist/main.js` binary that is also published as the `eddie` executable.
+1. Install dependencies and compile the Nest application. The `build` script runs `nest build`, emitting the `apps/cli/dist/main.js`
+binary that is also published as the `eddie` executable.
 
    ```bash
    npm install
@@ -158,19 +204,14 @@ tokenizer:
 agents:
   mode: router
   manager:
-    prompt: "Coordinate subagents to implement requested features."
-    provider:
-      name: openai-compatible
-      baseUrl: https://custom-proxy.example.com/v1
-      apiKey: ${CUSTOM_KEY}
+    prompt: "Coordinate the right specialist for each task."
   subagents:
-    - id: planner
-      description: "Break work into steps"
-      tools: ["mcp:filesystem"]
-      routingThreshold: 0.4
-    - id: implementer
-      description: "Apply filesystem changes"
-      tools: ["bash", "file_read", "file_write"]
+    - id: code-reviewer
+      prompt: "Review pull requests for quality and style."
+      tools: ["file_read", "file_write"]
+    - id: test-runner
+      prompt: "Execute relevant tests and summarise the output."
+      tools: ["bash"]
   routing:
     confidenceThreshold: 0.55
     maxDepth: 3
