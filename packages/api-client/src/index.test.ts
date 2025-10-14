@@ -10,6 +10,7 @@ import { OpenAPI } from "./generated/core/OpenAPI";
 import { CreateChatMessageDto } from "./generated/models/CreateChatMessageDto";
 import { LogsService } from "./generated/services/LogsService";
 import { ChatSessionsService } from "./generated/services/ChatSessionsService";
+import { ChatSessionDto } from "./generated/models/ChatSessionDto";
 
 vi.mock("./realtime", () => ({ createRealtimeChannel: vi.fn() }));
 
@@ -118,6 +119,15 @@ describe("createApiClient", () => {
       sessionCreated
     );
 
+    const sessionDeleted = vi.fn();
+    const unsubscribeSessionDeleted =
+            client.sockets.chatSessions.onSessionDeleted(sessionDeleted);
+    const sessionDeletedCall = chatChannel.on.mock.calls.find(
+      ([event]) => event === "session.deleted"
+    );
+    expect(sessionDeletedCall).toBeDefined();
+    expect(typeof sessionDeletedCall?.[1]).toBe("function");
+
     const messageCreated = vi.fn();
     const unsubscribeMessageCreated =
             client.sockets.chatSessions.onMessageCreated(messageCreated);
@@ -156,8 +166,16 @@ describe("createApiClient", () => {
       partialHandler
     );
 
+    const deletedHandlers = chatChannel.handlers.get("session.deleted");
+    deletedHandlers?.forEach((handler) =>
+      handler({ id: "session-1" } as unknown as ChatSessionDto)
+    );
+    expect(sessionDeleted).toHaveBeenCalledWith("session-1");
+
     unsubscribeSessionCreated();
     expect(chatChannel.handlers.get("session.created")?.size ?? 0).toBe(0);
+    unsubscribeSessionDeleted();
+    expect(chatChannel.handlers.get("session.deleted")?.size ?? 0).toBe(0);
     unsubscribeMessageCreated();
     expect(chatChannel.handlers.get("message.created")?.size ?? 0).toBe(0);
     unsubscribeMessageUpdated();

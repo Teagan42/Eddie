@@ -222,7 +222,7 @@ export type Unsubscribe = () => void;
 export interface ChatSessionsSocket {
     onSessionCreated(handler: (session: ChatSessionDto) => void): Unsubscribe;
     onSessionUpdated(handler: (session: ChatSessionDto) => void): Unsubscribe;
-    onSessionDeleted(handler: (session: ChatSessionDto) => void): Unsubscribe;
+    onSessionDeleted(handler: (sessionId: string) => void): Unsubscribe;
     onMessageCreated(handler: (message: ChatMessageDto) => void): Unsubscribe;
     onMessageUpdated(handler: (message: ChatMessageDto) => void): Unsubscribe;
     onAgentActivity(
@@ -411,6 +411,23 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     return (await response.text()) as T;
   };
 
+  const coerceSessionId = (payload: unknown): string | null => {
+    if (typeof payload === "string") {
+      return payload;
+    }
+
+    if (
+      payload &&
+      typeof payload === "object" &&
+      "id" in (payload as { id?: unknown }) &&
+      typeof (payload as { id?: unknown }).id === "string"
+    ) {
+      return (payload as { id: string }).id;
+    }
+
+    return null;
+  };
+
   const chatSessionsSocket: ChatSessionsSocket = {
     onSessionCreated(handler) {
       return chatChannel.on("session.created", handler);
@@ -419,7 +436,12 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       return chatChannel.on("session.updated", handler);
     },
     onSessionDeleted(handler) {
-      return chatChannel.on("session.deleted", handler);
+      return chatChannel.on("session.deleted", (payload: unknown) => {
+        const id = coerceSessionId(payload);
+        if (id) {
+          handler(id);
+        }
+      });
     },
     onMessageCreated(handler) {
       return chatChannel.on("message.created", handler);
