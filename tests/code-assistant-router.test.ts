@@ -21,11 +21,23 @@ describe('code-assistant router instructions', () => {
     expect(conventions).not.toMatch(/spawn_subagent tool/i);
   });
 
-  it('router manager enforces continuous delegation until completion', () => {
-    expect(manager).toMatch(/Continue delegating via spawn_subagent until the feature is complete/i);
-  });
+  const managerExpectations: Array<{ name: string; pattern: RegExp }> = [
+    {
+      name: 'enforces continuous delegation until completion',
+      pattern: /Continue delegating via spawn_subagent until the feature is complete/i,
+    },
+    {
+      name: 'allows rerouting after quality gate failures',
+      pattern: /If a quality_gate blocks progress, route back to red, green, or refactor as needed\./i,
+    },
+    {
+      name: 'short circuits red when existing checks are failing',
+      pattern:
+        /Short circuit RED phase when the lint, build or test suite is already failing, GREEN should address/i,
+    },
+  ];
 
-  it('router manager allows rerouting after quality gate failures', () => {
-    expect(manager).toMatch(/If a quality_gate blocks progress, route back to red, green, or refactor as needed\./i);
+  it.each(managerExpectations)('router manager %s', ({ pattern }) => {
+    expect(manager).toMatch(pattern);
   });
 });
