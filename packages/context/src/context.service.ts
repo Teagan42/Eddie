@@ -202,10 +202,32 @@ export class ContextService {
 
       const absolutePath = path.resolve(baseDir, relPath);
       try {
+        const stat = await fs.stat(absolutePath);
+        if (
+          this.isOverBudget({
+            logger,
+            metadata: { file: relPath, maxBytes },
+            message: "Skipping file beyond budget",
+            current: totalBytes,
+            addition: stat.size,
+            max: maxBytes,
+          })
+        ) {
+          continue;
+        }
+
         const content = await fs.readFile(absolutePath, "utf-8");
         const bytes = Buffer.byteLength(content);
-        if (totalBytes + bytes > maxBytes) {
-          logger.debug({ file: relPath, maxBytes }, "Skipping file beyond budget");
+        if (
+          this.isOverBudget({
+            logger,
+            metadata: { file: relPath, maxBytes },
+            message: "Skipping file beyond budget",
+            current: totalBytes,
+            addition: bytes,
+            max: maxBytes,
+          })
+        ) {
           continue;
         }
 
@@ -263,6 +285,22 @@ export class ContextService {
       text,
       resources,
     };
+  }
+
+  private isOverBudget(options: {
+    logger: ReturnType<LoggerService["getLogger"]>;
+    metadata: Record<string, unknown>;
+    message: string;
+    current: number;
+    addition: number;
+    max: number;
+  }): boolean {
+    if (options.current + options.addition > options.max) {
+      options.logger.debug(options.metadata, options.message);
+      return true;
+    }
+
+    return false;
   }
 
   private composeFileText(files: PackedFile[]): string {
@@ -336,13 +374,40 @@ export class ContextService {
 
       const absolutePath = path.resolve(baseDir, relPath);
       try {
+        const stat = await fs.stat(absolutePath);
+        if (
+          this.isOverBudget({
+            logger: options.logger,
+            metadata: {
+              resource: resource.id,
+              file: relPath,
+              maxBytes: options.maxBytes,
+            },
+            message: "Skipping resource file beyond budget",
+            current: options.totalBytes + bytes,
+            addition: stat.size,
+            max: options.maxBytes,
+          })
+        ) {
+          continue;
+        }
+
         const content = await fs.readFile(absolutePath, "utf-8");
         const fileBytes = Buffer.byteLength(content);
-        if (options.totalBytes + bytes + fileBytes > options.maxBytes) {
-          options.logger.debug(
-            { resource: resource.id, file: relPath, maxBytes: options.maxBytes },
-            "Skipping resource file beyond budget"
-          );
+        if (
+          this.isOverBudget({
+            logger: options.logger,
+            metadata: {
+              resource: resource.id,
+              file: relPath,
+              maxBytes: options.maxBytes,
+            },
+            message: "Skipping resource file beyond budget",
+            current: options.totalBytes + bytes,
+            addition: fileBytes,
+            max: options.maxBytes,
+          })
+        ) {
           continue;
         }
 
@@ -415,11 +480,16 @@ export class ContextService {
     const text = rendered.trimEnd();
     const bytes = Buffer.byteLength(text);
 
-    if (options.totalBytes + bytes > options.maxBytes) {
-      options.logger.debug(
-        { resource: resource.id, maxBytes: options.maxBytes },
-        "Skipping resource template beyond budget"
-      );
+    if (
+      this.isOverBudget({
+        logger: options.logger,
+        metadata: { resource: resource.id, maxBytes: options.maxBytes },
+        message: "Skipping resource template beyond budget",
+        current: options.totalBytes,
+        addition: bytes,
+        max: options.maxBytes,
+      })
+    ) {
       return null;
     }
 

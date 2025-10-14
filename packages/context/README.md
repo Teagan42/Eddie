@@ -61,7 +61,8 @@ text block that can be sent to an LLM or stored alongside task metadata.
 - **File budget**: Up to 64 files are collected before the service stops adding
   more.
 - **Byte budget**: The service enforces a 250,000 bytes ceiling across files and
-  resources, skipping entries beyond the limit.
+  resources, skipping entries beyond the limit. File sizes are checked with
+  `fs.stat` before reading to avoid unnecessary I/O for oversized entries.
 - **Include patterns**: Source files, documentation, configuration, and lock
   files are included by default. This mirrors the [`fast-glob`](https://github.com/mrmlnc/fast-glob)
   patterns in `ContextService` such as `**/*.{ts,tsx,js,jsx,json,md}`, Docker and

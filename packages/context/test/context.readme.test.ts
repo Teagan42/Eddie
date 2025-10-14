@@ -15,6 +15,7 @@ describe("packages/context README", () => {
     expect(content).toContain(DEFAULT_MAX_BYTES_LABEL);
     expect(content).toContain(DEFAULT_MAX_FILES_LABEL);
     expect(content).toMatch(/```ts[\s\S]*ContextService/);
+    expect(content).toContain("fs.stat");
   });
 
   it("documents configuration options and bundle virtual paths", async () => {
