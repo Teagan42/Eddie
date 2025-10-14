@@ -1,3 +1,4 @@
+import path from "path";
 import util from "util";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -57,10 +58,12 @@ describe("bash tool", () => {
       env: process.env,
     };
 
+    const nestedCwd = path.join(ctx.cwd, "custom");
+
     const result = await bashTool.handler(
       {
         command: "pwd",
-        cwd: "/custom/path",
+        cwd: nestedCwd,
         timeoutMs: 5000,
         maxBytes: 1024,
       },
@@ -69,7 +72,7 @@ describe("bash tool", () => {
 
     expect(execInvocations).toHaveLength(1);
     const invocation = execInvocations[0];
-    expect(invocation.options.cwd).toBe("/custom/path");
+    expect(invocation.options.cwd).toBe(nestedCwd);
     expect(invocation.options.timeout).toBe(5000);
     expect(invocation.options.maxBuffer).toBe(1024);
 
@@ -99,5 +102,27 @@ describe("bash tool", () => {
     const invocation = execInvocations[0];
     expect(invocation.options.cwd).toBe("/base/path");
     expect(invocation.options.maxBuffer).toBe(DEFAULT_MAX_STDIO_BYTES);
+  });
+
+  it("rejects cwd overrides that escape the workspace", async () => {
+    const ctx: ToolExecutionContext = {
+      cwd: "/base/path",
+      confirm: vi.fn(async () => true),
+      env: process.env,
+    };
+
+    const escapingCwd = path.join(ctx.cwd, "..", "..", "etc");
+
+    await expect(
+      bashTool.handler(
+        {
+          command: "pwd",
+          cwd: escapingCwd,
+        },
+        ctx,
+      ),
+    ).rejects.toThrow(/outside the workspace/i);
+
+    expect(execInvocations).toHaveLength(0);
   });
 });

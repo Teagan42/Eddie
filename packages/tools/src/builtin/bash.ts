@@ -1,4 +1,5 @@
 import { exec } from "child_process";
+import path from "path";
 import util from "util";
 import type { ToolDefinition } from "@eddie/types";
 
@@ -15,6 +16,17 @@ function normalizeOutput(value: unknown): string {
   }
 
   return "";
+}
+
+function isWithinWorkspace(workspaceRoot: string, candidate: string): boolean {
+  const normalizedWorkspace = path.resolve(workspaceRoot);
+  const normalizedCandidate = path.resolve(candidate);
+  const relative = path.relative(normalizedWorkspace, normalizedCandidate);
+  if (relative === "") {
+    return true;
+  }
+
+  return !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
 export const bashTool: ToolDefinition = {
@@ -49,8 +61,15 @@ export const bashTool: ToolDefinition = {
   async handler(args, ctx) {
     const command = String(args.command ?? "");
     const timeoutMs = Number(args.timeoutMs ?? 15_000);
+    const workspaceCwd = path.resolve(ctx.cwd);
     const cwdArg = typeof args.cwd === "string" && args.cwd.length > 0 ? args.cwd : undefined;
-    const cwd = cwdArg ?? ctx.cwd;
+    const resolvedCwd = cwdArg ? path.resolve(workspaceCwd, cwdArg) : workspaceCwd;
+
+    if (!isWithinWorkspace(workspaceCwd, resolvedCwd)) {
+      throw new Error(`Requested cwd is outside the workspace: ${cwdArg}`);
+    }
+
+    const cwd = resolvedCwd;
     const maxBytesValue = Number(args.maxBytes);
     const maxBytes = Number.isFinite(maxBytesValue)
       ? Math.min(Math.max(1, Math.floor(maxBytesValue)), DEFAULT_MAX_STDIO_BYTES)
