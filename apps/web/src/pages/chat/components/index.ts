@@ -4,3 +4,5 @@ export { CollapsiblePanel } from './CollapsiblePanel';
 export type { CollapsiblePanelProps } from './CollapsiblePanel';
 export { ToolTree } from './ToolTree';
 export type { ToolTreeProps } from './ToolTree';
+export { ContextBundlesPanel } from './ContextBundlesPanel';
+export type { ContextBundlesPanelProps } from './ContextBundlesPanel';

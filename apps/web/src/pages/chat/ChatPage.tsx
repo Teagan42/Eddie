@@ -51,7 +51,7 @@ import { cn } from "@/vendor/lib/utils";
 import { ChatMessageContent } from './ChatMessageContent';
 import { getSurfaceLayoutClasses, SURFACE_CONTENT_CLASS } from '@/styles/surfaces';
 import { summarizeObject, sortSessions, upsertMessage } from './chat-utils';
-import { AgentTree, CollapsiblePanel, ToolTree } from './components';
+import { AgentTree, CollapsiblePanel, ContextBundlesPanel, ToolTree } from './components';
 import { useChatMessagesRealtime } from './useChatMessagesRealtime';
 
 type BadgeColor = ComponentProps<typeof Badge>['color'];
@@ -1244,35 +1244,12 @@ export function ChatPage(): JSX.Element {
           </Panel>
 
           <div className="flex w-full flex-col gap-4 lg:w-[22rem] xl:w-[26rem] 2xl:w-[30rem]">
-            <CollapsiblePanel
-              id={PANEL_IDS.context}
-              title="Context bundles"
-              description="Datasets staged for the next invocation"
+            <ContextBundlesPanel
+              panelId={PANEL_IDS.context}
+              bundles={orchestratorMetadata?.contextBundles ?? []}
               collapsed={Boolean(collapsedPanels[PANEL_IDS.context])}
               onToggle={handleTogglePanel}
-            >
-              {orchestratorMetadata?.contextBundles?.length ? (
-                <ul className="space-y-2">
-                  {orchestratorMetadata.contextBundles.map((bundle) => (
-                    <li key={bundle.id} className="rounded-lg border border-muted/40 p-3">
-                      <Text weight="medium">{bundle.label}</Text>
-                      {bundle.summary ? (
-                        <Text size="2" color="gray">
-                          {bundle.summary}
-                        </Text>
-                      ) : null}
-                      <Text size="1" color="gray">
-                        {bundle.fileCount} files • {bundle.sizeBytes.toLocaleString()} bytes
-                      </Text>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <Text size="2" color="gray">
-                  No context bundles associated yet.
-                </Text>
-              )}
-            </CollapsiblePanel>
+            />
 
             <CollapsiblePanel
               id={PANEL_IDS.tools}
