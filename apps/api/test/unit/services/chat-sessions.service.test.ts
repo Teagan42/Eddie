@@ -15,6 +15,7 @@ class ListenerSpy {
   created = 0;
   updated = 0;
   deleted = 0;
+  deletedIds: string[] = [];
   messages = 0;
   messageUpdates = 0;
 
@@ -26,8 +27,9 @@ class ListenerSpy {
     this.updated += 1;
   }
 
-  onSessionDeleted(): void {
+  onSessionDeleted(id: string): void {
     this.deleted += 1;
+    this.deletedIds.push(id);
   }
 
   onMessageCreated(): void {
@@ -200,6 +202,7 @@ describe("ChatSessionsService", () => {
 
     expect(listener.updated).toBe(before + 1);
     expect(listener.deleted).toBe(1);
+    expect(listener.deletedIds).toEqual([session.id]);
     await expect(service.listMessages(session.id)).rejects.toBeInstanceOf(NotFoundException);
     await expect(service.getSession(session.id)).rejects.toBeInstanceOf(NotFoundException);
   });

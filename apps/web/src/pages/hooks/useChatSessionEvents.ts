@@ -28,13 +28,13 @@ export function useChatSessionEvents({
           });
         }
       }),
-      api.sockets.chatSessions.onSessionDeleted((session) => {
+      api.sockets.chatSessions.onSessionDeleted((sessionId) => {
         queryClient.invalidateQueries({ queryKey: ["chat-sessions"] });
         queryClient.removeQueries({
-          queryKey: ["chat-sessions", session.id, "messages"],
+          queryKey: ["chat-sessions", sessionId, "messages"],
         });
         queryClient.removeQueries({
-          queryKey: ["chat-session", session.id, "messages"],
+          queryKey: ["chat-session", sessionId, "messages"],
         });
       }),
       api.sockets.chatSessions.onMessageCreated((message) =>

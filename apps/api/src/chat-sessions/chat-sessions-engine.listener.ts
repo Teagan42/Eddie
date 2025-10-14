@@ -49,7 +49,8 @@ implements
     // No engine side-effects for session updates.
   }
 
-  onSessionDeleted(): void {
+  onSessionDeleted(id: string): void {
+    void id;
     // No engine side-effects for session deletion.
   }
 

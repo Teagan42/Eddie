@@ -140,16 +140,16 @@ export function App(): JSX.Element {
           });
         }
       }),
-      api.sockets.chatSessions.onSessionDeleted((session) => {
+      api.sockets.chatSessions.onSessionDeleted((sessionId) => {
         queryClient.invalidateQueries({ queryKey: ["chat-sessions"] });
-        if (session.id === selectedSessionId) {
+        if (sessionId === selectedSessionId) {
           setSelectedSessionId(null);
         }
         queryClient.removeQueries({
-          queryKey: ["chat-sessions", session.id, "messages"],
+          queryKey: ["chat-sessions", sessionId, "messages"],
         });
         queryClient.removeQueries({
-          queryKey: ["chat-session", session.id, "messages"],
+          queryKey: ["chat-session", sessionId, "messages"],
         });
       }),
       api.sockets.chatSessions.onMessageCreated((message) =>

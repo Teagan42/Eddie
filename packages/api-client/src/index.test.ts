@@ -10,6 +10,7 @@ import { OpenAPI } from "./generated/core/OpenAPI";
 import { CreateChatMessageDto } from "./generated/models/CreateChatMessageDto";
 import { LogsService } from "./generated/services/LogsService";
 import { ChatSessionsService } from "./generated/services/ChatSessionsService";
+import { ChatSessionDto } from "./generated/models/ChatSessionDto";
 
 vi.mock("./realtime", () => ({ createRealtimeChannel: vi.fn() }));
 
@@ -19,34 +20,36 @@ import type { RealtimeChannel, RealtimeHandler } from "./realtime";
 type Handler = RealtimeHandler<unknown>;
 
 class MockChannel implements RealtimeChannel {
-  public readonly on: RealtimeChannel[ "on" ] = vi.fn(
-        <T>(event: string, handler: RealtimeHandler<T>): (() => void) => {
-          const handlers =
-                this.handlers.get(event) ?? new Set<RealtimeHandler<unknown>>();
-          handlers.add(handler as Handler);
-          this.handlers.set(event, handlers);
-          return () => {
-            const current = this.handlers.get(event);
-            if (!current) {
-              return;
-            }
-            current.delete(handler as Handler);
-            if (current.size === 0) {
-              this.handlers.delete(event);
-            }
-          };
-        }
-  );
+  public readonly handlers = new Map<string, Set<Handler>>();
+  public readonly on: Mock<RealtimeChannel[ "on" ]>;
   public readonly emit: Mock<RealtimeChannel[ "emit" ]> = vi.fn();
   public readonly updateAuth: Mock<RealtimeChannel[ "updateAuth" ]> = vi.fn();
   public readonly close: Mock<RealtimeChannel[ "close" ]> = vi.fn();
-  public readonly handlers = new Map<string, Set<Handler>>();
 
   constructor(
         public readonly baseUrl: string,
         public readonly namespace: string,
         public readonly apiKey: string | null
-  ) { }
+  ) {
+    this.on = vi.fn<RealtimeChannel[ "on" ]>(
+      (event, handler): (() => void) => {
+        const typedHandler = handler as Handler;
+        const handlers = this.handlers.get(event) ?? new Set<Handler>();
+        handlers.add(typedHandler);
+        this.handlers.set(event, handlers);
+        return () => {
+          const current = this.handlers.get(event);
+          if (!current) {
+            return;
+          }
+          current.delete(typedHandler);
+          if (current.size === 0) {
+            this.handlers.delete(event);
+          }
+        };
+      }
+    );
+  }
 }
 
 const createdChannels: MockChannel[] = [];
@@ -118,6 +121,16 @@ describe("createApiClient", () => {
       sessionCreated
     );
 
+    const sessionDeleted = vi.fn();
+    const unsubscribeSessionDeleted =
+            client.sockets.chatSessions.onSessionDeleted(sessionDeleted);
+    const sessionDeletedCalls = chatChannel.on.mock.calls.filter(
+      (call) => call[ 0 ] === "session.deleted"
+    );
+    expect(sessionDeletedCalls).toHaveLength(1);
+    const [, sessionDeletedHandler] = sessionDeletedCalls[ 0 ]!;
+    expect(typeof sessionDeletedHandler).toBe("function");
+
     const messageCreated = vi.fn();
     const unsubscribeMessageCreated =
             client.sockets.chatSessions.onMessageCreated(messageCreated);
@@ -156,8 +169,16 @@ describe("createApiClient", () => {
       partialHandler
     );
 
+    const deletedHandlers = chatChannel.handlers.get("session.deleted");
+    deletedHandlers?.forEach((handler) =>
+      handler({ id: "session-1" } as unknown as ChatSessionDto)
+    );
+    expect(sessionDeleted).toHaveBeenCalledWith("session-1");
+
     unsubscribeSessionCreated();
     expect(chatChannel.handlers.get("session.created")?.size ?? 0).toBe(0);
+    unsubscribeSessionDeleted();
+    expect(chatChannel.handlers.get("session.deleted")?.size ?? 0).toBe(0);
     unsubscribeMessageCreated();
     expect(chatChannel.handlers.get("message.created")?.size ?? 0).toBe(0);
     unsubscribeMessageUpdated();

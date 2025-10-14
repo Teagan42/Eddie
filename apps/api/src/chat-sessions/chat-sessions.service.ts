@@ -27,7 +27,7 @@ export interface AgentActivityEvent {
 export interface ChatSessionsListener {
   onSessionCreated(session: ChatSessionDto): void;
   onSessionUpdated(session: ChatSessionDto): void;
-  onSessionDeleted?(session: ChatSessionDto): void;
+  onSessionDeleted(id: string): void;
   onMessageCreated(message: ChatMessageDto): void;
   onMessageUpdated(message: ChatMessageDto): void;
   onAgentActivity?(event: AgentActivityEvent): void;
@@ -97,11 +97,9 @@ export class ChatSessionsService {
     }
   }
 
-  private notifySessionDeleted(session: ChatSessionDto): void {
+  private notifySessionDeleted(id: string): void {
     for (const listener of this.listeners) {
-      if (typeof listener.onSessionDeleted === "function") {
-        listener.onSessionDeleted(session);
-      }
+      listener.onSessionDeleted(id);
     }
   }
 
@@ -258,7 +256,7 @@ export class ChatSessionsService {
     await this.repository.saveAgentInvocations(id, []);
     const sessionDto = this.toDto(existing);
     this.notifySessionUpdated(sessionDto);
-    this.notifySessionDeleted(sessionDto);
+    this.notifySessionDeleted(existing.id);
   }
 
   private async ensureSessionExists(id: string): Promise<ChatSessionRecord> {
