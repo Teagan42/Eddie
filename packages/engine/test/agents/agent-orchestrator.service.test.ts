@@ -161,8 +161,8 @@ describe("AgentOrchestratorService", () => {
       type: "object",
       description: "Structured result emitted when a subagent run completes.",
       additionalProperties: false,
-      required: ["schema", "content", "data"],
     });
+    expect(schema.required).toEqual(["schema", "content", "data", "metadata"]);
 
     const properties = schema?.properties as Record<string, Record<string, unknown>>;
     expect(properties.schema).toMatchObject({
@@ -176,6 +176,16 @@ describe("AgentOrchestratorService", () => {
       type: "object",
       additionalProperties: false,
     });
+    expect(dataSchema.required).toEqual([
+      "agentId",
+      "messageCount",
+      "prompt",
+      "blocked",
+      "finalMessage",
+      "history",
+      "transcriptSummary",
+      "historySnippet",
+    ]);
 
     const dataProps = dataSchema.properties as Record<string, Record<string, unknown>>;
     expect(dataProps.agentId).toMatchObject({ type: "string" });
@@ -198,15 +208,31 @@ describe("AgentOrchestratorService", () => {
     const historyItems = historySchema.items as Record<string, unknown>;
     expect(historyItems).toMatchObject({
       type: "object",
-      required: ["role", "content"],
       additionalProperties: false,
     });
+    expect(historyItems.required).toEqual(["role", "content", "name", "tool_call_id"]);
 
     const metadataSchema = properties.metadata as Record<string, unknown>;
     expect(metadataSchema).toMatchObject({
       type: "object",
       additionalProperties: false,
     });
+    expect(metadataSchema.required).toEqual([
+      "agentId",
+      "model",
+      "provider",
+      "parentAgentId",
+      "blocked",
+      "name",
+      "description",
+      "profileId",
+      "routingThreshold",
+      "finalMessage",
+      "transcriptSummary",
+      "historySnippet",
+      "contextBundleIds",
+      "request",
+    ]);
 
     const metadataProps = metadataSchema.properties as Record<string, Record<string, unknown>>;
     expect(metadataProps.blocked).toMatchObject({ type: "boolean" });
@@ -216,6 +242,7 @@ describe("AgentOrchestratorService", () => {
       type: "object",
       additionalProperties: false,
     });
+    expect(requestSchema.required).toEqual(["prompt"]);
 
     const requestProps = requestSchema.properties as Record<string, Record<string, unknown>>;
     expect(requestProps.prompt).toMatchObject({ type: "string" });
