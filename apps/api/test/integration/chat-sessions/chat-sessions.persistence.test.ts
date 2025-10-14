@@ -83,4 +83,30 @@ describe("ChatSessionsRepository persistence", () => {
 
     await second.moduleRef.close();
   });
+
+  it("throws when configured with an unsupported persistence driver", async () => {
+    const config = structuredClone(DEFAULT_CONFIG);
+    config.api = {
+      ...(config.api ?? {}),
+      persistence: {
+        driver: "postgres",
+      },
+    };
+
+    const load = vi.fn().mockResolvedValue(config);
+    const getSnapshot = vi.fn().mockReturnValue(config);
+
+    const module = Test.createTestingModule({
+      providers: [
+        { provide: ConfigService, useValue: { load } },
+        { provide: ConfigStore, useValue: { getSnapshot } },
+        CHAT_SESSIONS_REPOSITORY_PROVIDER,
+        ChatSessionsService,
+      ],
+    });
+
+    await expect(module.compile()).rejects.toThrow(
+      "Unsupported chat sessions persistence driver \"postgres\". Supported drivers: memory, sqlite."
+    );
+  });
 });

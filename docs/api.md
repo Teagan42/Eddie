@@ -72,7 +72,9 @@ The guard accepts keys from the configuration file, the `EDDIE_API_KEY`/
 Set `api.persistence.driver` to `"memory"` (default) to keep the in-memory
 repository for ephemeral testing, or `"sqlite"` to persist chat sessions and
 messages to disk. When using SQLite you can override the storage location via
-`api.persistence.sqlite.filename`.
+`api.persistence.sqlite.filename`. Configuring `"postgres"`, `"mysql"`, or
+`"mariadb"` will cause the API to reject startup with a descriptive error since
+those drivers are not yet supported for chat session persistence.
 
 ## Public Routes
 
