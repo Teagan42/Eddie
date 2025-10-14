@@ -18,6 +18,7 @@
   "dependencies": {
     "@eddie/types": "^0.0.0",
     "@nestjs/common": "^11.0.0",
-    "ajv": "^8.17.1"
+    "ajv": "^8.17.1",
+    "yaml": "^2.7.0"
   }
 }

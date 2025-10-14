@@ -5,3 +5,6 @@ export * from "./builtin/bash";
 export * from "./builtin/file_read";
 export * from "./builtin/file_write";
 export * from "./builtin/get_folder_tree_structure";
+export * from "./builtin/get_plan";
+export * from "./builtin/complete_task";
+export * from "./builtin/update_plan";
