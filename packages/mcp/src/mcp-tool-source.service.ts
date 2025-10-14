@@ -349,7 +349,7 @@ export class McpToolSourceService {
     const headers = this.buildHeaders(source);
     const transportUrl = new URL(source.url);
     const transportName = this.resolveTransportName(source);
-    const { transport, sessionId } = this.createTransport({
+    const transport = this.createTransport({
       transportName,
       StreamableHTTPClientTransport,
       SSEClientTransport,
@@ -398,6 +398,12 @@ export class McpToolSourceService {
         "Connected to MCP server"
       );
     }
+
+    const sessionId = this.resolveSessionId({
+      transportName,
+      transport,
+      cachedSessionId: cached?.sessionId,
+    });
 
     this.sessionCache.set(source.id, {
       sessionId,
@@ -657,30 +663,40 @@ export class McpToolSourceService {
     transportUrl: URL;
     headers: Record<string, string>;
     cachedSessionId?: string;
-  }): {
-    transport: InstanceType<SdkModules["StreamableHTTPClientTransport"]> |
-      InstanceType<SdkModules["SSEClientTransport"]>;
-    sessionId?: string;
-  } {
+  }): TransportInstance {
     const requestInit = { headers };
 
     if (transportName === SSE_TRANSPORT_NAME) {
-      const transport = new SSEClientTransport(transportUrl, {
+      return new SSEClientTransport(transportUrl, {
         requestInit,
       });
-
-      return { transport };
     }
 
-    const transport = new StreamableHTTPClientTransport(transportUrl, {
+    return new StreamableHTTPClientTransport(transportUrl, {
       requestInit,
       sessionId: cachedSessionId,
     });
+  }
+  
+  private resolveSessionId({
+    transportName,
+    transport,
+    cachedSessionId,
+  }: {
+    transportName: TransportName;
+    transport: TransportInstance;
+    cachedSessionId?: string;
+  }): string | undefined {
+    if (transportName === STREAMABLE_TRANSPORT_NAME) {
+      const streamableTransport =
+        transport as StreamableHTTPClientTransportInstance & {
+          sessionId?: string;
+        };
 
-    return {
-      transport,
-      sessionId: transport.sessionId ?? cachedSessionId,
-    };
+      return streamableTransport.sessionId ?? cachedSessionId;
+    }
+
+    return undefined;
   }
 }
 
@@ -693,3 +709,15 @@ type SdkModules = {
     "@modelcontextprotocol/sdk/client/sse.js"
   ).SSEClientTransport;
 };
+
+type StreamableHTTPClientTransportInstance = InstanceType<
+  SdkModules["StreamableHTTPClientTransport"]
+>;
+
+type SSEClientTransportInstance = InstanceType<
+  SdkModules["SSEClientTransport"]
+>;
+
+type TransportInstance =
+  | StreamableHTTPClientTransportInstance
+  | SSEClientTransportInstance;
