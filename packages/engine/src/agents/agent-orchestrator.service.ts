@@ -776,6 +776,50 @@ export class AgentOrchestratorService {
     }
   }
 }
+const SPAWN_SUBAGENT_SCHEMA_REQUIRED_FIELDS = [
+  "schema",
+  "content",
+  "data",
+  "metadata",
+] as const satisfies readonly string[];
+
+const SPAWN_SUBAGENT_DATA_REQUIRED_FIELDS = [
+  "agentId",
+  "messageCount",
+  "prompt",
+  "blocked",
+  "finalMessage",
+  "history",
+  "transcriptSummary",
+  "historySnippet",
+] as const satisfies readonly string[];
+
+const SPAWN_SUBAGENT_HISTORY_REQUIRED_FIELDS = [
+  "role",
+  "content",
+  "name",
+  "tool_call_id",
+] as const satisfies readonly string[];
+
+const SPAWN_SUBAGENT_METADATA_REQUIRED_FIELDS = [
+  "agentId",
+  "model",
+  "provider",
+  "parentAgentId",
+  "blocked",
+  "name",
+  "description",
+  "profileId",
+  "routingThreshold",
+  "finalMessage",
+  "transcriptSummary",
+  "historySnippet",
+  "contextBundleIds",
+  "request",
+] as const satisfies readonly string[];
+
+const SPAWN_SUBAGENT_REQUEST_REQUIRED_FIELDS = ["prompt"] as const satisfies readonly string[];
+
 const SPAWN_SUBAGENT_OUTPUT_SCHEMA: NonNullable<ToolSchema["outputSchema"]> = {
   type: "json_schema",
   name: AgentRunner.SPAWN_TOOL_RESULT_SCHEMA,
@@ -784,7 +828,7 @@ const SPAWN_SUBAGENT_OUTPUT_SCHEMA: NonNullable<ToolSchema["outputSchema"]> = {
     type: "object",
     description: "Structured result emitted when a subagent run completes.",
     additionalProperties: false,
-    required: ["schema", "content", "data"],
+    required: [...SPAWN_SUBAGENT_SCHEMA_REQUIRED_FIELDS],
     properties: {
       schema: {
         type: "string",
@@ -799,7 +843,7 @@ const SPAWN_SUBAGENT_OUTPUT_SCHEMA: NonNullable<ToolSchema["outputSchema"]> = {
         type: "object",
         description: "Structured payload capturing the subagent invocation details.",
         additionalProperties: false,
-        required: ["agentId", "messageCount", "prompt", "context"],
+        required: [...SPAWN_SUBAGENT_DATA_REQUIRED_FIELDS],
         properties: {
           agentId: {
             type: "string",
@@ -851,7 +895,7 @@ const SPAWN_SUBAGENT_OUTPUT_SCHEMA: NonNullable<ToolSchema["outputSchema"]> = {
             description: "Full transcript history of the subagent conversation.",
             items: {
               type: "object",
-              required: ["role", "content"],
+              required: [...SPAWN_SUBAGENT_HISTORY_REQUIRED_FIELDS],
               additionalProperties: false,
               properties: {
                 role: {
@@ -878,6 +922,7 @@ const SPAWN_SUBAGENT_OUTPUT_SCHEMA: NonNullable<ToolSchema["outputSchema"]> = {
         type: "object",
         description: "Runtime metadata describing the subagent invocation.",
         additionalProperties: false,
+        required: [...SPAWN_SUBAGENT_METADATA_REQUIRED_FIELDS],
         properties: {
           agentId: { type: "string" },
           model: { type: "string" },
@@ -898,6 +943,7 @@ const SPAWN_SUBAGENT_OUTPUT_SCHEMA: NonNullable<ToolSchema["outputSchema"]> = {
           request: {
             type: "object",
             additionalProperties: false,
+            required: [...SPAWN_SUBAGENT_REQUEST_REQUIRED_FIELDS],
             properties: {
               prompt: { type: "string" },
               variables: {
