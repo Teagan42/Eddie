@@ -26,31 +26,31 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   getClient(): Knex {
-    if (!this.hasKnex()) {
+    const knex = this.knex;
+    if (typeof knex === "undefined") {
       throw new Error("SQL persistence is not configured for the database module.");
     }
-    return this.knex;
+    return knex;
   }
 
   async onModuleInit(): Promise<void> {
-    if (!this.hasKnex()) {
+    const knex = this.knex;
+    if (typeof knex === "undefined") {
       return;
     }
     await this.ensureMigrationsDirectory();
-    await this.knex.migrate.latest(this.migrationsConfig);
+    await knex.migrate.latest(this.migrationsConfig);
   }
 
   async onModuleDestroy(): Promise<void> {
-    if (!this.hasKnex()) {
+    const knex = this.knex;
+    if (typeof knex === "undefined") {
       return;
     }
-    await this.knex.destroy();
+    await knex.destroy();
   }
 
   private async ensureMigrationsDirectory(): Promise<void> {
-    if (!this.hasKnex()) {
-      return;
-    }
     const { directory } = this.migrationsConfig;
     if (!directory) {
       return;
@@ -68,9 +68,5 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     if (typeof directory === "string") {
       await ensureDirectory(directory);
     }
-  }
-
-  private hasKnex(): this is { knex: Knex } {
-    return typeof this.knex !== "undefined";
   }
 }
