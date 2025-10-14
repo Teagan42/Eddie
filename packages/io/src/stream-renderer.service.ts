@@ -12,7 +12,10 @@ const DEFAULT_PATTERNS = [
 @Injectable()
 export class StreamRendererService {
   render(event: StreamEvent): void {
-    const prefix = this.formatAgentPrefix(event);
+    const prefix =
+      event.type === "notification"
+        ? this.formatNotificationPrefix(event)
+        : this.formatAgentPrefix(event);
 
     switch (event.type) {
       case "delta": {
@@ -83,7 +86,30 @@ export class StreamRendererService {
       return "";
     }
 
-    return `${chalk.magenta(`[${event.agentId}]`)} `;
+    return this.createAgentPrefix(event.agentId);
+  }
+
+  private lastNotificationAgentId?: string;
+
+  private formatNotificationPrefix(event: StreamEvent): string {
+    const agentId = event.agentId;
+
+    if (!agentId) {
+      this.lastNotificationAgentId = undefined;
+      return "";
+    }
+
+    if (agentId === this.lastNotificationAgentId) {
+      return "";
+    }
+
+    this.lastNotificationAgentId = agentId;
+
+    return this.createAgentPrefix(agentId);
+  }
+
+  private createAgentPrefix(agentId: string): string {
+    return `${chalk.magenta(`[${agentId}]`)} `;
   }
 
   private formatDeltaBody(prefix: string, text: string | undefined): string {

@@ -62,4 +62,39 @@ describe("StreamRendererService", () => {
       `\n${prefixFor("worker")}${chalk.green("[tool_result]")} bash <eddie.tool.test> done\n`
     );
   });
+
+  it("only tags notifications when the agent changes", () => {
+    const renderer = new StreamRendererService();
+
+    renderer.render({
+      type: "notification",
+      agentId: "planner",
+      payload: "queued",
+    } as StreamEvent);
+
+    renderer.render({
+      type: "notification",
+      agentId: "planner",
+      payload: "still queued",
+    } as StreamEvent);
+
+    renderer.render({
+      type: "notification",
+      agentId: "reviewer",
+      payload: "ready",
+    } as StreamEvent);
+
+    expect(writeSpy).toHaveBeenNthCalledWith(
+      1,
+      `\n${prefixFor("planner")}${chalk.yellow("[notification]")} queued\n`
+    );
+    expect(writeSpy).toHaveBeenNthCalledWith(
+      2,
+      `\n${chalk.yellow("[notification]")} still queued\n`
+    );
+    expect(writeSpy).toHaveBeenNthCalledWith(
+      3,
+      `\n${prefixFor("reviewer")}${chalk.yellow("[notification]")} ready\n`
+    );
+  });
 });
