@@ -170,7 +170,7 @@ describe("ChatSessionsRepository persistence", () => {
     const firstService = first.moduleRef.get(ChatSessionsService);
 
     const session = await firstService.createSession({ title: "Original" });
-    await firstService.renameSession(session.id, "Updated");
+    await firstService.renameSession(session.id, { title: "Updated" });
 
     await first.moduleRef.close();
     await first.database?.destroy();

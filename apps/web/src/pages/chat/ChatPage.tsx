@@ -423,6 +423,16 @@ export function ChatPage(): JSX.Element {
           sortSessions([session, ...previous.filter((item) => item.id !== session.id)]),
         );
       }),
+      api.sockets.chatSessions.onSessionDeleted((session) => {
+        queryClient.setQueryData<ChatSessionDto[]>(['chat-sessions'], (previous = []) =>
+          previous.filter((item) => item.id !== session.id),
+        );
+        queryClient.removeQueries({ queryKey: ['chat-session', session.id, 'messages'] });
+        queryClient.removeQueries({ queryKey: ['chat-sessions', session.id, 'messages'] });
+        if (selectedSessionIdRef.current === session.id) {
+          setSelectedSessionId(null);
+        }
+      }),
       api.sockets.chatSessions.onMessageCreated((message) => {
         queryClient.setQueryData<ChatMessageDto[]>(
           ['chat-session', message.sessionId, 'messages'],

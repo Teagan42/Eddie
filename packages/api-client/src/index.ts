@@ -220,6 +220,7 @@ export type Unsubscribe = () => void;
 export interface ChatSessionsSocket {
     onSessionCreated(handler: (session: ChatSessionDto) => void): Unsubscribe;
     onSessionUpdated(handler: (session: ChatSessionDto) => void): Unsubscribe;
+    onSessionDeleted(handler: (session: ChatSessionDto) => void): Unsubscribe;
     onMessageCreated(handler: (message: ChatMessageDto) => void): Unsubscribe;
     onMessageUpdated(handler: (message: ChatMessageDto) => void): Unsubscribe;
     onAgentActivity(
@@ -409,6 +410,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     },
     onSessionUpdated(handler) {
       return chatChannel.on("session.updated", handler);
+    },
+    onSessionDeleted(handler) {
+      return chatChannel.on("session.deleted", handler);
     },
     onMessageCreated(handler) {
       return chatChannel.on("message.created", handler);
