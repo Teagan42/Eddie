@@ -1,5 +1,5 @@
 import { OnModuleDestroy } from "@nestjs/common";
-import { randomUUID } from "crypto";
+import { pbkdf2Sync, randomUUID } from "crypto";
 import knex, { type Knex } from "knex";
 
 import { ChatMessageRole } from "./dto/create-chat-message.dto";
@@ -44,6 +44,7 @@ export interface AgentInvocationSnapshot {
 export interface CreateChatSessionInput {
   title: string;
   description?: string;
+  apiKey?: string;
 }
 
 export interface UpdateChatSessionMetadataInput {
@@ -61,6 +62,7 @@ export interface CreateChatMessageInput {
 
 export interface ChatSessionsRepository {
   listSessions(): Promise<ChatSessionRecord[]>;
+  listSessionsForApiKey(apiKey: string): Promise<ChatSessionRecord[]>;
   getSessionById(id: string): Promise<ChatSessionRecord | undefined>;
   createSession(input: CreateChatSessionInput): Promise<ChatSessionRecord>;
   renameSession(
@@ -113,6 +115,28 @@ const cloneMessage = (message: ChatMessageRecord): ChatMessageRecord => ({
   createdAt: new Date(message.createdAt),
 });
 
+const normalizeApiKey = (apiKey?: string | null): string | null => {
+  if (!apiKey) {
+    return null;
+  }
+  const trimmed = apiKey.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const API_KEY_HASH_ITERATIONS = 310_000;
+const API_KEY_HASH_KEY_LENGTH = 64;
+const API_KEY_HASH_DIGEST = "sha512";
+const API_KEY_HASH_SALT = "chat-session-api-key";
+
+const hashApiKey = (apiKey: string): string =>
+  pbkdf2Sync(
+    apiKey,
+    API_KEY_HASH_SALT,
+    API_KEY_HASH_ITERATIONS,
+    API_KEY_HASH_KEY_LENGTH,
+    API_KEY_HASH_DIGEST
+  ).toString("hex");
+
 export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
   private readonly sessions = new Map<string, ChatSessionRecord>();
   private readonly messages = new Map<string, ChatMessageRecord[]>();
@@ -120,6 +144,7 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     string,
     AgentInvocationSnapshot[]
   >();
+  private readonly apiKeyIndex = new Map<string, Set<string>>();
 
   private touchSession(session: ChatSessionRecord, timestamp?: number): void {
     const current = session.updatedAt.getTime();
@@ -128,10 +153,53 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
       next > current ? new Date(next) : new Date(current + 1);
   }
 
+  private indexSession(sessionId: string, apiKey?: string): void {
+    const key = normalizeApiKey(apiKey);
+    if (!key) {
+      return;
+    }
+    const hashed = hashApiKey(key);
+    let sessionsForKey = this.apiKeyIndex.get(hashed);
+    if (!sessionsForKey) {
+      sessionsForKey = new Set<string>();
+      this.apiKeyIndex.set(hashed, sessionsForKey);
+    }
+    sessionsForKey.add(sessionId);
+  }
+
+  private unindexSession(sessionId: string): void {
+    for (const [key, sessions] of this.apiKeyIndex) {
+      sessions.delete(sessionId);
+      if (sessions.size === 0) {
+        this.apiKeyIndex.delete(key);
+      }
+    }
+  }
+
   async listSessions(): Promise<ChatSessionRecord[]> {
     return Array.from(this.sessions.values())
       .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
       .map((session) => cloneSession(session));
+  }
+
+  async listSessionsForApiKey(apiKey: string): Promise<ChatSessionRecord[]> {
+    const key = normalizeApiKey(apiKey);
+    if (!key) {
+      return [];
+    }
+    const hashed = hashApiKey(key);
+    const sessionIds = this.apiKeyIndex.get(hashed);
+    if (!sessionIds) {
+      return [];
+    }
+    const sessions: ChatSessionRecord[] = [];
+    for (const id of sessionIds) {
+      const session = this.sessions.get(id);
+      if (session) {
+        sessions.push(cloneSession(session));
+      }
+    }
+    return sessions.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   }
 
   async getSessionById(id: string): Promise<ChatSessionRecord | undefined> {
@@ -153,6 +221,7 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     };
     this.sessions.set(session.id, session);
     this.messages.set(session.id, []);
+    this.indexSession(session.id, input.apiKey);
     return cloneSession(session);
   }
 
@@ -243,6 +312,7 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     const removed = this.sessions.delete(id);
     this.messages.delete(id);
     this.agentInvocations.delete(id);
+    this.unindexSession(id);
     return removed;
   }
 
@@ -409,6 +479,32 @@ export class KnexChatSessionsRepository implements ChatSessionsRepository, OnMod
     return rows.map(mapSessionRow);
   }
 
+  async listSessionsForApiKey(apiKey: string): Promise<ChatSessionRecord[]> {
+    await this.ensureReady();
+    const trimmed = normalizeApiKey(apiKey);
+    if (!trimmed) {
+      return [];
+    }
+    const hashed = hashApiKey(trimmed);
+    const rows = await this.knex<ChatSessionRow>("chat_sessions")
+      .join(
+        "chat_session_api_keys",
+        "chat_sessions.id",
+        "chat_session_api_keys.session_id"
+      )
+      .select(
+        "chat_sessions.id as id",
+        "chat_sessions.title as title",
+        "chat_sessions.description as description",
+        "chat_sessions.status as status",
+        "chat_sessions.created_at as created_at",
+        "chat_sessions.updated_at as updated_at"
+      )
+      .where("chat_session_api_keys.api_key", hashed)
+      .orderBy("chat_sessions.updated_at", "desc");
+    return rows.map(mapSessionRow);
+  }
+
   async getSessionById(id: string): Promise<ChatSessionRecord | undefined> {
     await this.ensureReady();
     const row = await this.knex<ChatSessionRow>("chat_sessions")
@@ -431,13 +527,22 @@ export class KnexChatSessionsRepository implements ChatSessionsRepository, OnMod
     await this.ensureReady();
     const now = new Date();
     const id = randomUUID();
-    await this.knex("chat_sessions").insert({
-      id,
-      title: input.title,
-      description: input.description ?? null,
-      status: "active",
-      created_at: now,
-      updated_at: now,
+    const trimmedKey = normalizeApiKey(input.apiKey);
+    await this.knex.transaction(async (trx) => {
+      await trx("chat_sessions").insert({
+        id,
+        title: input.title,
+        description: input.description ?? null,
+        status: "active",
+        created_at: now,
+        updated_at: now,
+      });
+      if (trimmedKey) {
+        await trx("chat_session_api_keys").insert({
+          session_id: id,
+          api_key: hashApiKey(trimmedKey),
+        });
+      }
     });
     const session = await this.getSessionById(id);
     if (!session) {

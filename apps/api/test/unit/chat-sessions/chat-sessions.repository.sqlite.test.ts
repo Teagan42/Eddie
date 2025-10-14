@@ -150,6 +150,27 @@ describe("KnexChatSessionsRepository (sqlite)", () => {
     await expect(repository.listAgentInvocations(session.id)).resolves.toEqual([]);
   });
 
+  it("maps sessions to API keys", async () => {
+    const alpha = await repository.createSession({
+      title: "Alpha",
+      apiKey: "key-1",
+    });
+    const beta = await repository.createSession({
+      title: "Beta",
+      apiKey: "key-2",
+    });
+    await repository.createSession({ title: "Anonymous" });
+
+    await expect(repository.listSessionsForApiKey("key-1")).resolves.toEqual([
+      expect.objectContaining({ id: alpha.id, title: "Alpha" }),
+    ]);
+    await expect(repository.listSessionsForApiKey("key-2")).resolves.toEqual([
+      expect.objectContaining({ id: beta.id, title: "Beta" }),
+    ]);
+    await expect(repository.listSessionsForApiKey("unknown"))
+      .resolves.toEqual([]);
+  });
+
   it("destroys the owned knex instance when the module is destroyed", async () => {
     const destroySpy = vi.spyOn(database, "destroy");
 
