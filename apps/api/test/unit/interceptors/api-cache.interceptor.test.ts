@@ -1,4 +1,5 @@
 import type { CallHandler, ExecutionContext } from "@nestjs/common";
+import { createHash } from "node:crypto";
 import type { Request } from "express";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { firstValueFrom, of } from "rxjs";
@@ -224,5 +225,44 @@ describe("ApiCacheInterceptor", () => {
       "Caching fresh response"
     );
     expect(configService.load).not.toHaveBeenCalled();
+  });
+
+  it("derives the context fingerprint from computeStats results", async () => {
+    const logger = { debug: vi.fn(), error: vi.fn() };
+    const config = createConfig();
+    const configService = {
+      load: vi.fn(),
+    } as unknown as ConfigService;
+    const stats = { fileCount: 5, totalBytes: 2048 };
+    const computeStats = vi.fn().mockResolvedValue(stats);
+    const pack = vi.fn();
+    const contextService = {
+      computeStats,
+      pack,
+    } as unknown as ContextService;
+    const store = {
+      getSnapshot: vi.fn(() => config),
+      changes$: of(config),
+    } as unknown as ConfigStore;
+
+    const interceptor = new ApiCacheInterceptor(
+      configService,
+      store,
+      contextService,
+      logger as unknown as Logger
+    );
+
+    await interceptor.onModuleInit();
+
+    expect(computeStats).toHaveBeenCalledWith(config.context);
+    expect(pack).not.toHaveBeenCalled();
+    const expectedFingerprint = createHash("sha1")
+      .update(String(stats.fileCount))
+      .update(":")
+      .update(String(stats.totalBytes))
+      .digest("hex");
+    expect((interceptor as unknown as { contextFingerprint: string }).contextFingerprint).toBe(
+      expectedFingerprint
+    );
   });
 });

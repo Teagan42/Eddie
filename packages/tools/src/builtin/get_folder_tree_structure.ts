@@ -21,6 +21,15 @@ interface BuildOptions {
   maxDepth: number;
 }
 
+interface PaginationSummary {
+  limit: number | null;
+  offset: number;
+  returnedEntries: number;
+  totalEntries: number;
+  hasMore: boolean;
+  nextOffset: number | null;
+}
+
 const joinRelativePath = (base: string, segment: string) =>
   base ? `${base}/${segment}` : segment;
 
@@ -86,12 +95,25 @@ const flattenEntries = (entries: TreeEntry[]): string[] => {
   return items;
 };
 
-const formatContent = (root: string, entries: TreeEntry[]): string => {
-  const flattened = flattenEntries(entries);
-  if (flattened.length === 0) {
-    return `Tree for ${root}`;
+const formatContent = (
+  root: string,
+  pageEntries: string[],
+  pagination: PaginationSummary,
+): string => {
+  const shouldAnnotate =
+    pagination.limit !== null || pagination.offset > 0 || pagination.hasMore;
+  let header = `Tree for ${root}`;
+  if (shouldAnnotate) {
+    const details =
+      pagination.offset > 0
+        ? `showing ${pagination.returnedEntries} of ${pagination.totalEntries} entries starting at offset ${pagination.offset}`
+        : `showing ${pagination.returnedEntries} of ${pagination.totalEntries} entries`;
+    header = `${header} (${details})`;
   }
-  return [`Tree for ${root}`, ...flattened].join("\n");
+  if (pageEntries.length === 0) {
+    return header;
+  }
+  return [header, ...pageEntries].join("\n");
 };
 
 export const getFolderTreeStructureTool: ToolDefinition = {
@@ -103,6 +125,8 @@ export const getFolderTreeStructureTool: ToolDefinition = {
       path: { type: "string", default: "." },
       maxDepth: { type: "number", minimum: 0 },
       includeHidden: { type: "boolean" },
+      maxEntries: { type: "number", minimum: 1 },
+      offset: { type: "number", minimum: 0 },
     },
     additionalProperties: false,
   },
@@ -139,8 +163,32 @@ export const getFolderTreeStructureTool: ToolDefinition = {
           ],
         },
       },
+      pageEntries: {
+        type: "array",
+        items: { type: "string" },
+      },
+      pagination: {
+        type: "object",
+        properties: {
+          limit: { type: ["number", "null"] },
+          offset: { type: "number" },
+          returnedEntries: { type: "number" },
+          totalEntries: { type: "number" },
+          hasMore: { type: "boolean" },
+          nextOffset: { type: ["number", "null"] },
+        },
+        required: [
+          "limit",
+          "offset",
+          "returnedEntries",
+          "totalEntries",
+          "hasMore",
+          "nextOffset",
+        ],
+        additionalProperties: false,
+      },
     },
-    required: ["root", "entries"],
+    required: ["root", "entries", "pageEntries", "pagination"],
     additionalProperties: false,
   },
   async handler(args, ctx) {
@@ -154,18 +202,47 @@ export const getFolderTreeStructureTool: ToolDefinition = {
         ? Math.max(0, Math.floor(args.maxDepth))
         : Number.POSITIVE_INFINITY;
     const includeHidden = Boolean(args.includeHidden);
+    const rawMaxEntries =
+      typeof args.maxEntries === "number" && Number.isFinite(args.maxEntries)
+        ? Math.max(1, Math.floor(args.maxEntries))
+        : Number.POSITIVE_INFINITY;
+    const rawOffset =
+      typeof args.offset === "number" && Number.isFinite(args.offset)
+        ? Math.max(0, Math.floor(args.offset))
+        : 0;
 
     const entries = await buildTreeEntries(absolute, initialRelative, 0, {
       includeHidden,
       maxDepth,
     });
+    const flattened = flattenEntries(entries);
+    const totalEntries = flattened.length;
+    const offset = Math.min(rawOffset, totalEntries);
+    const limitValue = Number.isFinite(rawMaxEntries) ? rawMaxEntries : null;
+    const pageEntries = Number.isFinite(rawMaxEntries)
+      ? flattened.slice(offset, offset + rawMaxEntries)
+      : flattened.slice(offset);
+    const returnedEntries = pageEntries.length;
+    const hasMore = offset + returnedEntries < totalEntries;
+    const nextOffset = hasMore ? offset + returnedEntries : null;
+
+    const pagination: PaginationSummary = {
+      limit: limitValue,
+      offset,
+      returnedEntries,
+      totalEntries,
+      hasMore,
+      nextOffset,
+    };
 
     return {
       schema: "eddie.tool.get_folder_tree_structure.result.v1",
-      content: formatContent(rootDisplay, entries),
+      content: formatContent(rootDisplay, pageEntries, pagination),
       data: {
         root: rootDisplay,
         entries,
+        pageEntries,
+        pagination,
       },
     };
   },

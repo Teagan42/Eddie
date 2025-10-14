@@ -22,12 +22,13 @@ import type {
   SessionMetadata,
   SessionStatus,
 } from "@eddie/hooks";
-import type { ChatMessage } from "@eddie/types";
-import type {
-  PackedContext,
-  PackedResource,
-  ProviderAdapter,
-  ToolDefinition,
+import {
+  composeResourceText,
+  type ChatMessage,
+  type PackedContext,
+  type PackedResource,
+  type ProviderAdapter,
+  type ToolDefinition,
 } from "@eddie/types";
 import { TokenizerService } from "@eddie/tokenizers";
 import {

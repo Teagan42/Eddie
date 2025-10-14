@@ -37,6 +37,13 @@ describe("fileReadTool", () => {
     expect(readFileSpy).not.toHaveBeenCalled();
     expect(result.data.truncated).toBe(true);
     expect(result.data.bytes).toBeLessThanOrEqual(1024);
+    expect(result.data).toMatchObject({
+      path: fileName,
+      page: 1,
+      pageSize: 1024,
+      totalBytes: 16384,
+      totalPages: 16,
+    });
     expect(Buffer.byteLength(result.content, "utf-8")).toBe(result.data.bytes);
   });
 
@@ -57,6 +64,13 @@ describe("fileReadTool", () => {
     expect(result.content).toBe("");
     expect(result.data.bytes).toBe(0);
     expect(result.data.truncated).toBe(true);
+    expect(result.data).toMatchObject({
+      path: fileName,
+      page: 1,
+      pageSize: 1,
+      totalBytes: 8,
+      totalPages: 8,
+    });
     expect(Buffer.byteLength(result.content, "utf-8")).toBe(result.data.bytes);
   });
 });

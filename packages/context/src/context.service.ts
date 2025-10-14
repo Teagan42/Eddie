@@ -9,7 +9,12 @@ import type {
   ContextResourceConfig,
   ContextResourceTemplateConfig,
 } from "@eddie/config";
-import type { PackedContext, PackedFile, PackedResource } from "@eddie/types";
+import {
+  composeResourceText,
+  type PackedContext,
+  type PackedFile,
+  type PackedResource,
+} from "@eddie/types";
 import { LoggerService } from "@eddie/io";
 import { TemplateRendererService } from "@eddie/templates";
 import type { TemplateVariables } from "@eddie/templates";
@@ -166,19 +171,99 @@ export class ContextService {
     private readonly templateRenderer: TemplateRendererService
   ) {}
 
+  async computeStats(
+    config: ContextConfig
+  ): Promise<{ fileCount: number; totalBytes: number }> {
+    const logger = this.loggerService.getLogger("context:service");
+    const {
+      baseDir,
+      includePatterns,
+      excludePatterns,
+      maxBytes,
+      maxFiles,
+      variables: baseVariables,
+      resourceConfigs,
+    } = this.resolveContextOptions(config);
+
+    const globResults = await fg(
+      includePatterns,
+      this.createGlobOptions(baseDir, excludePatterns)
+    );
+
+    const ig = ignore().add(excludePatterns);
+
+    let fileCount = 0;
+    let totalBytes = 0;
+
+    for (const relPath of globResults) {
+      if (fileCount >= maxFiles) {
+        logger.debug(`Context file limit reached (${maxFiles}).`);
+        break;
+      }
+
+      if (ig.ignores(relPath)) {
+        continue;
+      }
+
+      const absolutePath = path.resolve(baseDir, relPath);
+      try {
+        const stat = await fs.stat(absolutePath);
+        if (
+          this.isOverBudget({
+            logger,
+            metadata: { file: relPath, maxBytes },
+            message: "Skipping file beyond budget",
+            current: totalBytes,
+            addition: stat.size,
+            max: maxBytes,
+          })
+        ) {
+          continue;
+        }
+
+        fileCount += 1;
+        totalBytes += stat.size;
+      } catch (error) {
+        logger.warn(
+          { err: error instanceof Error ? error.message : error, file: relPath },
+          "Failed to read context file"
+        );
+      }
+    }
+
+    for (const resourceConfig of resourceConfigs) {
+      const bytes = await this.computeResourceBytes(resourceConfig, {
+        baseDir,
+        maxBytes,
+        totalBytes,
+        variables: baseVariables,
+        logger,
+      });
+
+      if (bytes <= 0) {
+        continue;
+      }
+
+      totalBytes += bytes;
+    }
+
+    return {
+      fileCount,
+      totalBytes,
+    };
+  }
+
   async pack(config: ContextConfig): Promise<PackedContext> {
     const logger = this.loggerService.getLogger("context:service");
-    const baseDir = config.baseDir ?? process.cwd();
-    const includePatterns = config.include?.length
-      ? config.include
-      : DEFAULT_INCLUDE_PATTERNS;
-    const excludePatterns = config.exclude?.length
-      ? [...DEFAULT_EXCLUDE_PATTERNS, ...config.exclude]
-      : DEFAULT_EXCLUDE_PATTERNS;
-    const maxBytes = config.maxBytes ?? DEFAULT_MAX_BYTES;
-    const maxFiles = config.maxFiles ?? DEFAULT_MAX_FILES;
-    const baseVariables = config.variables ?? {};
-    const resourceConfigs = config.resources ?? [];
+    const {
+      baseDir,
+      includePatterns,
+      excludePatterns,
+      maxBytes,
+      maxFiles,
+      variables: baseVariables,
+      resourceConfigs,
+    } = this.resolveContextOptions(config);
 
     const globResults = await fg(
       includePatterns,
@@ -490,12 +575,143 @@ export class ContextService {
     };
   }
 
+  private async computeResourceBytes(
+    resource: ContextResourceConfig,
+    options: {
+      baseDir: string;
+      maxBytes: number;
+      totalBytes: number;
+      variables: TemplateVariables;
+      logger: ReturnType<LoggerService["getLogger"]>;
+    }
+  ): Promise<number> {
+    if (resource.type === "bundle") {
+      return this.computeBundleResourceBytes(resource, options);
+    }
+
+    return this.computeTemplateResourceBytes(resource, options);
+  }
+
+  private async computeBundleResourceBytes(
+    resource: ContextResourceBundleConfig,
+    options: {
+      baseDir: string;
+      maxBytes: number;
+      totalBytes: number;
+      logger: ReturnType<LoggerService["getLogger"]>;
+    }
+  ): Promise<number> {
+    const baseDir = resource.baseDir ?? options.baseDir;
+    const includePatterns = resource.include.length
+      ? resource.include
+      : DEFAULT_INCLUDE_PATTERNS;
+    const excludePatterns = resource.exclude?.length
+      ? [...DEFAULT_EXCLUDE_PATTERNS, ...resource.exclude]
+      : DEFAULT_EXCLUDE_PATTERNS;
+    const globResults = await fg(
+      includePatterns,
+      this.createGlobOptions(baseDir, excludePatterns)
+    );
+
+    const ig = ignore().add(excludePatterns);
+    let bytes = 0;
+
+    for (const relPath of globResults) {
+      if (ig.ignores(relPath)) {
+        continue;
+      }
+
+      const absolutePath = path.resolve(baseDir, relPath);
+      try {
+        const stat = await fs.stat(absolutePath);
+        if (
+          this.isOverBudget({
+            logger: options.logger,
+            metadata: {
+              resource: resource.id,
+              file: relPath,
+              maxBytes: options.maxBytes,
+            },
+            message: "Skipping resource file beyond budget",
+            current: options.totalBytes + bytes,
+            addition: stat.size,
+            max: options.maxBytes,
+          })
+        ) {
+          continue;
+        }
+
+        bytes += stat.size;
+      } catch (error) {
+        options.logger.warn(
+          {
+            err: error instanceof Error ? error.message : error,
+            file: relPath,
+            resource: resource.id,
+          },
+          "Failed to read resource file"
+        );
+      }
+    }
+
+    return bytes;
+  }
+
+  private async computeTemplateResourceBytes(
+    resource: ContextResourceTemplateConfig,
+    options: {
+      maxBytes: number;
+      totalBytes: number;
+      variables: TemplateVariables;
+      logger: ReturnType<LoggerService["getLogger"]>;
+    }
+  ): Promise<number> {
+    const rendered = await this.templateRenderer.renderTemplate(resource.template, {
+      ...options.variables,
+      ...(resource.variables ?? {}),
+    });
+
+    const text = rendered.trimEnd();
+    const bytes = Buffer.byteLength(text);
+
+    if (
+      this.isOverBudget({
+        logger: options.logger,
+        metadata: { resource: resource.id, maxBytes: options.maxBytes },
+        message: "Skipping resource template beyond budget",
+        current: options.totalBytes,
+        addition: bytes,
+        max: options.maxBytes,
+      })
+    ) {
+      return 0;
+    }
+
+    return bytes;
+  }
+
   private createGlobOptions(baseDir: string, excludePatterns: string[]) {
     return {
       cwd: baseDir,
       dot: true,
       onlyFiles: true,
       ignore: excludePatterns,
+    } as const;
+  }
+
+  private resolveContextOptions(config: ContextConfig) {
+    return {
+      baseDir: config.baseDir ?? process.cwd(),
+      includePatterns: config.include?.length
+        ? config.include
+        : DEFAULT_INCLUDE_PATTERNS,
+      excludePatterns: config.exclude?.length
+        ? [...DEFAULT_EXCLUDE_PATTERNS, ...config.exclude]
+        : DEFAULT_EXCLUDE_PATTERNS,
+      maxBytes: config.maxBytes ?? DEFAULT_MAX_BYTES,
+      maxFiles: config.maxFiles ?? DEFAULT_MAX_FILES,
+      variables: config.variables ?? {},
+      resourceConfigs: config.resources ?? [],
     } as const;
   }
 }

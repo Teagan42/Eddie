@@ -142,10 +142,13 @@ export class AgentOrchestratorService {
     const queue: AgentInvocation[] = [ root ];
     const result: AgentInvocation[] = [];
 
-    while (queue.length > 0) {
-      const current = queue.shift()!;
+    for (let index = 0; index < queue.length; index += 1) {
+      const current = queue[index];
       result.push(current);
-      queue.push(...current.children);
+      const { children } = current;
+      if (children.length > 0) {
+        queue.push(...children);
+      }
     }
 
     return result;

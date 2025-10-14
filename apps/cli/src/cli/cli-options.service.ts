@@ -41,7 +41,7 @@ export class CliOptionsService {
     if (typeof options.disableSubagents === "boolean") {
       base.disableSubagents = options.disableSubagents;
     }
-    if (options.noContext === true) {
+    if (options.disableContext === true || options.noContext === true) {
       base.disableContext = true;
     }
 
@@ -58,7 +58,9 @@ export class CliOptionsService {
         : undefined;
 
     const tools = toStringArray(options.tools);
-    const disabledTools = toStringArray(options.disableTools);
+    const disabledTools = toStringArray(
+      options.disabledTools ?? options.disableTools,
+    );
 
     return {
       ...base,
