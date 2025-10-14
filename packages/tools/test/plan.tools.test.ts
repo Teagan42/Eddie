@@ -30,16 +30,19 @@ describe("plan tools", () => {
       {
         title: "Set up workspace",
         status: "complete",
+        completed: true,
         details: "Install dependencies and scaffolding.",
       },
       {
         title: "Implement planner tools",
         status: "in_progress",
+        completed: false,
         details: "Add get_plan and update_plan definitions.",
       },
       {
         title: "Document usage",
         status: "pending",
+        completed: false,
         details: "Update README with plan workflow.",
       },
     ];
@@ -118,6 +121,84 @@ describe("plan tools", () => {
       expect(result.schema).toBe("eddie.tool.plan.result.v1");
       expect(result.data.plan.tasks).toEqual([]);
       expect(result.content).toContain("No plan available");
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("respects plan config overrides and filename arguments", async () => {
+    const updateTool = findTool("update_plan");
+    const getTool = findTool("get_plan");
+
+    expect(updateTool).toBeDefined();
+    expect(getTool).toBeDefined();
+    if (!updateTool || !getTool) {
+      throw new Error("plan tools not registered");
+    }
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "eddie-plan-tools-"));
+    const ctx = {
+      cwd: tmpDir,
+      confirm: vi.fn(async () => true),
+      env: process.env,
+    };
+
+    const configPath = path.join(tmpDir, "eddie.config.json");
+    await fs.writeFile(
+      configPath,
+      JSON.stringify(
+        {
+          plan: {
+            directory: "custom-plan",
+            filename: "config-plan.json",
+          },
+        },
+        null,
+        2,
+      ),
+      "utf-8",
+    );
+
+    const tasks = [
+      {
+        title: "Scaffold plan overrides",
+        status: "in_progress",
+        completed: false,
+      },
+    ];
+
+    try {
+      const result = await updateTool.handler(
+        {
+          tasks,
+          abridged: false,
+          filename: "run-specific-plan.json",
+        },
+        ctx,
+      );
+
+      const expectedPath = path.join(
+        tmpDir,
+        "custom-plan",
+        "run-specific-plan.json",
+      );
+
+      const stored = await fs.readFile(expectedPath, "utf-8");
+      const parsed = JSON.parse(stored);
+
+      expect(result.data.plan.tasks).toEqual(tasks);
+      expect(parsed.tasks).toEqual(tasks);
+      expect(ctx.confirm).toHaveBeenCalledWith("Update plan with 1 tasks?");
+
+      const retrieved = await getTool.handler(
+        {
+          abridged: true,
+          filename: "run-specific-plan.json",
+        },
+        ctx,
+      );
+
+      expect(retrieved.data.plan.tasks).toEqual(tasks);
     } finally {
       await fs.rm(tmpDir, { recursive: true, force: true });
     }

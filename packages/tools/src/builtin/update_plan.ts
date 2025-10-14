@@ -6,6 +6,7 @@ import {
   PlanTaskStatus,
   readPlanDocument,
   renderPlanContent,
+  sanitisePlanFilename,
   writePlanDocument,
 } from "./plan";
 
@@ -14,9 +15,10 @@ const TASK_SCHEMA = {
   properties: {
     title: { type: "string", minLength: 1 },
     status: { enum: ["pending", "in_progress", "complete"] },
+    completed: { type: "boolean" },
     details: { type: "string" },
   },
-  required: ["title", "status"],
+  required: ["title", "status", "completed"],
   additionalProperties: false,
 } as const;
 
@@ -36,6 +38,7 @@ const sanitiseTasks = (input: unknown): PlanTask[] => {
     const title = String((candidate as { title?: unknown }).title ?? "").trim();
     const status = (candidate as { status?: unknown }).status;
     const detailsRaw = (candidate as { details?: unknown }).details;
+    const completedRaw = (candidate as { completed?: unknown }).completed;
 
     if (!title) {
       throw new Error("task title must be provided");
@@ -43,6 +46,15 @@ const sanitiseTasks = (input: unknown): PlanTask[] => {
 
     if (!isPlanTaskStatus(status)) {
       throw new Error("task status must be pending, in_progress, or complete");
+    }
+
+    let completed: boolean;
+    if (typeof completedRaw === "boolean") {
+      completed = completedRaw;
+    } else if (completedRaw === undefined) {
+      completed = status === "complete";
+    } else {
+      throw new Error("task completed must be a boolean");
     }
 
     const details =
@@ -55,6 +67,7 @@ const sanitiseTasks = (input: unknown): PlanTask[] => {
     return {
       title,
       status,
+      completed,
       details: details && details.length > 0 ? details : undefined,
     } satisfies PlanTask;
   });
@@ -71,6 +84,7 @@ export const updatePlanTool: ToolDefinition = {
         items: TASK_SCHEMA,
       },
       abridged: { type: "boolean" },
+      filename: { type: "string", minLength: 1 },
     },
     required: ["tasks"],
     additionalProperties: false,
@@ -79,13 +93,14 @@ export const updatePlanTool: ToolDefinition = {
   async handler(args, ctx) {
     const abridged = Boolean(args.abridged);
     const tasks = sanitiseTasks(args.tasks);
+    const filename = sanitisePlanFilename(args.filename);
 
     const approved = await ctx.confirm(
       `Update plan with ${tasks.length} tasks?`,
     );
 
     if (!approved) {
-      const current = await readPlanDocument(ctx.cwd);
+      const current = await readPlanDocument(ctx.cwd, ctx.env, filename);
       return {
         schema: "eddie.tool.plan.result.v1" as const,
         content: renderPlanContent(current, abridged),
@@ -96,7 +111,12 @@ export const updatePlanTool: ToolDefinition = {
       };
     }
 
-    const document = await writePlanDocument(ctx.cwd, tasks);
+    const document = await writePlanDocument(
+      ctx.cwd,
+      tasks,
+      ctx.env,
+      filename,
+    );
     const content = renderPlanContent(document, abridged);
 
     return {

@@ -1,11 +1,13 @@
 import fs from "fs/promises";
 import path from "path";
+import yaml from "yaml";
 
 export type PlanTaskStatus = "pending" | "in_progress" | "complete";
 
 export interface PlanTask {
   title: string;
   status: PlanTaskStatus;
+  completed: boolean;
   details?: string;
 }
 
@@ -22,7 +24,20 @@ export const PLAN_RESULT_SCHEMA = {
     plan: {
       type: "object",
       properties: {
-        tasks: { type: "array" },
+        tasks: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              status: { enum: ["pending", "in_progress", "complete"] },
+              completed: { type: "boolean" },
+              details: { type: "string" },
+            },
+            required: ["title", "status", "completed"],
+            additionalProperties: true,
+          },
+        },
         updatedAt: { anyOf: [{ type: "string" }, { type: "null" }] },
       },
       required: ["tasks", "updatedAt"],
@@ -33,23 +48,218 @@ export const PLAN_RESULT_SCHEMA = {
   additionalProperties: false,
 } as const;
 
-const PLAN_DIRECTORY = ".eddie";
-const PLAN_FILENAME = "plan.json";
+const DEFAULT_PLAN_DIRECTORY = ".eddie";
+const DEFAULT_PLAN_FILENAME = "plan.json";
 
-const planFilePath = (cwd: string): string =>
-  path.join(cwd, PLAN_DIRECTORY, PLAN_FILENAME);
+const CONFIG_FILENAMES = [
+  "eddie.config.json",
+  "eddie.config.yaml",
+  "eddie.config.yml",
+  ".eddierc",
+  ".eddierc.json",
+  ".eddierc.yaml",
+];
 
-const ensurePlanDirectory = async (cwd: string): Promise<void> => {
-  const directory = path.join(cwd, PLAN_DIRECTORY);
-  await fs.mkdir(directory, { recursive: true });
+const FORBIDDEN_FILENAME_SEPARATORS = new Set([path.sep, "/", "\\"]);
+
+export const sanitisePlanFilename = (
+  value: unknown,
+): string | undefined => {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  for (const separator of FORBIDDEN_FILENAME_SEPARATORS) {
+    if (separator && trimmed.includes(separator)) {
+      throw new Error("filename must not include directory separators");
+    }
+  }
+
+  return trimmed;
 };
 
-export const readPlanDocument = async (cwd: string): Promise<PlanDocument> => {
+const resolveConfigRoots = (
+  cwd: string,
+  env?: NodeJS.ProcessEnv,
+): string[] => {
+  const roots = new Set<string>();
+  const override = env?.CONFIG_ROOT;
+  if (override && override.trim().length > 0) {
+    roots.add(path.resolve(cwd, override));
+  } else {
+    roots.add(path.resolve(cwd, "config"));
+  }
+
+  roots.add(cwd);
+
+  return Array.from(roots);
+};
+
+type PlanConfig = {
+  directory?: string;
+  filename?: string;
+};
+
+const parsePlanConfig = (input: unknown): PlanConfig => {
+  if (!input || typeof input !== "object") {
+    return {};
+  }
+
+  const planSection = (input as { plan?: unknown }).plan;
+  if (!planSection || typeof planSection !== "object") {
+    return {};
+  }
+
+  const directoryRaw = (planSection as { directory?: unknown }).directory;
+  const filenameRaw = (planSection as { filename?: unknown }).filename;
+
+  const directory =
+    typeof directoryRaw === "string" && directoryRaw.trim().length > 0
+      ? directoryRaw.trim()
+      : undefined;
+
+  const filename =
+    typeof filenameRaw === "string" && filenameRaw.trim().length > 0
+      ? filenameRaw.trim()
+      : undefined;
+
+  return { directory, filename };
+};
+
+const detectFormat = (filename: string): "json" | "yaml" | "unknown" => {
+  if (filename.endsWith(".json")) {
+    return "json";
+  }
+
+  if (filename.endsWith(".yaml") || filename.endsWith(".yml")) {
+    return "yaml";
+  }
+
+  return "unknown";
+};
+
+const parseConfigContent = (
+  content: string,
+  filename: string,
+): unknown => {
+  const hint = detectFormat(filename);
+
+  if (hint === "json") {
+    try {
+      return JSON.parse(content);
+    } catch {
+      // Fall through to YAML for invalid JSON content.
+    }
+  }
+
+  if (hint === "yaml") {
+    return yaml.parse(content);
+  }
+
   try {
-    const file = await fs.readFile(planFilePath(cwd), "utf-8");
+    return JSON.parse(content);
+  } catch {
+    return yaml.parse(content);
+  }
+};
+
+const readPlanConfig = async (
+  cwd: string,
+  env?: NodeJS.ProcessEnv,
+): Promise<PlanConfig> => {
+  const roots = resolveConfigRoots(cwd, env);
+
+  for (const root of roots) {
+    for (const name of CONFIG_FILENAMES) {
+      const candidate = path.resolve(root, name);
+      try {
+        const content = await fs.readFile(candidate, "utf-8");
+        const parsed = parseConfigContent(content, name);
+        return parsePlanConfig(parsed);
+      } catch (error) {
+        if (
+          error &&
+          typeof error === "object" &&
+          "code" in error &&
+          (error as NodeJS.ErrnoException).code === "ENOENT"
+        ) {
+          continue;
+        }
+
+        throw error;
+      }
+    }
+  }
+
+  return {};
+};
+
+interface PlanLocation {
+  directory: string;
+  filename: string;
+  directoryPath: string;
+  filePath: string;
+}
+
+const resolvePlanLocation = async (
+  cwd: string,
+  env?: NodeJS.ProcessEnv,
+  filenameOverride?: string,
+): Promise<PlanLocation> => {
+  const config = await readPlanConfig(cwd, env);
+
+  const directory = config.directory ?? DEFAULT_PLAN_DIRECTORY;
+  const filenameFromConfig = config.filename ?? DEFAULT_PLAN_FILENAME;
+
+  const filename =
+    typeof filenameOverride === "string" && filenameOverride.trim().length > 0
+      ? filenameOverride.trim()
+      : filenameFromConfig;
+
+  const directoryPath = path.join(cwd, directory);
+  const filePath = path.join(directoryPath, filename);
+
+  return {
+    directory,
+    filename,
+    directoryPath,
+    filePath,
+  };
+};
+
+const ensurePlanDirectory = async (location: PlanLocation): Promise<void> => {
+  await fs.mkdir(location.directoryPath, { recursive: true });
+};
+
+const normaliseStoredTask = (task: PlanTask): PlanTask => ({
+  ...task,
+  completed:
+    typeof task.completed === "boolean"
+      ? task.completed
+      : task.status === "complete",
+});
+
+const normaliseStoredTasks = (tasks: PlanTask[]): PlanTask[] =>
+  tasks.map((task) => normaliseStoredTask(task));
+
+export const readPlanDocument = async (
+  cwd: string,
+  env?: NodeJS.ProcessEnv,
+  filename?: string,
+): Promise<PlanDocument> => {
+  try {
+    const location = await resolvePlanLocation(cwd, env, filename);
+    const file = await fs.readFile(location.filePath, "utf-8");
     const parsed = JSON.parse(file) as Partial<PlanDocument>;
     return {
-      tasks: Array.isArray(parsed.tasks) ? (parsed.tasks as PlanTask[]) : [],
+      tasks: Array.isArray(parsed.tasks)
+        ? normaliseStoredTasks(parsed.tasks as PlanTask[])
+        : [],
       updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : null,
     };
   } catch (error) {
@@ -67,15 +277,18 @@ export const readPlanDocument = async (cwd: string): Promise<PlanDocument> => {
 export const writePlanDocument = async (
   cwd: string,
   tasks: PlanTask[],
+  env?: NodeJS.ProcessEnv,
+  filename?: string,
 ): Promise<PlanDocument> => {
-  await ensurePlanDirectory(cwd);
+  const location = await resolvePlanLocation(cwd, env, filename);
+  await ensurePlanDirectory(location);
   const document: PlanDocument = {
     tasks,
     updatedAt: new Date().toISOString(),
   };
 
   await fs.writeFile(
-    planFilePath(cwd),
+    location.filePath,
     `${JSON.stringify(document, null, 2)}\n`,
     "utf-8",
   );
