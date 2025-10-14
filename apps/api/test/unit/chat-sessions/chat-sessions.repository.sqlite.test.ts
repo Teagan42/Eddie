@@ -1,12 +1,10 @@
+import Database from "better-sqlite3";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  SqliteChatSessionsRepository,
-  type ChatSessionsRepository,
-} from "../../../src/chat-sessions/chat-sessions.repository";
+import { SqliteChatSessionsRepository } from "../../../src/chat-sessions/chat-sessions.repository";
 import { ChatMessageRole } from "../../../src/chat-sessions/dto/create-chat-message.dto";
 
 const createFilename = (): string => {
@@ -16,7 +14,7 @@ const createFilename = (): string => {
 
 describe("SqliteChatSessionsRepository", () => {
   const createdDirs: string[] = [];
-  let repository: ChatSessionsRepository;
+  let repository: SqliteChatSessionsRepository;
 
   beforeEach(() => {
     const filename = createFilename();
@@ -132,5 +130,17 @@ describe("SqliteChatSessionsRepository", () => {
     repository.saveAgentInvocations(session.id, []);
 
     expect(repository.listAgentInvocations(session.id)).toEqual([]);
+  });
+
+  it("closes the underlying database when the module is destroyed", () => {
+    const closeSpy = vi.spyOn(Database.prototype, "close");
+
+    try {
+      repository.onModuleDestroy();
+
+      expect(closeSpy).toHaveBeenCalled();
+    } finally {
+      closeSpy.mockRestore();
+    }
   });
 });
