@@ -20,39 +20,8 @@ TDD loop is enforced across agents:
 
 Every step must produce a conventional commit message for the work done in that step.
 
-### Delegation (spawn_subagent)
+### Delegation
 
-Agents (manager and subagents) may call the runtime tool `spawn_subagent` to
-delegate narrowly scoped work. Keep delegations minimal, include
-`metadata.reason`, and avoid deep nesting — respect `agents.routing.maxDepth`
-and `confidenceThreshold`.
-
-Tool payload shape (JSON):
-
-```
-{
-  "agent": "<subagent-id>",
-  "prompt": "Short, focused prompt or instruction for the subagent",
-  "variables": { "key": "value" },
-  "metadata": { "reason": "optional short reason" }
-}
-```
-
-Example (preferred — call the tool):
-
-```
-{
-  "agent": "planner",
-  "prompt": "Create a minimal TDD plan to implement the authentication flow",
-  "variables": { "target": "src/auth" },
-  "metadata": { "reason": "break the work into RED/GREEN/REFACTOR steps" }
-}
-```
-
-If the runtime does not support explicit tool calls, return the routing
-response with `phase: "route"`, `next_agent`, and an identical `payload`
-object. The orchestrator accepts either form, but explicit `spawn_subagent`
-tool calls are clearer and preferred.
-
-Keep delegations minimal: include only the files, variables, and instructions
-the callee needs. Cite files by path when referencing repository context.
+Use the dedicated delegation playbooks provided in the surrounding prompt when
+handoffs are required. Keep delegations minimal, cite files by path, and supply
+only the context the callee needs.
