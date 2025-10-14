@@ -238,8 +238,16 @@ export interface SpawnSubagentRequest {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * Options available when invoking {@link SpawnSubagentHookPayload.spawn}.
+ * @property agentId - Optional override for the agent identifier to execute;
+ * defaults to the agent targeted by the original tool call when omitted.
+ * @property prompt - Prompt supplied to the delegated agent invocation.
+ * @property variables - Template variables to apply when composing the prompt.
+ * @property context - Optional context bundle forwarded to the agent.
+ */
 export interface SpawnSubagentDelegateOptions {
-  agentId: string;
+  agentId?: string;
   prompt: string;
   variables?: TemplateVariables;
   context?: PackedContext;

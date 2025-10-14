@@ -352,6 +352,77 @@ describe("AgentOrchestratorService", () => {
     expect(workerCall?.[1]?.context?.text).toBe("planner summary");
   });
 
+  it("allows hooks to spawn the targeted agent without specifying an id", async () => {
+    const createSpy = vi.spyOn(agentInvocationFactory, "create");
+    const provider = new MockProvider([
+      createStream([
+        {
+          type: "tool_call",
+          name: "spawn_subagent",
+          id: "call-1",
+          arguments: {
+            agent: "worker",
+            prompt: "handle request",
+          },
+        },
+        { type: "end" },
+      ]),
+      createStream([
+        { type: "delta", text: "preview worker result" },
+        { type: "end" },
+      ]),
+      createStream([
+        { type: "delta", text: "worker response" },
+        { type: "end" },
+      ]),
+      createStream([
+        { type: "delta", text: "manager ack" },
+        { type: "end" },
+      ]),
+    ]);
+
+    const hookBus = new HookBus();
+    const spawnedTargets: string[] = [];
+    hookBus.on(HOOK_EVENTS.beforeSpawnSubagent, async (payload) => {
+      const preview = await payload.spawn({
+        prompt: "Preview default worker",
+      });
+
+      spawnedTargets.push(preview.target.id);
+      expect(preview.messages.at(-1)?.content).toContain("preview worker result");
+    });
+
+    const runtime = baseRuntime(provider, { hooks: hookBus });
+    const manager = await orchestrator.runAgent(
+      {
+        definition: {
+          id: "manager",
+          systemPrompt: "coordinate",
+        },
+        prompt: "delegate work",
+        context: contextSlice("root"),
+      },
+      runtime
+    );
+
+    expect(spawnedTargets).toEqual(["worker"]);
+    expect(createSpy).toHaveBeenCalledTimes(3);
+    const previewCall = createSpy.mock.calls[1];
+    expect(previewCall?.[0]?.id).toBe("worker");
+    expect(previewCall?.[1]?.prompt).toBe("Preview default worker");
+
+    const workerInvocations = manager.children.filter(
+      (child) => child.id === "worker"
+    );
+    expect(workerInvocations).toHaveLength(2);
+    expect(workerInvocations[0]?.messages.at(-1)?.content).toContain(
+      "preview worker result"
+    );
+    expect(workerInvocations[1]?.messages.at(-1)?.content).toContain(
+      "worker response"
+    );
+  });
+
   it("emits lifecycle hooks with metadata for nested agents", async () => {
     const provider = new MockProvider([
       createStream([

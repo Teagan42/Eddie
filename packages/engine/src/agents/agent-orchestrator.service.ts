@@ -367,10 +367,11 @@ export class AgentOrchestratorService {
     const spawnForHook = async (
       options: SpawnSubagentDelegateOptions
     ): Promise<SpawnSubagentDelegateResult> => {
-      const targetDescriptor = runtime.catalog.getAgent(options.agentId);
+      const targetAgentId = options.agentId ?? descriptor.id;
+      const targetDescriptor = runtime.catalog.getAgent(targetAgentId);
       if (!targetDescriptor) {
         throw new Error(
-          `Hook attempted to spawn unknown agent "${ options.agentId }".`
+          `Hook attempted to spawn unknown agent "${ targetAgentId }".`
         );
       }
 
