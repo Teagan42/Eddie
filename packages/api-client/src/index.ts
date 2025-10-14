@@ -152,12 +152,19 @@ export interface LayoutPreferencesDto {
 
 export type ToolCallStatusDto = "pending" | "running" | "completed" | "failed";
 
+export interface OrchestratorContextBundleFileDto {
+    path: string;
+    sizeBytes: number;
+    preview?: string;
+}
+
 export interface OrchestratorContextBundleDto {
     id: string;
     label: string;
     summary?: string;
     sizeBytes: number;
     fileCount: number;
+    files?: OrchestratorContextBundleFileDto[];
 }
 
 export interface OrchestratorAgentMetadataDto
