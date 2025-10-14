@@ -245,12 +245,15 @@ describe("AgentRunner", () => {
       expect.objectContaining({ id: "call_1" }),
       expect.objectContaining({ cwd: expect.any(String) })
     );
-    expect(render).toHaveBeenCalledWith({
-      type: "tool_result",
-      name: "math",
-      id: "call_1",
-      result: toolResult,
-    });
+    expect(render).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "tool_result",
+        name: "math",
+        id: "call_1",
+        result: toolResult,
+        agentId: invocation.id,
+      })
+    );
     expect(invocation.messages.at(-2)).toMatchObject({
       role: "tool",
       name: "math",

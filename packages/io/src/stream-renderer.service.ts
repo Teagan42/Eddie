@@ -12,9 +12,12 @@ const DEFAULT_PATTERNS = [
 @Injectable()
 export class StreamRendererService {
   render(event: StreamEvent): void {
+    const prefix = this.formatAgentPrefix(event);
+
     switch (event.type) {
       case "delta": {
-        process.stdout.write(event.text);
+        const body = this.formatDeltaBody(prefix, event.text);
+        process.stdout.write(`${prefix}${body}`);
         break;
       }
       case "tool_call": {
@@ -24,7 +27,7 @@ export class StreamRendererService {
             : JSON.stringify(event.arguments, null, 2);
         const redacted = redactSecrets(args, DEFAULT_PATTERNS);
         process.stdout.write(
-          `\n${chalk.cyan("[tool_call]")} ${event.name} ${redacted}\n`
+          `\n${prefix}${chalk.cyan("[tool_call]")} ${event.name} ${redacted}\n`
         );
         break;
       }
@@ -39,7 +42,7 @@ export class StreamRendererService {
             ? ` ${redactSecrets(JSON.stringify(event.result.metadata), DEFAULT_PATTERNS)}`
             : "";
         process.stdout.write(
-          `\n${chalk.green("[tool_result]")} ${event.name} <${event.result.schema}> ${summary}${structured}${metadata}\n`
+          `\n${prefix}${chalk.green("[tool_result]")} ${event.name} <${event.result.schema}> ${summary}${structured}${metadata}\n`
         );
         break;
       }
@@ -52,18 +55,18 @@ export class StreamRendererService {
           ? ` ${redactSecrets(JSON.stringify(event.metadata), DEFAULT_PATTERNS)}`
           : "";
         process.stdout.write(
-          `\n${chalk.yellow("[notification]")} ${redactSecrets(body, DEFAULT_PATTERNS)}${metadata}\n`
+          `\n${prefix}${chalk.yellow("[notification]")} ${redactSecrets(body, DEFAULT_PATTERNS)}${metadata}\n`
         );
         break;
       }
       case "error": {
         process.stderr.write(
-          `\n${chalk.red("[error]")} ${event.message}\n${event.cause ?? ""}\n`
+          `\n${prefix}${chalk.red("[error]")} ${event.message}\n${event.cause ?? ""}\n`
         );
         break;
       }
       case "end": {
-        process.stdout.write(`\n${chalk.gray("[done]")}\n`);
+        process.stdout.write(`\n${prefix}${chalk.gray("[done]")}\n`);
         break;
       }
       default:
@@ -73,5 +76,25 @@ export class StreamRendererService {
 
   flush(): void {
     process.stdout.write("\n");
+  }
+
+  private formatAgentPrefix(event: StreamEvent): string {
+    if (!event.agentId) {
+      return "";
+    }
+
+    return `${chalk.magenta(`[${event.agentId}]`)} `;
+  }
+
+  private formatDeltaBody(prefix: string, text: string | undefined): string {
+    if (!text) {
+      return "";
+    }
+
+    if (!prefix) {
+      return text;
+    }
+
+    return text.replace(/\n/g, `\n${prefix}`);
   }
 }
