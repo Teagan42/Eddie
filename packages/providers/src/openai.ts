@@ -371,9 +371,30 @@ export class OpenAIAdapter implements ProviderAdapter {
   private formatResponseTextConfig(
     format: StreamOptions["responseFormat"],
   ): ResponseStreamCreateParams["text"] {
+    const normalizedFormat =
+      format && typeof format === "object"
+        ? this.normalizeResponseFormatObject(format)
+        : format;
+
     return {
-      format: format as ResponseFormat,
+      format: normalizedFormat as ResponseFormat,
     } satisfies ResponseTextConfig;
+  }
+
+  private normalizeResponseFormatObject(
+    format: object,
+  ): Record<string, unknown> {
+    const normalized = { ...format } as Record<string, unknown>;
+    const name = normalized.name;
+    if (typeof name === "string") {
+      normalized.name = this.sanitizeResponseFormatName(name);
+    }
+    return normalized;
+  }
+
+  private sanitizeResponseFormatName(name: string): string {
+    const sanitized = name.replace(/[^a-zA-Z0-9_-]/g, "_");
+    return sanitized.length > 0 ? sanitized : "response_format";
   }
 
   private normalizeUsage(usage?: unknown): Record<string, unknown> | undefined {
