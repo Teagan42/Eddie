@@ -41,4 +41,16 @@ describe('api documentation reference examples', () => {
     expect(apiDoc).toMatch(/GET\s+\/orchestrator\/metadata/);
     expect(apiDoc).toMatch(/sessionId/);
   });
+
+  it('details persistence configuration for sql drivers', () => {
+    for (const driver of ["sqlite", "postgres", "mysql", "mariadb"]) {
+      expect(apiDoc).toMatch(new RegExp(String.raw`driver:\s+${driver}`));
+    }
+
+    for (const token of ["PGHOST", "MYSQL_HOST", "MARIADB_HOST"]) {
+      expect(apiDoc).toContain(token);
+    }
+
+    expect(apiDoc).toMatch(/runs pending migrations automatically/i);
+  });
 });
