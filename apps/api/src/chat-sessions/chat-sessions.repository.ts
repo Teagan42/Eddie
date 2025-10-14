@@ -1,5 +1,5 @@
 import { OnModuleDestroy } from "@nestjs/common";
-import { createHash, randomUUID } from "crypto";
+import { pbkdf2Sync, randomUUID } from "crypto";
 import knex, { type Knex } from "knex";
 
 import { ChatMessageRole } from "./dto/create-chat-message.dto";
@@ -123,8 +123,19 @@ const normalizeApiKey = (apiKey?: string | null): string | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+const API_KEY_HASH_ITERATIONS = 310_000;
+const API_KEY_HASH_KEY_LENGTH = 64;
+const API_KEY_HASH_DIGEST = "sha512";
+const API_KEY_HASH_SALT = "chat-session-api-key";
+
 const hashApiKey = (apiKey: string): string =>
-  createHash("sha256").update(apiKey).digest("hex");
+  pbkdf2Sync(
+    apiKey,
+    API_KEY_HASH_SALT,
+    API_KEY_HASH_ITERATIONS,
+    API_KEY_HASH_KEY_LENGTH,
+    API_KEY_HASH_DIGEST
+  ).toString("hex");
 
 export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
   private readonly sessions = new Map<string, ChatSessionRecord>();
