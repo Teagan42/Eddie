@@ -42,7 +42,7 @@ designing new read models. Pair this table with the baseline note in `api-realti
 
 | Source | Event | Payload | Dispatch Path | Consumers |
 | --- | --- | --- | --- | --- |
-| LogsForwarderService | logs.append | `LogEntryDto` | `handleLoggerEvent`/`handleJsonlEvent` → `LogsService.append` → `LogsGateway.onLogCreated` → buffered `emitEvent("logs.created")` | WebSocket clients on `/logs`; LogsGateway |
+| LogsForwarderService | logs.created | `LogEntryDto` | `handleLoggerEvent`/`handleJsonlEvent` → `LogsService.append` → `LogsGateway.onLogCreated` → buffered `emitEvent("logs.created")` | WebSocket clients on `/logs`; LogsGateway |
 | LogsForwarderService | tool.call | Normalised tool invocation (sessionId, id?, name?, arguments?, timestamp) | `handleJsonlEvent` with phase `tool_call` → `ToolsGateway.emitToolCall("tool.call")` | WebSocket clients on `/tools`; ToolsGateway |
 | LogsForwarderService | tool.result | Normalised tool result (sessionId, id?, name?, result?, timestamp) | `handleJsonlEvent` with phase `tool_result` → `ToolsGateway.emitToolResult("tool.result")` | WebSocket clients on `/tools`; ToolsGateway |
 

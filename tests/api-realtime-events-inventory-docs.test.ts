@@ -26,7 +26,7 @@ const requiredTableRows = Object.freeze([
   /\| ChatSessionStreamRendererService \| ChatMessagePartialEvent \|/,
   /\| TracesService \| trace\.created \|/,
   /\| RuntimeConfigService \| config\.updated \|/,
-  /\| LogsForwarderService \| logs\.append \|/,
+  /\| LogsForwarderService \| logs\.created \|/,
 ]);
 
 describe("api realtime events inventory doc", () => {
