@@ -24,6 +24,9 @@ export const tokenizerStrategyProviders: FactoryProvider[] = [
   anthropicTokenizerProvider,
 ];
 
+const tokenizerStrategyTokens: FactoryProvider["provide"][] =
+  tokenizerStrategyProviders.map((provider) => provider.provide);
+
 @Module({
   providers: [
     ...tokenizerStrategyProviders,
@@ -37,7 +40,7 @@ export const tokenizerStrategyProviders: FactoryProvider[] = [
         "openai-compatible": openai,
         anthropic,
       }),
-      inject: tokenizerStrategyProviders.map((provider) => provider.provide),
+      inject: tokenizerStrategyTokens,
     },
     TokenizerService,
   ],

@@ -1,3 +1,4 @@
+import type { FactoryProvider } from "@nestjs/common";
 import { Module } from "@nestjs/common";
 import { AnthropicAdapterFactory } from "./anthropic";
 import { OpenAIAdapterFactory } from "./openai";
@@ -5,29 +6,32 @@ import { OpenAICompatibleAdapterFactory } from "./openai_compatible";
 import { ProviderFactoryService } from "./provider-factory.service";
 import { PROVIDER_ADAPTER_FACTORIES } from "./provider.tokens";
 
-const anthropicAdapterFactoryProvider = {
+const anthropicAdapterFactoryProvider: FactoryProvider<AnthropicAdapterFactory> = {
   provide: AnthropicAdapterFactory,
   useFactory: () => new AnthropicAdapterFactory(),
   inject: [],
-} as const;
+};
 
-const openAIAdapterFactoryProvider = {
+const openAIAdapterFactoryProvider: FactoryProvider<OpenAIAdapterFactory> = {
   provide: OpenAIAdapterFactory,
   useFactory: () => new OpenAIAdapterFactory(),
   inject: [],
-} as const;
+};
 
-const openAICompatibleAdapterFactoryProvider = {
+const openAICompatibleAdapterFactoryProvider: FactoryProvider<OpenAICompatibleAdapterFactory> = {
   provide: OpenAICompatibleAdapterFactory,
   useFactory: () => new OpenAICompatibleAdapterFactory(),
   inject: [],
-} as const;
+};
 
-const adapterFactoryProviders = [
+export const adapterFactoryProviders: FactoryProvider[] = [
   anthropicAdapterFactoryProvider,
   openAIAdapterFactoryProvider,
   openAICompatibleAdapterFactoryProvider,
-] as const;
+];
+
+const adapterFactoryProviderTokens: FactoryProvider["provide"][] =
+  adapterFactoryProviders.map((provider) => provider.provide);
 
 /**
  * ProvidersModule exposes the ProviderFactoryService so other modules can
@@ -44,7 +48,7 @@ const adapterFactoryProviders = [
         openai: OpenAIAdapterFactory,
         openaiCompatible: OpenAICompatibleAdapterFactory
       ) => [anthropic, openai, openaiCompatible],
-      inject: adapterFactoryProviders.map((provider) => provider.provide),
+      inject: adapterFactoryProviderTokens,
     },
     ProviderFactoryService,
   ],

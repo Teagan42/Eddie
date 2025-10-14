@@ -1,8 +1,13 @@
+import type { FactoryProvider } from "@nestjs/common";
 import { MODULE_METADATA } from "@nestjs/common/constants";
-import { ProvidersModule } from "../src/providers.module";
+import {
+  ProvidersModule,
+  adapterFactoryProviders,
+} from "../src/providers.module";
 import { AnthropicAdapterFactory } from "../src/anthropic";
 import { OpenAIAdapterFactory } from "../src/openai";
 import { OpenAICompatibleAdapterFactory } from "../src/openai_compatible";
+import { expectTypeOf } from "vitest";
 
 describe("ProvidersModule", () => {
   const providers: unknown[] =
@@ -40,5 +45,9 @@ describe("ProvidersModule", () => {
       expect.any(Function)
     );
     expect((provider as { inject?: unknown[] }).inject).toEqual([]);
+  });
+
+  it("types adapter factory providers as factory providers", () => {
+    expectTypeOf(adapterFactoryProviders).toMatchTypeOf<FactoryProvider[]>();
   });
 });

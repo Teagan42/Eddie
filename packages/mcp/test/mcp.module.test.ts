@@ -1,6 +1,11 @@
+import type { FactoryProvider } from "@nestjs/common";
 import { MODULE_METADATA } from "@nestjs/common/constants";
 import { LoggerService } from "@eddie/io";
-import { MCPModule } from "../src/mcp.module";
+import { expectTypeOf } from "vitest";
+import {
+  MCPModule,
+  mcpToolSourceServiceProvider,
+} from "../src/mcp.module";
 import { McpToolSourceService } from "../src/mcp-tool-source.service";
 
 describe("MCPModule", () => {
@@ -23,5 +28,11 @@ describe("MCPModule", () => {
     expect((provider as { inject?: unknown[] }).inject).toEqual([
       LoggerService,
     ]);
+  });
+
+  it("types McpToolSourceService provider as factory provider", () => {
+    expectTypeOf(mcpToolSourceServiceProvider).toMatchTypeOf<
+      FactoryProvider<McpToolSourceService>
+    >();
   });
 });
