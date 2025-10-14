@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import type { FactoryProvider } from "@nestjs/common";
 import {
   TokenizerService,
   TOKENIZER_STRATEGIES,
@@ -6,10 +7,29 @@ import {
 } from "./tokenizer.service";
 import { AnthropicTokenizer, OpenAITokenizer } from "./strategies";
 
+const openAITokenizerProvider: FactoryProvider<OpenAITokenizer> = {
+  provide: OpenAITokenizer,
+  useFactory: () => new OpenAITokenizer(),
+  inject: [],
+};
+
+const anthropicTokenizerProvider: FactoryProvider<AnthropicTokenizer> = {
+  provide: AnthropicTokenizer,
+  useFactory: () => new AnthropicTokenizer(),
+  inject: [],
+};
+
+export const tokenizerStrategyProviders: FactoryProvider[] = [
+  openAITokenizerProvider,
+  anthropicTokenizerProvider,
+];
+
+const tokenizerStrategyTokens: FactoryProvider["provide"][] =
+  tokenizerStrategyProviders.map((provider) => provider.provide);
+
 @Module({
   providers: [
-    OpenAITokenizer,
-    AnthropicTokenizer,
+    ...tokenizerStrategyProviders,
     {
       provide: TOKENIZER_STRATEGIES,
       useFactory: (
@@ -20,14 +40,13 @@ import { AnthropicTokenizer, OpenAITokenizer } from "./strategies";
         "openai-compatible": openai,
         anthropic,
       }),
-      inject: [OpenAITokenizer, AnthropicTokenizer],
+      inject: tokenizerStrategyTokens,
     },
     TokenizerService,
   ],
   exports: [
     TokenizerService,
-    OpenAITokenizer,
-    AnthropicTokenizer,
+    ...tokenizerStrategyProviders,
     TOKENIZER_STRATEGIES,
   ],
 })
