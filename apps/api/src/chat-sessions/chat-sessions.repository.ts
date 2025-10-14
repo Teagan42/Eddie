@@ -183,9 +183,12 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     ) {
       session.title = patch.title;
     }
-    if (Object.prototype.hasOwnProperty.call(patch, "description")) {
+    if (
+      Object.prototype.hasOwnProperty.call(patch, "description") &&
+      patch.description !== undefined
+    ) {
       session.description =
-        patch.description === null ? undefined : patch.description ?? undefined;
+        patch.description === null ? undefined : patch.description;
     }
     this.touchSession(session);
     return cloneSession(session);
@@ -474,7 +477,7 @@ export class KnexChatSessionsRepository implements ChatSessionsRepository, OnMod
       if (hasTitle && patch.title !== undefined) {
         update.title = patch.title;
       }
-      if (hasDescription) {
+      if (hasDescription && patch.description !== undefined) {
         update.description = patch.description ?? null;
       }
       const affected = await trx("chat_sessions").update(update).where({ id });
