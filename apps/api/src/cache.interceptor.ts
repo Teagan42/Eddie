@@ -81,13 +81,8 @@ export class ApiCacheInterceptor implements NestInterceptor, OnModuleInit, OnMod
     this.authEnabled = config.api?.auth?.enabled ?? false;
 
     try {
-      const packed = await this.contextService.pack(config.context);
-      const fingerprint = createHash("sha1")
-        .update(String(packed.files.length))
-        .update(":")
-        .update(String(packed.totalBytes))
-        .digest("hex");
-      this.contextFingerprint = fingerprint;
+      const stats = await this.contextService.computeStats(config.context);
+      this.contextFingerprint = this.buildContextFingerprint(stats);
     } catch (error) {
       this.logger.debug(
         { error },
@@ -99,6 +94,17 @@ export class ApiCacheInterceptor implements NestInterceptor, OnModuleInit, OnMod
     }
 
     this.cache.clear();
+  }
+
+  private buildContextFingerprint(stats: {
+    fileCount: number;
+    totalBytes: number;
+  }): string {
+    return createHash("sha1")
+      .update(String(stats.fileCount))
+      .update(":")
+      .update(String(stats.totalBytes))
+      .digest("hex");
   }
 
   private async ensureInitialised(): Promise<void> {

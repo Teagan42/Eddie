@@ -141,3 +141,38 @@ describe("ContextService byte budget checks", () => {
     );
   });
 });
+
+describe("ContextService.computeStats", () => {
+  beforeEach(() => {
+    fsMocks.readFile.mockReset();
+    fsMocks.stat.mockReset();
+    globMock.mockReset();
+  });
+
+  const createService = () => {
+    const logger = {
+      debug: vi.fn(),
+      warn: vi.fn(),
+    };
+    const loggerService = {
+      getLogger: vi.fn(() => logger),
+    } as unknown as LoggerService;
+
+    const templateRenderer = {
+      renderTemplate: vi.fn(async () => "template"),
+    } as unknown as TemplateRendererService;
+
+    return new ContextService(loggerService, templateRenderer);
+  };
+
+  it("returns file counts and byte totals without reading file contents", async () => {
+    const service = createService();
+    globMock.mockResolvedValueOnce(["stats.txt"]);
+    fsMocks.stat.mockResolvedValueOnce({ size: 128 } as Stats);
+
+    const stats = await service.computeStats({ baseDir: "/repo" });
+
+    expect(stats).toEqual({ fileCount: 1, totalBytes: 128 });
+    expect(fsMocks.readFile).not.toHaveBeenCalled();
+  });
+});
