@@ -17,7 +17,10 @@ export {
   TokenBudgetCompactorStrategy,
   type TokenBudgetTranscriptCompactorConfig,
 } from "./token-budget-compactor";
-export { SummarizingTranscriptCompactor } from "./summarizing-transcript-compactor";
+export {
+  SummarizingTranscriptCompactor,
+  SummarizingTranscriptCompactorStrategy,
+} from "./summarizing-transcript-compactor";
 export {
   IntelligentTranscriptCompactor,
   IntelligentTranscriptCompactorStrategy,

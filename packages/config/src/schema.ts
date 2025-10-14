@@ -496,6 +496,18 @@ const TRANSCRIPT_COMPACTOR_SIMPLE_SCHEMA: JSONSchema7 = {
   },
 };
 
+const TRANSCRIPT_COMPACTOR_SUMMARIZER_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["strategy"],
+  properties: {
+    strategy: { const: "summarizer" },
+    maxMessages: { type: "integer", minimum: 1 },
+    windowSize: { type: "integer", minimum: 1 },
+    label: { type: "string", minLength: 1 },
+  },
+};
+
 const AGENT_CONTEXT_REQUIREMENTS_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
@@ -538,6 +550,7 @@ const TRANSCRIPT_COMPACTOR_TOKEN_BUDGET_SCHEMA: JSONSchema7 = {
 const TRANSCRIPT_COMPACTOR_SCHEMA: JSONSchema7 = {
   oneOf: [
     TRANSCRIPT_COMPACTOR_SIMPLE_SCHEMA,
+    TRANSCRIPT_COMPACTOR_SUMMARIZER_SCHEMA,
     TRANSCRIPT_COMPACTOR_INTELLIGENT_SCHEMA,
     TRANSCRIPT_COMPACTOR_TOKEN_BUDGET_SCHEMA,
   ],

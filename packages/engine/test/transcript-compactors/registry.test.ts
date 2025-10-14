@@ -6,6 +6,7 @@ import {
   resetTranscriptCompactorRegistry,
 } from "../../src/transcript-compactors/registry";
 import type { TranscriptCompactor } from "../../src/transcript-compactors/types";
+import { SummarizingTranscriptCompactor } from "../../src/transcript-compactors/summarizing-transcript-compactor";
 import type {
   AgentInvocation,
   AgentRuntimeDescriptor,
@@ -150,6 +151,45 @@ describe("Transcript compactor registry", () => {
 
     const result = compactor.compact(invocation);
     expect(result.definition?.name).toBe("Manager-alpha");
+  });
+
+  it("attaches a summarizer transcript compactor from global config", async () => {
+    const { service, config } = createService({
+      transcript: {
+        compactor: {
+          strategy: "summarizer",
+          maxMessages: 4,
+          windowSize: 2,
+          label: "Conversation Summary",
+        },
+      },
+    });
+
+    const compactor = (service as any).resolveTranscriptCompactor(config);
+
+    expect(compactor).toBeInstanceOf(SummarizingTranscriptCompactor);
+
+    const invocation = {
+      messages: [
+        { role: "system", content: "system" },
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+        { role: "user", content: "How are you?" },
+        { role: "assistant", content: "Great" },
+      ],
+    } as unknown as AgentInvocation;
+
+    const plan = (compactor as SummarizingTranscriptCompactor).plan(
+      invocation,
+      0,
+    );
+
+    expect(plan).not.toBeNull();
+
+    await plan!.apply();
+
+    expect(invocation.messages[1]?.role).toBe("assistant");
+    expect(invocation.messages[1]?.content).toContain("Conversation Summary");
   });
 
   it("reuses the same transcript compactors across turns", () => {
