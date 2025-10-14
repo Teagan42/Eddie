@@ -49,12 +49,12 @@ export type CliValueOptionDefinition =
   | CliListValueOptionDefinition
   | CliLogLevelValueOptionDefinition;
 
+type BooleanPropertyNames<T> = {
+  [Key in keyof T]-?: Exclude<T[Key], undefined> extends boolean ? Key : never;
+}[keyof T];
+
 export type CliBooleanOptionRuntimeKey = Extract<
-  {
-    [Key in keyof CliRuntimeOptions]: CliRuntimeOptions[Key] extends boolean
-      ? Key
-      : never;
-  }[keyof CliRuntimeOptions],
+  BooleanPropertyNames<CliRuntimeOptions>,
   string
 >;
 

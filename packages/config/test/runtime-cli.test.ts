@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
   CLI_BOOLEAN_OPTION_DEFINITIONS,
@@ -8,6 +8,7 @@ import {
   mergeCliRuntimeOptions,
   parseCliRuntimeOptionsFromArgv,
 } from "../src/runtime-cli";
+import type { CliBooleanOptionRuntimeKey } from "../src/runtime-cli-options";
 import type { CliRuntimeOptions } from "../src/types";
 
 describe("mergeCliRuntimeOptions", () => {
@@ -74,5 +75,29 @@ describe("parseCliRuntimeOptionsFromArgv", () => {
 
       expect(value).toBe(`${definition.runtimeKey}-value`);
     }
+  });
+});
+
+describe("CLI option definitions", () => {
+  it("derives boolean runtime option keys from the runtime options contract", () => {
+    expectTypeOf<CliBooleanOptionRuntimeKey>().toEqualTypeOf<
+      | "autoApprove"
+      | "disableContext"
+      | "disableSubagents"
+      | "nonInteractive"
+    >();
+  });
+
+  it("exposes all boolean runtime keys through shared metadata", () => {
+    const runtimeKeys = CLI_BOOLEAN_OPTION_DEFINITIONS.map(
+      (definition) => definition.runtimeKey,
+    ).sort();
+
+    expect(runtimeKeys).toEqual([
+      "autoApprove",
+      "disableContext",
+      "disableSubagents",
+      "nonInteractive",
+    ]);
   });
 });
