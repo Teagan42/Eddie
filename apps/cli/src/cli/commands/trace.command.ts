@@ -1,10 +1,13 @@
-import fs from "fs/promises";
+import { createReadStream } from "fs";
 import path from "path";
 import { Injectable } from "@nestjs/common";
 import { ConfigStore } from "@eddie/config";
 import type { CliArguments } from "../cli-arguments";
 import { CliOptionsService } from "../cli-options.service";
 import type { CliCommand, CliCommandMetadata } from "./cli-command";
+
+const TRACE_LINE_LIMIT = 50;
+const TRACE_STREAM_CHUNK_SIZE = 64 * 1024;
 
 @Injectable()
 export class TraceCommand implements CliCommand {
@@ -27,12 +30,7 @@ export class TraceCommand implements CliCommand {
 
     try {
       const absolute = path.resolve(tracePath);
-      const data = await fs.readFile(absolute, "utf-8");
-      const lines = data
-        .trim()
-        .split("\n")
-        .filter(Boolean)
-        .slice(-50);
+      const lines = await this.readRecentTraceLines(absolute, TRACE_LINE_LIMIT);
 
       for (const line of lines) {
         try {
@@ -46,5 +44,93 @@ export class TraceCommand implements CliCommand {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`Unable to read trace at ${tracePath}: ${message}`);
     }
+  }
+
+  private async readRecentTraceLines(
+    filePath: string,
+    limit: number
+  ): Promise<string[]> {
+    const stream = createReadStream(filePath, {
+      encoding: "utf-8",
+      highWaterMark: TRACE_STREAM_CHUNK_SIZE,
+    });
+
+    let buffer = "";
+    const accumulator = this.createLineAccumulator(limit);
+
+    try {
+      for await (const chunk of stream) {
+        buffer += chunk;
+
+        let newlineIndex: number;
+        while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
+          const line = buffer.slice(0, newlineIndex);
+          buffer = buffer.slice(newlineIndex + 1);
+          accumulator.add(line);
+        }
+      }
+
+      if (buffer.length > 0) {
+        accumulator.add(buffer);
+      }
+    } finally {
+      stream.destroy();
+    }
+
+    return accumulator.lines();
+  }
+
+  private createLineAccumulator(limit: number) {
+    const queue: string[] = [];
+    let trailingWhitespace: string[] = [];
+    let seenContent = false;
+
+    const pushLine = (line: string) => {
+      queue.push(line);
+      if (queue.length > limit) {
+        queue.splice(0, queue.length - limit);
+      }
+    };
+
+    const flushTrailingWhitespace = () => {
+      if (trailingWhitespace.length === 0) {
+        return;
+      }
+
+      for (const whitespace of trailingWhitespace) {
+        pushLine(whitespace);
+      }
+
+      trailingWhitespace = [];
+    };
+
+    return {
+      add(line: string) {
+        if (!seenContent) {
+          if (line.trim().length === 0) {
+            return;
+          }
+
+          seenContent = true;
+          pushLine(line);
+          return;
+        }
+
+        if (line.length === 0) {
+          return;
+        }
+
+        if (line.trim().length === 0) {
+          trailingWhitespace.push(line);
+          return;
+        }
+
+        flushTrailingWhitespace();
+        pushLine(line);
+      },
+      lines(): string[] {
+        return queue;
+      },
+    } as const;
   }
 }
