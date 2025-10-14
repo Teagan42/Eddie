@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { ComponentProps } from 'react';
 import { Badge, Box, Flex, Text } from '@radix-ui/themes';
 import type { OrchestratorMetadataDto, ToolCallStatusDto } from '@eddie/api-client';
@@ -89,34 +89,10 @@ export function ToolTree({
     });
   }, []);
 
-  const nodesByAgent = useMemo(() => {
-    const map = new Map<string, OrchestratorMetadataDto['toolInvocations']>();
+  const nodesByAgent = groupToolInvocationsByAgent(nodes);
 
-    const assignNodeToAgent = (node: ToolInvocationNode): void => {
-      const agentId =
-        typeof node.metadata?.agentId === 'string' ? node.metadata.agentId : null;
-      if (agentId) {
-        const existing = map.get(agentId) ?? [];
-        existing.push(node);
-        map.set(agentId, existing);
-      }
-
-      for (const child of node.children) {
-        assignNodeToAgent(child);
-      }
-    };
-
-    for (const node of nodes) {
-      assignNodeToAgent(node);
-    }
-
-    return map;
-  }, [nodes]);
-
-  const getAgentTools = useCallback(
-    (agentId: string) => nodesByAgent.get(agentId) ?? [],
-    [nodesByAgent],
-  );
+  const getAgentTools = (agentId: string): ToolInvocationNode[] =>
+    nodesByAgent.get(agentId) ?? [];
 
   const hasAgentHierarchy = agentHierarchy.length > 0;
   const hasToolInvocations = nodes.length > 0;
@@ -152,6 +128,32 @@ export function ToolTree({
       ))}
     </ul>
   );
+}
+
+function groupToolInvocationsByAgent(
+  nodes: ToolInvocationNode[],
+): Map<string, OrchestratorMetadataDto['toolInvocations']> {
+  const map = new Map<string, OrchestratorMetadataDto['toolInvocations']>();
+
+  const assignNodeToAgent = (node: ToolInvocationNode): void => {
+    const agentId =
+      typeof node.metadata?.agentId === 'string' ? node.metadata.agentId : null;
+    if (agentId) {
+      const existing = map.get(agentId) ?? [];
+      existing.push(node);
+      map.set(agentId, existing);
+    }
+
+    for (const child of node.children) {
+      assignNodeToAgent(child);
+    }
+  };
+
+  for (const node of nodes) {
+    assignNodeToAgent(node);
+  }
+
+  return map;
 }
 
 function cloneToolNodesForAgent(
