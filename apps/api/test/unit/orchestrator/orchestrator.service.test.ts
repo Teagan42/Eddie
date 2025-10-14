@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
+import type { AgentInvocationSnapshot } from "../../../src/chat-sessions/chat-sessions.service";
 import { ChatMessageRole } from "../../../src/chat-sessions/dto/create-chat-message.dto";
 import type {
   ChatMessageDto,
@@ -317,5 +318,154 @@ describe("OrchestratorMetadataService", () => {
 
     expect(statuses).toContain(ToolCallStatusDto.Pending);
     expect(statuses).toContain(ToolCallStatusDto.Completed);
+  });
+
+  it("builds a nested agent hierarchy from invocation snapshots", () => {
+    const session: ChatSessionDto = {
+      id: "session-hierarchy",
+      title: "Hierarchy run",
+      status: "active",
+      createdAt: new Date("2024-04-01T00:00:00.000Z").toISOString(),
+      updatedAt: new Date("2024-04-01T00:00:00.000Z").toISOString(),
+    };
+
+    const messages: ChatMessageDto[] = [
+      {
+        id: "message-1",
+        sessionId: session.id,
+        role: ChatMessageRole.User,
+        content: "Kick off hierarchy",
+        createdAt: new Date("2024-04-01T00:01:00.000Z").toISOString(),
+      },
+      {
+        id: "message-2",
+        sessionId: session.id,
+        role: ChatMessageRole.Assistant,
+        content: "Delegating work",
+        createdAt: new Date("2024-04-01T00:02:00.000Z").toISOString(),
+      },
+    ];
+
+    const agentInvocations: AgentInvocationSnapshot[] = [
+      {
+        id: "manager",
+        messages: [
+          {
+            role: ChatMessageRole.Assistant,
+            content: "Planning",
+          },
+          {
+            role: ChatMessageRole.Tool,
+            name: "spawn_subagent",
+            toolCallId: "call-spawn-writer",
+            content: JSON.stringify({
+              schema: "eddie.tool.spawn_subagent.result.v1",
+              content: "Delegated to writer",
+              metadata: {
+                agentId: "writer",
+                provider: "openai",
+                model: "gpt-4o-mini",
+                name: "Writer",
+                finalMessage: "Writer ready",
+                contextBundleIds: ["bundle-1"],
+              },
+              data: {
+                messageCount: 2,
+                prompt: "Draft documentation",
+              },
+            }),
+          },
+        ],
+        children: [
+          {
+            id: "writer",
+            messages: [
+              {
+                role: ChatMessageRole.Assistant,
+                content: "Drafting outline",
+              },
+              {
+                role: ChatMessageRole.Tool,
+                name: "spawn_subagent",
+                toolCallId: "call-spawn-researcher",
+                content: JSON.stringify({
+                  schema: "eddie.tool.spawn_subagent.result.v1",
+                  content: "Delegated to researcher",
+                  metadata: {
+                    agentId: "researcher",
+                    provider: "anthropic",
+                    model: "claude-3-5-sonnet",
+                    name: "Researcher",
+                    historySnippet: "Key findings",
+                  },
+                  data: {
+                    messageCount: 3,
+                    prompt: "Collect references",
+                  },
+                }),
+              },
+            ],
+            children: [
+              {
+                id: "researcher",
+                messages: [
+                  {
+                    role: ChatMessageRole.Assistant,
+                    content: "Research summary",
+                  },
+                ],
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const chatSessions = {
+      getSession: () => session,
+      listMessages: () => messages,
+      listAgentInvocations: () => agentInvocations,
+    } as unknown as ChatSessionsService;
+
+    const service = new OrchestratorMetadataService(chatSessions);
+
+    const metadata = service.getMetadata(session.id);
+
+    expect(metadata.agentHierarchy).toHaveLength(1);
+    const [sessionNode] = metadata.agentHierarchy;
+    expect(sessionNode?.id).toBe(session.id);
+    expect(sessionNode?.depth).toBe(0);
+    expect(sessionNode?.metadata?.messageCount).toBe(messages.length);
+
+    expect(sessionNode?.children).toHaveLength(1);
+    const [managerNode] = sessionNode?.children ?? [];
+    expect(managerNode?.id).toBe("manager");
+    expect(managerNode?.depth).toBe(1);
+    expect(managerNode?.metadata?.messageCount).toBe(
+      agentInvocations[0]?.messages.length
+    );
+
+    expect(managerNode?.children).toHaveLength(1);
+    const [writerNode] = managerNode?.children ?? [];
+    expect(writerNode?.id).toBe("writer");
+    expect(writerNode?.depth).toBe(2);
+    expect(writerNode?.provider).toBe("openai");
+    expect(writerNode?.model).toBe("gpt-4o-mini");
+    expect(writerNode?.metadata?.messageCount).toBe(
+      agentInvocations[0]?.children[0]?.messages.length
+    );
+    expect(writerNode?.metadata?.finalMessage).toBe("Writer ready");
+    expect(writerNode?.metadata?.contextBundleIds).toEqual(["bundle-1"]);
+
+    expect(writerNode?.children).toHaveLength(1);
+    const [researcherNode] = writerNode?.children ?? [];
+    expect(researcherNode?.id).toBe("researcher");
+    expect(researcherNode?.depth).toBe(3);
+    expect(researcherNode?.provider).toBe("anthropic");
+    expect(researcherNode?.model).toBe("claude-3-5-sonnet");
+    expect(researcherNode?.metadata?.messageCount).toBe(
+      agentInvocations[0]?.children[0]?.children[0]?.messages.length
+    );
   });
 });
