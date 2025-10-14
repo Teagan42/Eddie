@@ -21,29 +21,42 @@ import {
 
 const createUnsupportedDriverError = (driver: unknown): Error =>
   new Error(
-    `Unsupported chat sessions persistence driver "${String(driver)}". Supported drivers: memory, sqlite.`
+    `Unsupported chat sessions persistence driver "${String(
+      driver
+    )}". Supported drivers: memory, sqlite. Set "api.persistence.driver" to either "memory" or "sqlite".`
   );
+
+const UNSUPPORTED_SQL_DRIVERS = new Set(["postgres", "mysql", "mariadb"]);
 
 export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
   provide: CHAT_SESSIONS_REPOSITORY,
   useFactory: (configStore: ConfigStore) => {
     const config = configStore.getSnapshot();
-    const persistence = config.api?.persistence ?? { driver: "memory" };
-    switch (persistence.driver) {
-      case "memory":
-        return new InMemoryChatSessionsRepository();
-      case "sqlite": {
-        const filename =
-          persistence.sqlite?.filename ?? "data/chat-sessions.sqlite";
-        return new SqliteChatSessionsRepository({ filename });
-      }
-      case "postgres":
-      case "mysql":
-      case "mariadb":
-        throw createUnsupportedDriverError(persistence.driver);
-      default:
-        throw createUnsupportedDriverError(persistence.driver);
+    const persistence = config.api?.persistence;
+    const driver =
+      typeof persistence?.driver === "string"
+        ? persistence.driver
+        : "memory";
+
+    if (driver === "memory") {
+      return new InMemoryChatSessionsRepository();
     }
+
+    if (driver === "sqlite") {
+      const sqliteConfig =
+        persistence && "sqlite" in persistence
+          ? persistence.sqlite
+          : undefined;
+      const filename =
+        sqliteConfig?.filename ?? "data/chat-sessions.sqlite";
+      return new SqliteChatSessionsRepository({ filename });
+    }
+
+    if (UNSUPPORTED_SQL_DRIVERS.has(driver)) {
+      throw createUnsupportedDriverError(driver);
+    }
+
+    throw createUnsupportedDriverError(driver);
   },
   inject: [ ConfigStore ],
 };
