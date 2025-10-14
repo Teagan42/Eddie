@@ -1,4 +1,5 @@
-import fs from "fs/promises";
+import { createReadStream } from "node:fs";
+import { createInterface } from "node:readline";
 import path from "path";
 import { Injectable } from "@nestjs/common";
 import { ConfigStore } from "@eddie/config";
@@ -27,13 +28,7 @@ export class TraceCommand implements CliCommand {
 
     try {
       const absolute = path.resolve(tracePath);
-      const data = await fs.readFile(absolute, "utf-8");
-      const lines = data
-        .trim()
-        .split("\n")
-        .filter(Boolean)
-        .slice(-50);
-
+      const lines = await this.readTraceTail(absolute);
       for (const line of lines) {
         try {
           const parsed = JSON.parse(line);
@@ -46,5 +41,57 @@ export class TraceCommand implements CliCommand {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`Unable to read trace at ${tracePath}: ${message}`);
     }
+  }
+
+  private async readTraceTail(filePath: string): Promise<string[]> {
+    const stream = createReadStream(filePath, { encoding: "utf-8" });
+    const reader = createInterface({ input: stream, crlfDelay: Infinity });
+    const lines: string[] = [];
+    const pendingWhitespace: string[] = [];
+    let hasContent = false;
+
+    const pushLine = (value: string) => {
+      lines.push(value);
+      if (lines.length > 50) {
+        lines.shift();
+      }
+    };
+
+    try {
+      for await (const rawLine of reader) {
+        if (rawLine.trim().length === 0) {
+          if (!hasContent) {
+            continue;
+          }
+
+          pendingWhitespace.push(rawLine);
+          continue;
+        }
+
+        let normalizedLine = rawLine;
+        if (!hasContent) {
+          normalizedLine = rawLine.trimStart();
+          hasContent = true;
+        }
+
+        if (pendingWhitespace.length > 0) {
+          for (const whitespaceLine of pendingWhitespace) {
+            pushLine(whitespaceLine);
+          }
+          pendingWhitespace.length = 0;
+        }
+
+        pushLine(normalizedLine);
+      }
+    } finally {
+      reader.close();
+    }
+
+    if (lines.length > 0) {
+      const lastIndex = lines.length - 1;
+      lines[lastIndex] = lines[lastIndex]?.trimEnd();
+    }
+
+    return lines;
   }
 }
