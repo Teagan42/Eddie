@@ -6,6 +6,13 @@ describe("TokenizersModule", () => {
   const providers: unknown[] =
     Reflect.getMetadata(MODULE_METADATA.PROVIDERS, TokenizersModule) ?? [];
 
+  let exportedProviders: unknown[] | undefined;
+
+  beforeAll(async () => {
+    const moduleExports = await import("../src/tokenizers.module");
+    exportedProviders = moduleExports.tokenizerStrategyProviders;
+  });
+
   const providerFor = (token: unknown) =>
     providers.find((candidate) =>
       typeof candidate === "object" && candidate
@@ -29,5 +36,21 @@ describe("TokenizersModule", () => {
       expect.any(Function)
     );
     expect((provider as { inject?: unknown[] }).inject).toEqual([]);
+  });
+
+  it("exposes tokenizer strategy providers for runtime checks", () => {
+    expect(exportedProviders).toBeDefined();
+    expect(Array.isArray(exportedProviders)).toBe(true);
+    for (const provider of exportedProviders ?? []) {
+      expect(provider).toEqual(
+        expect.objectContaining({
+          provide: expect.any(Function),
+          useFactory: expect.any(Function),
+        })
+      );
+      expect(Array.isArray((provider as { inject?: unknown[] }).inject)).toBe(
+        true
+      );
+    }
   });
 });
