@@ -8,6 +8,7 @@ import type { Logger } from "pino";
 import type { LoggerService } from "@eddie/io";
 
 const mockClientInstances: MockClientInstance[] = [];
+const mockClientConnect = vi.fn();
 
 interface MockClientInstance {
   connect: ReturnType<typeof vi.fn>;
@@ -25,8 +26,14 @@ interface MockClientInstance {
 }
 
 const mockTransportInstances: MockTransportInstance[] = [];
+const mockSseTransportInstances: MockSseTransportInstance[] = [];
 
 interface MockTransportInstance {
+  url: URL;
+  options: unknown;
+}
+
+interface MockSseTransportInstance {
   url: URL;
   options: unknown;
 }
@@ -41,7 +48,7 @@ const mockServerInfo = vi
 
 vi.mock("@modelcontextprotocol/sdk/client/index.js", () => ({
   Client: class MockClient {
-    connect = vi.fn().mockResolvedValue(undefined);
+    connect = mockClientConnect;
     listTools = vi.fn().mockResolvedValue({ tools: [] });
     listResources = vi.fn().mockResolvedValue({ resources: [] });
     listPrompts = vi.fn().mockResolvedValue({ prompts: [] });
@@ -62,8 +69,20 @@ vi.mock("@modelcontextprotocol/sdk/client/index.js", () => ({
 
 vi.mock("@modelcontextprotocol/sdk/client/streamableHttp.js", () => ({
   StreamableHTTPClientTransport: class MockTransport {
+    sessionId?: string;
+
     constructor(public url: URL, public options: unknown) {
       mockTransportInstances.push(this as unknown as MockTransportInstance);
+    }
+  },
+}));
+
+vi.mock("@modelcontextprotocol/sdk/client/sse.js", () => ({
+  SSEClientTransport: class MockSseTransport {
+    constructor(public url: URL, public options: unknown) {
+      mockSseTransportInstances.push(
+        this as unknown as MockSseTransportInstance
+      );
     }
   },
 }));
@@ -94,10 +113,16 @@ const createDeferred = <T>() => {
   return { promise, resolve, reject };
 };
 
+const getTransportSessionId = (index: number) =>
+  (mockTransportInstances[index].options as { sessionId?: string }).sessionId;
+
 describe("McpToolSourceService", () => {
   beforeEach(() => {
     mockClientInstances.length = 0;
     mockTransportInstances.length = 0;
+    mockSseTransportInstances.length = 0;
+    mockClientConnect.mockReset();
+    mockClientConnect.mockResolvedValue(undefined);
     vi.stubGlobal("fetch", vi.fn());
     mockServerCapabilities.mockReturnValue({ tools: { list: true } });
     mockServerVersion.mockReturnValue({ name: "mock-server", version: "1.0.0" });
@@ -141,6 +166,58 @@ describe("McpToolSourceService", () => {
       }),
       "Connected to MCP server"
     );
+  });
+
+  it("uses the SSE transport when configured", async () => {
+    const logger = createLogger();
+    const loggerService = createLoggerService(logger);
+    const service = new McpToolSourceService(loggerService);
+    const source = {
+      id: "sse",
+      type: "mcp",
+      url: "https://example.com/mcp-sse",
+      transport: "sse",
+    } as MCPToolSourceConfig;
+
+    await service.discoverSources([source]);
+
+    expect(mockSseTransportInstances).toHaveLength(1);
+    expect(mockSseTransportInstances[0].url).toBeInstanceOf(URL);
+    expect(mockSseTransportInstances[0].url.href).toBe(source.url);
+    expect(mockTransportInstances).toHaveLength(0);
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "mcp.initialize",
+        sourceId: source.id,
+        transport: "sse",
+      }),
+      "Connected to MCP server"
+    );
+  });
+
+  it("reuses the streamable session id assigned during connect", async () => {
+    const logger = createLogger();
+    const loggerService = createLoggerService(logger);
+    const service = new McpToolSourceService(loggerService);
+    const source: MCPToolSourceConfig = {
+      id: "default",
+      type: "mcp",
+      url: "https://example.com/mcp",
+    };
+
+    mockClientConnect.mockImplementation(async (transport: { sessionId?: string }) => {
+      transport.sessionId = "session-123";
+    });
+
+    await service.discoverSources([source]);
+
+    mockClientConnect.mockImplementation(async () => undefined);
+
+    await service.discoverSources([source]);
+
+    expect(mockTransportInstances).toHaveLength(2);
+    expect(getTransportSessionId(0)).toBeUndefined();
+    expect(getTransportSessionId(1)).toBe("session-123");
   });
 
   it("constructs with a default logger when no LoggerService is provided", async () => {
@@ -257,6 +334,12 @@ describe("SDK module loading", () => {
     const source = readFileSync(serviceSourcePath, "utf8");
 
     expect(source).not.toMatch(/^import\s+[^\n]*streamableHttp/m);
+  });
+
+  it("avoids static imports for the sse transport", () => {
+    const source = readFileSync(serviceSourcePath, "utf8");
+
+    expect(source).not.toMatch(/^import\s+[^\n]*sse/m);
   });
 
   it("avoids referencing dist esm client types directly", () => {

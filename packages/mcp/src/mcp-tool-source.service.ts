@@ -50,14 +50,20 @@ interface CallToolResultPayload {
 
 const DEFAULT_CLIENT_NAME = "eddie";
 const DEFAULT_CLIENT_VERSION = "unknown";
-const TRANSPORT_NAME = "streamable-http";
+const STREAMABLE_TRANSPORT_NAME = "streamable-http" as const;
+const SSE_TRANSPORT_NAME = "sse" as const;
 const CLIENT_MODULE_PATH =
   "@modelcontextprotocol/sdk/client/index.js" as const;
 const STREAMABLE_TRANSPORT_MODULE_PATH =
   "@modelcontextprotocol/sdk/client/streamableHttp.js" as const;
+const SSE_TRANSPORT_MODULE_PATH =
+  "@modelcontextprotocol/sdk/client/sse.js" as const;
 const LOGGER_SCOPE = "mcp-tool-source" as const;
 
 type Client = typeof import("@modelcontextprotocol/sdk/client/index.js").Client;
+type TransportName =
+  | typeof STREAMABLE_TRANSPORT_NAME
+  | typeof SSE_TRANSPORT_NAME;
 
 @Injectable()
 export class McpToolSourceService {
@@ -334,13 +340,22 @@ export class McpToolSourceService {
     source: MCPToolSourceConfig,
     run: (context: ClientContext) => Promise<T>
   ): Promise<T> {
-    const { Client, StreamableHTTPClientTransport } = await this.loadSdkModules();
+    const {
+      Client,
+      StreamableHTTPClientTransport,
+      SSEClientTransport,
+    } = await this.loadSdkModules();
     const cached = this.sessionCache.get(source.id);
     const headers = this.buildHeaders(source);
     const transportUrl = new URL(source.url);
-    const transport = new StreamableHTTPClientTransport(transportUrl, {
-      requestInit: { headers },
-      sessionId: cached?.sessionId,
+    const transportName = this.resolveTransportName(source);
+    const transport = this.createTransport({
+      transportName,
+      StreamableHTTPClientTransport,
+      SSEClientTransport,
+      transportUrl,
+      headers,
+      cachedSessionId: cached?.sessionId,
     });
     const client = new Client(
       { name: DEFAULT_CLIENT_NAME, version: DEFAULT_CLIENT_VERSION },
@@ -354,7 +369,7 @@ export class McpToolSourceService {
         {
           event: "mcp.initialize",
           sourceId: source.id,
-          transport: TRANSPORT_NAME,
+          transport: transportName,
           status: "error",
           error: this.normalizeError(error),
         },
@@ -378,14 +393,20 @@ export class McpToolSourceService {
           serverName: identity.serverName,
           serverVersion: identity.serverVersion,
           capabilities: serverCapabilities,
-          transport: TRANSPORT_NAME,
+          transport: transportName,
         },
         "Connected to MCP server"
       );
     }
 
+    const sessionId = this.resolveSessionId({
+      transportName,
+      transport,
+      cachedSessionId: cached?.sessionId,
+    });
+
     this.sessionCache.set(source.id, {
-      sessionId: transport.sessionId ?? cached?.sessionId,
+      sessionId,
       capabilities: serverCapabilities,
       serverInfo,
     });
@@ -393,7 +414,7 @@ export class McpToolSourceService {
     try {
       const context: ClientContext = {
         client,
-        transportName: TRANSPORT_NAME,
+        transportName,
         serverCapabilities,
         serverInfo,
         serverIdentity: identity,
@@ -605,16 +626,77 @@ export class McpToolSourceService {
   }
 
   private async importSdkModules(): Promise<SdkModules> {
-    const [clientModule, transportModule] = await Promise.all([
-      import(CLIENT_MODULE_PATH),
-      import(STREAMABLE_TRANSPORT_MODULE_PATH),
-    ]);
+    const [clientModule, streamableTransportModule, sseTransportModule] =
+      await Promise.all([
+        import(CLIENT_MODULE_PATH),
+        import(STREAMABLE_TRANSPORT_MODULE_PATH),
+        import(SSE_TRANSPORT_MODULE_PATH),
+      ]);
 
     return {
       Client: clientModule.Client,
       StreamableHTTPClientTransport:
-        transportModule.StreamableHTTPClientTransport,
+        streamableTransportModule.StreamableHTTPClientTransport,
+      SSEClientTransport: sseTransportModule.SSEClientTransport,
     };
+  }
+
+  private resolveTransportName(source: MCPToolSourceConfig): TransportName {
+    if (source.transport === SSE_TRANSPORT_NAME) {
+      return SSE_TRANSPORT_NAME;
+    }
+
+    return STREAMABLE_TRANSPORT_NAME;
+  }
+
+  private createTransport({
+    transportName,
+    StreamableHTTPClientTransport,
+    SSEClientTransport,
+    transportUrl,
+    headers,
+    cachedSessionId,
+  }: {
+    transportName: TransportName;
+    StreamableHTTPClientTransport: SdkModules["StreamableHTTPClientTransport"];
+    SSEClientTransport: SdkModules["SSEClientTransport"];
+    transportUrl: URL;
+    headers: Record<string, string>;
+    cachedSessionId?: string;
+  }): TransportInstance {
+    const requestInit = { headers };
+
+    if (transportName === SSE_TRANSPORT_NAME) {
+      return new SSEClientTransport(transportUrl, {
+        requestInit,
+      });
+    }
+
+    return new StreamableHTTPClientTransport(transportUrl, {
+      requestInit,
+      sessionId: cachedSessionId,
+    });
+  }
+  
+  private resolveSessionId({
+    transportName,
+    transport,
+    cachedSessionId,
+  }: {
+    transportName: TransportName;
+    transport: TransportInstance;
+    cachedSessionId?: string;
+  }): string | undefined {
+    if (transportName === STREAMABLE_TRANSPORT_NAME) {
+      const streamableTransport =
+        transport as StreamableHTTPClientTransportInstance & {
+          sessionId?: string;
+        };
+
+      return streamableTransport.sessionId ?? cachedSessionId;
+    }
+
+    return undefined;
   }
 }
 
@@ -623,4 +705,19 @@ type SdkModules = {
   StreamableHTTPClientTransport: typeof import(
     "@modelcontextprotocol/sdk/client/streamableHttp.js"
   ).StreamableHTTPClientTransport;
+  SSEClientTransport: typeof import(
+    "@modelcontextprotocol/sdk/client/sse.js"
+  ).SSEClientTransport;
 };
+
+type StreamableHTTPClientTransportInstance = InstanceType<
+  SdkModules["StreamableHTTPClientTransport"]
+>;
+
+type SSEClientTransportInstance = InstanceType<
+  SdkModules["SSEClientTransport"]
+>;
+
+type TransportInstance =
+  | StreamableHTTPClientTransportInstance
+  | SSEClientTransportInstance;

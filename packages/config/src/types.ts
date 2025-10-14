@@ -317,6 +317,7 @@ export interface MCPToolSourceConfig {
   headers?: Record<string, string>;
   auth?: MCPAuthConfig;
   capabilities?: MCPToolSourceCapabilitiesConfig;
+  transport?: "streamable-http" | "sse";
 }
 
 export type ToolSourceConfig = MCPToolSourceConfig;

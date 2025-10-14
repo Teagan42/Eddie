@@ -5,3 +5,7 @@ declare module "@modelcontextprotocol/sdk/client/index.js" {
 declare module "@modelcontextprotocol/sdk/client/streamableHttp.js" {
   export { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/dist/esm/client/streamableHttp.js";
 }
+
+declare module "@modelcontextprotocol/sdk/client/sse.js" {
+  export { SSEClientTransport } from "@modelcontextprotocol/sdk/dist/esm/client/sse.js";
+}
