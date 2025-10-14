@@ -66,4 +66,46 @@ describe("IntelligentTranscriptCompactor", () => {
     expect(childInvocation.messages[toolCallIndex + 1]?.role).toBe("tool");
     expect(childInvocation.messages.length).toBeLessThan(childMessages.length);
   });
+
+  it("stores parent summaries even before compaction threshold", async () => {
+    const compactor = new IntelligentTranscriptCompactor({
+      minMessagesBeforeCompaction: 5,
+      enableParentContextStorage: true,
+    });
+
+    const parentMessages = [
+      message("system", "router system"),
+      message(
+        "assistant",
+        "Plan:\n1. coordinate\n2. review\n\nDecided to delegate the refactor"
+      ),
+      message("assistant", "Found bug in module A"),
+    ];
+    const parentInvocation = buildInvocation("router", parentMessages);
+
+    const parentPlan = await compactor.plan(parentInvocation, 1);
+    expect(parentPlan).toBeNull();
+
+    const childMessages = [
+      message("system", "red system"),
+      message("user", "Implement feature"),
+      message("assistant", "tool_call:123", { tool_call_id: "123" }),
+      message("tool", "tool result", { tool_call_id: "123", name: "fs" }),
+      message("assistant", "Ready for next step"),
+      message("user", "Next instruction"),
+      message("assistant", "tool_call:456", { tool_call_id: "456" }),
+      message("tool", "tool result 2", { tool_call_id: "456", name: "fs" }),
+    ];
+    const childInvocation = buildInvocation("red-impl", childMessages, parentInvocation);
+
+    const childPlan = await compactor.plan(childInvocation, 1);
+    expect(childPlan).not.toBeNull();
+
+    childPlan!.apply();
+
+    expect(childInvocation.messages[1]?.role).toBe("system");
+    expect(childInvocation.messages[1]?.content).toContain("Task Plan");
+    expect(childInvocation.messages[1]?.content).toContain("Key Decisions");
+    expect(childInvocation.messages[1]?.content).toContain("Important Findings");
+  });
 });

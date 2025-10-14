@@ -166,20 +166,21 @@ export class IntelligentTranscriptCompactor implements TranscriptCompactor {
     iteration: number,
   ): Promise<TranscriptCompactionPlan | null> {
     const messageCount = invocation.messages.length;
+    const threshold = this.config.minMessagesBeforeCompaction ?? 10;
     const node = this.ensureNode(invocation);
     if (node.fullHistory.length < messageCount) {
       node.fullHistory = [...invocation.messages];
     }
 
-    if (messageCount <= (this.config.minMessagesBeforeCompaction ?? 10)) {
+    if (this.config.enableParentContextStorage) {
+      this.extractAndStoreParentContext(invocation);
+    }
+
+    if (messageCount <= threshold) {
       return null;
     }
 
     const agentRequirements = this.getAgentRequirements(invocation);
-
-    if (this.config.enableParentContextStorage) {
-      this.extractAndStoreParentContext(invocation);
-    }
 
     return this.buildCompactionPlan(invocation, agentRequirements, iteration);
   }
