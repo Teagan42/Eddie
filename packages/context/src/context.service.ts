@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import fs from "fs/promises";
+import { createReadStream } from "fs";
 import path from "path";
 import fg from "fast-glob";
 import ignore from "ignore";
@@ -158,6 +159,8 @@ const DEFAULT_EXCLUDE_PATTERNS = [
   "**/artifacts/**",
 ];
 
+const STREAM_CHUNK_SIZE = 64 * 1024;
+
 interface ResourceLoadResult {
   resource: PackedResource;
   bytes: number;
@@ -300,7 +303,7 @@ export class ContextService {
           continue;
         }
 
-        const content = await fs.readFile(absolutePath, "utf-8");
+        const content = await this.readUtf8File(absolutePath);
         const bytes = Buffer.byteLength(content);
         if (
           this.isOverBudget({
@@ -395,6 +398,25 @@ export class ContextService {
       .join("\n\n");
   }
 
+  private async readUtf8File(filePath: string): Promise<string> {
+    const stream = createReadStream(filePath, {
+      encoding: "utf-8",
+      highWaterMark: STREAM_CHUNK_SIZE,
+    });
+
+    return await new Promise<string>((resolve, reject) => {
+      let content = "";
+      stream.on("data", (chunk: string) => {
+        content += chunk;
+      });
+      stream.on("error", (error) => {
+        stream.destroy();
+        reject(error);
+      });
+      stream.on("end", () => resolve(content));
+    });
+  }
+
   private async loadResource(
     resource: ContextResourceConfig,
     options: {
@@ -461,7 +483,7 @@ export class ContextService {
           continue;
         }
 
-        const content = await fs.readFile(absolutePath, "utf-8");
+        const content = await this.readUtf8File(absolutePath);
         const fileBytes = Buffer.byteLength(content);
         if (
           this.isOverBudget({
