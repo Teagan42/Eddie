@@ -16,9 +16,21 @@ describe('code-assistant router instructions', () => {
     manager = read('examples/code-assistant/prompts/router_manager.jinja');
   });
 
-  it('conventions partial avoids duplicating spawn_subagent instructions', () => {
-    expect(conventions).not.toMatch(/Delegation \(spawn_subagent\)/i);
-    expect(conventions).not.toMatch(/spawn_subagent tool/i);
+  describe('conventions partial', () => {
+    const conventionsExpectations: Array<{ name: string; pattern: RegExp }> = [
+      {
+        name: 'documents the spawn_subagent delegation schema',
+        pattern: /Delegation \(spawn_subagent\)/i,
+      },
+      {
+        name: 'explains how to invoke the spawn_subagent tool',
+        pattern: /spawn_subagent tool/i,
+      },
+    ];
+
+    it.each(conventionsExpectations)('%s', ({ pattern }) => {
+      expect(conventions).toMatch(pattern);
+    });
   });
 
   const managerExpectations: Array<{ name: string; pattern: RegExp }> = [
@@ -37,7 +49,9 @@ describe('code-assistant router instructions', () => {
     },
   ];
 
-  it.each(managerExpectations)('router manager %s', ({ pattern }) => {
-    expect(manager).toMatch(pattern);
+  describe('router manager', () => {
+    it.each(managerExpectations)('%s', ({ pattern }) => {
+      expect(manager).toMatch(pattern);
+    });
   });
 });
