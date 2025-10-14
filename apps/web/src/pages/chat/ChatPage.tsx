@@ -129,6 +129,23 @@ const PANEL_IDS = {
   agents: 'agent-hierarchy',
 } as const;
 
+const SCROLL_VIEWPORT_SELECTOR = '[data-radix-scroll-area-viewport]';
+
+const scrollMessageViewportToBottom = (anchor: HTMLElement): void => {
+  const viewport = anchor.closest(SCROLL_VIEWPORT_SELECTOR);
+  if (viewport instanceof HTMLElement) {
+    const target = viewport.scrollHeight;
+    if (typeof viewport.scrollTo === 'function') {
+      viewport.scrollTo({ top: target });
+    } else {
+      viewport.scrollTop = target;
+    }
+    return;
+  }
+
+  anchor.scrollIntoView({ block: 'end' });
+};
+
 type ChatPreferences = NonNullable<LayoutPreferencesDto['chat']>;
 
 type ComposerRole = CreateChatMessageDto['role'];
@@ -806,7 +823,12 @@ export function ChatPage(): JSX.Element {
       return;
     }
 
-    scrollAnchorRef.current?.scrollIntoView({ block: 'end' });
+    const scrollAnchor = scrollAnchorRef.current;
+    if (!scrollAnchor) {
+      return;
+    }
+
+    scrollMessageViewportToBottom(scrollAnchor);
   }, [lastMessage, lastMessage?.content, lastMessage?.id, messages.length]);
 
   const handleSelectSession = useCallback(
