@@ -182,8 +182,10 @@ The API currently exposes the following HTTP routes:
 - **`GET /chat-sessions`** – list the in-memory or persisted chat sessions.【F:apps/api/src/chat-sessions/chat-sessions.controller.ts†L20-L33】
 - **`POST /chat-sessions`** – create a new session and return its identifier.【F:apps/api/src/chat-sessions/chat-sessions.controller.ts†L35-L41】
 - **`GET /chat-sessions/:id`** – fetch a single session by UUID.【F:apps/api/src/chat-sessions/chat-sessions.controller.ts†L43-L49】
+- **`PATCH /chat-sessions/:id`** – rename an existing session and responds with 200 OK including the updated metadata.【F:apps/api/src/chat-sessions/chat-sessions.controller.ts†L77-L88】
 - **`PATCH /chat-sessions/:id/archive`** – archive a session and keep historical
   records immutable.【F:apps/api/src/chat-sessions/chat-sessions.controller.ts†L51-L57】
+- **`DELETE /chat-sessions/:id`** – remove a session permanently and returns a 204 No Content response once cleanup is finished.【F:apps/api/src/chat-sessions/chat-sessions.controller.ts†L90-L99】
 - **`GET /chat-sessions/:id/messages`** – list all recorded messages for a
   session.【F:apps/api/src/chat-sessions/chat-sessions.controller.ts†L59-L65】
 - **`POST /chat-sessions/:id/messages`** – append a new message to the session
@@ -194,6 +196,7 @@ about session changes and agent activity. The gateway emits:
 
 - `session.created`, `session.updated` – whenever sessions are added or
   archived.【F:apps/api/src/chat-sessions/chat-sessions.gateway.ts†L43-L61】
+- `session.deleted` – emitted after a session is removed; clients should drop local copies and active subscriptions when they receive this event.【F:apps/api/src/chat-sessions/chat-sessions.gateway.ts†L43-L61】
 - `message.created`, `message.updated` – when chat messages are streamed from
   the engine or edited by follow-up calls.【F:apps/api/src/chat-sessions/chat-sessions.gateway.ts†L63-L69】
 - `agent.activity` – progress updates as the agent executes tools and produces
@@ -212,6 +215,18 @@ curl -X POST http://localhost:4000/chat-sessions \
   -H "Content-Type: application/json" \
   -H "x-api-key: $EDDIE_API_KEY" \
   -d '{"title":"Doc sync"}'
+
+# Rename a chat session with the returned identifier
+curl -X PATCH http://localhost:4000/chat-sessions/$SESSION_ID \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: $EDDIE_API_KEY" \
+  -d '{
+  "name": "Renamed session title"
+}'
+
+# Delete a chat session and rely on session.deleted events to fan out state changes
+curl -X DELETE http://localhost:4000/chat-sessions/$SESSION_ID \
+  -H "x-api-key: $EDDIE_API_KEY"
 
 # Subscribe to agent activity for a session using wscat (trailing slash optional)
 wscat --connect ws://localhost:4000/chat-sessions/ \

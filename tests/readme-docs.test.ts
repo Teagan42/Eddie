@@ -1,6 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
+const renameDeletePattern = /rename (and|or) delete chat sessions/i;
+
 function readRootFile(path: string) {
   return readFileSync(new URL(path, import.meta.url), 'utf8');
 }
@@ -20,5 +22,9 @@ describe('README documentation', () => {
     expect(readme).toContain('## Web UI');
     expect(readme).toContain('docs/assets/ui-dashboard.png');
     expect(readme).toContain('docs/assets/ui-run-history.png');
+  });
+
+  it('mentions chat session rename and delete capabilities across surfaces', () => {
+    expect(readme).toMatch(renameDeletePattern);
   });
 });
