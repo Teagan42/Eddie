@@ -49,6 +49,10 @@ const externalAliases = [
     find: "@modelcontextprotocol/sdk/client/streamableHttp.js",
     replacement: path.join(mcpSdkBasePath, "client", "streamableHttp.js"),
   },
+  {
+    find: "@modelcontextprotocol/sdk/client/sse.js",
+    replacement: path.join(mcpSdkBasePath, "client", "sse.js"),
+  },
 ];
 
 export const createPackageVitestConfig = (packageName: string) =>
