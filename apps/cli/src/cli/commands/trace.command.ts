@@ -7,6 +7,8 @@ import type { CliArguments } from "../cli-arguments";
 import { CliOptionsService } from "../cli-options.service";
 import type { CliCommand, CliCommandMetadata } from "./cli-command";
 
+const TRACE_STREAM_CHUNK_SIZE = 64 * 1024;
+
 @Injectable()
 export class TraceCommand implements CliCommand {
   readonly metadata: CliCommandMetadata = {
@@ -44,7 +46,10 @@ export class TraceCommand implements CliCommand {
   }
 
   private async readTraceTail(filePath: string): Promise<string[]> {
-    const stream = createReadStream(filePath, { encoding: "utf-8" });
+    const stream = createReadStream(filePath, {
+      encoding: "utf-8",
+      highWaterMark: TRACE_STREAM_CHUNK_SIZE,
+    });
     const reader = createInterface({ input: stream, crlfDelay: Infinity });
     const lines: string[] = [];
     const pendingWhitespace: string[] = [];
@@ -85,6 +90,7 @@ export class TraceCommand implements CliCommand {
       }
     } finally {
       reader.close();
+      stream.destroy();
     }
 
     if (lines.length > 0) {
