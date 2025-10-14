@@ -53,6 +53,21 @@ async function listFiles(root: string): Promise<string[]> {
   return results;
 }
 
+const coerceOptionalString = (
+  value: unknown,
+  label: string,
+): string | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    throw new Error(`${label} must be a string`);
+  }
+
+  return value;
+};
+
 const buildContentRegex = (pattern: string | undefined): RegExp | null => {
   if (!pattern) {
     return null;
@@ -198,8 +213,10 @@ export const fileSearchTool: ToolDefinition = {
   async handler(args, ctx) {
     const root = String(args.root ?? ".");
     const absoluteRoot = path.resolve(ctx.cwd, root);
-    const contentRegex = buildContentRegex(args.content);
-    const nameRegex = buildNameRegex(args.name);
+    const contentPattern = coerceOptionalString(args.content, "content pattern");
+    const namePattern = coerceOptionalString(args.name, "name pattern");
+    const contentRegex = buildContentRegex(contentPattern);
+    const nameRegex = buildNameRegex(namePattern);
     const includePatterns = buildPatternList(args.include, "include");
     const excludePatterns = buildPatternList(args.exclude, "exclude");
 

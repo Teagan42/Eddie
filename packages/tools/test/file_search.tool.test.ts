@@ -206,4 +206,33 @@ describe("file_search tool", () => {
       await fs.rm(tmpDir, { recursive: true, force: true });
     }
   });
+
+  it("rejects non-string content arguments", async () => {
+    const tool = builtinTools.find((candidate) => candidate.name === "file_search");
+    expect(tool).toBeDefined();
+    if (!tool) {
+      throw new Error("file_search tool not registered");
+    }
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "eddie-file-search-"));
+    const ctx = {
+      cwd: tmpDir,
+      confirm: vi.fn(async () => true),
+      env: process.env,
+    };
+
+    try {
+      await expect(
+        tool.handler(
+          {
+            // @ts-expect-error intentional invalid input for runtime validation
+            content: { pattern: "match" },
+          },
+          ctx,
+        ),
+      ).rejects.toThrow("content pattern must be a string");
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
 });
