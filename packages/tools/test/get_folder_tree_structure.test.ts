@@ -76,6 +76,21 @@ describe("get_folder_tree_structure tool", () => {
             ],
           },
         ],
+        pageEntries: [
+          "README.md",
+          "src/",
+          "src/index.ts",
+          "src/utils/",
+          "src/utils/helper.ts",
+        ],
+        pagination: {
+          limit: null,
+          offset: 0,
+          returnedEntries: 5,
+          totalEntries: 5,
+          hasMore: false,
+          nextOffset: null,
+        },
       });
       expect(result.content).toContain("README.md");
       expect(result.content).toContain("src/index.ts");
@@ -136,6 +151,72 @@ describe("get_folder_tree_structure tool", () => {
           ],
         },
       ]);
+      expect(result.data.pageEntries).toEqual([
+        "src/index.ts",
+        "src/utils/",
+        "src/utils/helper.ts",
+      ]);
+      expect(result.data.pagination).toEqual({
+        limit: null,
+        offset: 0,
+        returnedEntries: 3,
+        totalEntries: 3,
+        hasMore: false,
+        nextOffset: null,
+      });
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("applies maxEntries limit and reports pagination", async () => {
+    const tool = builtinTools.find(
+      (candidate) => candidate.name === "get_folder_tree_structure",
+    );
+    expect(tool).toBeDefined();
+    if (!tool) {
+      throw new Error("get_folder_tree_structure tool not registered");
+    }
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "eddie-tree-"));
+    const ctx = {
+      cwd: tmpDir,
+      confirm: vi.fn(async () => true),
+      env: process.env,
+    };
+
+    try {
+      await fs.mkdir(path.join(tmpDir, "src/utils"), { recursive: true });
+      await fs.writeFile(
+        path.join(tmpDir, "src/index.ts"),
+        "export const value = 1;\n",
+        "utf-8",
+      );
+      await fs.writeFile(
+        path.join(tmpDir, "src/utils/helper.ts"),
+        "export const helper = () => 1;\n",
+        "utf-8",
+      );
+      await fs.writeFile(
+        path.join(tmpDir, "README.md"),
+        "# Example\n",
+        "utf-8",
+      );
+
+      const result = await tool.handler({ path: ".", maxEntries: 2 }, ctx);
+
+      expect(result.content).toBe(
+        ["Tree for . (showing 2 of 5 entries)", "README.md", "src/"].join("\n"),
+      );
+      expect(result.data.pagination).toEqual({
+        limit: 2,
+        offset: 0,
+        returnedEntries: 2,
+        totalEntries: 5,
+        hasMore: true,
+        nextOffset: 2,
+      });
+      expect(result.data.pageEntries).toEqual(["README.md", "src/"]);
     } finally {
       await fs.rm(tmpDir, { recursive: true, force: true });
     }
