@@ -12,7 +12,7 @@ export interface ToolCallArguments {
   [key: string]: unknown;
 }
 
-export interface ToolOutputSchema {
+export interface ToolOutputSchema extends Record<string, unknown> {
   type: string;
   name: string;
   schema: Record<string, unknown>;

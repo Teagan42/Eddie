@@ -10,9 +10,8 @@ const hasOutputSchema = (tool: ToolSchema): tool is ToolWithOutputSchema =>
 export const resolveResponseFormat = (
   options: StreamOptions,
 ): StreamOptions["responseFormat"] => {
-  if (options.responseFormat) {
-    return options.responseFormat;
-  }
-
-  return options.tools?.find(hasOutputSchema)?.outputSchema;
+  return (
+    options.responseFormat ??
+    options.tools?.find(hasOutputSchema)?.outputSchema
+  );
 };
