@@ -180,6 +180,11 @@ describe("AgentOrchestratorService", () => {
       "agentId",
       "messageCount",
       "prompt",
+      "blocked",
+      "finalMessage",
+      "history",
+      "transcriptSummary",
+      "historySnippet",
     ]);
 
     const dataProps = dataSchema.properties as Record<string, Record<string, unknown>>;
@@ -205,7 +210,7 @@ describe("AgentOrchestratorService", () => {
       type: "object",
       additionalProperties: false,
     });
-    expect(historyItems.required).toEqual(["role", "content"]);
+    expect(historyItems.required).toEqual(["role", "content", "name", "tool_call_id"]);
 
     const metadataSchema = properties.metadata as Record<string, unknown>;
     expect(metadataSchema).toMatchObject({
@@ -217,6 +222,16 @@ describe("AgentOrchestratorService", () => {
       "model",
       "provider",
       "parentAgentId",
+      "blocked",
+      "name",
+      "description",
+      "profileId",
+      "routingThreshold",
+      "finalMessage",
+      "transcriptSummary",
+      "historySnippet",
+      "contextBundleIds",
+      "request",
     ]);
 
     const metadataProps = metadataSchema.properties as Record<string, Record<string, unknown>>;

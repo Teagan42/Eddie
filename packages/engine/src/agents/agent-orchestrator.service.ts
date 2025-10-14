@@ -781,27 +781,44 @@ const SPAWN_SUBAGENT_SCHEMA_REQUIRED_FIELDS = [
   "content",
   "data",
   "metadata",
-] as const;
+] as const satisfies readonly string[];
 
 const SPAWN_SUBAGENT_DATA_REQUIRED_FIELDS = [
   "agentId",
   "messageCount",
   "prompt",
-] as const;
+  "blocked",
+  "finalMessage",
+  "history",
+  "transcriptSummary",
+  "historySnippet",
+] as const satisfies readonly string[];
 
 const SPAWN_SUBAGENT_HISTORY_REQUIRED_FIELDS = [
   "role",
   "content",
-] as const;
+  "name",
+  "tool_call_id",
+] as const satisfies readonly string[];
 
 const SPAWN_SUBAGENT_METADATA_REQUIRED_FIELDS = [
   "agentId",
   "model",
   "provider",
   "parentAgentId",
-] as const;
+  "blocked",
+  "name",
+  "description",
+  "profileId",
+  "routingThreshold",
+  "finalMessage",
+  "transcriptSummary",
+  "historySnippet",
+  "contextBundleIds",
+  "request",
+] as const satisfies readonly string[];
 
-const SPAWN_SUBAGENT_REQUEST_REQUIRED_FIELDS = ["prompt"] as const;
+const SPAWN_SUBAGENT_REQUEST_REQUIRED_FIELDS = ["prompt"] as const satisfies readonly string[];
 
 const SPAWN_SUBAGENT_OUTPUT_SCHEMA: NonNullable<ToolSchema["outputSchema"]> = {
   type: "json_schema",
