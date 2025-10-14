@@ -1,11 +1,33 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsArray, IsEnum, IsNumber, IsObject, IsOptional, IsString } from "class-validator";
+import {
+  IsArray,
+  IsEnum,
+  IsNumber,
+  IsObject,
+  IsOptional,
+  IsString,
+} from "class-validator";
 
 export enum ToolCallStatusDto {
   Pending = "pending",
   Running = "running",
   Completed = "completed",
   Failed = "failed",
+}
+
+export class ContextBundleFileDto {
+  @ApiProperty({ description: "Path of the file in the bundle" })
+  @IsString()
+    path!: string;
+
+  @ApiProperty({ description: "File size in bytes" })
+  @IsNumber()
+    sizeBytes!: number;
+
+  @ApiPropertyOptional({ description: "Optional textual preview" })
+  @IsString()
+  @IsOptional()
+    preview?: string;
 }
 
 export class ContextBundleDto {
@@ -29,6 +51,11 @@ export class ContextBundleDto {
   @ApiProperty({ description: "Number of files included" })
   @IsNumber()
     fileCount!: number;
+
+  @ApiPropertyOptional({ type: () => [ContextBundleFileDto] })
+  @IsArray()
+  @IsOptional()
+    files?: ContextBundleFileDto[];
 }
 
 export class ToolCallNodeDto {

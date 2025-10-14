@@ -79,6 +79,7 @@ export class OrchestratorMetadataService {
         summary: `${messageCount} messages captured in runtime context`,
         sizeBytes: Math.max(messageCount * 280, 0),
         fileCount: 0,
+        files: [],
       },
     ];
   }
