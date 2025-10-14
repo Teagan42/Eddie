@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -20,6 +22,7 @@ import {
   ChatSessionDto,
 } from "./dto/chat-session.dto";
 import { CreateChatMessageDto } from "./dto/create-chat-message.dto";
+import { UpdateChatSessionDto } from "./dto/update-chat-session.dto";
 
 @ApiTags("chat-sessions")
 @Controller("chat-sessions")
@@ -47,6 +50,16 @@ export class ChatSessionsController {
     return this.chatSessions.getSession(id);
   }
 
+  @ApiOperation({ summary: "Rename a chat session" })
+  @ApiOkResponse({ type: ChatSessionDto })
+  @Patch(":id")
+  async rename(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateChatSessionDto
+  ): Promise<ChatSessionDto> {
+    return this.chatSessions.renameSession(id, dto.title);
+  }
+
   @ApiOperation({ summary: "Archive a chat session" })
   @ApiOkResponse({ type: ChatSessionDto })
   @Patch(":id/archive")
@@ -54,6 +67,13 @@ export class ChatSessionsController {
     @Param("id", ParseUUIDPipe) id: string
   ): Promise<ChatSessionDto> {
     return this.chatSessions.archiveSession(id);
+  }
+
+  @ApiOperation({ summary: "Delete a chat session" })
+  @HttpCode(204)
+  @Delete(":id")
+  async delete(@Param("id", ParseUUIDPipe) id: string): Promise<void> {
+    await this.chatSessions.deleteSession(id);
   }
 
   @ApiOperation({ summary: "List session messages" })

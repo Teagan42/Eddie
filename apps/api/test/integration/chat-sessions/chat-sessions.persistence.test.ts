@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { NotFoundException } from "@nestjs/common";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Test } from "@nestjs/testing";
 import knex, { type Knex } from "knex";
@@ -78,6 +79,11 @@ describe("ChatSessionsRepository persistence", () => {
     createdDirs.push(path.dirname(filename));
   });
 
+  const sqlitePersistence = (): ApiPersistenceConfig => ({
+    driver: "sqlite",
+    sqlite: { filename },
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -131,10 +137,7 @@ describe("ChatSessionsRepository persistence", () => {
   };
 
   it("persists messages to disk across service lifecycles", async () => {
-    const persistence: ApiPersistenceConfig = {
-      driver: "sqlite",
-      sqlite: { filename },
-    };
+    const persistence = sqlitePersistence();
 
     const first = await buildTestingModule(persistence);
     const firstService = first.moduleRef.get(ChatSessionsService);
@@ -158,6 +161,73 @@ describe("ChatSessionsRepository persistence", () => {
 
     await second.moduleRef.close();
     await second.database?.destroy();
+  });
+
+  it("persists session renames across service lifecycles", async () => {
+    const persistence = sqlitePersistence();
+
+    const first = await buildTestingModule(persistence);
+    const firstService = first.moduleRef.get(ChatSessionsService);
+
+    const session = await firstService.createSession({ title: "Original" });
+    await firstService.renameSession(session.id, "Updated");
+
+    await first.moduleRef.close();
+    await first.database?.destroy();
+
+    const second = await buildTestingModule(persistence);
+    const secondService = second.moduleRef.get(ChatSessionsService);
+    const restored = await secondService.getSession(session.id);
+
+    expect(restored.title).toBe("Updated");
+
+    await second.moduleRef.close();
+    await second.database?.destroy();
+  });
+
+  it("cascades deletes to messages and agent invocations", async () => {
+    const persistence = sqlitePersistence();
+
+    const { moduleRef, database } = await buildTestingModule(persistence);
+    const service = moduleRef.get(ChatSessionsService);
+
+    const session = await service.createSession({ title: "Disposable" });
+    await service.addMessage(session.id, {
+      role: ChatMessageRole.User,
+      content: "hello",
+    });
+
+    await service.saveAgentInvocations(session.id, [
+      {
+        id: "agent",
+        messages: [
+          {
+            role: ChatMessageRole.Assistant,
+            content: "thinking",
+          },
+        ],
+        children: [],
+      },
+    ]);
+
+    await service.deleteSession(session.id);
+
+    await expect(service.getSession(session.id)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.listMessages(session.id)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.listAgentInvocations(session.id)).resolves.toEqual([]);
+
+    const remainingMessages = await database?.("chat_messages").where({
+      session_id: session.id,
+    });
+    expect(remainingMessages ?? []).toHaveLength(0);
+
+    const remainingInvocations = await database?.("agent_invocations").where({
+      session_id: session.id,
+    });
+    expect(remainingInvocations ?? []).toHaveLength(0);
+
+    await moduleRef.close();
+    await database?.destroy();
   });
 
   const buildSqlPersistence = (

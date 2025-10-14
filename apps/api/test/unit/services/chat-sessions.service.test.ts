@@ -1,3 +1,4 @@
+import { NotFoundException } from "@nestjs/common";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   ChatSessionsService,
@@ -149,5 +150,50 @@ describe("ChatSessionsService", () => {
     expect(listener.updated).toBe(1);
     const messages = await service.listMessages(session.id);
     expect(messages[0]?.content).toBe("Final response");
+  });
+
+  it("renames sessions and notifies listeners", async () => {
+    const listener = new ListenerSpy();
+    service.registerListener(listener);
+
+    const session = await service.createSession({ title: "Original" });
+    const renamed = await (service as unknown as {
+      renameSession(id: string, title: string): Promise<{ id: string; title: string }>;
+    }).renameSession(session.id, "Updated");
+
+    expect(renamed.title).toBe("Updated");
+    expect(listener.updated).toBe(1);
+  });
+
+  it("throws when renaming unknown sessions", async () => {
+    await expect(
+      (service as unknown as {
+        renameSession(id: string, title: string): Promise<unknown>;
+      }).renameSession("unknown", "Updated")
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("deletes sessions, cleans up messages, and notifies listeners", async () => {
+    const listener = new ListenerSpy();
+    service.registerListener(listener);
+
+    const session = await service.createSession({ title: "Disposable" });
+    await service.addMessage(session.id, { role: "user", content: "ping" });
+
+    const before = listener.updated;
+
+    await (service as unknown as { deleteSession(id: string): Promise<void> }).deleteSession(
+      session.id
+    );
+
+    expect(listener.updated).toBe(before + 1);
+    await expect(service.listMessages(session.id)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.getSession(session.id)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("throws when deleting unknown sessions", async () => {
+    await expect(
+      (service as unknown as { deleteSession(id: string): Promise<void> }).deleteSession("missing")
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
