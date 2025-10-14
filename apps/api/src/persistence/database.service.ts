@@ -39,10 +39,12 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     };
 
     if (Array.isArray(directory)) {
-      await Promise.all(directory.map(ensureDirectory));
+      await Promise.all(directory.map((dir) => ensureDirectory(dir)));
       return;
     }
 
-    await ensureDirectory(directory);
+    if (typeof directory === "string") {
+      await ensureDirectory(directory);
+    }
   }
 }

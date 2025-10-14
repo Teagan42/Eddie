@@ -76,7 +76,7 @@ function buildSqlConnection(
 
 type SqlDriver = "postgres" | "mysql" | "mariadb";
 
-const SQL_CLIENTS: Record<SqlDriver, Knex.ClientName> = {
+const SQL_CLIENTS: Record<SqlDriver, Knex.Config["client"]> = {
   postgres: "pg",
   mysql: "mysql2",
   mariadb: "mysql2",
@@ -89,11 +89,28 @@ function createSqlKnexConfig(
     | Extract<ApiPersistenceConfig, { driver: "mariadb" }>
 ): Knex.Config {
   const driver = persistence.driver as SqlDriver;
-  const driverConfig = (persistence as Record<string, ApiPersistenceSqlConfig>)[driver];
+  const driverConfig = getSqlDriverConfig(persistence);
   const connection = buildSqlConnection(driverConfig);
 
   return {
     client: SQL_CLIENTS[driver],
     connection,
   } satisfies Knex.Config;
+}
+
+function getSqlDriverConfig(
+  persistence:
+    | Extract<ApiPersistenceConfig, { driver: "postgres" }>
+    | Extract<ApiPersistenceConfig, { driver: "mysql" }>
+    | Extract<ApiPersistenceConfig, { driver: "mariadb" }>
+): ApiPersistenceSqlConfig {
+  if (persistence.driver === "postgres") {
+    return persistence.postgres;
+  }
+
+  if (persistence.driver === "mysql") {
+    return persistence.mysql;
+  }
+
+  return persistence.mariadb;
 }
