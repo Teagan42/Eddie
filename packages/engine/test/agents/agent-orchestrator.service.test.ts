@@ -256,4 +256,61 @@ describe("AgentOrchestratorService", () => {
         "User: Please help with the delegated task. | Assistant: Completed successfully.",
     });
   });
+
+  it("collects invocations breadth-first without relying on Array.shift", () => {
+    const orchestrator = new AgentOrchestratorService(
+      { create: vi.fn() } as any,
+      { render: vi.fn(), flush: vi.fn() } as any,
+      { write: vi.fn() } as any,
+    );
+
+    const createInvocation = (
+      id: string,
+      children: AgentInvocation[] = [],
+    ): AgentInvocation =>
+      ({
+        id,
+        children,
+        addChild: vi.fn(),
+        setSpawnHandler: vi.fn(),
+        toolRegistry: { schemas: () => [], execute: vi.fn() },
+        definition: { id, systemPrompt: "", tools: [] },
+        prompt: "",
+        context: { files: [], totalBytes: 0, text: "" },
+        history: [],
+        messages: [],
+        spawn: vi.fn(),
+        isRoot: id === "root",
+        parent: undefined,
+      }) as unknown as AgentInvocation;
+
+    const leafA = createInvocation("leaf-a");
+    const leafB = createInvocation("leaf-b");
+    const childA = createInvocation("child-a", [leafA]);
+    const childB = createInvocation("child-b", [leafB]);
+    const root = createInvocation("root", [childA, childB]);
+
+    const originalShift = Array.prototype.shift;
+    let shiftCallCount = 0;
+
+    Array.prototype.shift = function shift(this: unknown[], ...args: unknown[]) {
+      shiftCallCount += 1;
+      return originalShift.apply(this, args as [never]);
+    } as Array<unknown>["shift"];
+
+    try {
+      const traversal = orchestrator.collectInvocations(root);
+
+      expect(traversal.map((invocation) => invocation.id)).toEqual([
+        "root",
+        "child-a",
+        "child-b",
+        "leaf-a",
+        "leaf-b",
+      ]);
+      expect(shiftCallCount).toBe(0);
+    } finally {
+      Array.prototype.shift = originalShift;
+    }
+  });
 });
