@@ -19,17 +19,44 @@ import {
   SqliteChatSessionsRepository,
 } from "./chat-sessions.repository";
 
+const createUnsupportedDriverError = (driver: unknown): Error =>
+  new Error(
+    `Unsupported chat sessions persistence driver "${String(
+      driver
+    )}". Supported drivers: memory, sqlite. Set "api.persistence.driver" to either "memory" or "sqlite".`
+  );
+
+const UNSUPPORTED_SQL_DRIVERS = new Set(["postgres", "mysql", "mariadb"]);
+
 export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
   provide: CHAT_SESSIONS_REPOSITORY,
   useFactory: (configStore: ConfigStore) => {
     const config = configStore.getSnapshot();
-    const persistence = config.api?.persistence ?? { driver: "memory" };
-    if (persistence.driver === "sqlite") {
+    const persistence = config.api?.persistence;
+    const driver =
+      typeof persistence?.driver === "string"
+        ? persistence.driver
+        : "memory";
+
+    if (driver === "memory") {
+      return new InMemoryChatSessionsRepository();
+    }
+
+    if (driver === "sqlite") {
+      const sqliteConfig =
+        persistence && "sqlite" in persistence
+          ? persistence.sqlite
+          : undefined;
       const filename =
-                persistence.sqlite?.filename ?? "data/chat-sessions.sqlite";
+        sqliteConfig?.filename ?? "data/chat-sessions.sqlite";
       return new SqliteChatSessionsRepository({ filename });
     }
-    return new InMemoryChatSessionsRepository();
+
+    if (UNSUPPORTED_SQL_DRIVERS.has(driver)) {
+      throw createUnsupportedDriverError(driver);
+    }
+
+    throw createUnsupportedDriverError(driver);
   },
   inject: [ ConfigStore ],
 };
