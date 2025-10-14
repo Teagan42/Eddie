@@ -49,6 +49,10 @@ implements
     // No engine side-effects for session updates.
   }
 
+  onSessionDeleted(): void {
+    // No engine side-effects for session deletion.
+  }
+
   async handle(event: ChatMessageCreatedEvent): Promise<void> {
     await this.processMessage(event.sessionId, event.messageId);
   }

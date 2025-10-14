@@ -57,7 +57,7 @@ export class ChatSessionsController {
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: UpdateChatSessionDto
   ): Promise<ChatSessionDto> {
-    return this.chatSessions.renameSession(id, dto.title);
+    return this.chatSessions.renameSession(id, dto);
   }
 
   @ApiOperation({ summary: "Archive a chat session" })

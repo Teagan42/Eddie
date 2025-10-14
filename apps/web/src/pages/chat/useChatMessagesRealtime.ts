@@ -21,6 +21,22 @@ function updateSessionCache(queryClient: QueryClient, session: ChatSessionDto): 
   );
 }
 
+function removeSessionFromCache(
+  queryClient: QueryClient,
+  session: ChatSessionDto
+): void {
+  queryClient.setQueryData<ChatSessionDto[] | undefined>(
+    ["chat-sessions"],
+    (previous = []) => previous.filter((item) => item.id !== session.id)
+  );
+  queryClient.removeQueries({
+    queryKey: ["chat-session", session.id, "messages"],
+  });
+  queryClient.removeQueries({
+    queryKey: ["chat-sessions", session.id, "messages"],
+  });
+}
+
 export function useChatMessagesRealtime(api: ApiClient): void {
   const queryClient = useQueryClient();
 
@@ -31,6 +47,9 @@ export function useChatMessagesRealtime(api: ApiClient): void {
       }),
       api.sockets.chatSessions.onSessionUpdated((session) => {
         updateSessionCache(queryClient, session);
+      }),
+      api.sockets.chatSessions.onSessionDeleted((session) => {
+        removeSessionFromCache(queryClient, session);
       }),
       api.sockets.chatSessions.onMessageCreated((message) => {
         updateMessageCache(queryClient, message);

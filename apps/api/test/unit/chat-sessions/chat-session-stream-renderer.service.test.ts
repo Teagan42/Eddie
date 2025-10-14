@@ -24,6 +24,7 @@ describe("ChatSessionStreamRendererService", () => {
       service.registerListener({
         onSessionCreated: () => {},
         onSessionUpdated: () => {},
+        onSessionDeleted: () => {},
         onMessageCreated: () => {},
         onMessageUpdated: () => {},
         onAgentActivity: (event: { sessionId: string; state: string }) => {

@@ -53,6 +53,10 @@ implements ChatSessionsListener, OnModuleInit, OnModuleDestroy
     emitEvent(this.server, "session.updated", session);
   }
 
+  onSessionDeleted(session: ChatSessionDto): void {
+    emitEvent(this.server, "session.deleted", session);
+  }
+
   onMessageCreated(message: ChatMessageDto): void {
     emitEvent(this.server, "message.created", message);
   }

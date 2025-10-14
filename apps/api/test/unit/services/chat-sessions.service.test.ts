@@ -14,6 +14,7 @@ import {
 class ListenerSpy {
   created = 0;
   updated = 0;
+  deleted = 0;
   messages = 0;
   messageUpdates = 0;
 
@@ -23,6 +24,10 @@ class ListenerSpy {
 
   onSessionUpdated(): void {
     this.updated += 1;
+  }
+
+  onSessionDeleted(): void {
+    this.deleted += 1;
   }
 
   onMessageCreated(): void {
@@ -152,24 +157,31 @@ describe("ChatSessionsService", () => {
     expect(messages[0]?.content).toBe("Final response");
   });
 
-  it("renames sessions and notifies listeners", async () => {
+  it("updates session metadata and notifies listeners", async () => {
     const listener = new ListenerSpy();
     service.registerListener(listener);
 
     const session = await service.createSession({ title: "Original" });
     const renamed = await (service as unknown as {
-      renameSession(id: string, title: string): Promise<{ id: string; title: string }>;
-    }).renameSession(session.id, "Updated");
+      renameSession(
+        id: string,
+        dto: { title?: string; description?: string | null }
+      ): Promise<{ id: string; title: string; description?: string }>;
+    }).renameSession(session.id, {
+      title: "Updated",
+      description: "details",
+    });
 
     expect(renamed.title).toBe("Updated");
+    expect(renamed.description).toBe("details");
     expect(listener.updated).toBe(1);
   });
 
   it("throws when renaming unknown sessions", async () => {
     await expect(
       (service as unknown as {
-        renameSession(id: string, title: string): Promise<unknown>;
-      }).renameSession("unknown", "Updated")
+        renameSession(id: string, dto: { title?: string }): Promise<unknown>;
+      }).renameSession("unknown", { title: "Updated" })
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -187,6 +199,7 @@ describe("ChatSessionsService", () => {
     );
 
     expect(listener.updated).toBe(before + 1);
+    expect(listener.deleted).toBe(1);
     await expect(service.listMessages(session.id)).rejects.toBeInstanceOf(NotFoundException);
     await expect(service.getSession(session.id)).rejects.toBeInstanceOf(NotFoundException);
   });

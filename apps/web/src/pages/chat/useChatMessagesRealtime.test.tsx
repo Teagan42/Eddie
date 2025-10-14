@@ -29,6 +29,7 @@ describe("useChatMessagesRealtime", () => {
         chatSessions: {
           onSessionCreated: vi.fn(() => vi.fn()),
           onSessionUpdated: vi.fn(() => vi.fn()),
+          onSessionDeleted: vi.fn(() => vi.fn()),
           onMessageCreated: vi.fn(() => vi.fn()),
           onMessageUpdated: vi.fn(() => vi.fn()),
           onAgentActivity: vi.fn(() => vi.fn()),

@@ -3,12 +3,14 @@ import { EventBus } from "@nestjs/cqrs";
 import { CreateChatSessionDto } from "./dto/create-chat-session.dto";
 import { CreateChatMessageDto } from "./dto/create-chat-message.dto";
 import { ChatMessageDto, ChatSessionDto } from "./dto/chat-session.dto";
+import { UpdateChatSessionDto } from "./dto/update-chat-session.dto";
 import {
   CHAT_SESSIONS_REPOSITORY,
   type AgentInvocationSnapshot,
   type ChatMessageRecord,
   type ChatSessionRecord,
   type ChatSessionsRepository,
+  type UpdateChatSessionMetadataInput,
 } from "./chat-sessions.repository";
 import { ChatMessageCreatedEvent } from "@eddie/types";
 
@@ -25,6 +27,7 @@ export interface AgentActivityEvent {
 export interface ChatSessionsListener {
   onSessionCreated(session: ChatSessionDto): void;
   onSessionUpdated(session: ChatSessionDto): void;
+  onSessionDeleted?(session: ChatSessionDto): void;
   onMessageCreated(message: ChatMessageDto): void;
   onMessageUpdated(message: ChatMessageDto): void;
   onAgentActivity?(event: AgentActivityEvent): void;
@@ -94,6 +97,27 @@ export class ChatSessionsService {
     }
   }
 
+  private notifySessionDeleted(session: ChatSessionDto): void {
+    for (const listener of this.listeners) {
+      if (typeof listener.onSessionDeleted === "function") {
+        listener.onSessionDeleted(session);
+      }
+    }
+  }
+
+  private buildUpdatePatch(
+    dto: UpdateChatSessionDto
+  ): UpdateChatSessionMetadataInput {
+    const patch: UpdateChatSessionMetadataInput = {};
+    if (Object.prototype.hasOwnProperty.call(dto, "title")) {
+      patch.title = dto.title;
+    }
+    if (Object.prototype.hasOwnProperty.call(dto, "description")) {
+      patch.description = dto.description ?? null;
+    }
+    return patch;
+  }
+
   private notifyMessageCreated(message: ChatMessageDto): void {
     for (const listener of this.listeners) {
       listener.onMessageCreated(message);
@@ -136,15 +160,20 @@ export class ChatSessionsService {
     return sessionDto;
   }
 
-  async renameSession(id: string, title: string): Promise<ChatSessionDto> {
-    await this.ensureSessionExists(id);
-    const session = await this.repository.renameSession(id, title);
+  async renameSession(
+    id: string,
+    dto: UpdateChatSessionDto
+  ): Promise<ChatSessionDto> {
+    const session = await this.repository.updateSessionMetadata(
+      id,
+      this.buildUpdatePatch(dto)
+    );
     if (!session) {
       throw new NotFoundException(`Chat session ${id} not found`);
     }
-    const dto = this.toDto(session);
-    this.notifySessionUpdated(dto);
-    return dto;
+    const sessionDto = this.toDto(session);
+    this.notifySessionUpdated(sessionDto);
+    return sessionDto;
   }
 
   async archiveSession(id: string): Promise<ChatSessionDto> {
@@ -221,13 +250,15 @@ export class ChatSessionsService {
   }
 
   async deleteSession(id: string): Promise<void> {
-    const existing = await this.ensureSessionExists(id);
-    const sessionDto = this.toDto(existing);
+    const existing = await this.repository.getSessionById(id);
     const deleted = await this.repository.deleteSession(id);
-    if (!deleted) {
+    if (!deleted || !existing) {
       throw new NotFoundException(`Chat session ${id} not found`);
     }
+    await this.repository.saveAgentInvocations(id, []);
+    const sessionDto = this.toDto(existing);
     this.notifySessionUpdated(sessionDto);
+    this.notifySessionDeleted(sessionDto);
   }
 
   private async ensureSessionExists(id: string): Promise<ChatSessionRecord> {

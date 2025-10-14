@@ -234,6 +234,7 @@ describe("ApiModule integration", () => {
       onModuleDestroy: vi.fn(),
       onSessionCreated: vi.fn(),
       onSessionUpdated: vi.fn(),
+      onSessionDeleted: vi.fn(),
       onMessageCreated: vi.fn(),
     } as unknown as ChatSessionsEngineListener;
 

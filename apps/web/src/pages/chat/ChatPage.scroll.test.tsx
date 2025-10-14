@@ -70,6 +70,7 @@ vi.mock("@/api/api-provider", () => ({
       chatSessions: {
         onSessionCreated: onSessionCreatedMock,
         onSessionUpdated: onSessionUpdatedMock,
+        onSessionDeleted: vi.fn().mockReturnValue(() => {}),
         onMessageCreated: onMessageCreatedMock,
         onMessageUpdated: onMessageUpdatedMock,
         onAgentActivity: vi.fn().mockReturnValue(() => {}),
