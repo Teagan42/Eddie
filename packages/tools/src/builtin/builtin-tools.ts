@@ -3,6 +3,7 @@ import { fileReadTool } from "./file_read";
 import { fileWriteTool } from "./file_write";
 import { getFolderTreeStructureTool } from "./get_folder_tree_structure";
 import { getPlanTool } from "./get_plan";
+import { completeTaskTool } from "./complete_task";
 import { updatePlanTool } from "./update_plan";
 
 export const builtinTools = [
@@ -11,5 +12,6 @@ export const builtinTools = [
   fileWriteTool,
   getFolderTreeStructureTool,
   getPlanTool,
+  completeTaskTool,
   updatePlanTool,
 ];

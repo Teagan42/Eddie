@@ -129,10 +129,12 @@ describe("plan tools", () => {
   it("respects plan config overrides and filename arguments", async () => {
     const updateTool = findTool("update_plan");
     const getTool = findTool("get_plan");
+    const completeTool = findTool("complete_task");
 
     expect(updateTool).toBeDefined();
     expect(getTool).toBeDefined();
-    if (!updateTool || !getTool) {
+    expect(completeTool).toBeDefined();
+    if (!updateTool || !getTool || !completeTool) {
       throw new Error("plan tools not registered");
     }
 
@@ -199,6 +201,89 @@ describe("plan tools", () => {
       );
 
       expect(retrieved.data.plan.tasks).toEqual(tasks);
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("marks a plan task as complete", async () => {
+    const updateTool = findTool("update_plan");
+    const getTool = findTool("get_plan");
+    const completeTool = findTool("complete_task");
+
+    expect(updateTool).toBeDefined();
+    expect(getTool).toBeDefined();
+    expect(completeTool).toBeDefined();
+    if (!updateTool || !getTool || !completeTool) {
+      throw new Error("plan tools not registered");
+    }
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "eddie-plan-tools-"));
+    const ctx = {
+      cwd: tmpDir,
+      confirm: vi.fn(async () => true),
+      env: process.env,
+    };
+
+    const tasks = [
+      {
+        title: "Draft feature overview",
+        status: "pending",
+        completed: false,
+        details: "Outline requirements and constraints.",
+      },
+      {
+        title: "Implement planner integration",
+        status: "in_progress",
+        completed: false,
+        details: "Wire up completion tool to existing plan storage.",
+      },
+    ];
+
+    try {
+      await updateTool.handler(
+        {
+          tasks,
+          abridged: false,
+        },
+        ctx,
+      );
+
+      const result = await completeTool.handler(
+        {
+          taskNumber: 2,
+          abridged: true,
+        },
+        ctx,
+      );
+
+      expect(result.schema).toBe("eddie.tool.plan.result.v1");
+      expect(result.data.plan.tasks).toHaveLength(2);
+      expect(result.data.plan.tasks[0]).toEqual(tasks[0]);
+      expect(result.data.plan.tasks[1]).toEqual({
+        title: "Implement planner integration",
+        status: "complete",
+        completed: true,
+        details: "Wire up completion tool to existing plan storage.",
+      });
+      expect(result.content).toContain("1. ⏳ Draft feature overview");
+      expect(result.content).toContain("2. ✅ Implement planner integration");
+      expect(result.content).not.toContain(
+        "Wire up completion tool to existing plan storage.",
+      );
+
+      const stored = await getTool.handler(
+        {
+          abridged: false,
+        },
+        ctx,
+      );
+
+      expect(stored.data.plan.tasks[1].status).toBe("complete");
+      expect(stored.data.plan.tasks[1].completed).toBe(true);
+      expect(stored.data.plan.tasks[1].details).toBe(
+        "Wire up completion tool to existing plan storage.",
+      );
     } finally {
       await fs.rm(tmpDir, { recursive: true, force: true });
     }

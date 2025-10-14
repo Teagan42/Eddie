@@ -247,6 +247,13 @@ const normaliseStoredTask = (task: PlanTask): PlanTask => ({
 const normaliseStoredTasks = (tasks: PlanTask[]): PlanTask[] =>
   tasks.map((task) => normaliseStoredTask(task));
 
+export const markTaskComplete = (tasks: PlanTask[], index: number): PlanTask[] =>
+  tasks.map((task, taskIndex) =>
+    taskIndex === index
+      ? { ...task, status: "complete", completed: true }
+      : task,
+  );
+
 export const readPlanDocument = async (
   cwd: string,
   env?: NodeJS.ProcessEnv,
