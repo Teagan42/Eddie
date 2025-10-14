@@ -1,5 +1,5 @@
 import { OnModuleDestroy } from "@nestjs/common";
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import knex, { type Knex } from "knex";
 
 import { ChatMessageRole } from "./dto/create-chat-message.dto";
@@ -123,6 +123,9 @@ const normalizeApiKey = (apiKey?: string | null): string | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+const hashApiKey = (apiKey: string): string =>
+  createHash("sha256").update(apiKey).digest("hex");
+
 export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
   private readonly sessions = new Map<string, ChatSessionRecord>();
   private readonly messages = new Map<string, ChatMessageRecord[]>();
@@ -144,10 +147,11 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     if (!key) {
       return;
     }
-    let sessionsForKey = this.apiKeyIndex.get(key);
+    const hashed = hashApiKey(key);
+    let sessionsForKey = this.apiKeyIndex.get(hashed);
     if (!sessionsForKey) {
       sessionsForKey = new Set<string>();
-      this.apiKeyIndex.set(key, sessionsForKey);
+      this.apiKeyIndex.set(hashed, sessionsForKey);
     }
     sessionsForKey.add(sessionId);
   }
@@ -172,7 +176,8 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     if (!key) {
       return [];
     }
-    const sessionIds = this.apiKeyIndex.get(key);
+    const hashed = hashApiKey(key);
+    const sessionIds = this.apiKeyIndex.get(hashed);
     if (!sessionIds) {
       return [];
     }
@@ -469,6 +474,7 @@ export class KnexChatSessionsRepository implements ChatSessionsRepository, OnMod
     if (!trimmed) {
       return [];
     }
+    const hashed = hashApiKey(trimmed);
     const rows = await this.knex<ChatSessionRow>("chat_sessions")
       .join(
         "chat_session_api_keys",
@@ -483,7 +489,7 @@ export class KnexChatSessionsRepository implements ChatSessionsRepository, OnMod
         "chat_sessions.created_at as created_at",
         "chat_sessions.updated_at as updated_at"
       )
-      .where("chat_session_api_keys.api_key", trimmed)
+      .where("chat_session_api_keys.api_key", hashed)
       .orderBy("chat_sessions.updated_at", "desc");
     return rows.map(mapSessionRow);
   }
@@ -523,7 +529,7 @@ export class KnexChatSessionsRepository implements ChatSessionsRepository, OnMod
       if (trimmedKey) {
         await trx("chat_session_api_keys").insert({
           session_id: id,
-          api_key: trimmedKey,
+          api_key: hashApiKey(trimmedKey),
         });
       }
     });
