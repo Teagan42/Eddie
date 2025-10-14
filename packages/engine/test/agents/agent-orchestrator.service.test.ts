@@ -111,6 +111,114 @@ describe("AgentOrchestratorService", () => {
     runSpy.mockRestore();
   });
 
+  it("rejects hook-driven agent runs when subagents are disabled", async () => {
+    const agentDefinition = {
+      id: "agent-1",
+      systemPrompt: "You are helpful.",
+      tools: [],
+    };
+
+    const invocation = {
+      definition: agentDefinition,
+      prompt: "List files",
+      context: { files: [], totalBytes: 0, text: "" },
+      history: [],
+      messages: [
+        { role: "system", content: agentDefinition.systemPrompt },
+        { role: "user", content: "List files" },
+      ],
+      children: [],
+      parent: undefined,
+      toolRegistry: {
+        schemas: () => [],
+        execute: vi.fn().mockResolvedValue({ schema: "tool", content: "done" }),
+      },
+      setSpawnHandler: vi.fn(),
+      addChild: vi.fn(),
+      spawn: vi.fn(),
+      id: agentDefinition.id,
+      isRoot: true,
+    } as unknown as AgentInvocation;
+
+    const descriptor: AgentRuntimeDescriptor = {
+      id: agentDefinition.id,
+      definition: agentDefinition,
+      model: "gpt-test",
+      provider: {
+        name: "openai",
+        stream: vi.fn().mockReturnValue(createStream([{ type: "end" }])),
+      },
+    };
+
+    const catalog: AgentRuntimeCatalog = {
+      enableSubagents: false,
+      getManager: () => descriptor,
+      getAgent: vi.fn().mockReturnValue(descriptor),
+      getSubagent: () => undefined,
+      listSubagents: () => [],
+    };
+
+    let registeredRunner: ((options: {
+      agentId: string;
+      prompt: string;
+      context?: unknown;
+      variables?: Record<string, unknown>;
+    }) => Promise<unknown>) | undefined;
+
+    const runtime = {
+      catalog,
+      hooks: {
+        emitAsync: vi.fn().mockResolvedValue({}),
+        setAgentRunner: vi.fn((runner) => {
+          registeredRunner = runner;
+        }),
+        hasAgentRunner: vi.fn().mockReturnValue(false),
+      },
+      confirm: vi.fn().mockResolvedValue(true),
+      cwd: process.cwd(),
+      logger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      traceAppend: true,
+      tracePath: undefined,
+    };
+
+    const invocationFactory = {
+      create: vi.fn().mockResolvedValue(invocation),
+    };
+
+    const streamRenderer = {
+      render: vi.fn(),
+      flush: vi.fn(),
+    };
+
+    const traceWriter = {
+      write: vi.fn(),
+    };
+
+    const orchestrator = new AgentOrchestratorService(
+      invocationFactory as any,
+      streamRenderer as any,
+      traceWriter as any,
+    );
+
+    const runSpy = vi
+      .spyOn(AgentRunner.prototype as Record<string, unknown>, "run")
+      .mockResolvedValue(undefined);
+
+    await orchestrator.runAgent(
+      { definition: agentDefinition, prompt: "List files" },
+      runtime as any,
+    );
+
+    expect(runtime.hooks.setAgentRunner).toHaveBeenCalled();
+    expect(registeredRunner).toBeDefined();
+
+    await expect(
+      registeredRunner?.({ agentId: "agent-1", prompt: "Do another thing" })
+    ).rejects.toThrow("Subagent delegation is disabled for this run.");
+
+    runSpy.mockRestore();
+  });
+
   it("returns spawn tool summaries with transcript snippet and context metadata", async () => {
     const agentDefinition = {
       id: "agent-1",

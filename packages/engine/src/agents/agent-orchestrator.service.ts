@@ -167,6 +167,10 @@ export class AgentOrchestratorService {
     }
 
     hookBus.setAgentRunner(async (options) => {
+      if (!runtime.catalog.enableSubagents) {
+        throw new Error("Subagent delegation is disabled for this run.");
+      }
+
       const descriptor = runtime.catalog.getAgent(options.agentId);
       if (!descriptor) {
         throw new Error(
