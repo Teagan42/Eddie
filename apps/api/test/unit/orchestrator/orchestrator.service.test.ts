@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
+import type {
+  AgentInvocationSnapshot,
+  ChatSessionsService,
+} from "../../../src/chat-sessions/chat-sessions.service";
 import { ChatMessageRole } from "../../../src/chat-sessions/dto/create-chat-message.dto";
 import type {
   ChatMessageDto,
@@ -317,5 +320,149 @@ describe("OrchestratorMetadataService", () => {
 
     expect(statuses).toContain(ToolCallStatusDto.Pending);
     expect(statuses).toContain(ToolCallStatusDto.Completed);
+  });
+
+  it("builds an agent hierarchy from invocation snapshots", () => {
+    const session: ChatSessionDto = {
+      id: "session-hierarchy",
+      title: "Delegation pipeline",
+      status: "active",
+      createdAt: new Date("2024-04-01T00:00:00.000Z").toISOString(),
+      updatedAt: new Date("2024-04-01T00:00:00.000Z").toISOString(),
+    };
+
+    const sessionMessages: ChatMessageDto[] = [
+      {
+        id: "message-user",
+        sessionId: session.id,
+        role: ChatMessageRole.User,
+        content: "Kick off the workflow",
+        createdAt: new Date("2024-04-01T00:01:00.000Z").toISOString(),
+      },
+      {
+        id: "message-assistant",
+        sessionId: session.id,
+        role: ChatMessageRole.Assistant,
+        content: "Starting delegation",
+        createdAt: new Date("2024-04-01T00:02:00.000Z").toISOString(),
+      },
+    ];
+
+    const agentInvocations: AgentInvocationSnapshot[] = [
+      {
+        id: "manager",
+        messages: [
+          {
+            role: ChatMessageRole.Assistant,
+            content: "",
+            name: "spawn_subagent",
+            toolCallId: "spawn-writer",
+          },
+          {
+            role: ChatMessageRole.Tool,
+            content: JSON.stringify({
+              schema: "eddie.tool.spawn_subagent.result.v1",
+              content: "Delegated to writer",
+              metadata: {
+                agentId: "writer",
+                agentName: "Writer",
+                providerId: "anthropic",
+                modelId: "claude-3-sonnet",
+              },
+            }),
+            name: "spawn_subagent",
+            toolCallId: "spawn-writer",
+          },
+          {
+            role: ChatMessageRole.Assistant,
+            content: "Awaiting updates",
+          },
+        ],
+        children: [
+          {
+            id: "writer",
+            messages: [
+              {
+                role: ChatMessageRole.Assistant,
+                content: "Drafting the summary",
+              },
+              {
+                role: ChatMessageRole.Assistant,
+                content: "",
+                name: "spawn_subagent",
+                toolCallId: "spawn-researcher",
+              },
+              {
+                role: ChatMessageRole.Tool,
+                content: JSON.stringify({
+                  schema: "eddie.tool.spawn_subagent.result.v1",
+                  content: "Delegated to researcher",
+                  metadata: {
+                    agentId: "researcher",
+                    agentName: "Researcher",
+                    providerId: "openai",
+                    modelId: "gpt-4o",
+                  },
+                }),
+                name: "spawn_subagent",
+                toolCallId: "spawn-researcher",
+              },
+            ],
+            children: [
+              {
+                id: "researcher",
+                messages: [
+                  {
+                    role: ChatMessageRole.Assistant,
+                    content: "Collecting source material",
+                  },
+                ],
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const chatSessions = {
+      getSession: () => session,
+      listMessages: () => sessionMessages,
+      listAgentInvocations: () => agentInvocations,
+    } as unknown as ChatSessionsService;
+
+    const service = new OrchestratorMetadataService(chatSessions);
+
+    const metadata = service.getMetadata(session.id);
+
+    expect(metadata.agentHierarchy).toHaveLength(1);
+    const [rootNode] = metadata.agentHierarchy;
+    expect(rootNode?.id).toBe(session.id);
+    expect(rootNode?.depth).toBe(0);
+    expect(rootNode?.metadata?.messageCount).toBe(sessionMessages.length);
+    expect(rootNode?.children).toHaveLength(1);
+
+    const [managerNode] = rootNode?.children ?? [];
+    expect(managerNode?.id).toBe("manager");
+    expect(managerNode?.depth).toBe(1);
+    expect(managerNode?.metadata?.messageCount).toBe(3);
+    expect(managerNode?.children).toHaveLength(1);
+
+    const [writerNode] = managerNode?.children ?? [];
+    expect(writerNode?.id).toBe("writer");
+    expect(writerNode?.name).toBe("Writer");
+    expect(writerNode?.provider).toBe("anthropic");
+    expect(writerNode?.model).toBe("claude-3-sonnet");
+    expect(writerNode?.depth).toBe(2);
+    expect(writerNode?.metadata?.messageCount).toBe(3);
+    expect(writerNode?.children).toHaveLength(1);
+
+    const [researcherNode] = writerNode?.children ?? [];
+    expect(researcherNode?.id).toBe("researcher");
+    expect(researcherNode?.name).toBe("Researcher");
+    expect(researcherNode?.provider).toBe("openai");
+    expect(researcherNode?.model).toBe("gpt-4o");
+    expect(researcherNode?.depth).toBe(3);
+    expect(researcherNode?.metadata?.messageCount).toBe(1);
   });
 });

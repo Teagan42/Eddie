@@ -12,6 +12,16 @@ import {
   AgentHierarchyNodeDto,
 } from "./dto/orchestrator-metadata.dto";
 
+const SPAWN_TOOL_RESULT_SCHEMA = "eddie.tool.spawn_subagent.result.v1";
+
+interface SpawnResultDetails {
+  agentId: string;
+  provider?: string;
+  model?: string;
+  name?: string;
+  metadata?: Record<string, unknown>;
+}
+
 @Injectable()
 export class OrchestratorMetadataService {
   constructor(private readonly chatSessions: ChatSessionsService) {}
@@ -34,6 +44,7 @@ export class OrchestratorMetadataService {
       session.title,
       sessionId,
       messages,
+      agentInvocations,
     );
 
     return {
@@ -312,7 +323,8 @@ export class OrchestratorMetadataService {
   private createAgentHierarchy(
     title: string,
     sessionId: string,
-    messages: ReturnType<ChatSessionsService["listMessages"]>
+    messages: ReturnType<ChatSessionsService["listMessages"]>,
+    agents: AgentInvocationSnapshot[]
   ): AgentHierarchyNodeDto[] {
     const root = new AgentHierarchyNodeDto();
     root.id = sessionId;
@@ -322,22 +334,155 @@ export class OrchestratorMetadataService {
     root.depth = 0;
     root.metadata = { messageCount: messages.length };
 
-    root.children = messages
-      .filter((message) => message.role === "assistant")
-      .map((message, index) => {
-        const node = new AgentHierarchyNodeDto();
-        node.id = `${sessionId}-agent-${index}`;
-        node.name = `Responder ${index + 1}`;
-        node.provider = "assistant";
-        node.model = "runtime";
-        node.depth = 1;
-        node.metadata = {
-          createdAt: message.createdAt,
-        };
-        node.children = [];
-        return node;
-      });
+    root.children = agents.map((agent) =>
+      this.createAgentHierarchyNode(agent, 1, undefined)
+    );
 
     return [root];
+  }
+
+  private createAgentHierarchyNode(
+    agent: AgentInvocationSnapshot,
+    depth: number,
+    spawnDetails: SpawnResultDetails | undefined
+  ): AgentHierarchyNodeDto {
+    const node = new AgentHierarchyNodeDto();
+    node.id = agent.id;
+    node.name = spawnDetails?.name ?? this.formatAgentName(agent.id);
+    if (spawnDetails?.provider) {
+      node.provider = spawnDetails.provider;
+    }
+    if (spawnDetails?.model) {
+      node.model = spawnDetails.model;
+    }
+    node.depth = depth;
+
+    node.metadata = this.buildAgentMetadata(
+      agent.messages.length,
+      spawnDetails?.metadata
+    );
+
+    const childSpawnMetadata = this.extractChildSpawnMetadata(agent.messages);
+    node.children = agent.children.map((child) =>
+      this.createAgentHierarchyNode(
+        child,
+        depth + 1,
+        childSpawnMetadata.get(child.id)
+      )
+    );
+
+    return node;
+  }
+
+  private extractChildSpawnMetadata(
+    messages: AgentInvocationSnapshot["messages"]
+  ): Map<string, SpawnResultDetails> {
+    const results = new Map<string, SpawnResultDetails>();
+
+    for (const message of messages) {
+      if (message.role !== ChatMessageRole.Tool) {
+        continue;
+      }
+
+      const payload = this.parseToolPayload(message.content);
+      if (!payload.isJson) {
+        continue;
+      }
+
+      const details = this.extractSpawnResultDetails(payload.value);
+      if (details) {
+        results.set(details.agentId, details);
+      }
+    }
+
+    return results;
+  }
+
+  private extractSpawnResultDetails(value: unknown): SpawnResultDetails | null {
+    if (!value || typeof value !== "object") {
+      return null;
+    }
+
+    const schema = (value as { schema?: unknown }).schema;
+    if (schema !== SPAWN_TOOL_RESULT_SCHEMA) {
+      return null;
+    }
+
+    const metadata = (value as { metadata?: unknown }).metadata;
+    if (!metadata || typeof metadata !== "object") {
+      return null;
+    }
+
+    const record = metadata as Record<string, unknown>;
+    const agentId = typeof record.agentId === "string" ? record.agentId : null;
+    if (!agentId) {
+      return null;
+    }
+
+    const provider = this.extractStringField(record, ["providerId", "provider"]);
+    const model = this.extractStringField(record, ["modelId", "model"]);
+    const name = this.extractStringField(record, ["agentName", "name", "label"]);
+
+    const contextBundleIds = Array.isArray(record.contextBundleIds)
+      ? record.contextBundleIds.filter((id): id is string => typeof id === "string")
+      : undefined;
+
+    const metadataFields: Record<string, unknown> = {};
+    if (contextBundleIds && contextBundleIds.length > 0) {
+      metadataFields.contextBundleIds = contextBundleIds;
+    }
+
+    const content = (value as { content?: unknown }).content;
+    if (typeof content === "string" && content.trim().length > 0) {
+      metadataFields.spawnMessage = content;
+    }
+
+    return {
+      agentId,
+      provider,
+      model,
+      name,
+      metadata: Object.keys(metadataFields).length > 0 ? metadataFields : undefined,
+    };
+  }
+
+  private extractStringField(
+    source: Record<string, unknown>,
+    keys: string[]
+  ): string | undefined {
+    for (const key of keys) {
+      const value = source[key];
+      if (typeof value === "string" && value.trim().length > 0) {
+        return value;
+      }
+    }
+    return undefined;
+  }
+
+  private formatAgentName(agentId: string): string {
+    if (!agentId) {
+      return "agent";
+    }
+
+    const [first, ...rest] = agentId.split(/[-_\s]+/u);
+    const capitalise = (part: string) =>
+      part.length > 0 ? part[0]?.toUpperCase() + part.slice(1) : part;
+
+    const segments = [first, ...rest]
+      .filter((segment): segment is string => typeof segment === "string" && segment.length > 0)
+      .map((segment) => capitalise(segment));
+
+    return segments.length > 0 ? segments.join(" ") : agentId;
+  }
+
+  private buildAgentMetadata(
+    messageCount: number,
+    spawnMetadata?: Record<string, unknown>
+  ): Record<string, unknown> {
+    if (!spawnMetadata || Object.keys(spawnMetadata).length === 0) {
+      return { messageCount };
+    }
+
+    return { messageCount, ...spawnMetadata };
   }
 }
