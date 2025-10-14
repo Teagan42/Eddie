@@ -1,3 +1,4 @@
+import { OnModuleDestroy } from "@nestjs/common";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { randomUUID } from "crypto";
@@ -263,7 +264,7 @@ const mapMessageRow = (row: ChatMessageRow): ChatMessageRecord => ({
   name: row.name ?? undefined,
 });
 
-export class SqliteChatSessionsRepository implements ChatSessionsRepository {
+export class SqliteChatSessionsRepository implements ChatSessionsRepository, OnModuleDestroy {
   private readonly db: SqliteDatabase;
 
   constructor(options: SqliteChatSessionsRepositoryOptions) {
@@ -460,6 +461,10 @@ export class SqliteChatSessionsRepository implements ChatSessionsRepository {
     }
     const parsed = JSON.parse(row.payload) as AgentInvocationSnapshot[];
     return parsed.map((snapshot) => cloneInvocation(snapshot));
+  }
+
+  onModuleDestroy(): void {
+    this.db.close();
   }
 
   private applyMigrations(): void {
