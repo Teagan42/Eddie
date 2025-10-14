@@ -151,4 +151,72 @@ describe("Transcript compactor registry", () => {
     const result = compactor.compact(invocation);
     expect(result.definition?.name).toBe("Manager-alpha");
   });
+
+  it("reuses the same transcript compactors across turns", () => {
+    const create = vi.fn(
+      (config: TranscriptCompactorConfig, context: { agentId: string }) =>
+        new FakeCompactor(`${context.agentId}:${config.tag}`)
+    );
+
+    registerTranscriptCompactor({
+      strategy: "fake",
+      create,
+    });
+
+    const managerCompactor: TranscriptCompactorConfig = {
+      strategy: "fake",
+      tag: "manager",
+    };
+
+    const workerCompactor: TranscriptCompactorConfig = {
+      strategy: "fake",
+      tag: "worker",
+    };
+
+    const globalCompactor: TranscriptCompactorConfig = {
+      strategy: "fake",
+      tag: "global",
+    };
+
+    const { service, config } = createService({
+      transcript: { compactor: globalCompactor },
+      agents: {
+        ...baseConfig.agents,
+        manager: {
+          ...baseConfig.agents.manager,
+          transcript: { compactor: managerCompactor },
+        },
+        subagents: [
+          {
+            id: "worker",
+            prompt: "Do work",
+            transcript: { compactor: workerCompactor },
+          },
+        ],
+      },
+    });
+
+    const selectorA = (service as any).resolveTranscriptCompactor(config);
+    const selectorB = (service as any).resolveTranscriptCompactor(config);
+
+    expect(create).toHaveBeenCalledTimes(3);
+
+    expect(typeof selectorA).toBe("function");
+    expect(typeof selectorB).toBe("function");
+
+    const workerInvocation = {
+      definition: { id: "worker", name: "Worker" },
+      messages: [],
+    } as AgentInvocation;
+
+    const workerDescriptor = {
+      id: "worker",
+      name: "Worker",
+    } as AgentRuntimeDescriptor;
+
+    const compactorA = (selectorA as any)(workerInvocation, workerDescriptor);
+    const compactorB = (selectorB as any)(workerInvocation, workerDescriptor);
+
+    expect(compactorA).toBe(compactorB);
+  });
 });
