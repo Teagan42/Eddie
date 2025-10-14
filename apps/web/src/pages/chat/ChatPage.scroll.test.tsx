@@ -126,20 +126,31 @@ describe("ChatPage message scrolling", () => {
     });
   });
 
-  it("scrolls to the newest message when a partial update arrives", async () => {
+  it("scrolls the message viewport when a partial update arrives", async () => {
     renderChatPage();
 
     await waitFor(() => expect(listMessagesMock).toHaveBeenCalled());
     await waitFor(() => expect(onMessagePartialMock).toHaveBeenCalled());
 
     const scrollAnchor = await screen.findByTestId("chat-scroll-anchor");
+    const viewport = scrollAnchor.closest(
+      "[data-radix-scroll-area-viewport]"
+    ) as HTMLElement;
+    expect(viewport).not.toBeNull();
+
     const scrollIntoView = vi.fn();
     Object.defineProperty(scrollAnchor, "scrollIntoView", {
       configurable: true,
       writable: true,
       value: scrollIntoView,
     });
-    scrollIntoView.mockClear();
+
+    const scrollTo = vi.fn();
+    Object.defineProperty(viewport, "scrollHeight", {
+      configurable: true,
+      get: () => 1024,
+    });
+    viewport.scrollTo = scrollTo as typeof viewport.scrollTo;
 
     act(() => {
       messagePartialHandler?.({
@@ -151,6 +162,8 @@ describe("ChatPage message scrolling", () => {
       });
     });
 
-    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+    await waitFor(() => expect(scrollTo).toHaveBeenCalled());
+    expect(scrollTo).toHaveBeenCalledWith({ top: 1024 });
+    expect(scrollIntoView).not.toHaveBeenCalled();
   });
 });
