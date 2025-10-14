@@ -19,7 +19,33 @@ type TreeEntry =
 interface BuildOptions {
   includeHidden: boolean;
   maxDepth: number;
+  excludedDirectories: ReadonlySet<string>;
 }
+
+const DEFAULT_DEPENDENCY_DIRECTORIES: ReadonlySet<string> = new Set([
+  "node_modules",
+  "bower_components",
+  "vendor",
+  ".venv",
+  "venv",
+  ".tox",
+  "__pycache__",
+  ".mypy_cache",
+  "dist",
+  "build",
+  "target",
+  ".gradle",
+  ".idea",
+  ".yarn",
+  ".pnpm-store",
+  "Pods",
+]);
+
+const createExcludedDirectorySet = (
+  includeDependencies: boolean,
+): ReadonlySet<string> => (includeDependencies ? new Set<string>() : DEFAULT_DEPENDENCY_DIRECTORIES);
+
+const DEFAULT_MAX_ENTRIES = 200;
 
 interface PaginationSummary {
   limit: number | null;
@@ -42,8 +68,20 @@ const normalizeRootDisplay = (value: string) =>
 const sortDirents = (a: Dirent, b: Dirent) =>
   a.name.localeCompare(b.name, "en", { sensitivity: "base" });
 
-const shouldInclude = (name: string, includeHidden: boolean) =>
-  includeHidden || !name.startsWith(".");
+const shouldInclude = (
+  dirent: Dirent,
+  options: BuildOptions,
+): boolean => {
+  if (!options.includeHidden && dirent.name.startsWith(".")) {
+    return false;
+  }
+
+  if (dirent.isDirectory() && options.excludedDirectories.has(dirent.name)) {
+    return false;
+  }
+
+  return true;
+};
 
 async function buildTreeEntries(
   absolutePath: string,
@@ -53,7 +91,7 @@ async function buildTreeEntries(
 ): Promise<TreeEntry[]> {
   const dirents = await fs.readdir(absolutePath, { withFileTypes: true });
   const visible = dirents
-    .filter((dirent) => shouldInclude(dirent.name, options.includeHidden))
+    .filter((dirent) => shouldInclude(dirent, options))
     .sort(sortDirents);
 
   const results: TreeEntry[] = [];
@@ -125,6 +163,7 @@ export const getFolderTreeStructureTool: ToolDefinition = {
       path: { type: "string", default: "." },
       maxDepth: { type: "number", minimum: 0 },
       includeHidden: { type: "boolean" },
+      includeDependencies: { type: "boolean", default: false },
       maxEntries: { type: "number", minimum: 1 },
       offset: { type: "number", minimum: 0 },
     },
@@ -205,23 +244,24 @@ export const getFolderTreeStructureTool: ToolDefinition = {
     const rawMaxEntries =
       typeof args.maxEntries === "number" && Number.isFinite(args.maxEntries)
         ? Math.max(1, Math.floor(args.maxEntries))
-        : Number.POSITIVE_INFINITY;
+        : DEFAULT_MAX_ENTRIES;
     const rawOffset =
       typeof args.offset === "number" && Number.isFinite(args.offset)
         ? Math.max(0, Math.floor(args.offset))
         : 0;
 
+    const includeDependencies = Boolean(args.includeDependencies);
+    const excludedDirectories = createExcludedDirectorySet(includeDependencies);
     const entries = await buildTreeEntries(absolute, initialRelative, 0, {
       includeHidden,
       maxDepth,
+      excludedDirectories,
     });
     const flattened = flattenEntries(entries);
     const totalEntries = flattened.length;
     const offset = Math.min(rawOffset, totalEntries);
-    const limitValue = Number.isFinite(rawMaxEntries) ? rawMaxEntries : null;
-    const pageEntries = Number.isFinite(rawMaxEntries)
-      ? flattened.slice(offset, offset + rawMaxEntries)
-      : flattened.slice(offset);
+    const limitValue = rawMaxEntries;
+    const pageEntries = flattened.slice(offset, offset + limitValue);
     const returnedEntries = pageEntries.length;
     const hasMore = offset + returnedEntries < totalEntries;
     const nextOffset = hasMore ? offset + returnedEntries : null;

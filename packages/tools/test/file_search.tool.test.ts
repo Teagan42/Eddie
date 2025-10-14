@@ -207,6 +207,88 @@ describe("file_search tool", () => {
     }
   });
 
+  it("limits results using the default page size", async () => {
+    const tool = builtinTools.find((candidate) => candidate.name === "file_search");
+    expect(tool).toBeDefined();
+    if (!tool) {
+      throw new Error("file_search tool not registered");
+    }
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "eddie-file-search-"));
+    const ctx = {
+      cwd: tmpDir,
+      confirm: vi.fn(async () => true),
+      env: process.env,
+    };
+
+    const files = Array.from({ length: 25 }, (_, index) => `file-${index}.txt`);
+    await Promise.all(
+      files.map((filename) =>
+        fs.writeFile(path.join(tmpDir, filename), "match", "utf-8"),
+      ),
+    );
+
+    try {
+      const result = await tool.handler({ content: "match" }, ctx);
+
+      expect(result.schema).toBe("eddie.tool.file_search.result.v1");
+      expect(result.data.page).toBe(1);
+      expect(result.data.pageSize).toBe(20);
+      expect(result.data.totalPages).toBe(2);
+      expect(result.data.totalResults).toBe(25);
+      expect(result.data.results).toHaveLength(20);
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("omits dependency directories by default", async () => {
+    const tool = builtinTools.find((candidate) => candidate.name === "file_search");
+    expect(tool).toBeDefined();
+    if (!tool) {
+      throw new Error("file_search tool not registered");
+    }
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "eddie-file-search-"));
+    const ctx = {
+      cwd: tmpDir,
+      confirm: vi.fn(async () => true),
+      env: process.env,
+    };
+
+    await fs.mkdir(path.join(tmpDir, "src"));
+    await fs.mkdir(path.join(tmpDir, "node_modules", "left-pad"), { recursive: true });
+    await fs.writeFile(path.join(tmpDir, "src", "keep.ts"), "export const value = 'needle';\n", "utf-8");
+    await fs.writeFile(
+      path.join(tmpDir, "node_modules", "left-pad", "index.js"),
+      "module.exports = 'needle';\n",
+      "utf-8",
+    );
+
+    try {
+      const result = await tool.handler({ content: "needle" }, ctx);
+
+      expect(result.schema).toBe("eddie.tool.file_search.result.v1");
+      expect(result.data.totalResults).toBe(1);
+      expect(result.data.results).toEqual([
+        {
+          path: "src/keep.ts",
+          lineMatches: [
+            {
+              lineNumber: 1,
+              line: "export const value = 'needle';",
+              matches: [
+                expect.objectContaining({ match: "needle", groups: [] }),
+              ],
+            },
+          ],
+        },
+      ]);
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it("rejects non-string content arguments", async () => {
     const tool = builtinTools.find((candidate) => candidate.name === "file_search");
     expect(tool).toBeDefined();
