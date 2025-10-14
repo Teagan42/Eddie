@@ -335,4 +335,66 @@ describe('ToolTree', () => {
     const resultEntry = within(dialog).getByTestId('json-entry-metadata.result');
     expect(resultEntry).toHaveTextContent(longResult);
   });
+
+  it('updates agent tool listings when the nodes array reference stays stable', async () => {
+    const user = userEvent.setup();
+    const nodes = [
+      {
+        id: 'initial-tool',
+        name: 'draft',
+        status: 'pending' as const,
+        metadata: {
+          createdAt: '2024-05-01T00:00:00.000Z',
+          agentId: 'agent-1',
+        },
+        children: [],
+      },
+    ];
+    const agentHierarchy = [
+      {
+        id: 'agent-1',
+        name: 'Planner',
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+        depth: 0,
+        metadata: { messageCount: 1 },
+        children: [],
+      },
+    ];
+
+    const { rerender } = render(
+      <ToolTree nodes={nodes as any} agentHierarchy={agentHierarchy as any} />,
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: 'Toggle Planner tools' }),
+    );
+
+    expect(screen.getByText('draft')).toBeInTheDocument();
+
+    nodes.push({
+      id: 'follow-up',
+      name: 'write_report',
+      status: 'running' as const,
+      metadata: {
+        createdAt: '2024-05-01T00:05:00.000Z',
+        agentId: 'agent-1',
+      },
+      children: [],
+    });
+
+    await user.click(
+      screen.getByRole('button', { name: 'Toggle Planner tools' }),
+    );
+
+    rerender(
+      <ToolTree nodes={nodes as any} agentHierarchy={agentHierarchy as any} />,
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: 'Toggle Planner tools' }),
+    );
+
+    expect(screen.getByText('write_report')).toBeInTheDocument();
+  });
 });
