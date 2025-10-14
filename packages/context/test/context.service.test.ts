@@ -96,4 +96,48 @@ describe("ContextService byte budget checks", () => {
     expect(fsMocks.readFile).not.toHaveBeenCalled();
     expect(result.resources).toHaveLength(0);
   });
+
+  it("passes exclude patterns to the main glob via ignore option", async () => {
+    const service = createService();
+    globMock.mockResolvedValueOnce([]);
+
+    await service.pack({
+      baseDir: "/repo",
+      exclude: ["**/skip/**"],
+    });
+
+    expect(globMock).toHaveBeenNthCalledWith(
+      1,
+      expect.any(Array),
+      expect.objectContaining({
+        ignore: expect.arrayContaining(["**/skip/**"]),
+      })
+    );
+  });
+
+  it("passes bundle exclude patterns to the glob via ignore option", async () => {
+    const service = createService();
+    globMock.mockResolvedValueOnce([]);
+    globMock.mockResolvedValueOnce([]);
+
+    await service.pack({
+      baseDir: "/repo",
+      resources: [
+        {
+          id: "bundle",
+          type: "bundle",
+          include: ["bundle/**/*.txt"],
+          exclude: ["bundle/private/**"],
+        },
+      ],
+    });
+
+    expect(globMock).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Array),
+      expect.objectContaining({
+        ignore: expect.arrayContaining(["bundle/private/**"]),
+      })
+    );
+  });
 });
