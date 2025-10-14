@@ -156,6 +156,75 @@ describe("AgentRunner", () => {
     expect(toolMessage).toMatchObject({ content: expectedPayload });
   });
 
+  it("serializes spawn_subagent results onto the transcript", async () => {
+    const invocation = createInvocation();
+    const toolResult: ToolResult = {
+      schema: "eddie.tool.spawn.result",
+      content: "Subagent complete",
+      data: { summary: "ok" },
+      metadata: { agentId: "child-1" },
+    };
+    const executeSpawnTool = vi.fn().mockResolvedValue(toolResult);
+
+    const providerStream = vi
+      .fn()
+      .mockReturnValueOnce(
+        createStream([
+          {
+            type: "tool_call",
+            id: "spawn_call",
+            name: AgentRunner.SPAWN_TOOL_NAME,
+            arguments: { prompt: "Run" },
+          },
+          { type: "end" },
+        ])
+      )
+      .mockReturnValueOnce(createStream([{ type: "end" }]));
+
+    const descriptor = createDescriptor({
+      provider: { name: "openai", stream: providerStream },
+    });
+
+    const render = vi.fn();
+    const runner = createRunner({
+      invocation,
+      descriptor,
+      executeSpawnTool,
+      streamRenderer: { render, flush: vi.fn() },
+      composeToolSchemas: () => [],
+    });
+
+    await runner.run();
+
+    const toolMessage = invocation.messages.find(
+      (message) => message.role === "tool" && message.tool_call_id === "spawn_call"
+    );
+
+    const expectedContent = JSON.stringify({
+      schema: toolResult.schema,
+      content: toolResult.content,
+      data: toolResult.data,
+      metadata: toolResult.metadata,
+    });
+
+    expect(toolMessage).toMatchObject({
+      role: "tool",
+      name: AgentRunner.SPAWN_TOOL_NAME,
+      tool_call_id: "spawn_call",
+      content: expectedContent,
+    });
+
+    expect(render).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "tool_result",
+        name: AgentRunner.SPAWN_TOOL_NAME,
+        id: "spawn_call",
+        result: toolResult,
+        agentId: invocation.id,
+      })
+    );
+  });
+
   it("flushes non-root renderers and emits lifecycle hooks", async () => {
     const flush = vi.fn();
     const hooks = { emitAsync: vi.fn().mockResolvedValue({}) };
