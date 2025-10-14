@@ -3,6 +3,8 @@ import type { AgentRuntimeDescriptor } from "../agents/agent-runtime.types";
 import type {
   TranscriptCompactorConfig as ConfigTranscriptCompactorConfig,
   SimpleTranscriptCompactorConfig as ConfigSimpleTranscriptCompactorConfig,
+  IntelligentTranscriptCompactorConfig as ConfigIntelligentTranscriptCompactorConfig,
+  AgentContextRequirements as ConfigAgentContextRequirements,
   TokenBudgetTranscriptCompactorConfig as ConfigTokenBudgetTranscriptCompactorConfig,
 } from "@eddie/config";
 
@@ -39,8 +41,13 @@ export type TranscriptCompactorConfig = ConfigTranscriptCompactorConfig;
 
 export type SimpleTranscriptCompactorConfig = ConfigSimpleTranscriptCompactorConfig;
 
+export type IntelligentTranscriptCompactorConfig =
+  ConfigIntelligentTranscriptCompactorConfig;
+
 export type TokenBudgetTranscriptCompactorConfig =
   ConfigTokenBudgetTranscriptCompactorConfig;
+
+export type AgentContextRequirements = ConfigAgentContextRequirements;
 
 export interface TranscriptCompactorFactory<
   Config extends TranscriptCompactorConfig = TranscriptCompactorConfig,
