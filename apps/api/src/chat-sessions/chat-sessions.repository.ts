@@ -1,11 +1,9 @@
 import { OnModuleDestroy } from "@nestjs/common";
-import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
 import { randomUUID } from "crypto";
-import Database from "better-sqlite3";
-import type { Database as SqliteDatabase } from "better-sqlite3";
+import type { Knex } from "knex";
 
 import { ChatMessageRole } from "./dto/create-chat-message.dto";
+import { initialChatSessionsMigration } from "./migrations/initial";
 
 export const CHAT_SESSIONS_REPOSITORY = Symbol("CHAT_SESSIONS_REPOSITORY");
 
@@ -57,27 +55,29 @@ export interface CreateChatMessageInput {
 }
 
 export interface ChatSessionsRepository {
-  listSessions(): ChatSessionRecord[];
-  getSessionById(id: string): ChatSessionRecord | undefined;
-  createSession(input: CreateChatSessionInput): ChatSessionRecord;
+  listSessions(): Promise<ChatSessionRecord[]>;
+  getSessionById(id: string): Promise<ChatSessionRecord | undefined>;
+  createSession(input: CreateChatSessionInput): Promise<ChatSessionRecord>;
   updateSessionStatus(
     id: string,
     status: ChatSessionStatus
-  ): ChatSessionRecord | undefined;
+  ): Promise<ChatSessionRecord | undefined>;
   appendMessage(
     input: CreateChatMessageInput
-  ): { message: ChatMessageRecord; session: ChatSessionRecord } | undefined;
-  listMessages(sessionId: string): ChatMessageRecord[];
+  ): Promise<
+    { message: ChatMessageRecord; session: ChatSessionRecord } | undefined
+  >;
+  listMessages(sessionId: string): Promise<ChatMessageRecord[]>;
   updateMessageContent(
     sessionId: string,
     messageId: string,
     content: string
-  ): ChatMessageRecord | undefined;
+  ): Promise<ChatMessageRecord | undefined>;
   saveAgentInvocations(
     sessionId: string,
     snapshots: AgentInvocationSnapshot[]
-  ): void;
-  listAgentInvocations(sessionId: string): AgentInvocationSnapshot[];
+  ): Promise<void>;
+  listAgentInvocations(sessionId: string): Promise<AgentInvocationSnapshot[]>;
 }
 
 const cloneInvocation = (
@@ -107,18 +107,20 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     AgentInvocationSnapshot[]
   >();
 
-  listSessions(): ChatSessionRecord[] {
+  async listSessions(): Promise<ChatSessionRecord[]> {
     return Array.from(this.sessions.values())
       .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
       .map((session) => cloneSession(session));
   }
 
-  getSessionById(id: string): ChatSessionRecord | undefined {
+  async getSessionById(id: string): Promise<ChatSessionRecord | undefined> {
     const session = this.sessions.get(id);
     return session ? cloneSession(session) : undefined;
   }
 
-  createSession(input: CreateChatSessionInput): ChatSessionRecord {
+  async createSession(
+    input: CreateChatSessionInput
+  ): Promise<ChatSessionRecord> {
     const now = new Date();
     const session: ChatSessionRecord = {
       id: randomUUID(),
@@ -133,10 +135,10 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     return cloneSession(session);
   }
 
-  updateSessionStatus(
+  async updateSessionStatus(
     id: string,
     status: ChatSessionStatus
-  ): ChatSessionRecord | undefined {
+  ): Promise<ChatSessionRecord | undefined> {
     const session = this.sessions.get(id);
     if (!session) {
       return undefined;
@@ -146,9 +148,11 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     return cloneSession(session);
   }
 
-  appendMessage(
+  async appendMessage(
     input: CreateChatMessageInput
-  ): { message: ChatMessageRecord; session: ChatSessionRecord } | undefined {
+  ): Promise<
+    { message: ChatMessageRecord; session: ChatSessionRecord } | undefined
+  > {
     const session = this.sessions.get(input.sessionId);
     if (!session) {
       return undefined;
@@ -176,7 +180,7 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     };
   }
 
-  listMessages(sessionId: string): ChatMessageRecord[] {
+  async listMessages(sessionId: string): Promise<ChatMessageRecord[]> {
     const collection = this.messages.get(sessionId) ?? [];
     return collection
       .slice()
@@ -184,11 +188,11 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
       .map((message) => cloneMessage(message));
   }
 
-  updateMessageContent(
+  async updateMessageContent(
     sessionId: string,
     messageId: string,
     content: string
-  ): ChatMessageRecord | undefined {
+  ): Promise<ChatMessageRecord | undefined> {
     const collection = this.messages.get(sessionId);
     if (!collection) {
       return undefined;
@@ -201,10 +205,10 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     return cloneMessage(message);
   }
 
-  saveAgentInvocations(
+  async saveAgentInvocations(
     sessionId: string,
     snapshots: AgentInvocationSnapshot[]
-  ): void {
+  ): Promise<void> {
     if (snapshots.length === 0) {
       this.agentInvocations.delete(sessionId);
       return;
@@ -213,7 +217,9 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     this.agentInvocations.set(sessionId, cloned);
   }
 
-  listAgentInvocations(sessionId: string): AgentInvocationSnapshot[] {
+  async listAgentInvocations(
+    sessionId: string
+  ): Promise<AgentInvocationSnapshot[]> {
     const stored = this.agentInvocations.get(sessionId);
     if (!stored) {
       return [];
@@ -222,17 +228,13 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
   }
 }
 
-export interface SqliteChatSessionsRepositoryOptions {
-  filename: string;
-}
-
 interface ChatSessionRow {
   id: string;
   title: string;
   description: string | null;
   status: ChatSessionStatus;
-  created_at: string;
-  updated_at: string;
+  created_at: Date | string;
+  updated_at: Date | string;
 }
 
 interface ChatMessageRow {
@@ -240,18 +242,26 @@ interface ChatMessageRow {
   session_id: string;
   role: ChatMessageRole;
   content: string;
-  created_at: string;
+  created_at: Date | string;
   tool_call_id: string | null;
   name: string | null;
 }
+
+interface AgentInvocationRow {
+  session_id: string;
+  payload: unknown;
+}
+
+const toDate = (value: Date | string): Date =>
+  value instanceof Date ? new Date(value.getTime()) : new Date(value);
 
 const mapSessionRow = (row: ChatSessionRow): ChatSessionRecord => ({
   id: row.id,
   title: row.title,
   description: row.description ?? undefined,
   status: row.status,
-  createdAt: new Date(row.created_at),
-  updatedAt: new Date(row.updated_at),
+  createdAt: toDate(row.created_at),
+  updatedAt: toDate(row.updated_at),
 });
 
 const mapMessageRow = (row: ChatMessageRow): ChatMessageRecord => ({
@@ -259,241 +269,300 @@ const mapMessageRow = (row: ChatMessageRow): ChatMessageRecord => ({
   sessionId: row.session_id,
   role: row.role,
   content: row.content,
-  createdAt: new Date(row.created_at),
+  createdAt: toDate(row.created_at),
   toolCallId: row.tool_call_id ?? undefined,
   name: row.name ?? undefined,
 });
 
-export class SqliteChatSessionsRepository implements ChatSessionsRepository, OnModuleDestroy {
-  private readonly db: SqliteDatabase;
+type ChatSessionsMigration = (db: Knex) => Promise<void>;
 
-  constructor(options: SqliteChatSessionsRepositoryOptions) {
-    if (options.filename !== ":memory:") {
-      const directory = dirname(options.filename);
-      if (directory && directory !== ".") {
-        mkdirSync(directory, { recursive: true });
-      }
-    }
-    this.db = new Database(options.filename);
-    this.db.pragma("foreign_keys = ON");
-    this.db.pragma("journal_mode = WAL");
-    this.applyMigrations();
+const DEFAULT_MIGRATIONS: readonly ChatSessionsMigration[] = [
+  initialChatSessionsMigration,
+];
+
+type JsonStorageDialect = "jsonb" | "json" | "text";
+
+const resolveJsonStorageDialect = (client?: Knex.Config["client"]): JsonStorageDialect => {
+  if (!client) {
+    return "text";
+  }
+  const normalized = typeof client === "string" ? client : String(client);
+  if (normalized === "pg") {
+    return "jsonb";
+  }
+  if (normalized === "mysql" || normalized === "mysql2") {
+    return "json";
+  }
+  return "text";
+};
+
+export interface KnexChatSessionsRepositoryOptions {
+  knex: Knex;
+  ownsConnection?: boolean;
+  migrations?: readonly ChatSessionsMigration[];
+}
+
+export class KnexChatSessionsRepository implements ChatSessionsRepository, OnModuleDestroy {
+  private readonly knex: Knex;
+  private readonly ownsConnection: boolean;
+  private readonly ready: Promise<void>;
+  private readonly jsonDialect: JsonStorageDialect;
+
+  constructor(options: KnexChatSessionsRepositoryOptions) {
+    this.knex = options.knex;
+    this.ownsConnection = options.ownsConnection ?? false;
+    this.jsonDialect = resolveJsonStorageDialect(this.knex.client.config?.client);
+    const migrations = options.migrations ?? DEFAULT_MIGRATIONS;
+    this.ready = this.applyMigrations(migrations);
   }
 
-  listSessions(): ChatSessionRecord[] {
-    const rows = this.db
-      .prepare<[], ChatSessionRow>(
-        `SELECT id, title, description, status, created_at, updated_at
-         FROM chat_sessions
-         ORDER BY datetime(updated_at) DESC`
+  private async applyMigrations(
+    migrations: readonly ChatSessionsMigration[]
+  ): Promise<void> {
+    for (const migration of migrations) {
+      await migration(this.knex);
+    }
+  }
+
+  private async ensureReady(): Promise<void> {
+    await this.ready;
+  }
+
+  async listSessions(): Promise<ChatSessionRecord[]> {
+    await this.ensureReady();
+    const rows = await this.knex<ChatSessionRow>("chat_sessions")
+      .select(
+        "id",
+        "title",
+        "description",
+        "status",
+        "created_at",
+        "updated_at"
       )
-      .all();
+      .orderBy("updated_at", "desc");
     return rows.map(mapSessionRow);
   }
 
-  getSessionById(id: string): ChatSessionRecord | undefined {
-    const row = this.db
-      .prepare<[string], ChatSessionRow>(
-        `SELECT id, title, description, status, created_at, updated_at
-         FROM chat_sessions
-         WHERE id = ?`
+  async getSessionById(id: string): Promise<ChatSessionRecord | undefined> {
+    await this.ensureReady();
+    const row = await this.knex<ChatSessionRow>("chat_sessions")
+      .select(
+        "id",
+        "title",
+        "description",
+        "status",
+        "created_at",
+        "updated_at"
       )
-      .get(id);
+      .where({ id })
+      .first();
     return row ? mapSessionRow(row) : undefined;
   }
 
-  createSession(input: CreateChatSessionInput): ChatSessionRecord {
-    const now = new Date().toISOString();
+  async createSession(
+    input: CreateChatSessionInput
+  ): Promise<ChatSessionRecord> {
+    await this.ensureReady();
+    const now = new Date();
     const id = randomUUID();
-    this.db
-      .prepare(
-        `INSERT INTO chat_sessions (id, title, description, status, created_at, updated_at)
-         VALUES (?, ?, ?, 'active', ?, ?)`
-      )
-      .run(id, input.title, input.description ?? null, now, now);
-    return this.getSessionById(id)!;
+    await this.knex("chat_sessions").insert({
+      id,
+      title: input.title,
+      description: input.description ?? null,
+      status: "active",
+      created_at: now,
+      updated_at: now,
+    });
+    const session = await this.getSessionById(id);
+    if (!session) {
+      throw new Error(`Failed to load chat session ${id} after creation.`);
+    }
+    return session;
   }
 
-  updateSessionStatus(
+  async updateSessionStatus(
     id: string,
     status: ChatSessionStatus
-  ): ChatSessionRecord | undefined {
-    const now = new Date().toISOString();
-    const result = this.db
-      .prepare(
-        `UPDATE chat_sessions
-         SET status = ?, updated_at = ?
-         WHERE id = ?`
-      )
-      .run(status, now, id);
-    if (result.changes === 0) {
+  ): Promise<ChatSessionRecord | undefined> {
+    await this.ensureReady();
+    const now = new Date();
+    const updated = await this.knex("chat_sessions")
+      .update({ status, updated_at: now })
+      .where({ id });
+    if (updated === 0) {
       return undefined;
     }
-    return this.getSessionById(id)!;
+    return this.getSessionById(id);
   }
 
-  appendMessage(
+  async appendMessage(
     input: CreateChatMessageInput
-  ): { message: ChatMessageRecord; session: ChatSessionRecord } | undefined {
-    const run = this.db.transaction((data: CreateChatMessageInput) => {
-      const session = this.db
-        .prepare<[string], ChatSessionRow>(
-          `SELECT id, title, description, status, created_at, updated_at
-           FROM chat_sessions
-           WHERE id = ?`
+  ): Promise<
+    { message: ChatMessageRecord; session: ChatSessionRecord } | undefined
+  > {
+    await this.ensureReady();
+    return this.knex.transaction(async (trx) => {
+      const session = await trx<ChatSessionRow>("chat_sessions")
+        .select(
+          "id",
+          "title",
+          "description",
+          "status",
+          "created_at",
+          "updated_at"
         )
-        .get(data.sessionId);
+        .where({ id: input.sessionId })
+        .first();
       if (!session) {
         return undefined;
       }
-      const now = new Date().toISOString();
-      const id = randomUUID();
-      this.db
-        .prepare(
-          `INSERT INTO chat_messages (id, session_id, role, content, created_at, tool_call_id, name)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`
+      const now = new Date();
+      const messageId = randomUUID();
+      await trx("chat_messages").insert({
+        id: messageId,
+        session_id: input.sessionId,
+        role: input.role,
+        content: input.content,
+        created_at: now,
+        tool_call_id: input.toolCallId ?? null,
+        name: input.name ?? null,
+      });
+      await trx("chat_sessions")
+        .update({ updated_at: now })
+        .where({ id: input.sessionId });
+      const messageRow = await trx<ChatMessageRow>("chat_messages")
+        .select(
+          "id",
+          "session_id",
+          "role",
+          "content",
+          "created_at",
+          "tool_call_id",
+          "name"
         )
-        .run(
-          id,
-          data.sessionId,
-          data.role,
-          data.content,
-          now,
-          data.toolCallId ?? null,
-          data.name ?? null
-        );
-      this.db
-        .prepare(
-          `UPDATE chat_sessions
-           SET updated_at = ?
-           WHERE id = ?`
+        .where({ id: messageId })
+        .first();
+      const sessionRow = await trx<ChatSessionRow>("chat_sessions")
+        .select(
+          "id",
+          "title",
+          "description",
+          "status",
+          "created_at",
+          "updated_at"
         )
-        .run(now, data.sessionId);
-      const messageRow = this.db
-        .prepare<[string], ChatMessageRow>(
-          `SELECT id, session_id, role, content, created_at, tool_call_id, name
-           FROM chat_messages
-           WHERE id = ?`
-        )
-        .get(id)!;
-      const sessionRow = this.db
-        .prepare<[string], ChatSessionRow>(
-          `SELECT id, title, description, status, created_at, updated_at
-           FROM chat_sessions
-           WHERE id = ?`
-        )
-        .get(data.sessionId)!;
+        .where({ id: input.sessionId })
+        .first();
+      if (!messageRow || !sessionRow) {
+        throw new Error("Failed to load persisted chat message or session");
+      }
       return {
         message: mapMessageRow(messageRow),
         session: mapSessionRow(sessionRow),
       };
     });
-    return run(input);
   }
 
-  listMessages(sessionId: string): ChatMessageRecord[] {
-    const rows = this.db
-      .prepare<[string], ChatMessageRow>(
-        `SELECT id, session_id, role, content, created_at, tool_call_id, name
-         FROM chat_messages
-         WHERE session_id = ?
-         ORDER BY datetime(created_at) ASC`
+  async listMessages(sessionId: string): Promise<ChatMessageRecord[]> {
+    await this.ensureReady();
+    const rows = await this.knex<ChatMessageRow>("chat_messages")
+      .select(
+        "id",
+        "session_id",
+        "role",
+        "content",
+        "created_at",
+        "tool_call_id",
+        "name"
       )
-      .all(sessionId);
+      .where({ session_id: sessionId })
+      .orderBy("created_at", "asc");
     return rows.map(mapMessageRow);
   }
 
-  updateMessageContent(
+  async updateMessageContent(
     sessionId: string,
     messageId: string,
     content: string
-  ): ChatMessageRecord | undefined {
-    const result = this.db
-      .prepare(
-        `UPDATE chat_messages
-         SET content = ?
-         WHERE id = ? AND session_id = ?`
-      )
-      .run(content, messageId, sessionId);
-    if (result.changes === 0) {
+  ): Promise<ChatMessageRecord | undefined> {
+    await this.ensureReady();
+    const updated = await this.knex("chat_messages")
+      .update({ content })
+      .where({ id: messageId, session_id: sessionId });
+    if (updated === 0) {
       return undefined;
     }
-    const row = this.db
-      .prepare<[string], ChatMessageRow>(
-        `SELECT id, session_id, role, content, created_at, tool_call_id, name
-         FROM chat_messages
-         WHERE id = ?`
+    const row = await this.knex<ChatMessageRow>("chat_messages")
+      .select(
+        "id",
+        "session_id",
+        "role",
+        "content",
+        "created_at",
+        "tool_call_id",
+        "name"
       )
-      .get(messageId)!;
-    return mapMessageRow(row);
+      .where({ id: messageId })
+      .first();
+    return row ? mapMessageRow(row) : undefined;
   }
 
-  saveAgentInvocations(
+  async saveAgentInvocations(
     sessionId: string,
     snapshots: AgentInvocationSnapshot[]
-  ): void {
+  ): Promise<void> {
+    await this.ensureReady();
     if (snapshots.length === 0) {
-      this.db
-        .prepare(`DELETE FROM agent_invocations WHERE session_id = ?`)
-        .run(sessionId);
+      await this.knex("agent_invocations").where({ session_id: sessionId }).delete();
       return;
     }
-    const payload = JSON.stringify(
-      snapshots.map((snapshot) => cloneInvocation(snapshot))
-    );
-    this.db
-      .prepare(
-        `INSERT INTO agent_invocations (session_id, payload)
-         VALUES (?, ?)
-         ON CONFLICT(session_id) DO UPDATE SET payload = excluded.payload`
-      )
-      .run(sessionId, payload);
+    const cloned = snapshots.map((snapshot) => cloneInvocation(snapshot));
+    const payload =
+      this.jsonDialect === "text" ? JSON.stringify(cloned) : cloned;
+    await this.knex("agent_invocations")
+      .insert({
+        session_id: sessionId,
+        payload,
+      })
+      .onConflict("session_id")
+      .merge({ payload });
   }
 
-  listAgentInvocations(sessionId: string): AgentInvocationSnapshot[] {
-    const row = this.db
-      .prepare<[string], { payload: string }>(
-        `SELECT payload FROM agent_invocations WHERE session_id = ?`
-      )
-      .get(sessionId);
+  async listAgentInvocations(
+    sessionId: string
+  ): Promise<AgentInvocationSnapshot[]> {
+    await this.ensureReady();
+    const row = await this.knex<AgentInvocationRow>("agent_invocations")
+      .select("payload")
+      .where({ session_id: sessionId })
+      .first();
     if (!row) {
       return [];
     }
-    const parsed = JSON.parse(row.payload) as AgentInvocationSnapshot[];
+    const raw = row.payload;
+    const parsed: AgentInvocationSnapshot[] = Array.isArray(raw)
+      ? (raw as AgentInvocationSnapshot[])
+      : typeof raw === "string"
+        ? (JSON.parse(raw) as AgentInvocationSnapshot[])
+        : (raw as AgentInvocationSnapshot[]);
     return parsed.map((snapshot) => cloneInvocation(snapshot));
   }
 
-  onModuleDestroy(): void {
-    this.db.close();
-  }
-
-  private applyMigrations(): void {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS chat_sessions (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        description TEXT,
-        status TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS chat_messages (
-        id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL,
-        role TEXT NOT NULL,
-        content TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        tool_call_id TEXT,
-        name TEXT,
-        FOREIGN KEY(session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
-      );
-
-      CREATE TABLE IF NOT EXISTS agent_invocations (
-        session_id TEXT PRIMARY KEY,
-        payload TEXT NOT NULL,
-        FOREIGN KEY(session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
-      );
-    `);
+  async onModuleDestroy(): Promise<void> {
+    if (this.ownsConnection) {
+      try {
+        await this.ensureReady();
+      } catch {
+        // ignore migration failures during shutdown
+      }
+      try {
+        await this.knex.destroy();
+      } catch (error) {
+        if (error instanceof Error && error.message === "aborted") {
+          return;
+        }
+        throw error;
+      }
+    }
   }
 }

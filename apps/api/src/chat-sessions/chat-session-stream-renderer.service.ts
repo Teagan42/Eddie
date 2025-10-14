@@ -20,6 +20,8 @@ interface StreamState {
     buffer: string;
     messageId?: string;
     activity: AgentActivityState;
+    pending: Promise<void>[];
+    lastEmittedContent?: string;
 }
 
 export interface StreamCaptureResult<T> {
@@ -42,7 +44,12 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
     sessionId: string,
     handler: () => Promise<T>,
   ): Promise<StreamCaptureResult<T>> {
-    const state: StreamState = { sessionId, buffer: "", activity: "idle" };
+    const state: StreamState = {
+      sessionId,
+      buffer: "",
+      activity: "idle",
+      pending: [],
+    };
     let result: T | undefined;
     let error: unknown;
 
@@ -55,6 +62,8 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
       }
     });
 
+    await Promise.all(state.pending);
+
     return { result, error, state };
   }
 
@@ -62,52 +71,63 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
     const state = this.storage.getStore();
 
     if (state) {
-      this.handleEvent(state, event);
+      const previous =
+        state.pending.length > 0
+          ? state.pending[state.pending.length - 1]
+          : Promise.resolve();
+      const task = previous.then(() => this.handleEvent(state, event));
+      state.pending.push(task);
     }
 
     super.render(event);
   }
 
-  private handleEvent(state: StreamState, event: StreamEvent): void {
+  private async handleEvent(
+    state: StreamState,
+    event: StreamEvent
+  ): Promise<void> {
     switch (event.type) {
       case "delta": {
         if (!event.text) return;
         state.buffer += event.text;
-        this.updateActivity(state, "thinking");
-        this.upsertMessage(state);
+        await this.updateActivity(state, "thinking");
+        await this.upsertMessage(state);
         break;
       }
       case "tool_call": {
-        this.updateActivity(state, "tool");
+        await this.updateActivity(state, "tool");
         this.emitToolCallEvent(state, event);
         break;
       }
       case "tool_result": {
-        this.updateActivity(state, "thinking");
+        await this.updateActivity(state, "thinking");
         this.emitToolResultEvent(state, event);
         break;
       }
       case "notification": {
         const metadata = event.metadata as { severity?: string } | undefined;
         if (metadata?.severity === "error") {
-          this.updateActivity(state, "error");
+          await this.updateActivity(state, "error");
         }
         break;
       }
       case "error": {
-        this.updateActivity(state, "error");
+        await this.updateActivity(state, "error");
         break;
       }
       case "end": {
         if (!state.messageId) return;
         const content = state.buffer.trimEnd();
-        const message = this.chatSessions.updateMessageContent(
-          state.sessionId,
-          state.messageId,
-          content,
-        );
-        this.emitPartial(message);
-        this.updateActivity(state, "idle");
+        if (content !== state.buffer) {
+          const message = await this.chatSessions.updateMessageContent(
+            state.sessionId,
+            state.messageId,
+            content
+          );
+          state.buffer = content;
+          this.emitPartial(state, message);
+        }
+        await this.updateActivity(state, "idle");
         break;
       }
       default:
@@ -115,30 +135,38 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
     }
   }
 
-  private upsertMessage(state: StreamState): void {
+  private async upsertMessage(state: StreamState): Promise<void> {
     if (!state.messageId) {
-      const result = this.chatSessions.addMessage(state.sessionId, {
+      const result = await this.chatSessions.addMessage(state.sessionId, {
         role: ChatMessageRole.Assistant,
         content: state.buffer,
       });
       const message = result.message;
       state.messageId = message.id;
-      this.emitPartial(message);
+      this.emitPartial(state, message);
       return;
     }
 
-    const message = this.chatSessions.updateMessageContent(
+    const message = await this.chatSessions.updateMessageContent(
       state.sessionId,
       state.messageId,
-      state.buffer,
+      state.buffer
     );
-    this.emitPartial(message);
+    this.emitPartial(state, message);
   }
 
-  private emitPartial(message: ChatMessageDto | undefined): void {
-    if (message) {
-      this.eventBus.publish(new ChatMessagePartialEvent(message));
+  private emitPartial(
+    state: StreamState,
+    message: ChatMessageDto | undefined
+  ): void {
+    if (!message) {
+      return;
     }
+    if (message.content === state.lastEmittedContent) {
+      return;
+    }
+    state.lastEmittedContent = message.content;
+    this.eventBus.publish(new ChatMessagePartialEvent(message));
   }
 
   private emitToolCallEvent(
@@ -171,11 +199,14 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
     );
   }
 
-  private updateActivity(state: StreamState, next: AgentActivityState): void {
+  private async updateActivity(
+    state: StreamState,
+    next: AgentActivityState
+  ): Promise<void> {
     if (state.activity === next) {
       return;
     }
     state.activity = next;
-    this.chatSessions.setAgentActivity(state.sessionId, next);
+    await this.chatSessions.setAgentActivity(state.sessionId, next);
   }
 }
