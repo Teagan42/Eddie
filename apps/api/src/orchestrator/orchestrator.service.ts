@@ -11,6 +11,7 @@ import {
   ToolCallStatusDto,
   AgentHierarchyNodeDto,
 } from "./dto/orchestrator-metadata.dto";
+import { ChatMessageDto } from '../chat-sessions/dto/chat-session.dto';
 
 interface SpawnDetails {
   provider?: string;
