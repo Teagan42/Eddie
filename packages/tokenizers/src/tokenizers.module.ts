@@ -6,10 +6,26 @@ import {
 } from "./tokenizer.service";
 import { AnthropicTokenizer, OpenAITokenizer } from "./strategies";
 
+const openAITokenizerProvider = {
+  provide: OpenAITokenizer,
+  useFactory: () => new OpenAITokenizer(),
+  inject: [],
+} as const;
+
+const anthropicTokenizerProvider = {
+  provide: AnthropicTokenizer,
+  useFactory: () => new AnthropicTokenizer(),
+  inject: [],
+} as const;
+
+const tokenizerStrategyProviders = [
+  openAITokenizerProvider,
+  anthropicTokenizerProvider,
+] as const;
+
 @Module({
   providers: [
-    OpenAITokenizer,
-    AnthropicTokenizer,
+    ...tokenizerStrategyProviders,
     {
       provide: TOKENIZER_STRATEGIES,
       useFactory: (
@@ -20,14 +36,13 @@ import { AnthropicTokenizer, OpenAITokenizer } from "./strategies";
         "openai-compatible": openai,
         anthropic,
       }),
-      inject: [OpenAITokenizer, AnthropicTokenizer],
+      inject: tokenizerStrategyProviders.map((provider) => provider.provide),
     },
     TokenizerService,
   ],
   exports: [
     TokenizerService,
-    OpenAITokenizer,
-    AnthropicTokenizer,
+    ...tokenizerStrategyProviders,
     TOKENIZER_STRATEGIES,
   ],
 })
