@@ -78,6 +78,10 @@ interface SpawnResultData extends Record<string, unknown> {
   variables?: TemplateVariables;
   context: PackedContextSnapshot;
   requestContext?: PackedContextSnapshot;
+  /**
+   * Full transcript of the child invocation, including system, user, and assistant
+   * messages in the order they were produced.
+   */
   history?: ChatMessage[];
   transcriptSummary?: string;
   historySnippet?: string;
@@ -457,7 +461,7 @@ export class AgentRunner {
       ? AgentRunner.createContextSnapshot(request.context)
       : undefined;
     const requestContextClone = requestSnapshot?.clone;
-    const historyClone = AgentRunner.cloneHistory(child.history ?? []);
+    const historyClone = AgentRunner.cloneHistory(child.messages);
 
     const variablesClone = request.variables && Object.keys(request.variables).length > 0
       ? { ...request.variables }

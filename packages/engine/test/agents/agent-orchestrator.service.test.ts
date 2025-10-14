@@ -358,6 +358,11 @@ describe("AgentOrchestratorService", () => {
       transcriptSummary:
         "User: Please help with the delegated task. | Assistant: Completed successfully.",
     });
+    expect(result.data?.history).toEqual([
+      { role: "system", content: subagentDefinition.systemPrompt },
+      { role: "user", content: "   Please help with the delegated task.   " },
+      { role: "assistant", content: "  Completed successfully.  " },
+    ]);
     expect(result.metadata).toMatchObject({
       contextBundleIds: ["bundle-123"],
       historySnippet:
