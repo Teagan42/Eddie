@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { createReadStream } from "node:fs";
 import fs from "fs/promises";
 import path from "path";
 import fg from "fast-glob";
@@ -21,6 +22,7 @@ import type { TemplateVariables } from "@eddie/templates";
 
 const DEFAULT_MAX_BYTES = 250_000;
 const DEFAULT_MAX_FILES = 64;
+const STREAM_CHUNK_SIZE = 64 * 1024;
 const DEFAULT_TEXT_EXTENSIONS = [
   "ts",
   "tsx",
@@ -300,8 +302,7 @@ export class ContextService {
           continue;
         }
 
-        const content = await fs.readFile(absolutePath, "utf-8");
-        const bytes = Buffer.byteLength(content);
+        const { content, bytes } = await this.readFileStream(absolutePath);
         if (
           this.isOverBudget({
             logger,
@@ -395,6 +396,30 @@ export class ContextService {
       .join("\n\n");
   }
 
+  private async readFileStream(
+    filePath: string
+  ): Promise<{ content: string; bytes: number }> {
+    const stream = createReadStream(filePath, {
+      encoding: "utf-8",
+      highWaterMark: STREAM_CHUNK_SIZE,
+    });
+
+    let bytes = 0;
+    let content = "";
+
+    try {
+      for await (const chunk of stream) {
+        const text = typeof chunk === "string" ? chunk : chunk.toString();
+        bytes += Buffer.byteLength(text);
+        content += text;
+      }
+    } finally {
+      stream.destroy();
+    }
+
+    return { content, bytes };
+  }
+
   private async loadResource(
     resource: ContextResourceConfig,
     options: {
@@ -461,8 +486,9 @@ export class ContextService {
           continue;
         }
 
-        const content = await fs.readFile(absolutePath, "utf-8");
-        const fileBytes = Buffer.byteLength(content);
+        const { content, bytes: fileBytes } = await this.readFileStream(
+          absolutePath
+        );
         if (
           this.isOverBudget({
             logger: options.logger,
