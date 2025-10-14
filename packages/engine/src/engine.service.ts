@@ -5,6 +5,7 @@ import path from "path";
 import type {
   AgentProviderConfig,
   CliRuntimeOptions,
+  ContextConfig,
   EddieConfig,
   ProviderConfig,
   TranscriptCompactorConfig,
@@ -168,7 +169,12 @@ export class EngineService {
       void discoveredPrompts;
 
       if (discoveredResources.length > 0) {
-        this.applyMcpResourcesToContext(context, discoveredResources);
+        this.applyMcpResourcesToContext(
+          context,
+          cfg.context,
+          discoveredResources,
+          logger
+        );
       }
 
       const afterContextPack = await hooks.emitAsync(
@@ -295,7 +301,9 @@ export class EngineService {
 
   private applyMcpResourcesToContext(
     context: PackedContext,
-    discoveredResources: DiscoveredMcpResource[]
+    contextConfig: ContextConfig | undefined,
+    discoveredResources: DiscoveredMcpResource[],
+    logger: Logger
   ): void {
     const packedResources = discoveredResources.map((resource) =>
       this.toPackedResource(resource)
@@ -305,22 +313,61 @@ export class EngineService {
       return;
     }
 
-    context.resources = [ ...(context.resources ?? []), ...packedResources ];
+    const maxBytes = contextConfig?.maxBytes;
+    let remainingBytes =
+      typeof maxBytes === "number"
+        ? Math.max(maxBytes - context.totalBytes, 0)
+        : undefined;
 
-    const resourceSections = packedResources
-      .map((resource) => composeResourceText(resource))
-      .filter((section) => section.trim().length > 0);
+    const acceptedResources: PackedResource[] = [];
+    const acceptedSections: string[] = [];
+    let additionalBytes = 0;
 
-    if (resourceSections.length > 0) {
-      const baseSections =
-                context.text && context.text.trim().length > 0 ? [ context.text ] : [];
-      context.text = [ ...baseSections, ...resourceSections ].join("\n\n");
+    for (const resource of packedResources) {
+      const resourceBytes = Buffer.byteLength(resource.text, "utf-8");
+
+      if (remainingBytes !== undefined) {
+        if (resourceBytes > remainingBytes) {
+          logger.debug(
+            {
+              resource: resource.id,
+              resourceBytes,
+              remainingBytes,
+              maxBytes,
+            },
+            "Skipping MCP resource exceeding maxBytes"
+          );
+          continue;
+        }
+
+        remainingBytes -= resourceBytes;
+      }
+
+      acceptedResources.push(resource);
+
+      const section = composeResourceText(resource);
+      if (section.trim().length > 0) {
+        acceptedSections.push(section);
+      }
+
+      additionalBytes += resourceBytes;
     }
 
-    const additionalBytes = packedResources.reduce(
-      (total, resource) => total + Buffer.byteLength(resource.text, "utf-8"),
-      0
-    );
+    if (acceptedResources.length === 0) {
+      return;
+    }
+
+    context.resources = [
+      ...(context.resources ?? []),
+      ...acceptedResources,
+    ];
+
+    if (acceptedSections.length > 0) {
+      const baseSections =
+        context.text && context.text.trim().length > 0 ? [ context.text ] : [];
+      context.text = [ ...baseSections, ...acceptedSections ].join("\n\n");
+    }
+
     context.totalBytes += additionalBytes;
   }
 

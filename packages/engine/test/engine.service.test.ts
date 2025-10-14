@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { EngineService } from "../src/engine.service";
 import type { EddieConfig } from "@eddie/config";
 import type { PackedContext } from "@eddie/types";
+import type { DiscoveredMcpResource } from "@eddie/mcp";
 
 const baseConfig: EddieConfig = {
   model: "base-model",
@@ -86,7 +87,13 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     mcpToolSourceService as any,
   );
 
-  return { service, configStore };
+  return {
+    service,
+    configStore,
+    contextService,
+    mcpToolSourceService,
+    logger,
+  };
 }
 
 beforeEach(() => {
@@ -110,5 +117,66 @@ describe("EngineService", () => {
     await service.run("prompt", { provider: "override" });
 
     expect(configStore.getSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips MCP resources that exceed context byte budget", async () => {
+    const { service, contextService, mcpToolSourceService, logger } =
+      createService({
+        context: {
+          include: [],
+          baseDir: "/tmp/project",
+          maxBytes: 60,
+        },
+      });
+
+    const packedContext: PackedContext = {
+      files: [],
+      totalBytes: 10,
+      text: "Existing context",
+      resources: [],
+    };
+
+    contextService.pack.mockResolvedValue(packedContext);
+
+    const smallResource: DiscoveredMcpResource = {
+      sourceId: "alpha",
+      name: "small",
+      uri: "file://small",
+      description: "A small resource",
+    };
+
+    const oversizedResource: DiscoveredMcpResource = {
+      sourceId: "beta",
+      name: "oversized",
+      uri: "file://oversized",
+      description: "A large resource",
+      metadata: {
+        notes: "x".repeat(200),
+      },
+    };
+
+    mcpToolSourceService.collectTools.mockResolvedValue({
+      tools: [],
+      resources: [ smallResource, oversizedResource ],
+      prompts: [],
+    });
+
+    const result = await service.run("prompt");
+
+    const expectedBytes = Buffer.byteLength(`URI: ${ smallResource.uri }`, "utf-8");
+
+    expect(result.context.resources).toHaveLength(1);
+    expect(result.context.resources?.[0]?.name).toBe("small");
+    expect(result.context.totalBytes).toBe(packedContext.totalBytes);
+    expect(result.context.totalBytes).toBe(10 + expectedBytes);
+    expect(result.context.text).toContain("// Resource: small");
+    expect(logger.debug).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resource: expect.stringContaining("mcp:"),
+        resourceBytes: expect.any(Number),
+        remainingBytes: expect.any(Number),
+      }),
+      "Skipping MCP resource exceeding maxBytes",
+    );
   });
 });
