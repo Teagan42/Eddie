@@ -36,12 +36,71 @@ const collectStream = async (
   return collected;
 };
 
+const findFunctionCallOutput = (
+  payload: unknown,
+): { call_id?: string; output?: unknown } | undefined => {
+  if (!payload || typeof payload !== "object") {
+    return undefined;
+  }
+
+  const input = (payload as { input?: unknown }).input;
+  if (!Array.isArray(input)) {
+    return undefined;
+  }
+
+  return input.find(
+    (
+      item: unknown,
+    ): item is { type?: string; call_id?: string; output?: unknown } =>
+      typeof item === "object" &&
+      item !== null &&
+      (item as { type?: unknown }).type === "function_call_output",
+  );
+};
+
 describe("OpenAIAdapter stream tool calls", () => {
   const options: StreamOptions = { model: "gpt-4o-mini", messages: [] };
 
   beforeEach(() => {
     streamMock.mockReset();
     openAIConstructor.mockClear();
+  });
+
+  it("forwards tool role messages as function_call_output input entries", async () => {
+    const spawnResultPayload = JSON.stringify({
+      schema: "eddie.tool.spawn_subagent.result.v1",
+      content: "Subagent complete",
+      data: { summary: "ok" },
+      metadata: { agentId: "child-1" },
+    });
+    const spawnMessage = {
+      role: "tool" as const,
+      name: "spawn_subagent",
+      tool_call_id: "spawn_call",
+      content: spawnResultPayload,
+    };
+    const finalResponse = {
+      id: "resp_spawn",
+      status: "completed",
+      output: [],
+    };
+
+    streamMock.mockResolvedValueOnce(createStream([], finalResponse));
+
+    const adapter = new OpenAIAdapter({});
+    await collectStream(
+      adapter.stream({
+        model: "gpt-4o-mini",
+        messages: [spawnMessage],
+      } as StreamOptions),
+    );
+
+    expect(streamMock).toHaveBeenCalledTimes(1);
+    const [payload] = streamMock.mock.calls[0] ?? [];
+    const functionCallOutput = findFunctionCallOutput(payload);
+
+    expect(functionCallOutput?.call_id).toBe(spawnMessage.tool_call_id);
+    expect(functionCallOutput?.output).toBe(spawnResultPayload);
   });
 
   it("passes previous response id to the OpenAI stream request", async () => {
