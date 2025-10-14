@@ -9,6 +9,7 @@
 ### Added
 - Integration tests covering the Nest-backed command runner and CLI argument parsing parity.
 - Migration guide documenting environment variables, configuration lookups, and build steps for downstream consumers.
+- Documentation for configuring SQLite, PostgreSQL, MySQL, and MariaDB persistence, including migration automation notes.
 
 ## [1.0.5] - 2025-10-09
 

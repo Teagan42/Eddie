@@ -18,6 +18,16 @@ The NestJS API exposes REST and WebSocket entry points for hosted automations, m
 registries. It reuses the same configuration and tracing primitives as the CLI, letting you deploy the same workflows on
 servers, CI pipelines, or collaborative environments without rewriting prompts.
 
+#### Persistence drivers
+
+Set `api.persistence.driver` to control how chat sessions and messages are stored. Memory mode keeps everything ephemeral for
+tests, while `sqlite`, `postgres`, `mysql`, and `mariadb` reuse the shared Knex-powered persistence layer. The runtime ships with
+`better-sqlite3`, `pg`, and `mysql2`; container images may still need the system packages required by those native bindings.
+Provide credentials inline or via environment interpolation (for example `${PGHOST}`, `${MYSQL_USER}`, `${MARIADB_PASSWORD}`),
+and toggle TLS by setting the optional `ssl` flag on each driver. When SQL persistence is enabled the API automatically runs the
+pending migrations in `apps/api/migrations` during startup so regular `npm run start:api` deployments keep the schema current.
+See [docs/api.md](docs/api.md) for driver-specific YAML examples and migration notes.
+
 ### Web UI
 
 The React-powered UI layers conversation management on top of the API. It includes a prompt builder with live context previews,
