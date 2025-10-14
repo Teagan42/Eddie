@@ -26,6 +26,22 @@ describe('code-assistant router instructions', () => {
         name: 'explains how to invoke the spawn_subagent tool',
         pattern: /spawn_subagent tool/i,
       },
+      {
+        name: 'documents the get_plan planning tool',
+        pattern: /get_plan tool/i,
+      },
+      {
+        name: 'documents the update_plan adjustment tool',
+        pattern: /update_plan tool/i,
+      },
+      {
+        name: 'documents the complete_task closure tool',
+        pattern: /complete_task tool/i,
+      },
+      {
+        name: 'documents the get_folder_structure navigation tool',
+        pattern: /get_folder_structure tool/i,
+      },
     ];
 
     it.each(conventionsExpectations)('%s', ({ pattern }) => {
