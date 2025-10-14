@@ -10,7 +10,7 @@ import type {
   TranscriptCompactorConfig,
 } from "@eddie/config";
 import { ConfigStore } from "@eddie/config";
-import { ContextService } from "@eddie/context";
+import { ContextService, formatResourceText } from "@eddie/context";
 import { ProviderFactoryService } from "@eddie/providers";
 import { builtinTools } from "@eddie/tools";
 import { ConfirmService, LoggerService, StreamRendererService } from "@eddie/io";
@@ -307,7 +307,7 @@ export class EngineService {
     context.resources = [ ...(context.resources ?? []), ...packedResources ];
 
     const resourceSections = packedResources
-      .map((resource) => this.composeResourceText(resource))
+      .map(formatResourceText)
       .filter((section) => section.trim().length > 0);
 
     if (resourceSections.length > 0) {
@@ -361,20 +361,6 @@ export class EngineService {
       text: details.join("\n"),
       metadata,
     };
-  }
-
-  private composeResourceText(resource: PackedResource): string {
-    const label = resource.name ?? resource.id;
-    const description = resource.description ? ` - ${ resource.description }` : "";
-    const body = resource.text.trimEnd();
-    const lines = [ `// Resource: ${ label }${ description }` ];
-
-    if (body.length > 0) {
-      lines.push(body);
-    }
-
-    lines.push(`// End Resource: ${ label }`);
-    return lines.join("\n");
   }
 
   private buildAgentCatalog(

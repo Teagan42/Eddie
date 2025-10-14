@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { EngineService } from "../src/engine.service";
 import type { EddieConfig } from "@eddie/config";
 import type { PackedContext } from "@eddie/types";
+import type { DiscoveredMcpResource } from "@eddie/mcp";
+import { formatResourceText } from "@eddie/context";
 
 const baseConfig: EddieConfig = {
   model: "base-model",
@@ -110,5 +112,32 @@ describe("EngineService", () => {
     await service.run("prompt", { provider: "override" });
 
     expect(configStore.getSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it("formats discovered MCP resources with the shared helper", () => {
+    const { service } = createService();
+    const context: PackedContext = {
+      files: [],
+      totalBytes: 0,
+      text: "",
+      resources: [],
+    };
+
+    const discovered: DiscoveredMcpResource[] = [
+      {
+        sourceId: "source",
+        name: "Example",
+        uri: "mcp://example",
+        description: "Details",
+        mimeType: "text/plain",
+        metadata: { key: "value" },
+      },
+    ];
+
+    (service as any).applyMcpResourcesToContext(context, discovered);
+
+    expect(context.resources).toHaveLength(1);
+    const [packed] = context.resources!;
+    expect(context.text).toBe(formatResourceText(packed));
   });
 });

@@ -13,6 +13,7 @@ import type { PackedContext, PackedFile, PackedResource } from "@eddie/types";
 import { LoggerService } from "@eddie/io";
 import { TemplateRendererService } from "@eddie/templates";
 import type { TemplateVariables } from "@eddie/templates";
+import { formatResourceText } from "./utils/resource-text";
 
 const DEFAULT_MAX_BYTES = 250_000;
 const DEFAULT_MAX_FILES = 64;
@@ -270,10 +271,8 @@ export class ContextService {
       totalBytes += result.bytes;
       resources.push(result.resource);
 
-      const section = this.composeResourceText(result.resource);
-      if (section) {
-        textSections.push(section);
-      }
+      const section = formatResourceText(result.resource);
+      textSections.push(section);
     }
 
     const text = textSections.filter((section) => section.trim().length > 0).join("\n\n");
@@ -308,20 +307,6 @@ export class ContextService {
         `// File: ${file.path}\n${file.content.trimEnd()}\n// End of ${file.path}`
       )
       .join("\n\n");
-  }
-
-  private composeResourceText(resource: PackedResource): string {
-    const label = resource.name ?? resource.id;
-    const description = resource.description ? ` - ${resource.description}` : "";
-    const body = resource.text.trimEnd();
-    const lines = [`// Resource: ${label}${description}`];
-
-    if (body.length > 0) {
-      lines.push(body);
-    }
-
-    lines.push(`// End Resource: ${label}`);
-    return lines.join("\n");
   }
 
   private async loadResource(
