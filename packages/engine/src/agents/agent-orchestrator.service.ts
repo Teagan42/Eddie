@@ -85,6 +85,8 @@ export class AgentOrchestratorService {
     request: AgentRunRequest,
     runtime: AgentRuntimeOptions
   ): Promise<AgentInvocation> {
+    this.attachHookAgentRunner(runtime);
+
     const invocation = await this.agentInvocationFactory.create(
       request.definition,
       {
@@ -152,6 +154,42 @@ export class AgentOrchestratorService {
     }
 
     return result;
+  }
+
+  private attachHookAgentRunner(runtime: AgentRuntimeOptions): void {
+    const hookBus = runtime.hooks;
+    if (typeof hookBus?.setAgentRunner !== "function") {
+      return;
+    }
+
+    if (hookBus.hasAgentRunner?.()) {
+      return;
+    }
+
+    hookBus.setAgentRunner(async (options) => {
+      const descriptor = runtime.catalog.getAgent(options.agentId);
+      if (!descriptor) {
+        throw new Error(
+          `Hook attempted to run unknown agent "${ options.agentId }".`
+        );
+      }
+
+      const invocation = await this.runAgent(
+        {
+          definition: descriptor.definition,
+          prompt: options.prompt,
+          context: options.context,
+          variables: options.variables,
+        },
+        runtime
+      );
+
+      return {
+        prompt: invocation.prompt,
+        messages: invocation.messages,
+        target: this.toTargetSummary(descriptor),
+      };
+    });
   }
 
   private registerInvocation(
@@ -355,14 +393,6 @@ export class AgentOrchestratorService {
     );
 
     const lifecycle = this.createLifecyclePayload(invocation);
-    const toSummary = (
-      target: AgentRuntimeDescriptor
-    ): SpawnSubagentTargetSummary => ({
-      id: target.id,
-      model: target.model,
-      provider: target.provider.name,
-      metadata: target.metadata,
-    });
 
     const spawnForHook = async (
       options: SpawnSubagentDelegateOptions
@@ -393,7 +423,7 @@ export class AgentOrchestratorService {
       return {
         prompt: spawned.prompt,
         messages: spawned.messages,
-        target: toSummary(targetDescriptor),
+        target: this.toTargetSummary(targetDescriptor),
       };
     };
 
@@ -406,7 +436,7 @@ export class AgentOrchestratorService {
         variables: args.variables,
         metadata: args.metadata,
       },
-      target: toSummary(descriptor),
+      target: this.toTargetSummary(descriptor),
       spawn: spawnForHook,
     };
 
@@ -477,6 +507,17 @@ export class AgentOrchestratorService {
         metadata: args.metadata,
       },
     });
+  }
+
+  private toTargetSummary(
+    descriptor: AgentRuntimeDescriptor
+  ): SpawnSubagentTargetSummary {
+    return {
+      id: descriptor.id,
+      model: descriptor.model,
+      provider: descriptor.provider.name,
+      metadata: descriptor.metadata,
+    };
   }
 
   private isPlainObject(value: unknown): value is Record<string, unknown> {
