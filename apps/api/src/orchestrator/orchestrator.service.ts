@@ -12,8 +12,18 @@ import {
   AgentHierarchyNodeDto,
 } from "./dto/orchestrator-metadata.dto";
 
+interface SpawnDetails {
+  provider?: string;
+  model?: string;
+  name?: string;
+  metadata?: Record<string, unknown>;
+}
+
 @Injectable()
 export class OrchestratorMetadataService {
+  private static readonly SPAWN_RESULT_SCHEMA =
+    "eddie.tool.spawn_subagent.result.v1";
+
   constructor(private readonly chatSessions: ChatSessionsService) {}
 
   getMetadata(sessionId?: string): OrchestratorMetadataDto {
@@ -34,6 +44,7 @@ export class OrchestratorMetadataService {
       session.title,
       sessionId,
       messages,
+      agentInvocations,
     );
 
     return {
@@ -312,7 +323,8 @@ export class OrchestratorMetadataService {
   private createAgentHierarchy(
     title: string,
     sessionId: string,
-    messages: ReturnType<ChatSessionsService["listMessages"]>
+    messages: ReturnType<ChatSessionsService["listMessages"]>,
+    agentInvocations: AgentInvocationSnapshot[]
   ): AgentHierarchyNodeDto[] {
     const root = new AgentHierarchyNodeDto();
     root.id = sessionId;
@@ -322,22 +334,108 @@ export class OrchestratorMetadataService {
     root.depth = 0;
     root.metadata = { messageCount: messages.length };
 
-    root.children = messages
-      .filter((message) => message.role === "assistant")
-      .map((message, index) => {
-        const node = new AgentHierarchyNodeDto();
-        node.id = `${sessionId}-agent-${index}`;
-        node.name = `Responder ${index + 1}`;
-        node.provider = "assistant";
-        node.model = "runtime";
-        node.depth = 1;
-        node.metadata = {
-          createdAt: message.createdAt,
-        };
-        node.children = [];
-        return node;
-      });
+    root.children = agentInvocations.map((invocation) =>
+      this.createAgentHierarchyNode(invocation, 1, undefined)
+    );
 
     return [root];
+  }
+
+  private createAgentHierarchyNode(
+    invocation: AgentInvocationSnapshot,
+    depth: number,
+    spawnDetails?: SpawnDetails
+  ): AgentHierarchyNodeDto {
+    const node = new AgentHierarchyNodeDto();
+    node.id = invocation.id;
+    node.name = spawnDetails?.name ?? invocation.id;
+    node.provider = spawnDetails?.provider;
+    node.model = spawnDetails?.model;
+    node.depth = depth;
+    const metadata: Record<string, unknown> = {
+      ...(spawnDetails?.metadata ?? {}),
+      messageCount: invocation.messages.length,
+    };
+    node.metadata = metadata;
+    node.children = invocation.children.map((child) =>
+      this.createAgentHierarchyNode(
+        child,
+        depth + 1,
+        this.extractSpawnDetailsForChild(invocation, child.id)
+      )
+    );
+    return node;
+  }
+
+  private extractSpawnDetailsForChild(
+    invocation: AgentInvocationSnapshot,
+    childId: string
+  ): SpawnDetails | undefined {
+    for (const message of invocation.messages) {
+      if (message.role !== ChatMessageRole.Tool) {
+        continue;
+      }
+
+      const payload = this.parseToolPayload(message.content);
+      if (!payload.isJson) {
+        continue;
+      }
+
+      const value = payload.value;
+      if (!value || typeof value !== "object") {
+        continue;
+      }
+
+      const schema = (value as { schema?: unknown }).schema;
+      if (schema !== OrchestratorMetadataService.SPAWN_RESULT_SCHEMA) {
+        continue;
+      }
+
+      const rawMetadata = (value as { metadata?: unknown }).metadata;
+      if (!rawMetadata || typeof rawMetadata !== "object") {
+        continue;
+      }
+
+      const metadataRecord = rawMetadata as Record<string, unknown>;
+      const agentId = metadataRecord.agentId;
+      if (agentId !== childId) {
+        continue;
+      }
+
+      const provider =
+        typeof metadataRecord.provider === "string"
+          ? metadataRecord.provider
+          : undefined;
+      const model =
+        typeof metadataRecord.model === "string"
+          ? metadataRecord.model
+          : undefined;
+      const name =
+        typeof metadataRecord.name === "string"
+          ? metadataRecord.name
+          : undefined;
+
+      const metadata: Record<string, unknown> = {};
+      for (const [key, valueEntry] of Object.entries(metadataRecord)) {
+        if (
+          key === "agentId" ||
+          key === "provider" ||
+          key === "model" ||
+          key === "name"
+        ) {
+          continue;
+        }
+        metadata[key] = valueEntry;
+      }
+
+      return {
+        provider,
+        model,
+        name,
+        metadata,
+      };
+    }
+
+    return undefined;
   }
 }
