@@ -69,12 +69,93 @@ The guard accepts keys from the configuration file, the `EDDIE_API_KEY`/
 `EDDIE_API_KEYS` environment variables, or context variables named `apiKeys` or
 `API_KEYS`.
 
-Set `api.persistence.driver` to `"memory"` (default) to keep the in-memory
-repository for ephemeral testing, or `"sqlite"` to persist chat sessions and
-messages to disk. When using SQLite you can override the storage location via
-`api.persistence.sqlite.filename`. Configuring `"postgres"`, `"mysql"`, or
-`"mariadb"` will cause the API to reject startup with a descriptive error since
-those drivers are not yet supported for chat session persistence.
+Set `api.persistence.driver` to `"memory"` (default) for ephemeral usage or pick
+one of the SQL-backed drivers to persist chat sessions between restarts. The API
+ships the necessary client libraries (`better-sqlite3`, `pg`, and `mysql2`) but
+your deployment image still needs the native system packages those drivers
+depend on (for example libssl when connecting to PostgreSQL over TLS). Supply
+credentials directly in the config file or through environment variable
+interpolation as shown in the YAML examples below.
+
+### Persistence drivers
+
+#### SQLite (file-backed)
+
+```yaml
+api:
+  persistence:
+    driver: sqlite
+    sqlite:
+      filename: ./data/chat-sessions.sqlite
+```
+
+SQLite stores chat data on the local filesystem. Override `filename` to point to
+an absolute path when running inside containers and ensure the directory is
+writeable by the API process.
+
+#### PostgreSQL
+
+```yaml
+api:
+  persistence:
+    driver: postgres
+    postgres:
+      connection:
+        host: ${PGHOST:-127.0.0.1}
+        port: ${PGPORT:-5432}
+        database: ${PGDATABASE:-eddie}
+        user: ${PGUSER:-eddie}
+        password: ${PGPASSWORD:-changeme}
+      ssl: ${PGSSL:-false}
+```
+
+The PostgreSQL driver uses the bundled `pg` client. Provide a structured
+`connection` object as shown or set `api.persistence.postgres.url` to a
+connection string such as `${DATABASE_URL}`. Toggle TLS by setting `ssl: true`
+or pointing to a boolean environment variable (`PGSSL` in the example above).
+
+#### MySQL
+
+```yaml
+api:
+  persistence:
+    driver: mysql
+    mysql:
+      connection:
+        host: ${MYSQL_HOST:-127.0.0.1}
+        port: ${MYSQL_PORT:-3306}
+        database: ${MYSQL_DATABASE:-eddie}
+        user: ${MYSQL_USER:-eddie}
+        password: ${MYSQL_PASSWORD:-changeme}
+      ssl: ${MYSQL_SSL:-false}
+```
+
+#### MariaDB
+
+```yaml
+api:
+  persistence:
+    driver: mariadb
+    mariadb:
+      connection:
+        host: ${MARIADB_HOST:-127.0.0.1}
+        port: ${MARIADB_PORT:-3306}
+        database: ${MARIADB_DATABASE:-eddie}
+        user: ${MARIADB_USER:-eddie}
+        password: ${MARIADB_PASSWORD:-changeme}
+      ssl: ${MARIADB_SSL:-false}
+```
+
+Both MySQL and MariaDB share the `mysql2` driver. Supply TLS configuration via
+the optional `ssl` flag or additional keys (such as `ca`) in the connection
+object.
+
+When persistence is configured for SQLite, PostgreSQL, MySQL, or MariaDB the API
+runs pending migrations automatically during startup. The `DatabaseService`
+runs `knex.migrate.latest` against the configured database using the migrations
+in `apps/api/migrations`, so simply starting the server (`npm run start:api`) is
+enough to keep the schema current. Trigger the same process in CI by launching
+the API with your production configuration and letting the bootstrap complete.
 
 ## Public Routes
 
