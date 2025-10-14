@@ -179,11 +179,10 @@ export class ContextService {
     const baseVariables = config.variables ?? {};
     const resourceConfigs = config.resources ?? [];
 
-    const globResults = await fg(includePatterns, {
-      cwd: baseDir,
-      dot: true,
-      onlyFiles: true,
-    });
+    const globResults = await fg(
+      includePatterns,
+      this.createGlobOptions(baseDir, excludePatterns)
+    );
 
     const ig = ignore().add(excludePatterns);
 
@@ -357,11 +356,10 @@ export class ContextService {
     const excludePatterns = resource.exclude?.length
       ? [...DEFAULT_EXCLUDE_PATTERNS, ...resource.exclude]
       : DEFAULT_EXCLUDE_PATTERNS;
-    const globResults = await fg(includePatterns, {
-      cwd: baseDir,
-      dot: true,
-      onlyFiles: true,
-    });
+    const globResults = await fg(
+      includePatterns,
+      this.createGlobOptions(baseDir, excludePatterns)
+    );
 
     const ig = ignore().add(excludePatterns);
     const files: PackedFile[] = [];
@@ -505,5 +503,14 @@ export class ContextService {
       resource: packed,
       bytes,
     };
+  }
+
+  private createGlobOptions(baseDir: string, excludePatterns: string[]) {
+    return {
+      cwd: baseDir,
+      dot: true,
+      onlyFiles: true,
+      ignore: excludePatterns,
+    } as const;
   }
 }
