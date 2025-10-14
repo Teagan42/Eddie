@@ -45,6 +45,38 @@ describe("TemplateRendererService", () => {
     expect(secondRender).toBe("Updated World");
   });
 
+  it("reuses cached template without re-reading unchanged source", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "template-cache-hit-"));
+    tempDirs.push(tmpDir);
+
+    const templatePath = path.join(tmpDir, "cached.njk");
+    await fs.writeFile(templatePath, "Hello {{ name }}", "utf-8");
+
+    const readFileSpy = vi.spyOn(fs, "readFile");
+
+    try {
+      const firstRender = await service.renderTemplate(
+        { file: templatePath },
+        { name: "Developer" }
+      );
+
+      expect(firstRender).toBe("Hello Developer");
+      expect(readFileSpy).toHaveBeenCalledTimes(1);
+
+      readFileSpy.mockClear();
+
+      const secondRender = await service.renderTemplate(
+        { file: templatePath },
+        { name: "Developer" }
+      );
+
+      expect(secondRender).toBe("Hello Developer");
+      expect(readFileSpy).not.toHaveBeenCalled();
+    } finally {
+      readFileSpy.mockRestore();
+    }
+  });
+
   it("rebuilds cached template when stored instance is missing", async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "template-cache-"));
     tempDirs.push(tmpDir);

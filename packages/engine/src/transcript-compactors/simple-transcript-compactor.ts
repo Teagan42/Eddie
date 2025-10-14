@@ -44,30 +44,46 @@ export class SimpleTranscriptCompactor implements TranscriptCompactor {
       reason,
       apply: (): TranscriptCompactionResult => {
         const messages = invocation.messages;
-        const removeOldestNonSystem = (): boolean => {
-          const head = messages[0];
-          if (head?.role === "system") {
-            const nextIndex = messages.findIndex(
-              (message: InvocationMessage) => message.role !== "system",
-            );
-            if (nextIndex === -1) {
-              return false;
-            }
-            messages.splice(nextIndex, 1);
-            return true;
+        const advanceToNextNonSystem = (startIndex: number): number => {
+          let index = startIndex;
+          while (index < messages.length && messages[index]?.role === "system") {
+            index += 1;
           }
-
-          messages.shift();
-          return true;
+          return index;
         };
 
         let removed = 0;
+        let searchIndex = 0;
         while (removed < removableCount && messages.length > targetKeep) {
-          const removedMessage = removeOldestNonSystem();
-          if (!removedMessage) {
+          searchIndex = advanceToNextNonSystem(searchIndex);
+
+          if (searchIndex >= messages.length) {
             break;
           }
-          removed += 1;
+
+          const remainingRemovals = Math.min(
+            removableCount - removed,
+            messages.length - targetKeep,
+          );
+
+          if (remainingRemovals <= 0) {
+            break;
+          }
+
+          const sliceLimit = Math.min(messages.length, searchIndex + remainingRemovals);
+          let sliceEnd = searchIndex;
+          while (sliceEnd < sliceLimit && messages[sliceEnd]?.role !== "system") {
+            sliceEnd += 1;
+          }
+
+          if (sliceEnd === searchIndex) {
+            searchIndex += 1;
+            continue;
+          }
+
+          const deleteCount = sliceEnd - searchIndex;
+          messages.splice(searchIndex, deleteCount);
+          removed += deleteCount;
         }
 
         return { removedMessages: removed };

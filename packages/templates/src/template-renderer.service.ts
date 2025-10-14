@@ -145,4 +145,25 @@ export class TemplateRendererService {
   ): entry is CachedTemplateEntry {
     return Boolean(entry && entry.template && entry.mtimeMs === mtimeMs);
   }
+
+  private async getOrCreateTemplate(options: {
+    absolutePath: string;
+    cacheKey: string;
+    cachedEntry: CachedTemplateEntry | undefined;
+    encoding: BufferEncoding;
+    env: nunjucks.Environment;
+    mtimeMs: number;
+  }): Promise<nunjucks.Template> {
+    const { absolutePath, cacheKey, cachedEntry, encoding, env, mtimeMs } =
+      options;
+
+    if (this.isCacheEntryUsable(cachedEntry, mtimeMs)) {
+      return cachedEntry.template;
+    }
+
+    const source = await fs.readFile(absolutePath, { encoding });
+    const template = this.createTemplate(source, env, absolutePath);
+    this.templateCache.set(cacheKey, { template, mtimeMs });
+    return template;
+  }
 }
