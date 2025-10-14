@@ -8,12 +8,21 @@ export type CreateChatMessageDto = {
      * Content of the chat message
      */
     content: string;
+    /**
+     * Identifier of the originating tool call
+     */
+    toolCallId?: string;
+    /**
+     * Originating tool name
+     */
+    name?: string;
 };
 export namespace CreateChatMessageDto {
     export enum role {
         USER = 'user',
         ASSISTANT = 'assistant',
         SYSTEM = 'system',
+        TOOL = 'tool',
     }
 }
 

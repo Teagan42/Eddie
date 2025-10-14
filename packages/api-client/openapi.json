@@ -113,6 +113,67 @@
         "tags": [
           "chat-sessions"
         ]
+      },
+      "patch": {
+        "operationId": "chatSessionsControllerRename",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChatSessionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatSessionDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Rename a chat session",
+        "tags": [
+          "chat-sessions"
+        ]
+      },
+      "delete": {
+        "operationId": "chatSessionsControllerDelete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Delete a chat session",
+        "tags": [
+          "chat-sessions"
+        ]
       }
     },
     "/chat-sessions/{id}/archive": {
@@ -281,22 +342,18 @@
         "parameters": [
           {
             "name": "offset",
+            "required": true,
             "in": "query",
-            "required": false,
             "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0
+              "type": "number"
             }
           },
           {
             "name": "limit",
+            "required": true,
             "in": "query",
-            "required": false,
             "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "default": 50
+              "type": "number"
             }
           }
         ],
@@ -392,6 +449,137 @@
           "config"
         ]
       }
+    },
+    "/config/schema": {
+      "get": {
+        "operationId": "ConfigEditorController_getSchema",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigSchemaDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get Eddie configuration schema.",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/config/editor": {
+      "get": {
+        "operationId": "ConfigEditorController_getSource",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigSourceDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get the current Eddie configuration source.",
+        "tags": [
+          "config"
+        ]
+      },
+      "put": {
+        "operationId": "ConfigEditorController_save",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigSourcePayloadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigSourceDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Persist an Eddie configuration payload.",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/config/editor/preview": {
+      "post": {
+        "operationId": "ConfigEditorController_preview",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigSourcePayloadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigPreviewDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Preview an Eddie configuration payload.",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/providers/catalog": {
+      "get": {
+        "operationId": "ProvidersController_listCatalog",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProviderCatalogEntryDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List supported providers and available models.",
+        "tags": [
+          "Providers"
+        ]
+      }
     }
   },
   "info": {
@@ -415,6 +603,14 @@
     },
     {
       "name": "Runtime Config",
+      "description": ""
+    },
+    {
+      "name": "Config",
+      "description": ""
+    },
+    {
+      "name": "Providers",
       "description": ""
     }
   ],
@@ -477,6 +673,19 @@
           "title"
         ]
       },
+      "UpdateChatSessionDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Updated session title"
+          },
+          "description": {
+            "type": "object",
+            "description": "Updated session description"
+          }
+        }
+      },
       "ChatMessageDto": {
         "type": "object",
         "properties": {
@@ -493,7 +702,8 @@
             "enum": [
               "user",
               "assistant",
-              "system"
+              "system",
+              "tool"
             ],
             "description": "Message role"
           },
@@ -504,6 +714,14 @@
           "createdAt": {
             "type": "string",
             "description": "Creation timestamp (ISO string)"
+          },
+          "toolCallId": {
+            "type": "string",
+            "description": "Identifier of the originating tool call"
+          },
+          "name": {
+            "type": "string",
+            "description": "Originating tool name"
           }
         },
         "required": [
@@ -522,13 +740,22 @@
             "enum": [
               "user",
               "assistant",
-              "system"
+              "system",
+              "tool"
             ],
             "default": "user"
           },
           "content": {
             "type": "string",
             "description": "Content of the chat message"
+          },
+          "toolCallId": {
+            "type": "string",
+            "description": "Identifier of the originating tool call"
+          },
+          "name": {
+            "type": "string",
+            "description": "Originating tool name"
           }
         },
         "required": [
@@ -672,6 +899,155 @@
             ]
           }
         }
+      },
+      "ConfigSchemaDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identifier for the schema bundle."
+          },
+          "version": {
+            "type": "string",
+            "description": "Semantic version of the schema bundle."
+          },
+          "schema": {
+            "type": "object",
+            "description": "JSON Schema describing the resolved Eddie configuration.",
+            "additionalProperties": true
+          },
+          "inputSchema": {
+            "type": "object",
+            "description": "JSON Schema describing the configuration file input.",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "schema",
+          "inputSchema"
+        ]
+      },
+      "ConfigSourceDto": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "object",
+            "description": "Absolute path to the configuration file when available.",
+            "nullable": true
+          },
+          "format": {
+            "type": "string",
+            "description": "Format used for the configuration file.",
+            "enum": [
+              "yaml",
+              "json"
+            ]
+          },
+          "content": {
+            "type": "string",
+            "description": "Raw configuration source."
+          },
+          "input": {
+            "type": "object",
+            "description": "Parsed configuration input object.",
+            "additionalProperties": true
+          },
+          "config": {
+            "type": "object",
+            "description": "Resolved Eddie configuration.",
+            "additionalProperties": true,
+            "nullable": true
+          },
+          "error": {
+            "type": "object",
+            "description": "Configuration validation error when the source cannot be composed.",
+            "nullable": true
+          }
+        },
+        "required": [
+          "path",
+          "format",
+          "content",
+          "input"
+        ]
+      },
+      "ConfigSourcePayloadDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "Configuration source contents."
+          },
+          "format": {
+            "type": "string",
+            "description": "Format of the configuration payload.",
+            "enum": [
+              "yaml",
+              "json"
+            ]
+          },
+          "path": {
+            "type": "object",
+            "description": "Optional explicit path override when persisting the configuration.",
+            "nullable": true
+          }
+        },
+        "required": [
+          "content",
+          "format"
+        ]
+      },
+      "ConfigPreviewDto": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "object",
+            "description": "Parsed configuration input object.",
+            "additionalProperties": true
+          },
+          "config": {
+            "type": "object",
+            "description": "Resolved Eddie configuration.",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "input",
+          "config"
+        ]
+      },
+      "ProviderCatalogEntryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Provider identifier",
+            "example": "openai"
+          },
+          "label": {
+            "type": "string",
+            "description": "Human-friendly provider label",
+            "example": "OpenAI",
+            "nullable": true
+          },
+          "models": {
+            "description": "Models available for the provider",
+            "example": [
+              "gpt-4o",
+              "gpt-4o-mini"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "models"
+        ]
       }
     }
   }

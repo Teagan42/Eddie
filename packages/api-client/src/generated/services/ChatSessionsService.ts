@@ -1,10 +1,12 @@
 /* generated using openapi-typescript-codegen -- do no edit */
 /* istanbul ignore file */
 /* tslint:disable */
+/* eslint-disable */
 import type { ChatMessageDto } from '../models/ChatMessageDto';
 import type { ChatSessionDto } from '../models/ChatSessionDto';
 import type { CreateChatMessageDto } from '../models/CreateChatMessageDto';
 import type { CreateChatSessionDto } from '../models/CreateChatSessionDto';
+import type { UpdateChatSessionDto } from '../models/UpdateChatSessionDto';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
@@ -47,6 +49,44 @@ export class ChatSessionsService {
     ): CancelablePromise<ChatSessionDto> {
         return __request(OpenAPI, {
             method: 'GET',
+            url: '/chat-sessions/{id}',
+            path: {
+                'id': id,
+            },
+        });
+    }
+    /**
+     * Rename a chat session
+     * @param id
+     * @param requestBody
+     * @returns ChatSessionDto
+     * @throws ApiError
+     */
+    public static chatSessionsControllerRename(
+        id: string,
+        requestBody: UpdateChatSessionDto,
+    ): CancelablePromise<ChatSessionDto> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
+            url: '/chat-sessions/{id}',
+            path: {
+                'id': id,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+        });
+    }
+    /**
+     * Delete a chat session
+     * @param id
+     * @returns void
+     * @throws ApiError
+     */
+    public static chatSessionsControllerDelete(
+        id: string,
+    ): CancelablePromise<void> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
             url: '/chat-sessions/{id}',
             path: {
                 'id': id,

@@ -3,11 +3,13 @@ import type { Mock } from "vitest";
 import {
   FALLBACK_PROVIDER_CATALOG,
   type ProviderCatalogEntryDto,
+  type UpdateChatSessionDto,
   createApiClient,
 } from "./index";
 import { OpenAPI } from "./generated/core/OpenAPI";
 import { CreateChatMessageDto } from "./generated/models/CreateChatMessageDto";
 import { LogsService } from "./generated/services/LogsService";
+import { ChatSessionsService } from "./generated/services/ChatSessionsService";
 
 vi.mock("./realtime", () => ({ createRealtimeChannel: vi.fn() }));
 
@@ -52,6 +54,22 @@ const realtimeMock =
     createRealtimeChannel as unknown as Mock<
         (baseUrl: string, namespace: string, apiKey: string | null) => RealtimeChannel
     >;
+
+const overrideServiceMethod = (
+  service: Record<string, unknown>,
+  key: string,
+  implementation: (...args: unknown[]) => unknown
+): (() => void) => {
+  const original = service[ key ];
+  service[ key ] = implementation;
+  return () => {
+    if (typeof original === "function") {
+      service[ key ] = original;
+    } else {
+      delete service[ key ];
+    }
+  };
+};
 
 describe("createApiClient", () => {
   beforeEach(() => {
@@ -203,9 +221,13 @@ describe("createApiClient", () => {
   });
 
   it("passes pagination parameters to the logs HTTP client", () => {
-    const listSpy = vi
-      .spyOn(LogsService, "logsControllerList")
-      .mockResolvedValue([]);
+    const logsService = LogsService as unknown as Record<string, unknown>;
+    const listMock = vi.fn().mockResolvedValue([]);
+    const restoreList = overrideServiceMethod(
+      logsService,
+      "logsControllerList",
+      listMock
+    );
 
     const client = createApiClient({
       baseUrl: "https://example.test/api/",
@@ -214,9 +236,31 @@ describe("createApiClient", () => {
 
     client.http.logs.list({ offset: 40, limit: 20 });
 
-    expect(listSpy).toHaveBeenCalledWith({ offset: 40, limit: 20 });
+    expect(listMock).toHaveBeenCalledWith(40, 20);
 
-    listSpy.mockRestore();
+    restoreList();
+    client.dispose();
+  });
+
+  it("uses default pagination when list options are omitted", () => {
+    const logsService = LogsService as unknown as Record<string, unknown>;
+    const listMock = vi.fn().mockResolvedValue([]);
+    const restoreList = overrideServiceMethod(
+      logsService,
+      "logsControllerList",
+      listMock
+    );
+
+    const client = createApiClient({
+      baseUrl: "https://example.test/api/",
+      websocketUrl: "ws://example.test/ws/",
+    });
+
+    client.http.logs.list();
+
+    expect(listMock).toHaveBeenCalledWith(0, 50);
+
+    restoreList();
     client.dispose();
   });
 
@@ -320,5 +364,54 @@ describe("createApiClient", () => {
 
     fetchSpy.mockRestore();
     client.dispose();
+  });
+
+  it("renames chat sessions via the generated service", async () => {
+    const renameResult = { id: "session-1" };
+    const renameMock = vi.fn().mockResolvedValue(renameResult);
+    const restoreRename = overrideServiceMethod(
+      ChatSessionsService as unknown as Record<string, unknown>,
+      "chatSessionsControllerRename",
+      renameMock
+    );
+
+    const client = createApiClient({
+      baseUrl: "https://example.test/api/",
+      websocketUrl: "ws://example.test/ws/",
+    });
+
+    const payload: UpdateChatSessionDto = { title: "New" };
+
+    await expect(
+      client.http.chatSessions.rename("session-1", payload)
+    ).resolves.toBe(renameResult);
+
+    expect(renameMock).toHaveBeenCalledWith("session-1", payload);
+
+    client.dispose();
+    restoreRename();
+  });
+
+  it("deletes chat sessions via the generated service", async () => {
+    const deleteMock = vi.fn().mockResolvedValue(undefined);
+    const restoreDelete = overrideServiceMethod(
+      ChatSessionsService as unknown as Record<string, unknown>,
+      "chatSessionsControllerDelete",
+      deleteMock
+    );
+
+    const client = createApiClient({
+      baseUrl: "https://example.test/api/",
+      websocketUrl: "ws://example.test/ws/",
+    });
+
+    await expect(client.http.chatSessions.delete("session-2")).resolves.toBe(
+      undefined
+    );
+
+    expect(deleteMock).toHaveBeenCalledWith("session-2");
+
+    client.dispose();
+    restoreDelete();
   });
 });

@@ -23,6 +23,14 @@ export type ChatMessageDto = {
      * Creation timestamp (ISO string)
      */
     createdAt: string;
+    /**
+     * Identifier of the originating tool call
+     */
+    toolCallId?: string;
+    /**
+     * Originating tool name
+     */
+    name?: string;
 };
 export namespace ChatMessageDto {
     /**
@@ -32,6 +40,7 @@ export namespace ChatMessageDto {
         USER = 'user',
         ASSISTANT = 'assistant',
         SYSTEM = 'system',
+        TOOL = 'tool',
     }
 }
 
