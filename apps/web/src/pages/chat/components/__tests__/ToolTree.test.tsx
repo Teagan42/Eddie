@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { ToolTree } from '../ToolTree';
+import { summarizeObject } from '../../chat-utils';
 
 describe('ToolTree', () => {
   it('renders an empty state when no nodes exist', () => {
@@ -265,5 +266,73 @@ describe('ToolTree', () => {
     );
 
     expect(screen.getByText('write_report')).toBeInTheDocument();
+  });
+
+  it('truncates long tool results in the tree view', () => {
+    const longResult = 'x'.repeat(500);
+    const expectedSummary = summarizeObject(longResult) ?? '';
+
+    expect(expectedSummary.endsWith('…')).toBe(true);
+
+    render(
+      <ToolTree
+        nodes={[
+          {
+            id: 'result-node',
+            name: 'process',
+            status: 'completed',
+            metadata: {
+              createdAt: '2024-03-01T00:00:00.000Z',
+              result: longResult,
+            },
+            children: [],
+          },
+        ]}
+      />,
+    );
+
+    const resultLabel = screen.getByText(`Result: ${expectedSummary}`);
+    expect(resultLabel).toBeInTheDocument();
+    expect(screen.queryByText(longResult)).not.toBeInTheDocument();
+  });
+
+  it('opens a dialog with full tool call data when the tool is clicked', async () => {
+    const user = userEvent.setup();
+    const longResult = 'x'.repeat(500);
+
+    render(
+      <ToolTree
+        nodes={[
+          {
+            id: 'result-node',
+            name: 'process',
+            status: 'completed',
+            metadata: {
+              createdAt: '2024-03-01T00:00:00.000Z',
+              result: longResult,
+              arguments: { path: '/tmp/test' },
+            },
+            children: [],
+          },
+        ]}
+      />,
+    );
+
+    const detailsTrigger = screen.getByRole('button', {
+      name: 'View process tool call details',
+    });
+
+    await user.click(detailsTrigger);
+
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Tool call: process',
+    });
+
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Toggle metadata' }),
+    );
+
+    const resultEntry = within(dialog).getByTestId('json-entry-metadata.result');
+    expect(resultEntry).toHaveTextContent(longResult);
   });
 });
