@@ -22,12 +22,13 @@ import type {
   SessionMetadata,
   SessionStatus,
 } from "@eddie/hooks";
-import type { ChatMessage } from "@eddie/types";
-import type {
-  PackedContext,
-  PackedResource,
-  ProviderAdapter,
-  ToolDefinition,
+import {
+  composeResourceText,
+  type ChatMessage,
+  type PackedContext,
+  type PackedResource,
+  type ProviderAdapter,
+  type ToolDefinition,
 } from "@eddie/types";
 import { TokenizerService } from "@eddie/tokenizers";
 import {
@@ -307,7 +308,7 @@ export class EngineService {
     context.resources = [ ...(context.resources ?? []), ...packedResources ];
 
     const resourceSections = packedResources
-      .map((resource) => this.composeResourceText(resource))
+      .map((resource) => composeResourceText(resource))
       .filter((section) => section.trim().length > 0);
 
     if (resourceSections.length > 0) {
@@ -361,20 +362,6 @@ export class EngineService {
       text: details.join("\n"),
       metadata,
     };
-  }
-
-  private composeResourceText(resource: PackedResource): string {
-    const label = resource.name ?? resource.id;
-    const description = resource.description ? ` - ${ resource.description }` : "";
-    const body = resource.text.trimEnd();
-    const lines = [ `// Resource: ${ label }${ description }` ];
-
-    if (body.length > 0) {
-      lines.push(body);
-    }
-
-    lines.push(`// End Resource: ${ label }`);
-    return lines.join("\n");
   }
 
   private buildAgentCatalog(
