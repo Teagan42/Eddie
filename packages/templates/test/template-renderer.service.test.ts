@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { execFile } from "node:child_process";
 import fs from "fs/promises";
 import os from "os";
@@ -68,6 +68,27 @@ describe("TemplateRendererService", () => {
     expect(rendered).toBe("Hi Coder");
     const cacheEntry = service["templateCache"].get(cacheKey);
     expect(cacheEntry?.template).toBeInstanceOf(nunjucks.Template);
+  });
+
+  it("reuses cached template without re-reading from disk", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "template-cache-read-"));
+    tempDirs.push(tmpDir);
+
+    const templatePath = path.join(tmpDir, "cached.njk");
+    await fs.writeFile(templatePath, "Cached {{ name }}", "utf-8");
+
+    const readFileSpy = vi.spyOn(fs, "readFile");
+
+    try {
+      await service.renderTemplate({ file: templatePath }, { name: "Coder" });
+      const callsAfterFirstRender = readFileSpy.mock.calls.length;
+
+      await service.renderTemplate({ file: templatePath }, { name: "Coder" });
+
+      expect(readFileSpy.mock.calls.length).toBe(callsAfterFirstRender);
+    } finally {
+      readFileSpy.mockRestore();
+    }
   });
 });
 

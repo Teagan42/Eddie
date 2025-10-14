@@ -28,10 +28,7 @@ export class TemplateRendererService {
   ): Promise<string> {
     const absolutePath = this.resolvePath(descriptor);
     const encoding = descriptor.encoding ?? DEFAULT_ENCODING;
-    const [source, stats] = await Promise.all([
-      fs.readFile(absolutePath, { encoding }),
-      fs.stat(absolutePath),
-    ]);
+    const stats = await fs.stat(absolutePath);
     const mtimeMs = stats.mtimeMs;
 
     const mergedVariables: TemplateVariables = {
@@ -52,8 +49,13 @@ export class TemplateRendererService {
     if (this.isCacheEntryUsable(cachedEntry, mtimeMs)) {
       template = cachedEntry.template;
     } else {
-      template = this.createTemplate(source, env, absolutePath);
-      this.templateCache.set(cacheKey, { template, mtimeMs });
+      template = await this.refreshTemplateCache({
+        absolutePath,
+        cacheKey,
+        encoding,
+        env,
+        mtimeMs,
+      });
     }
 
     const rendered = template.render(mergedVariables);
@@ -121,6 +123,20 @@ export class TemplateRendererService {
     }
 
     return { key, env };
+  }
+
+  private async refreshTemplateCache(options: {
+    absolutePath: string;
+    cacheKey: string;
+    encoding: BufferEncoding;
+    env: nunjucks.Environment;
+    mtimeMs: number;
+  }): Promise<nunjucks.Template> {
+    const { absolutePath, cacheKey, encoding, env, mtimeMs } = options;
+    const source = await fs.readFile(absolutePath, { encoding });
+    const template = this.createTemplate(source, env, absolutePath);
+    this.templateCache.set(cacheKey, { template, mtimeMs });
+    return template;
   }
 
   private isCacheEntryUsable(
