@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import type { LoggerService } from "@nestjs/common";
 import { HookBus } from "./hook-bus.service";
 import {
   HOOK_EVENTS,
@@ -16,9 +17,12 @@ import {
 
 export type { HookEventHandlers } from "./types";
 
-export type HookModule =
-  | ((bus: HookBus) => void | Promise<void>)
-  | HookEventHandlers;
+export type HookInstaller = (
+  bus: HookBus,
+  logger: LoggerService
+) => void | Promise<void>;
+
+export type HookModule = HookInstaller | HookEventHandlers;
 
 @Injectable()
 export class HooksLoaderService {

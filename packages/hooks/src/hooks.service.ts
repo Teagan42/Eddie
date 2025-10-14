@@ -36,7 +36,7 @@ export class HooksService {
         );
 
         if (typeof hookModule === "function") {
-          await hookModule(bus);
+          await hookModule(bus, this.logger);
           continue;
         }
 
