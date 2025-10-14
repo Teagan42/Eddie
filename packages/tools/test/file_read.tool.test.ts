@@ -38,6 +38,10 @@ describe("file_read tool", () => {
         path: "emoji.txt",
         bytes: 4,
         truncated: true,
+        page: 1,
+        pageSize: 4,
+        totalBytes: 8,
+        totalPages: 2,
       });
     } finally {
       await fs.rm(tmpDir, { recursive: true, force: true });
@@ -77,6 +81,10 @@ describe("file_read tool", () => {
         path: "emoji.txt",
         bytes: 4,
         truncated: true,
+        page: 1,
+        pageSize: 5,
+        totalBytes: 8,
+        totalPages: 2,
       });
     } finally {
       await fs.rm(tmpDir, { recursive: true, force: true });
