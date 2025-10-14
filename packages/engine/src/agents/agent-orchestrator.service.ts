@@ -798,7 +798,7 @@ const SPAWN_SUBAGENT_OUTPUT_SCHEMA: NonNullable<ToolSchema["outputSchema"]> = {
       data: {
         type: "object",
         description: "Structured payload capturing the subagent invocation details.",
-        additionalProperties: true,
+        additionalProperties: false,
         required: ["agentId", "messageCount", "prompt", "context"],
         properties: {
           agentId: {
@@ -814,6 +814,10 @@ const SPAWN_SUBAGENT_OUTPUT_SCHEMA: NonNullable<ToolSchema["outputSchema"]> = {
             type: "string",
             description: "Prompt text supplied to the subagent when it was spawned.",
           },
+          blocked: {
+            type: "boolean",
+            description: "Whether the delegation request was vetoed before execution.",
+          },
           finalMessage: {
             type: "string",
             description: "Final assistant message produced by the subagent, if any.",
@@ -821,17 +825,26 @@ const SPAWN_SUBAGENT_OUTPUT_SCHEMA: NonNullable<ToolSchema["outputSchema"]> = {
           variables: {
             type: "object",
             description: "Template variables merged into the subagent's prompt context.",
-            additionalProperties: true,
+            additionalProperties: false,
+            patternProperties: {
+              "^.*$": {},
+            },
           },
           context: {
             type: "object",
             description: "Snapshot of the runtime context shared with the subagent.",
-            additionalProperties: true,
+            additionalProperties: false,
+            patternProperties: {
+              "^.*$": {},
+            },
           },
           requestContext: {
             type: "object",
             description: "Context overrides applied specifically to this spawn request.",
-            additionalProperties: true,
+            additionalProperties: false,
+            patternProperties: {
+              "^.*$": {},
+            },
           },
           history: {
             type: "array",
@@ -839,7 +852,7 @@ const SPAWN_SUBAGENT_OUTPUT_SCHEMA: NonNullable<ToolSchema["outputSchema"]> = {
             items: {
               type: "object",
               required: ["role", "content"],
-              additionalProperties: true,
+              additionalProperties: false,
               properties: {
                 role: {
                   type: "string",
@@ -864,7 +877,7 @@ const SPAWN_SUBAGENT_OUTPUT_SCHEMA: NonNullable<ToolSchema["outputSchema"]> = {
       metadata: {
         type: "object",
         description: "Runtime metadata describing the subagent invocation.",
-        additionalProperties: true,
+        additionalProperties: false,
         properties: {
           agentId: { type: "string" },
           model: { type: "string" },
@@ -884,7 +897,31 @@ const SPAWN_SUBAGENT_OUTPUT_SCHEMA: NonNullable<ToolSchema["outputSchema"]> = {
           },
           request: {
             type: "object",
-            additionalProperties: true,
+            additionalProperties: false,
+            properties: {
+              prompt: { type: "string" },
+              variables: {
+                type: "object",
+                additionalProperties: false,
+                patternProperties: {
+                  "^.*$": {},
+                },
+              },
+              context: {
+                type: "object",
+                additionalProperties: false,
+                patternProperties: {
+                  "^.*$": {},
+                },
+              },
+              metadata: {
+                type: "object",
+                additionalProperties: false,
+                patternProperties: {
+                  "^.*$": {},
+                },
+              },
+            },
           },
         },
       },
