@@ -1,4 +1,9 @@
+import { builtinTools } from "@eddie/tools";
 import type { EddieConfig } from "./types";
+
+const BUILTIN_TOOL_NAMES = Object.freeze(
+  builtinTools.map((tool) => tool.name),
+);
 
 export const DEFAULT_SYSTEM_PROMPT = `You are Eddie, a CLI coding assistant.
 
@@ -66,7 +71,7 @@ export const DEFAULT_CONFIG: EddieConfig = {
     prettyStream: true,
   },
   tools: {
-    enabled: ["bash", "file_read", "file_write"],
+    enabled: [...BUILTIN_TOOL_NAMES],
     autoApprove: false,
     sources: [],
   },
