@@ -202,13 +202,15 @@ export class ContextService {
 
       const absolutePath = path.resolve(baseDir, relPath);
       try {
-        const content = await fs.readFile(absolutePath, "utf-8");
-        const bytes = Buffer.byteLength(content);
-        if (totalBytes + bytes > maxBytes) {
+        const stats = await fs.stat(absolutePath);
+        const size = Number(stats.size ?? 0);
+        if (this.exceedsBudget(totalBytes, size, maxBytes)) {
           logger.debug({ file: relPath, maxBytes }, "Skipping file beyond budget");
           continue;
         }
 
+        const content = await fs.readFile(absolutePath, "utf-8");
+        const bytes = Buffer.byteLength(content);
         files.push({
           path: relPath,
           bytes,
@@ -336,9 +338,9 @@ export class ContextService {
 
       const absolutePath = path.resolve(baseDir, relPath);
       try {
-        const content = await fs.readFile(absolutePath, "utf-8");
-        const fileBytes = Buffer.byteLength(content);
-        if (options.totalBytes + bytes + fileBytes > options.maxBytes) {
+        const stats = await fs.stat(absolutePath);
+        const size = Number(stats.size ?? 0);
+        if (this.exceedsBudget(options.totalBytes + bytes, size, options.maxBytes)) {
           options.logger.debug(
             { resource: resource.id, file: relPath, maxBytes: options.maxBytes },
             "Skipping resource file beyond budget"
@@ -346,6 +348,8 @@ export class ContextService {
           continue;
         }
 
+        const content = await fs.readFile(absolutePath, "utf-8");
+        const fileBytes = Buffer.byteLength(content);
         const normalizedRel = relPath.split(path.sep).join("/");
         const storedPath = resource.virtualPath
           ? `${resource.virtualPath.replace(/\\/g, "/").replace(/\/$/, "")}/${normalizedRel}`
@@ -393,6 +397,10 @@ export class ContextService {
       resource: packed,
       bytes,
     };
+  }
+
+  private exceedsBudget(currentBytes: number, addition: number, maxBytes: number): boolean {
+    return currentBytes + addition > maxBytes;
   }
 
   private async loadTemplateResource(
