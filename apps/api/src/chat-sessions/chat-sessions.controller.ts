@@ -16,7 +16,7 @@ import {
   ApiOperation,
   ApiTags,
 } from "@nestjs/swagger";
-import { ChatSessionsService } from "./chat-sessions.service";
+import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { CreateChatSessionDto } from "./dto/create-chat-session.dto";
 import {
   ChatMessageDto,
@@ -24,31 +24,42 @@ import {
 } from "./dto/chat-session.dto";
 import { CreateChatMessageDto } from "./dto/create-chat-message.dto";
 import { UpdateChatSessionDto } from "./dto/update-chat-session.dto";
+import { CreateChatSessionCommand } from "./commands/create-chat-session.command";
+import { UpdateChatSessionCommand } from "./commands/update-chat-session.command";
+import { DeleteChatSessionCommand } from "./commands/delete-chat-session.command";
+import { SendChatMessageCommand } from "./commands/send-chat-message.command";
+import { ArchiveChatSessionCommand } from "./commands/archive-chat-session.command";
+import { GetChatSessionQuery } from "./queries/get-chat-session.query";
+import { GetChatMessagesQuery } from "./queries/get-chat-messages.query";
+import { ListChatSessionsQuery } from "./queries/list-chat-sessions.query";
 
 @ApiTags("chat-sessions")
 @Controller("chat-sessions")
 export class ChatSessionsController {
-  constructor(private readonly chatSessions: ChatSessionsService) {}
+  constructor(
+    private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus
+  ) {}
 
   @ApiOperation({ summary: "List chat sessions" })
   @ApiOkResponse({ type: ChatSessionDto, isArray: true })
   @Get()
   async list(): Promise<ChatSessionDto[]> {
-    return this.chatSessions.listSessions();
+    return this.queryBus.execute(new ListChatSessionsQuery());
   }
 
   @ApiOperation({ summary: "Create a new chat session" })
   @ApiCreatedResponse({ type: ChatSessionDto })
   @Post()
   async create(@Body() dto: CreateChatSessionDto): Promise<ChatSessionDto> {
-    return this.chatSessions.createSession(dto);
+    return this.commandBus.execute(new CreateChatSessionCommand(dto));
   }
 
   @ApiOperation({ summary: "Fetch a single chat session" })
   @ApiOkResponse({ type: ChatSessionDto })
   @Get(":id")
   async get(@Param("id", ParseUUIDPipe) id: string): Promise<ChatSessionDto> {
-    return this.chatSessions.getSession(id);
+    return this.queryBus.execute(new GetChatSessionQuery(id));
   }
 
   @ApiOperation({
@@ -61,7 +72,7 @@ export class ChatSessionsController {
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: UpdateChatSessionDto
   ): Promise<ChatSessionDto> {
-    return this.chatSessions.renameSession(id, dto);
+    return this.commandBus.execute(new UpdateChatSessionCommand(id, dto));
   }
 
   @ApiOperation({ summary: "Archive a chat session" })
@@ -70,7 +81,7 @@ export class ChatSessionsController {
   async archive(
     @Param("id", ParseUUIDPipe) id: string
   ): Promise<ChatSessionDto> {
-    return this.chatSessions.archiveSession(id);
+    return this.commandBus.execute(new ArchiveChatSessionCommand(id));
   }
 
   @ApiOperation({
@@ -81,7 +92,7 @@ export class ChatSessionsController {
   @HttpCode(204)
   @Delete(":id")
   async delete(@Param("id", ParseUUIDPipe) id: string): Promise<void> {
-    await this.chatSessions.deleteSession(id);
+    await this.commandBus.execute(new DeleteChatSessionCommand(id));
   }
 
   @ApiOperation({ summary: "List session messages" })
@@ -90,7 +101,7 @@ export class ChatSessionsController {
   async listMessages(
     @Param("id", ParseUUIDPipe) id: string
   ): Promise<ChatMessageDto[]> {
-    return this.chatSessions.listMessages(id);
+    return this.queryBus.execute(new GetChatMessagesQuery(id));
   }
 
   @ApiOperation({ summary: "Append a message to the session" })
@@ -100,7 +111,9 @@ export class ChatSessionsController {
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: CreateChatMessageDto
   ): Promise<ChatMessageDto> {
-    const { message } = await this.chatSessions.addMessage(id, dto);
+    const { message } = await this.commandBus.execute(
+      new SendChatMessageCommand(id, dto)
+    );
     return message;
   }
 }

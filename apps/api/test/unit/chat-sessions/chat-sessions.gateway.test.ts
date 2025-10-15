@@ -1,18 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
+import type { CommandBus } from "@nestjs/cqrs";
 import { ChatSessionsGateway } from "../../../src/chat-sessions/chat-sessions.gateway";
 import type { ChatMessageDto, ChatSessionDto } from "../../../src/chat-sessions/dto/chat-session.dto";
 import * as websocketUtils from "../../../src/websocket/utils";
+import { SendChatMessageCommand } from "../../../src/chat-sessions/commands/send-chat-message.command";
+import { SendChatMessagePayloadDto } from "../../../src/chat-sessions/dto/send-chat-message.dto";
 
 const emitEventSpy = vi.spyOn(websocketUtils, "emitEvent");
 
 describe("ChatSessionsGateway", () => {
   let gateway: ChatSessionsGateway;
+  let commandBus: Pick<CommandBus, "execute">;
 
   beforeEach(() => {
-    const service = {} as unknown as ChatSessionsService;
+    commandBus = {
+      execute: vi.fn(),
+    };
 
-    gateway = new ChatSessionsGateway(service);
+    gateway = new ChatSessionsGateway(commandBus as CommandBus);
     (gateway as unknown as { server: unknown }).server = {
       clients: new Set(),
     } as unknown;
@@ -108,5 +113,20 @@ describe("ChatSessionsGateway", () => {
       state: "thinking",
       timestamp: expect.any(String),
     });
+  });
+
+  it("dispatches send message commands via the command bus", async () => {
+    const payload: SendChatMessagePayloadDto = {
+      sessionId: "session-1",
+      message: { role: "user", content: "Hi" },
+    };
+
+    await gateway.handleSendMessage(payload);
+
+    expect(commandBus.execute).toHaveBeenCalledTimes(1);
+    const command = (commandBus.execute as unknown as ReturnType<typeof vi.fn>).mock
+      .calls[0]?.[0];
+    expect(command).toBeInstanceOf(SendChatMessageCommand);
+    expect(command).toMatchObject({ sessionId: payload.sessionId, dto: payload.message });
   });
 });
