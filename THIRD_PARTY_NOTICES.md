@@ -30490,6 +30490,12 @@ MIT License
 
 ---
 
+## @types/inquirer@9.0.9
+
+**License:** MIT
+
+---
+
 ## @types/json-schema@7.0.15
 
 **License:** MIT
@@ -31267,6 +31273,12 @@ MIT License
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE
 ````
+
+---
+
+## @types/through@0.0.33
+
+**License:** MIT
 
 ---
 

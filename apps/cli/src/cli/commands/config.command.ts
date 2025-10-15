@@ -7,7 +7,7 @@ import {
   getConfigPreset,
   type EddieConfigInput,
 } from "@eddie/config";
-import type { QuestionCollection } from "inquirer";
+import type { Answers, QuestionCollection } from "inquirer";
 import type { CliArguments } from "../cli-arguments";
 import type { CliCommand, CliCommandMetadata } from "./cli-command";
 
@@ -15,7 +15,7 @@ export type ConfigWizardPresetChoice =
   | (typeof CONFIG_PRESET_NAMES)[number]
   | "none";
 
-export interface ConfigWizardAnswers {
+export interface ConfigWizardAnswers extends Answers {
   readonly preset: ConfigWizardPresetChoice;
   readonly format: "yaml" | "json";
   readonly projectDir: string;
@@ -23,15 +23,20 @@ export interface ConfigWizardAnswers {
   readonly provider: string;
 }
 
+export type ConfigWizardQuestions<T extends Answers = ConfigWizardAnswers> =
+  QuestionCollection<T>;
+
 export interface ConfigWizardPrompter {
-  prompt<T>(questions: QuestionCollection<T>): Promise<T>;
+  prompt<T extends Answers>(questions: ConfigWizardQuestions<T>): Promise<T>;
 }
 
 export const CONFIG_WIZARD_PROMPTER = Symbol("CONFIG_WIZARD_PROMPTER");
 
 @Injectable()
 export class InquirerConfigWizardPrompter implements ConfigWizardPrompter {
-  async prompt<T>(questions: QuestionCollection<T>): Promise<T> {
+  async prompt<T extends Answers>(
+    questions: ConfigWizardQuestions<T>,
+  ): Promise<T> {
     const { default: inquirer } = await import("inquirer");
     return inquirer.prompt<T>(questions);
   }
@@ -69,7 +74,7 @@ export class ConfigCommand implements CliCommand {
     }
   }
 
-  private createQuestions(): QuestionCollection<ConfigWizardAnswers> {
+  private createQuestions(): ConfigWizardQuestions {
     const hasPresets = CONFIG_PRESET_NAMES.length > 0;
     const presetChoices: ConfigWizardPresetChoice[] = hasPresets
       ? [...CONFIG_PRESET_NAMES, "none"]
