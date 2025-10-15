@@ -634,16 +634,10 @@ describe("McpToolSourceService", () => {
     expect(getTransportSessionId(1)).toBe("session-123");
   });
 
-  it("constructs with a default logger when no LoggerService is provided", async () => {
-    const service = new McpToolSourceService();
-    const source: MCPToolSourceConfig = {
-      id: "default",
-      type: "mcp",
-      url: "https://example.com/mcp",
-      capabilities: { tools: { call: true } },
-    };
-
-    await expect(service.discoverSources([source])).resolves.toBeInstanceOf(Array);
+  it("throws when constructed without a LoggerService", () => {
+    expect(() => new McpToolSourceService(undefined as unknown as LoggerService)).toThrow(
+      /LoggerService is required/
+    );
   });
 
   it("derives server identity from getServerInfo when provided", async () => {
