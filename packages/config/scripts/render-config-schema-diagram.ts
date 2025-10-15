@@ -104,9 +104,13 @@ function buildNodeLabel(
   schema: JSONSchema7,
   isRequired: boolean,
 ): string {
-  const displayKey = isRequired ? `${key}*` : key;
+  const displayKey = formatDisplayKey(key, isRequired);
   const summary = summarizeSchema(schema);
   return summary ? `${displayKey}: ${summary}` : displayKey;
+}
+
+function formatDisplayKey(key: string, isRequired: boolean): string {
+  return isRequired ? `${key} (required)` : key;
 }
 
 function summarizeSchema(schema: JSONSchema7): string {

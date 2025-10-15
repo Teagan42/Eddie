@@ -6,11 +6,11 @@
 graph TD
   root[Eddie Configuration]
   root --> agents
-  agents[agents*: object]
+  agents[agents (required): object]
   agents --> agents__enableSubagents
-  agents__enableSubagents[enableSubagents*: boolean]
+  agents__enableSubagents[enableSubagents (required): boolean]
   agents --> agents__manager
-  agents__manager[manager*: object]
+  agents__manager[manager (required): object]
   agents__manager --> agents__manager__defaultUserPromptTemplate
   agents__manager__defaultUserPromptTemplate[defaultUserPromptTemplate: object]
   agents__manager__defaultUserPromptTemplate --> agents__manager__defaultUserPromptTemplate__baseDir
@@ -18,7 +18,7 @@ graph TD
   agents__manager__defaultUserPromptTemplate --> agents__manager__defaultUserPromptTemplate__encoding
   agents__manager__defaultUserPromptTemplate__encoding[encoding: string]
   agents__manager__defaultUserPromptTemplate --> agents__manager__defaultUserPromptTemplate__file
-  agents__manager__defaultUserPromptTemplate__file[file*: string]
+  agents__manager__defaultUserPromptTemplate__file[file (required): string]
   agents__manager__defaultUserPromptTemplate --> agents__manager__defaultUserPromptTemplate__variables
   agents__manager__defaultUserPromptTemplate__variables[variables: object]
   agents__manager --> agents__manager__instructions
@@ -26,7 +26,7 @@ graph TD
   agents__manager --> agents__manager__model
   agents__manager__model[model: string]
   agents__manager --> agents__manager__prompt
-  agents__manager__prompt[prompt*: string]
+  agents__manager__prompt[prompt (required): string]
   agents__manager --> agents__manager__promptTemplate
   agents__manager__promptTemplate[promptTemplate: object]
   agents__manager__promptTemplate --> agents__manager__promptTemplate__baseDir
@@ -34,7 +34,7 @@ graph TD
   agents__manager__promptTemplate --> agents__manager__promptTemplate__encoding
   agents__manager__promptTemplate__encoding[encoding: string]
   agents__manager__promptTemplate --> agents__manager__promptTemplate__file
-  agents__manager__promptTemplate__file[file*: string]
+  agents__manager__promptTemplate__file[file (required): string]
   agents__manager__promptTemplate --> agents__manager__promptTemplate__variables
   agents__manager__promptTemplate__variables[variables: object]
   agents__manager --> agents__manager__provider
@@ -44,7 +44,7 @@ graph TD
   agents__manager --> agents__manager__variables
   agents__manager__variables[variables: object]
   agents --> agents__mode
-  agents__mode[mode*: string]
+  agents__mode[mode (required): string]
   agents --> agents__routing
   agents__routing[routing: object]
   agents__routing --> agents__routing__confidenceThreshold
@@ -52,7 +52,7 @@ graph TD
   agents__routing --> agents__routing__maxDepth
   agents__routing__maxDepth[maxDepth: integer]
   agents --> agents__subagents
-  agents__subagents[subagents*: array<object>]
+  agents__subagents[subagents (required): array<object>]
   agents__subagents__item --> agents__subagents__item__defaultUserPromptTemplate
   agents__subagents__item__defaultUserPromptTemplate[defaultUserPromptTemplate: object]
   agents__subagents__item__defaultUserPromptTemplate --> agents__subagents__item__defaultUserPromptTemplate__baseDir
@@ -60,13 +60,13 @@ graph TD
   agents__subagents__item__defaultUserPromptTemplate --> agents__subagents__item__defaultUserPromptTemplate__encoding
   agents__subagents__item__defaultUserPromptTemplate__encoding[encoding: string]
   agents__subagents__item__defaultUserPromptTemplate --> agents__subagents__item__defaultUserPromptTemplate__file
-  agents__subagents__item__defaultUserPromptTemplate__file[file*: string]
+  agents__subagents__item__defaultUserPromptTemplate__file[file (required): string]
   agents__subagents__item__defaultUserPromptTemplate --> agents__subagents__item__defaultUserPromptTemplate__variables
   agents__subagents__item__defaultUserPromptTemplate__variables[variables: object]
   agents__subagents__item --> agents__subagents__item__description
   agents__subagents__item__description[description: string]
   agents__subagents__item --> agents__subagents__item__id
-  agents__subagents__item__id[id*: string]
+  agents__subagents__item__id[id (required): string]
   agents__subagents__item --> agents__subagents__item__model
   agents__subagents__item__model[model: string]
   agents__subagents__item --> agents__subagents__item__name
@@ -80,7 +80,7 @@ graph TD
   agents__subagents__item__promptTemplate --> agents__subagents__item__promptTemplate__encoding
   agents__subagents__item__promptTemplate__encoding[encoding: string]
   agents__subagents__item__promptTemplate --> agents__subagents__item__promptTemplate__file
-  agents__subagents__item__promptTemplate__file[file*: string]
+  agents__subagents__item__promptTemplate__file[file (required): string]
   agents__subagents__item__promptTemplate --> agents__subagents__item__promptTemplate__variables
   agents__subagents__item__promptTemplate__variables[variables: object]
   agents__subagents__item --> agents__subagents__item__provider
@@ -130,21 +130,21 @@ graph TD
   api --> api__persistence
   api__persistence[persistence: object]
   api__persistence --> api__persistence__driver
-  api__persistence__driver[driver*: enum(5)]
+  api__persistence__driver[driver (required): enum(5)]
   api__persistence --> api__persistence__mariadb
   api__persistence__mariadb[mariadb: object]
   api__persistence__mariadb --> api__persistence__mariadb__connection
-  api__persistence__mariadb__connection[connection*: object]
+  api__persistence__mariadb__connection[connection (required): object]
   api__persistence__mariadb__connection --> api__persistence__mariadb__connection__database
-  api__persistence__mariadb__connection__database[database*: string]
+  api__persistence__mariadb__connection__database[database (required): string]
   api__persistence__mariadb__connection --> api__persistence__mariadb__connection__host
-  api__persistence__mariadb__connection__host[host*: string]
+  api__persistence__mariadb__connection__host[host (required): string]
   api__persistence__mariadb__connection --> api__persistence__mariadb__connection__password
-  api__persistence__mariadb__connection__password[password*: string]
+  api__persistence__mariadb__connection__password[password (required): string]
   api__persistence__mariadb__connection --> api__persistence__mariadb__connection__port
-  api__persistence__mariadb__connection__port[port*: integer]
+  api__persistence__mariadb__connection__port[port (required): integer]
   api__persistence__mariadb__connection --> api__persistence__mariadb__connection__user
-  api__persistence__mariadb__connection__user[user*: string]
+  api__persistence__mariadb__connection__user[user (required): string]
   api__persistence__mariadb --> api__persistence__mariadb__ssl
   api__persistence__mariadb__ssl[ssl: boolean]
   api__persistence__mariadb --> api__persistence__mariadb__url
@@ -152,17 +152,17 @@ graph TD
   api__persistence --> api__persistence__mysql
   api__persistence__mysql[mysql: object]
   api__persistence__mysql --> api__persistence__mysql__connection
-  api__persistence__mysql__connection[connection*: object]
+  api__persistence__mysql__connection[connection (required): object]
   api__persistence__mysql__connection --> api__persistence__mysql__connection__database
-  api__persistence__mysql__connection__database[database*: string]
+  api__persistence__mysql__connection__database[database (required): string]
   api__persistence__mysql__connection --> api__persistence__mysql__connection__host
-  api__persistence__mysql__connection__host[host*: string]
+  api__persistence__mysql__connection__host[host (required): string]
   api__persistence__mysql__connection --> api__persistence__mysql__connection__password
-  api__persistence__mysql__connection__password[password*: string]
+  api__persistence__mysql__connection__password[password (required): string]
   api__persistence__mysql__connection --> api__persistence__mysql__connection__port
-  api__persistence__mysql__connection__port[port*: integer]
+  api__persistence__mysql__connection__port[port (required): integer]
   api__persistence__mysql__connection --> api__persistence__mysql__connection__user
-  api__persistence__mysql__connection__user[user*: string]
+  api__persistence__mysql__connection__user[user (required): string]
   api__persistence__mysql --> api__persistence__mysql__ssl
   api__persistence__mysql__ssl[ssl: boolean]
   api__persistence__mysql --> api__persistence__mysql__url
@@ -170,17 +170,17 @@ graph TD
   api__persistence --> api__persistence__postgres
   api__persistence__postgres[postgres: object]
   api__persistence__postgres --> api__persistence__postgres__connection
-  api__persistence__postgres__connection[connection*: object]
+  api__persistence__postgres__connection[connection (required): object]
   api__persistence__postgres__connection --> api__persistence__postgres__connection__database
-  api__persistence__postgres__connection__database[database*: string]
+  api__persistence__postgres__connection__database[database (required): string]
   api__persistence__postgres__connection --> api__persistence__postgres__connection__host
-  api__persistence__postgres__connection__host[host*: string]
+  api__persistence__postgres__connection__host[host (required): string]
   api__persistence__postgres__connection --> api__persistence__postgres__connection__password
-  api__persistence__postgres__connection__password[password*: string]
+  api__persistence__postgres__connection__password[password (required): string]
   api__persistence__postgres__connection --> api__persistence__postgres__connection__port
-  api__persistence__postgres__connection__port[port*: integer]
+  api__persistence__postgres__connection__port[port (required): integer]
   api__persistence__postgres__connection --> api__persistence__postgres__connection__user
-  api__persistence__postgres__connection__user[user*: string]
+  api__persistence__postgres__connection__user[user (required): string]
   api__persistence__postgres --> api__persistence__postgres__ssl
   api__persistence__postgres__ssl[ssl: boolean]
   api__persistence__postgres --> api__persistence__postgres__url
@@ -210,13 +210,13 @@ graph TD
   api__validation --> api__validation__whitelist
   api__validation__whitelist[whitelist: boolean]
   root --> context
-  context[context*: object]
+  context[context (required): object]
   context --> context__baseDir
   context__baseDir[baseDir: string]
   context --> context__exclude
   context__exclude[exclude: array<string>]
   context --> context__include
-  context__include[include*: array<string>]
+  context__include[include (required): array<string>]
   context --> context__maxBytes
   context__maxBytes[maxBytes: integer]
   context --> context__maxFiles
@@ -232,7 +232,7 @@ graph TD
   hooks --> hooks__modules
   hooks__modules[modules: array<string>]
   root --> logLevel
-  logLevel[logLevel*: string]
+  logLevel[logLevel (required): string]
   root --> logging
   logging[logging: object]
   logging --> logging__destination
@@ -244,13 +244,13 @@ graph TD
   logging__destination --> logging__destination__pretty
   logging__destination__pretty[pretty: boolean]
   logging__destination --> logging__destination__type
-  logging__destination__type[type*: string]
+  logging__destination__type[type (required): string]
   logging --> logging__enableTimestamps
   logging__enableTimestamps[enableTimestamps: boolean]
   logging --> logging__level
-  logging__level[level*: string]
+  logging__level[level (required): string]
   root --> model
-  model[model*: string]
+  model[model (required): string]
   root --> output
   output[output: object]
   output --> output__directory
@@ -264,19 +264,19 @@ graph TD
   root --> projectDir
   projectDir[projectDir: string]
   root --> provider
-  provider[provider*: object]
+  provider[provider (required): object]
   provider --> provider__apiKey
   provider__apiKey[apiKey: string]
   provider --> provider__baseUrl
   provider__baseUrl[baseUrl: string]
   provider --> provider__name
-  provider__name[name*: string]
+  provider__name[name (required): string]
   provider --> provider__version
   provider__version[version: string]
   root --> providers
   providers[providers: object]
   root --> systemPrompt
-  systemPrompt[systemPrompt*: string]
+  systemPrompt[systemPrompt (required): string]
   root --> tokenizer
   tokenizer[tokenizer: object]
   tokenizer --> tokenizer__provider
@@ -302,13 +302,13 @@ graph TD
   tools__sources__item --> tools__sources__item__headers
   tools__sources__item__headers[headers: object]
   tools__sources__item --> tools__sources__item__id
-  tools__sources__item__id[id*: string]
+  tools__sources__item__id[id (required): string]
   tools__sources__item --> tools__sources__item__name
   tools__sources__item__name[name: string]
   tools__sources__item --> tools__sources__item__type
-  tools__sources__item__type[type*: const mcp]
+  tools__sources__item__type[type (required): const mcp]
   tools__sources__item --> tools__sources__item__url
-  tools__sources__item__url[url*: string]
+  tools__sources__item__url[url (required): string]
   root --> transcript
   transcript[transcript: object]
   transcript --> transcript__compactor

@@ -14,4 +14,13 @@ describe("renderConfigSchemaMermaid", () => {
     expect(diagram).toContain("root --> agents");
     expect(diagram).toContain("agents --> agents__subagents");
   });
+
+  it("marks required fields without breaking mermaid syntax", () => {
+    const diagram = renderConfigSchemaMermaid(EDDIE_CONFIG_SCHEMA_BUNDLE);
+
+    expect(diagram).toContain(
+      "api__persistence__driver[driver (required): enum(5)]",
+    );
+    expect(diagram).not.toContain("driver*");
+  });
 });
