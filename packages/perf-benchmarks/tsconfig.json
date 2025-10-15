@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "types": ["vitest"],
+    "outDir": "dist"
+  },
+  "include": ["benchmarks/**/*.ts", "**/*.ts"],
+  "exclude": ["dist", "node_modules"]
+}
