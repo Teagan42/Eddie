@@ -1,4 +1,10 @@
-import { Module, type DynamicModule, type Provider, type Type } from "@nestjs/common";
+import {
+  ConfigurableModuleBuilder,
+  Module,
+  type DynamicModule,
+  type Provider,
+  type Type,
+} from "@nestjs/common";
 import { ConfirmService } from "./confirm.service";
 import { JsonlWriterService } from "./jsonl-writer.service";
 import { LoggerService } from "./logger.service";
@@ -43,18 +49,38 @@ const exportsList = [
   rootLoggerProvider.provide!,
 ];
 
+const { ConfigurableModuleClass } =
+  new ConfigurableModuleBuilder<IoModuleOptions>({
+    moduleName: "IoModule",
+  })
+    .setExtras({ isGlobal: true }, (definition, extras) => ({
+      ...definition,
+      global: extras.isGlobal,
+    }))
+    .build();
+
+const augmentModuleDefinition = (
+  definition: DynamicModule,
+  streamRendererClass: Type<StreamRendererService>
+): DynamicModule => ({
+  ...definition,
+  providers: [
+    ...(definition.providers ?? []),
+    ...createProviders(streamRendererClass),
+  ],
+  exports: [...(definition.exports ?? []), ...exportsList],
+});
+
 @Module({
   providers: createProviders(StreamRendererService),
   exports: exportsList,
 })
-export class IoModule {
-  static register(options: IoModuleOptions = {}): DynamicModule {
-    const streamRendererClass = options.streamRendererClass ?? StreamRendererService;
+export class IoModule extends ConfigurableModuleClass {
+  static override register(options: IoModuleOptions = {}): DynamicModule {
+    const streamRendererClass =
+      options.streamRendererClass ?? StreamRendererService;
+    const definition = super.register(options);
 
-    return {
-      module: IoModule,
-      providers: createProviders(streamRendererClass),
-      exports: exportsList,
-    };
+    return augmentModuleDefinition(definition, streamRendererClass);
   }
 }
