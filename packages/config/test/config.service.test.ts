@@ -5,6 +5,7 @@ import * as runtimeEnv from "../src/runtime-env";
 import type { ConfigStore } from "../src/config.store";
 import { ConfigService } from "../src/config.service";
 import { DEFAULT_CONFIG } from "../src/defaults";
+import { ConfigValidator } from "../src/validation/config-validator";
 import type { CliRuntimeOptions, EddieConfig, EddieConfigInput } from "../src/types";
 
 const clone = <T>(value: T): T => structuredClone(value);
@@ -22,7 +23,14 @@ const createService = (defaults?: Partial<EddieConfig>) => {
   } as unknown as ConfigStore;
   const moduleOptions = {} as CliRuntimeOptions;
 
-  const service = new ConfigService(configStore, moduleOptions, providerDefaults, null);
+  const validator = new ConfigValidator();
+  const service = new ConfigService(
+    configStore,
+    moduleOptions,
+    providerDefaults,
+    validator,
+    null,
+  );
 
   return { service, configStore };
 };
@@ -36,13 +44,25 @@ describe("ConfigService compose precedence", () => {
     const resolverSpy = vi.spyOn(runtimeEnv, "resolveCliRuntimeOptionsFromEnv");
     const moduleOptions = { model: "module-model" } as CliRuntimeOptions;
 
-    new ConfigService(undefined, moduleOptions, undefined, null);
+    new ConfigService(
+      undefined,
+      moduleOptions,
+      undefined,
+      new ConfigValidator(),
+      null,
+    );
 
     expect(resolverSpy).not.toHaveBeenCalled();
   });
 
   it("does not expose an onApplicationBootstrap hook", () => {
-    const service = new ConfigService(undefined, {} as CliRuntimeOptions, undefined, null);
+    const service = new ConfigService(
+      undefined,
+      {} as CliRuntimeOptions,
+      undefined,
+      new ConfigValidator(),
+      null,
+    );
 
     expect("onApplicationBootstrap" in service).toBe(false);
   });
@@ -149,7 +169,13 @@ describe("ConfigService readSnapshot", () => {
       config: configPath,
       model: "module-model",
     } as CliRuntimeOptions;
-    const service = new ConfigService(undefined, moduleOptions, undefined, configPath);
+    const service = new ConfigService(
+      undefined,
+      moduleOptions,
+      undefined,
+      new ConfigValidator(),
+      configPath,
+    );
 
     const readFile = vi
       .spyOn(fs, "readFile")

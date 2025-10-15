@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   ConfigService,
+  ConfigValidator,
   DEFAULT_CONFIG,
   type CliRuntimeOptions,
   type ConfigStore,
@@ -16,7 +17,13 @@ const createService = (defaults = DEFAULT_CONFIG) => {
   const moduleOptions = {} as CliRuntimeOptions;
   const providerDefaults = clone(defaults);
 
-  const service = new ConfigService(store, moduleOptions, providerDefaults);
+  const service = new ConfigService(
+    store,
+    moduleOptions,
+    providerDefaults,
+    new ConfigValidator(),
+    null,
+  );
 
   return { service, store };
 };

@@ -5,6 +5,7 @@ import { MODULE_OPTIONS_TOKEN, INITIAL_CONFIG_TOKEN, CONFIG_FILE_PATH_TOKEN } fr
 import { eddieConfig } from "./config.namespace";
 import type { CliRuntimeOptions, EddieConfig } from "./types";
 import { resolveRuntimeOptions } from "./runtime-env";
+import { ConfigValidator } from "./validation/config-validator";
 
 export const initialConfigProvider: FactoryProvider<Promise<EddieConfig>> = {
   provide: INITIAL_CONFIG_TOKEN,
@@ -23,6 +24,7 @@ export const initialConfigProvider: FactoryProvider<Promise<EddieConfig>> = {
       undefined,
       combinedOptions,
       defaults,
+      new ConfigValidator(),
       configFilePath ?? null,
     );
 

@@ -6,11 +6,12 @@ import { ConfigModule as NestConfigModule } from "@nestjs/config";
 import { eddieConfig } from "./config.namespace";
 import { ConfigService } from "./config.service";
 import { ConfigWatcher } from "./config-watcher";
-import { ConfigStore } from './config.store';
+import { ConfigStore } from "./config.store";
 import { initialConfigProvider } from "./initial-config.provider";
 import type { CliRuntimeOptions } from "./types";
-import { CONFIG_FILE_PATH_TOKEN, ConfigurableModuleClass, MODULE_OPTIONS_TOKEN } from './config.const';
+import { CONFIG_FILE_PATH_TOKEN, ConfigurableModuleClass, MODULE_OPTIONS_TOKEN } from "./config.const";
 import { configFilePathProvider } from "./config-file-path.provider";
+import { ConfigValidator } from "./validation/config-validator";
 
 
 @Global()
@@ -18,6 +19,7 @@ import { configFilePathProvider } from "./config-file-path.provider";
   imports: [NestConfigModule.forFeature(eddieConfig)],
   providers: [
     configFilePathProvider,
+    ConfigValidator,
     ConfigService,
     ConfigWatcher,
     initialConfigProvider,

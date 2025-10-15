@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import path from "path";
 import { describe, it, expect } from "vitest";
 
-import { ConfigService } from "@eddie/config";
+import { ConfigService, ConfigValidator } from "@eddie/config";
 import type { TemplateDescriptor } from "@eddie/templates";
 
 const projectRoot = path.resolve(__dirname, "../../../../");
@@ -33,7 +33,13 @@ const ensureTemplateAssets = async (descriptor: TemplateDescriptor) => {
 };
 
 describe("documentation examples", () => {
-  const service = new ConfigService();
+  const service = new ConfigService(
+    undefined,
+    undefined,
+    undefined,
+    new ConfigValidator(),
+    null,
+  );
 
   it("loads and validates the standalone architecture audit example", async () => {
     const config = await service.load({
