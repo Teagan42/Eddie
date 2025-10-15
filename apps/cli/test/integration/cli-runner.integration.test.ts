@@ -10,6 +10,7 @@ import { RunCommand } from "../../src/cli/commands/run.command";
 import { ContextCommand } from "../../src/cli/commands/context.command";
 import { ChatCommand } from "../../src/cli/commands/chat.command";
 import { TraceCommand } from "../../src/cli/commands/trace.command";
+import { ConfigCommand } from "../../src/cli/commands/config.command";
 import { EngineService } from "@eddie/engine";
 import { ConfigStore } from "@eddie/config";
 import { ContextService } from "@eddie/context";
@@ -130,9 +131,24 @@ describe("CliRunnerService integration", () => {
             runCommand: RunCommand,
             contextCommand: ContextCommand,
             chatCommand: ChatCommand,
-            traceCommand: TraceCommand
-          ): CliCommand[] => [askCommand, runCommand, contextCommand, chatCommand, traceCommand],
-          inject: [AskCommand, RunCommand, ContextCommand, ChatCommand, TraceCommand],
+            traceCommand: TraceCommand,
+            configCommand: ConfigCommand
+          ): CliCommand[] => [
+            askCommand,
+            runCommand,
+            contextCommand,
+            chatCommand,
+            traceCommand,
+            configCommand,
+          ],
+          inject: [
+            AskCommand,
+            RunCommand,
+            ContextCommand,
+            ChatCommand,
+            TraceCommand,
+            ConfigCommand,
+          ],
         },
         {
           provide: CliRunnerService,
@@ -142,6 +158,7 @@ describe("CliRunnerService integration", () => {
         },
         { provide: ChatCommand, useValue: createStubCommand("chat") },
         { provide: TraceCommand, useValue: createStubCommand("trace") },
+        { provide: ConfigCommand, useValue: createStubCommand("config") },
         { provide: EngineService, useValue: engine },
         { provide: ConfigStore, useValue: configStore as ConfigStore },
         { provide: ContextService, useValue: contextService },
