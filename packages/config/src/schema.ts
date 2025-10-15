@@ -505,6 +505,23 @@ const TRANSCRIPT_COMPACTOR_SUMMARIZER_SCHEMA: JSONSchema7 = {
     maxMessages: { type: "integer", minimum: 1 },
     windowSize: { type: "integer", minimum: 1 },
     label: { type: "string", minLength: 1 },
+    http: {
+      type: "object",
+      additionalProperties: false,
+      required: ["url"],
+      properties: {
+        url: { type: "string", minLength: 1 },
+        method: {
+          type: "string",
+          enum: ["POST", "PUT", "PATCH"],
+        },
+        headers: {
+          type: "object",
+          additionalProperties: { type: "string" },
+        },
+        timeoutMs: { type: "integer", minimum: 1 },
+      },
+    },
   },
 };
 

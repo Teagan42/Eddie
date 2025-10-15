@@ -214,6 +214,14 @@ export interface SummarizerTranscriptCompactorConfig
   maxMessages?: number;
   windowSize?: number;
   label?: string;
+  http?: SummarizerHttpTranscriptCompactorConfig;
+}
+
+export interface SummarizerHttpTranscriptCompactorConfig {
+  url: string;
+  method?: "POST" | "PUT" | "PATCH";
+  headers?: Record<string, string>;
+  timeoutMs?: number;
 }
 
 export interface IntelligentTranscriptCompactorConfig
