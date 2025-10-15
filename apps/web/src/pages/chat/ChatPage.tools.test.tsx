@@ -1,7 +1,8 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatPageRenderer } from "./test-utils";
+import type { OrchestratorMetadataDto } from "@eddie/api-client";
 
 const listSessionsMock = vi.fn();
 const listMessagesMock = vi.fn();
@@ -140,9 +141,7 @@ describe("ChatPage tool metadata merging", () => {
           id: "call-1",
           name: "search",
           status: "running",
-          metadata: {
-            arguments: null,
-          },
+          metadata: null,
           children: [],
         },
       ],
@@ -154,12 +153,23 @@ describe("ChatPage tool metadata merging", () => {
       });
     });
 
+    const toolCardButton = screen.getByRole("button", {
+      name: /view search tool call details/i,
+    });
+    const toolCard = toolCardButton.closest("li");
+    expect(toolCard).toBeInstanceOf(HTMLElement);
+
     await waitFor(() => {
-      expect(screen.getByText("Args: query: cats")).toBeInTheDocument();
+      expect(within(toolCard as HTMLElement).getByText("Args: query: cats")).toBeInTheDocument();
+      expect(within(toolCard as HTMLElement).queryByText("Args: —")).not.toBeInTheDocument();
     });
 
     await waitFor(() => {
-      expect(screen.queryByText("Args: —")).not.toBeInTheDocument();
+      const snapshot = client.getQueryData<OrchestratorMetadataDto | null>([
+        "orchestrator-metadata",
+        "session-1",
+      ]);
+      expect(snapshot?.toolInvocations?.[0]?.metadata?.arguments).toBe("query: cats");
     });
   });
 });

@@ -2,6 +2,8 @@ import { act, screen, waitFor } from "@testing-library/react";
 import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { OrchestratorMetadataDto } from "@/api/orchestrator";
+
 import { createChatPageRenderer } from "./test-utils";
 
 const listSessionsMock = vi.fn();
@@ -155,5 +157,116 @@ describe("ChatPage orchestrator metadata realtime cache updates", () => {
 
     await waitFor(() => expect(screen.getByText("Dataset A")).toBeInTheDocument());
     await waitFor(() => expect(screen.getAllByText("Primary Agent").length).toBeGreaterThan(0));
+  });
+
+  it("refreshes metadata panels when the orchestrator request resolves with new data", async () => {
+    const { client } = renderChatPage();
+
+    await waitFor(() => expect(getMetadataMock).toHaveBeenCalledTimes(1));
+
+    expect(
+      await screen.findByText("No context bundles associated yet."),
+    ).toBeInTheDocument();
+
+    getMetadataMock.mockResolvedValueOnce({
+      sessionId: "session-1",
+      contextBundles: [
+        {
+          id: "bundle-2",
+          label: "Dataset B",
+          summary: "Another dataset",
+          fileCount: 3,
+          sizeBytes: 2048,
+        },
+      ],
+      agentHierarchy: [
+        {
+          id: "agent-2",
+          name: "Secondary Agent",
+          role: "support",
+          metadata: {},
+          children: [],
+        },
+      ],
+      toolInvocations: [],
+    });
+
+    await act(async () => {
+      await client.refetchQueries({
+        queryKey: ["orchestrator-metadata", "session-1"],
+      });
+    });
+
+    await waitFor(() => expect(screen.getByText("Dataset B")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("Secondary Agent").length).toBeGreaterThan(0));
+  });
+
+  it("honors empty orchestrator responses after realtime updates", async () => {
+    const { client } = renderChatPage();
+
+    await waitFor(() => expect(getMetadataMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(toolResultHandler).toBeTypeOf("function"));
+
+    await act(async () => {
+      toolResultHandler?.({
+        sessionId: "session-1",
+        id: "call-2",
+        name: "browser.search",
+        status: "completed",
+        result: {},
+      });
+    });
+
+    await waitFor(() => expect(screen.getAllByText("browser.search").length).toBeGreaterThan(0));
+
+    getMetadataMock.mockResolvedValueOnce({
+      sessionId: "session-1",
+      contextBundles: [],
+      agentHierarchy: [],
+      toolInvocations: [],
+    });
+
+    await act(async () => {
+      await client.refetchQueries({
+        queryKey: ["orchestrator-metadata", "session-1"],
+      });
+    });
+
+    await waitFor(() => expect(screen.queryByText("browser.search")).toBeNull());
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("No tool calls recorded for this session yet."),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it("syncs the orchestrator metadata query cache after realtime tool events", async () => {
+    const { client } = renderChatPage();
+
+    const queryKey = ["orchestrator-metadata", "session-1"] as const;
+
+    await waitFor(() => expect(getMetadataMock).toHaveBeenCalledTimes(1));
+
+    const initialMetadata = client.getQueryData<OrchestratorMetadataDto | null>(queryKey);
+    expect(initialMetadata?.toolInvocations ?? []).toHaveLength(0);
+
+    await act(async () => {
+      toolResultHandler?.({
+        sessionId: "session-1",
+        id: "call-cache-1",
+        name: "filesystem.read",
+        status: "completed",
+        result: {
+          contextBundles: [],
+          agentHierarchy: [],
+        },
+      });
+    });
+
+    await waitFor(() => {
+      const updatedMetadata = client.getQueryData<OrchestratorMetadataDto | null>(queryKey);
+      expect(updatedMetadata?.toolInvocations ?? []).not.toHaveLength(0);
+    });
   });
 });
