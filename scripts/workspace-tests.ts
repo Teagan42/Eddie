@@ -204,7 +204,7 @@ export function determineConcurrency(totalWorkspaces: number): number {
   }
 
   const cpuCount = os.cpus()?.length ?? 1;
-  const recommended = Math.min(2, cpuCount);
+  const recommended = Math.min(3, cpuCount);
   return Math.min(recommended, totalWorkspaces);
 }
 

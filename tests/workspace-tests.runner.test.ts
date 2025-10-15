@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import os from 'node:os';
 import { createTestResult, determineConcurrency, runWithConcurrency } from '../scripts/workspace-tests';
 
 describe('workspace test runner concurrency', () => {
@@ -19,14 +20,30 @@ describe('workspace test runner concurrency', () => {
     expect(Math.max(...activeCounts)).toBeLessThanOrEqual(2);
   });
 
-  it('caps default concurrency to two workers', () => {
+  it('caps default concurrency to three workers', () => {
     const previous = process.env.WORKSPACE_TEST_CONCURRENCY;
     delete process.env.WORKSPACE_TEST_CONCURRENCY;
 
-    expect(determineConcurrency(10)).toBeLessThanOrEqual(2);
+    const cpuSpy = vi
+      .spyOn(os, 'cpus')
+      .mockReturnValue(
+        Array.from({ length: 8 }, () => ({
+          model: 'test',
+          speed: 0,
+          times: { user: 0, nice: 0, sys: 0, idle: 0, irq: 0 },
+        })),
+      );
 
-    if (previous !== undefined) {
-      process.env.WORKSPACE_TEST_CONCURRENCY = previous;
+    try {
+      expect(determineConcurrency(10)).toBe(3);
+    } finally {
+      cpuSpy.mockRestore();
+
+      if (previous !== undefined) {
+        process.env.WORKSPACE_TEST_CONCURRENCY = previous;
+      } else {
+        delete process.env.WORKSPACE_TEST_CONCURRENCY;
+      }
     }
   });
 
