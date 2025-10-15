@@ -1,10 +1,11 @@
 import "reflect-metadata";
 import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
-import type {
-  ChatMessage,
-  PackedContext,
-  ProviderAdapter,
-  StreamEvent,
+import {
+  AgentStreamEvent,
+  type ChatMessage,
+  type PackedContext,
+  type ProviderAdapter,
+  type StreamEvent,
 } from "@eddie/types";
 import {
   AgentInvocationFactory,
@@ -33,6 +34,14 @@ class RecordingStreamRendererService extends StreamRendererService {
 
   override flush(): void {
     this.flushCount += 1;
+  }
+}
+
+class RecordingEventBus {
+  readonly events: AgentStreamEvent[] = [];
+
+  publish(event: AgentStreamEvent): void {
+    this.events.push(event);
   }
 }
 
@@ -80,6 +89,7 @@ describe("AgentOrchestratorService", () => {
   let renderer: RecordingStreamRendererService;
   let loggerService: LoggerService;
   let agentInvocationFactory: AgentInvocationFactory;
+  let eventBus: RecordingEventBus;
 
   beforeEach(() => {
     const toolRegistryFactory = new ToolRegistryFactory();
@@ -89,10 +99,12 @@ describe("AgentOrchestratorService", () => {
       templateRenderer
     );
     renderer = new RecordingStreamRendererService();
+    eventBus = new RecordingEventBus();
     const traceWriter = new JsonlWriterService();
     orchestrator = new AgentOrchestratorService(
       agentInvocationFactory,
       renderer,
+      eventBus as unknown as { publish: (event: AgentStreamEvent) => void },
       traceWriter
     );
     loggerService = new LoggerService();
@@ -218,7 +230,11 @@ describe("AgentOrchestratorService", () => {
       "assistant",
     ]);
     expect(invocation.messages.at(-1)?.content).toBe("partial response");
-    expect(renderer.events.map((event) => event.type)).toEqual(["delta", "delta", "end"]);
+    expect(eventBus.events.map((event) => event.event.type)).toEqual([
+      "delta",
+      "delta",
+      "end",
+    ]);
     expect(createSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -491,9 +507,11 @@ describe("AgentOrchestratorService", () => {
 
   it("writes trace records for agent phases with metadata", async () => {
     const traceWriter = new RecordingJsonlWriterService();
+    eventBus = new RecordingEventBus();
     orchestrator = new AgentOrchestratorService(
       agentInvocationFactory,
       renderer,
+      eventBus as unknown as { publish: (event: AgentStreamEvent) => void },
       traceWriter
     );
 
@@ -840,9 +858,9 @@ describe("AgentOrchestratorService", () => {
       content: "Recovered",
     });
 
-    const renderedNotification = renderer.events.find(
-      (event) => event.type === "notification"
-    );
+    const renderedNotification = eventBus.events
+      .map((entry) => entry.event)
+      .find((event) => event.type === "notification");
     expect(renderedNotification).toMatchObject({
       ...notifications[0],
       agentId: "manager",

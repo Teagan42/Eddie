@@ -8,6 +8,7 @@ import type {
   HookEventName,
 } from "@eddie/hooks";
 import type { StreamRendererService } from "@eddie/io";
+import type { EventBus } from "@nestjs/cqrs";
 import type {
   ChatMessage,
   PackedContext,
@@ -15,6 +16,7 @@ import type {
   ToolResult,
   ToolSchema,
 } from "@eddie/types";
+import { AgentStreamEvent } from "@eddie/types";
 import type { TemplateVariables } from "@eddie/templates";
 import type { AgentInvocation } from "./agent-invocation";
 import type { AgentRuntimeDescriptor } from "./agent-runtime.types";
@@ -33,6 +35,7 @@ export interface AgentRunnerOptions {
   invocation: AgentInvocation;
   descriptor: AgentRuntimeDescriptor;
   streamRenderer: StreamRendererService;
+  eventBus: EventBus;
   hooks: HookBus;
   logger: Logger;
   cwd: string;
@@ -101,6 +104,7 @@ export class AgentRunner {
       invocation,
       descriptor,
       streamRenderer,
+      eventBus,
       hooks,
       logger,
       composeToolSchemas,
@@ -159,8 +163,10 @@ export class AgentRunner {
 
         const toolSchemas = composeToolSchemas();
 
-        const renderWithAgent = (incoming: StreamEvent): void => {
-          streamRenderer.render({ ...incoming, agentId: invocation.id });
+        const publishWithAgent = (incoming: StreamEvent): void => {
+          eventBus.publish(
+            new AgentStreamEvent({ ...incoming, agentId: invocation.id })
+          );
         };
 
         const stream = descriptor.provider.stream({
@@ -175,13 +181,13 @@ export class AgentRunner {
         for await (const event of stream) {
           if (event.type === "delta") {
             assistantBuffer += event.text;
-            renderWithAgent(event);
+            publishWithAgent(event);
             continue;
           }
 
           if (event.type === "tool_call") {
             streamRenderer.flush();
-            renderWithAgent(event);
+            publishWithAgent(event);
 
             const preToolDispatch = await dispatchHookOrThrow(
               HOOK_EVENTS.preToolUse,
@@ -246,7 +252,7 @@ export class AgentRunner {
                 });
               }
 
-              renderWithAgent({
+              publishWithAgent({
                 type: "tool_result",
                 name: event.name,
                 id: event.id,
@@ -308,7 +314,7 @@ export class AgentRunner {
                 "Tool execution failed"
               );
 
-              renderWithAgent(notification);
+              publishWithAgent(notification);
 
               invocation.messages.push({
                 role: "tool",
@@ -340,7 +346,7 @@ export class AgentRunner {
           }
 
           if (event.type === "error") {
-            renderWithAgent(event);
+            publishWithAgent(event);
             agentFailed = true;
 
             await dispatchHookOrThrow(HOOK_EVENTS.onError, {
@@ -368,7 +374,7 @@ export class AgentRunner {
           }
 
           if (event.type === "notification") {
-            renderWithAgent(event);
+            publishWithAgent(event);
             await hooks.emitAsync(HOOK_EVENTS.notification, {
               ...iterationPayload,
               event,
@@ -377,7 +383,7 @@ export class AgentRunner {
           }
 
           if (event.type === "end") {
-            renderWithAgent(event);
+            publishWithAgent(event);
             if (event.responseId) {
               this.previousResponseId = event.responseId;
             }
@@ -404,7 +410,7 @@ export class AgentRunner {
             continue;
           }
 
-          renderWithAgent(event);
+          publishWithAgent(event);
         }
 
         if (agentFailed) {

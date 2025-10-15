@@ -1,7 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { Injectable } from "@nestjs/common";
 import { EventBus } from "@nestjs/cqrs";
-import { StreamRendererService } from "@eddie/io";
 import type { StreamEvent } from "@eddie/types";
 import {
   ChatMessagePartialEvent,
@@ -14,29 +13,28 @@ import { ChatMessageRole } from "./dto/create-chat-message.dto";
 import type { ChatMessageDto } from "./dto/chat-session.dto";
 
 interface StreamState {
-    sessionId: string;
-    buffer: string;
-    messageId?: string;
-    activity: AgentActivityState;
-    pending: Promise<void>[];
-    lastEmittedContent?: string;
+  sessionId: string;
+  buffer: string;
+  messageId?: string;
+  activity: AgentActivityState;
+  pending: Promise<void>[];
+  lastEmittedContent?: string;
 }
 
 export interface StreamCaptureResult<T> {
-    result?: T;
-    error?: unknown;
-    state: StreamState;
+  result?: T;
+  error?: unknown;
+  state: StreamState;
 }
 
 @Injectable()
-export class ChatSessionStreamRendererService extends StreamRendererService {
+export class ChatSessionStreamRendererService {
   private readonly storage = new AsyncLocalStorage<StreamState>();
+
   constructor(
-        private readonly chatSessions: ChatSessionsService,
-        private readonly eventBus: EventBus,
-  ) {
-    super();
-  }
+    private readonly chatSessions: ChatSessionsService,
+    private readonly eventBus: EventBus,
+  ) {}
 
   async capture<T>(
     sessionId: string,
@@ -65,7 +63,7 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
     return { result, error, state };
   }
 
-  override render(event: StreamEvent): void {
+  render(event: StreamEvent): void {
     const state = this.storage.getStore();
 
     if (state) {
@@ -77,7 +75,6 @@ export class ChatSessionStreamRendererService extends StreamRendererService {
       state.pending.push(task);
     }
 
-    super.render(event);
   }
 
   private async handleEvent(

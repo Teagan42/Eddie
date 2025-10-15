@@ -27,6 +27,7 @@
     "@eddie/tools": "^0.0.0",
     "@eddie/types": "^0.0.0",
     "@nestjs/common": "^11.0.0",
+    "@nestjs/cqrs": "^11.0.0",
     "pino": "^10.0.0"
   }
 }

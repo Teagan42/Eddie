@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { EventBus } from "@nestjs/cqrs";
 import type { Logger } from "pino";
 import { JsonlWriterService, StreamRendererService } from "@eddie/io";
 import { HOOK_EVENTS, isSpawnSubagentOverride } from "@eddie/hooks";
@@ -78,6 +79,7 @@ export class AgentOrchestratorService {
   constructor(
         private readonly agentInvocationFactory: AgentInvocationFactory,
         private readonly streamRenderer: StreamRendererService,
+        private readonly eventBus: EventBus,
         private readonly traceWriter: JsonlWriterService
   ) { }
 
@@ -608,6 +610,7 @@ export class AgentOrchestratorService {
       invocation,
       descriptor,
       streamRenderer: this.streamRenderer,
+      eventBus: this.eventBus,
       hooks: runtime.hooks,
       logger: runtime.logger,
       cwd: runtime.cwd,

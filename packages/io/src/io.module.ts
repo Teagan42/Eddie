@@ -5,11 +5,13 @@ import {
   type Provider,
   type Type,
 } from "@nestjs/common";
+import { CqrsModule } from "@nestjs/cqrs";
 import { ConfirmService } from "./confirm.service";
 import { JsonlWriterService } from "./jsonl-writer.service";
 import { LoggerService } from "./logger.service";
 import { StreamRendererService } from "./stream-renderer.service";
 import { createLoggerProvider } from "./logger.decorator";
+import { AgentStreamEventHandler } from "./agent-stream-event.handler";
 
 export interface IoModuleOptions {
   streamRendererClass?: Type<StreamRendererService>;
@@ -39,6 +41,7 @@ const createProviders = (
   createStreamRendererImplementationProvider(streamRendererClass),
   streamRendererAliasProvider,
   rootLoggerProvider,
+  AgentStreamEventHandler,
 ];
 
 const exportsList = [
@@ -64,6 +67,7 @@ const augmentModuleDefinition = (
   streamRendererClass: Type<StreamRendererService>
 ): DynamicModule => ({
   ...definition,
+  imports: [...(definition.imports ?? []), CqrsModule],
   providers: [
     ...(definition.providers ?? []),
     ...createProviders(streamRendererClass),
@@ -72,6 +76,7 @@ const augmentModuleDefinition = (
 });
 
 @Module({
+  imports: [CqrsModule],
   providers: createProviders(StreamRendererService),
   exports: exportsList,
 })
