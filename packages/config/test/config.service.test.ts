@@ -120,6 +120,37 @@ describe("ConfigService compose precedence", () => {
     expect(composed.logging?.level).toBe("error");
     expect(configStore.setSnapshot).not.toHaveBeenCalled();
   });
+
+  it("merges presets before config files and CLI overrides", async () => {
+    const { service } = createService();
+
+    const composed = await service.compose(
+      {
+        api: { host: "file.local" },
+      },
+      { preset: "api-host" } satisfies CliRuntimeOptions,
+    );
+
+    expect(composed.api?.host).toBe("file.local");
+    expect(composed.api?.port).toBe(8080);
+  });
+
+  it("applies api-host telemetry defaults", async () => {
+    const { service } = createService();
+
+    const composed = await service.compose({}, { preset: "api-host" });
+
+    expect(composed.api?.telemetry?.enabled).toBe(true);
+    expect(composed.api?.cors?.origin).toEqual(["http://localhost:5173"]);
+  });
+
+  it("provides guidance when an unknown preset is requested", async () => {
+    const { service } = createService();
+
+    await expect(service.compose({}, { preset: "missing" })).rejects.toThrow(
+      /Unknown configuration preset: missing\. Available presets: .* Use --preset <name> to apply a preset\./,
+    );
+  });
 });
 
 describe("ConfigService config version handling", () => {

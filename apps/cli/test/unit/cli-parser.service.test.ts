@@ -82,6 +82,16 @@ describe("CliParserService", () => {
     });
   });
 
+  it("parses configuration preset values", () => {
+    const result = parser.parse([
+      "ask",
+      "--preset",
+      "cli-local",
+    ]);
+
+    expect(result.options.preset).toBe("cli-local");
+  });
+
   it("rejects unknown options", () => {
     const act = () => parser.parse(["ask", "--unknown"]);
     expect(act).toThrowError(CliParseError);
