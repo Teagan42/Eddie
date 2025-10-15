@@ -1,3 +1,4 @@
+import { Injectable } from "@nestjs/common";
 import { z } from "zod";
 
 import type {
@@ -45,6 +46,7 @@ export class ConfigValidationError extends Error {
   }
 }
 
+@Injectable()
 export class ConfigValidator {
   validate(config: EddieConfig): void {
     const issues: ConfigValidationIssue[] = [];
