@@ -2,7 +2,10 @@
 
 This guide captures shared expectations for packages housed under `packages/`.
 Use it whenever you add a new library or update existing ones so the CLI and
-application layers remain consistent.
+application layers remain consistent. Pair it with the
+[Dependency Injection Best Practices](../docs/di-best-practices.md) guide for
+concrete constructor, token, and testing examples drawn from the shared
+packages.
 
 ## Library Patterns
 
