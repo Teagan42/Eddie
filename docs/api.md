@@ -26,6 +26,45 @@ The following providers are registered with NestJS using the `APP_*` tokens:
 The existing `HttpLoggerMiddleware` still runs first in the pipeline so that low
 level request timing is captured before other handlers run.
 
+## CQRS buses and module boundaries
+
+The API now relies on the NestJS CQRS package so reads, writes, and event
+fan-out move through dedicated buses:
+
+- **Command Bus** – controllers and gateways dispatch commands for any
+  write-oriented action (for example creating chat sessions or updating the
+  runtime configuration). Handlers live beside the feature services and emit
+  domain events when aggregates mutate.【F:apps/api/src/chat-sessions/commands/send-chat-message.handler.ts†L9-L34】【F:apps/api/src/runtime-config/commands/update-runtime-config.handler.ts†L9-L26】
+- **Query Bus** – read models resolve through query handlers that translate the
+  backing services into DTOs for HTTP responses and websocket snapshots.【F:apps/api/src/chat-sessions/queries/list-chat-sessions.handler.ts†L8-L24】【F:apps/api/src/traces/queries/get-traces.handler.ts†L8-L28】
+- **Event Bus** – domain events raised by command handlers are forwarded to
+  websocket gateways and other subscribers to keep connected clients current
+  without polling.【F:apps/api/src/chat-sessions/chat-sessions.gateway.events-handler.ts†L14-L64】【F:apps/api/src/runtime-config/runtime-config.gateway.events-handler.ts†L7-L23】
+
+Feature modules scope their CQRS handlers alongside the existing services:
+
+- **`ChatSessionsModule`** wires commands (`CreateChatSession`, `UpdateChatSession`,
+  `ArchiveChatSession`, `DeleteChatSession`, `SendChatMessage`), queries (`ListChatSessions`,
+  `GetChatSession`, `GetChatMessages`), and events (`ChatSessionCreated`,
+  `ChatSessionUpdated`, `ChatSessionDeleted`, `ChatMessageSent`, `AgentActivity`).
+  The module bridges engine callbacks to the CQRS event bus so websocket clients
+  stay in sync.【F:apps/api/src/chat-sessions/chat-sessions.module.ts†L12-L40】
+- **`TracesModule`** exposes query handlers for `GetTraces`/`GetTrace` and command
+  handlers for creating and updating trace records. Published `TraceCreated` and
+  `TraceUpdated` events flow into the traces gateway for live dashboards.【F:apps/api/src/traces/traces.module.ts†L8-L24】【F:apps/api/src/traces/traces.gateway.events-handler.ts†L7-L24】
+- **`RuntimeConfigModule`** manages read/write access to the in-memory runtime
+  snapshot via `GetRuntimeConfigQuery` and `UpdateRuntimeConfigCommand` while
+  notifying subscribers through the `RuntimeConfigUpdated` event and gateway.【F:apps/api/src/runtime-config/runtime-config.module.ts†L5-L38】
+- **`ToolsModule`** listens for chat session tool events and rebroadcasts them
+  over the `/tools` websocket channel (`tool.call`, `tool.result`) so the UI can
+  render tool telemetry safely.【F:apps/api/src/tools/tools.module.ts†L4-L24】【F:apps/api/src/tools/tool-calls-gateway.events-handler.ts†L7-L42】
+
+Refer to [ADR 0007 – Agent orchestrator and nested agents](./adr/0007-agent-orchestrator.md)
+in `docs/adr/0007-agent-orchestrator.md` for the architectural motivation and to the migration notes for the full design:
+[API CQRS Migration Blueprint](./migration/api-cqrs-design.md),
+[API CQRS Guidelines](./migration/api-cqrs-guidelines.md), and
+[Realtime events inventory](./migration/api-realtime-events.md).
+
 ## Configuration
 
 All provider behaviour is driven by the new `api` section in `eddie.config.*`:
@@ -190,6 +229,15 @@ The API currently exposes the following HTTP routes:
   session.【F:apps/api/src/chat-sessions/chat-sessions.controller.ts†L59-L65】
 - **`POST /chat-sessions/:id/messages`** – append a new message to the session
   and stream it to connected clients.【F:apps/api/src/chat-sessions/chat-sessions.controller.ts†L67-L75】
+- **`GET /config (runtime config)`** – return the aggregated runtime configuration
+  snapshot resolved from `RuntimeConfigDto`.【F:apps/api/src/runtime-config/runtime-config.controller.ts†L20-L27】【F:apps/api/src/runtime-config/dto/runtime-config.dto.ts†L3-L31】
+- **`PATCH /config (runtime config)`** – merge partial updates described by
+  `UpdateRuntimeConfigDto` and publish a `RuntimeConfigUpdated` event so gateways
+  can fan out the change.【F:apps/api/src/runtime-config/runtime-config.controller.ts†L29-L36】【F:apps/api/src/runtime-config/commands/update-runtime-config.handler.ts†L9-L26】
+- **`GET /traces`** – list recent trace executions using the CQRS read
+  model.【F:apps/api/src/traces/traces.controller.ts†L8-L19】
+- **`GET /traces/:id`** – fetch a specific trace by identifier using the query
+  bus.【F:apps/api/src/traces/traces.controller.ts†L21-L24】
 
 WebSocket clients can subscribe to `/chat-sessions` to receive real-time events
 about session changes and agent activity. The gateway emits:
@@ -201,6 +249,24 @@ about session changes and agent activity. The gateway emits:
   the engine or edited by follow-up calls.【F:apps/api/src/chat-sessions/chat-sessions.gateway.ts†L63-L69】
 - `agent.activity` – progress updates as the agent executes tools and produces
   responses.【F:apps/api/src/chat-sessions/chat-sessions.gateway.ts†L71-L75】
+- `message.send` – inbound websocket command that accepts a
+  `SendChatMessagePayloadDto` payload; the gateway forwards it to the command bus
+  as `SendChatMessageCommand`.【F:apps/api/src/chat-sessions/chat-sessions.gateway.ts†L77-L92】
+
+Runtime configuration updates stream over `/config`:
+
+- `config.updated` – broadcasts the latest `RuntimeConfigDto` after an update so
+  dashboards can refresh their settings view.【F:apps/api/src/runtime-config/runtime-config.gateway.ts†L9-L17】【F:apps/api/src/runtime-config/runtime-config.gateway.events-handler.ts†L7-L23】
+
+Trace activity streams over `/traces`:
+
+- `trace.created`, `trace.updated` – emitted whenever trace commands persist new
+  data, allowing visualisers to update timelines without polling.【F:apps/api/src/traces/traces.gateway.ts†L9-L24】【F:apps/api/src/traces/traces.gateway.events-handler.ts†L7-L24】
+
+Tool execution telemetry streams over `/tools`:
+
+- `tool.call`, `tool.result` – payloads are sanitised before broadcast so UIs can
+  display tool arguments and results with consistent timestamps.【F:apps/api/src/tools/tools.gateway.ts†L1-L74】【F:apps/api/src/tools/tool-calls-gateway.events-handler.ts†L7-L42】
 
 ## Example requests
 
