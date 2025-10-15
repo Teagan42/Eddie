@@ -9,7 +9,7 @@ const convenienceScripts = {
   clean: 'npm run clean --workspaces --if-present && git clean -fdX',
   reset: 'npm run clean && npm install',
   typecheck: 'npm run typecheck --workspaces --if-present',
-  'test:coverage': 'npm run test --workspaces --if-present -- --coverage',
+  'test:coverage': 'npm run test -- --coverage',
   'test:integration': 'npm run test:integration --workspaces --if-present',
   'test:unit': 'npm run test:unit --workspaces --if-present',
   'docs:serve': 'npx serve docs',
@@ -26,6 +26,10 @@ describe('root package scripts', () => {
 
   it('installs concurrently to manage the dev processes', () => {
     expect(packageJson.devDependencies.concurrently).toBeDefined();
+  });
+
+  it('runs workspace tests in parallel with readable prefixes', () => {
+    expect(packageJson.scripts.test).toBe('tsx scripts/workspace-tests.ts');
   });
 
   it.each(Object.entries(convenienceScripts))('exposes a "%s" convenience script', (script, command) => {
