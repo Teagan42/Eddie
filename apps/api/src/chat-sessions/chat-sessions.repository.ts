@@ -656,6 +656,7 @@ export class KnexChatSessionsRepository implements ChatSessionsRepository, OnMod
         tool_call_id: input.toolCallId ?? null,
         name: input.name ?? null,
       });
+      await this.linkToolLifecycleMessage(trx, messageId, input, now);
       await trx("chat_sessions")
         .update({ updated_at: now })
         .where({ id: input.sessionId });
@@ -690,6 +691,60 @@ export class KnexChatSessionsRepository implements ChatSessionsRepository, OnMod
         session: mapSessionRow(sessionRow),
       };
     });
+  }
+
+  private async linkToolLifecycleMessage(
+    trx: Knex.Transaction,
+    messageId: string,
+    input: CreateChatMessageInput,
+    timestamp: Date
+  ): Promise<void> {
+    if (!input.toolCallId) {
+      return;
+    }
+
+    const updates: Record<string, unknown> = {
+      message_id: messageId,
+      updated_at: timestamp,
+    };
+
+    if (input.name !== undefined) {
+      updates.name = input.name ?? null;
+    }
+
+    if (input.role === ChatMessageRole.Assistant) {
+      await trx("tool_calls")
+        .insert({
+          id: randomUUID(),
+          session_id: input.sessionId,
+          tool_call_id: input.toolCallId,
+          name: input.name ?? null,
+          status: "running",
+          arguments: null,
+          message_id: messageId,
+          created_at: timestamp,
+          updated_at: timestamp,
+        })
+        .onConflict(["session_id", "tool_call_id"])
+        .merge(updates);
+      return;
+    }
+
+    if (input.role === ChatMessageRole.Tool) {
+      await trx("tool_results")
+        .insert({
+          id: randomUUID(),
+          session_id: input.sessionId,
+          tool_call_id: input.toolCallId,
+          name: input.name ?? null,
+          result: null,
+          message_id: messageId,
+          created_at: timestamp,
+          updated_at: timestamp,
+        })
+        .onConflict(["session_id", "tool_call_id"])
+        .merge(updates);
+    }
   }
 
   async deleteSession(id: string): Promise<boolean> {

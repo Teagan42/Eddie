@@ -12,6 +12,7 @@ import { ToolCallStore } from "../../../src/tools/tool-call.store";
 import { ToolCallStarted } from "../../../src/tools/events/tool-call.events";
 import { ToolCallUpdated } from "../../../src/tools/events/tool-call.events";
 import { ToolCallCompleted } from "../../../src/tools/events/tool-call.events";
+import type { ToolCallPersistenceService } from "../../../src/tools/tool-call.persistence";
 
 describe("Tool call CQRS", () => {
   it("persists state across start, update, and complete commands", async () => {
@@ -21,9 +22,29 @@ describe("Tool call CQRS", () => {
       events.push(event);
     });
     const eventBus = { publish } as unknown as EventBus;
-    const startHandler = new StartToolCallHandler(store, eventBus);
-    const updateHandler = new UpdateToolCallHandler(store, eventBus);
-    const completeHandler = new CompleteToolCallHandler(store, eventBus);
+    const persistence: Pick<
+      ToolCallPersistenceService,
+      "recordStart" | "recordUpdate" | "recordComplete"
+    > = {
+      recordStart: vi.fn(),
+      recordUpdate: vi.fn(),
+      recordComplete: vi.fn(),
+    };
+    const startHandler = new StartToolCallHandler(
+      store,
+      eventBus,
+      persistence as unknown as ToolCallPersistenceService
+    );
+    const updateHandler = new UpdateToolCallHandler(
+      store,
+      eventBus,
+      persistence as unknown as ToolCallPersistenceService
+    );
+    const completeHandler = new CompleteToolCallHandler(
+      store,
+      eventBus,
+      persistence as unknown as ToolCallPersistenceService
+    );
     const queryHandler = new GetToolCallsHandler(store);
 
     await startHandler.execute(
