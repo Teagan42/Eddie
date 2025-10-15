@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { randomUUID } from "crypto";
 import Ajv, { type ValidateFunction } from "ajv";
 import type { ToolDefinition, ToolResult, ToolSchema } from "@eddie/types";
 
@@ -47,18 +48,11 @@ export class ToolRegistry {
   register(definition: ToolDefinition): void {
     const inputValidator = this.ajv.compile(definition.jsonSchema) as ValidateFunction;
 
-    let dataValidator: ValidateFunction | undefined;
-    let expectedSchemaId: string | undefined;
-    if (definition.outputSchema) {
-      if (typeof (definition.outputSchema as { $id?: unknown }).$id !== "string") {
-        throw new Error(
-          `Tool ${definition.name} output schema must declare a string $id property for discrimination.`
-        );
-      }
-
-      expectedSchemaId = (definition.outputSchema as { $id: string }).$id;
-      dataValidator = this.ajv.compile(definition.outputSchema) as ValidateFunction;
-    }
+    const {
+      definition: normalizedDefinition,
+      expectedSchemaId,
+      dataValidator,
+    } = this.prepareOutputSchema(definition);
 
     const compiled: ToolDefinition & {
       inputValidator: ValidateFunction;
@@ -66,13 +60,60 @@ export class ToolRegistry {
       dataValidator?: ValidateFunction;
       expectedSchemaId?: string;
     } = {
-      ...definition,
+      ...normalizedDefinition,
       inputValidator,
       outputValidator: this.toolResultValidator,
       dataValidator,
       expectedSchemaId,
     };
     this.tools.set(definition.name, compiled);
+  }
+
+  private prepareOutputSchema(
+    definition: ToolDefinition,
+  ): {
+    definition: ToolDefinition;
+    expectedSchemaId?: string;
+    dataValidator?: ValidateFunction;
+  } {
+    if (!definition.outputSchema) {
+      return { definition };
+    }
+
+    const outputSchema = {
+      ...(definition.outputSchema as Record<string, unknown>),
+    } as { $id?: unknown; id?: unknown } & Record<string, unknown>;
+
+    const providedId =
+      typeof outputSchema.$id === "string" && outputSchema.$id.trim().length > 0
+        ? outputSchema.$id
+        : typeof outputSchema.id === "string" && outputSchema.id.trim().length > 0
+          ? outputSchema.id
+          : undefined;
+
+    const schemaId = providedId ?? `eddie.tool.${definition.name}.result.${randomUUID()}`;
+
+    outputSchema.$id = schemaId;
+    if (typeof outputSchema.id !== "string" || outputSchema.id.trim().length === 0) {
+      outputSchema.id = schemaId;
+    }
+
+    let dataValidator = this.ajv.getSchema(schemaId) as ValidateFunction | undefined;
+    if (!dataValidator) {
+      const { id: _unusedId, ...schemaForValidation } = outputSchema as {
+        id?: unknown;
+        [key: string]: unknown;
+      };
+      void _unusedId;
+
+      dataValidator = this.ajv.compile(schemaForValidation) as ValidateFunction;
+    }
+
+    return {
+      definition: { ...definition, outputSchema },
+      expectedSchemaId: schemaId,
+      dataValidator,
+    };
   }
 
   unregister(name: string): void {
