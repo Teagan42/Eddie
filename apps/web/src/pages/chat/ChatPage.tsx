@@ -724,12 +724,12 @@ export function ChatPage(): JSX.Element {
     const unsubscribes = [
       api.sockets.chatSessions.onSessionCreated((session) => {
         queryClient.setQueryData<ChatSessionDto[]>(['chat-sessions'], (previous = []) =>
-          sortSessions([session, ...previous.filter((item) => item.id !== session.id)]),
+          mergeSessionList(previous, session),
         );
       }),
       api.sockets.chatSessions.onSessionUpdated((session) => {
         queryClient.setQueryData<ChatSessionDto[]>(['chat-sessions'], (previous = []) =>
-          sortSessions([session, ...previous.filter((item) => item.id !== session.id)]),
+          mergeSessionList(previous, session),
         );
       }),
       api.sockets.chatSessions.onSessionDeleted((sessionId) => {
@@ -978,7 +978,7 @@ export function ChatPage(): JSX.Element {
     onSuccess: (session) => {
       resetAutoSessionAttempt();
       queryClient.setQueryData<ChatSessionDto[]>(['chat-sessions'], (previous = []) =>
-        sortSessions([session, ...previous]),
+        mergeSessionList(previous, session),
       );
       applyChatUpdate((chat) => ({ ...chat, selectedSessionId: session.id }));
     },
@@ -1635,3 +1635,10 @@ export function ChatPage(): JSX.Element {
     </div>
   );
 }
+function mergeSessionList(
+  previous: ChatSessionDto[],
+  session: ChatSessionDto,
+): ChatSessionDto[] {
+  return sortSessions([session, ...previous.filter((item) => item.id !== session.id)]);
+}
+
