@@ -51,7 +51,7 @@ export class ConfigService {
 
   private readonly moduleOptions: CliRuntimeOptions;
   private readonly configFilePath: string | null;
-  private static readonly validator = new ConfigValidator();
+  private readonly validator: ConfigValidator;
 
   constructor(
     @Optional()
@@ -66,9 +66,12 @@ export class ConfigService {
     @Optional()
     @Inject(CONFIG_FILE_PATH_TOKEN)
     configFilePath?: string | null,
+    @Optional()
+    validator?: ConfigValidator,
   ) {
     this.moduleOptions = moduleOptions ?? {};
     this.configFilePath = configFilePath ?? null;
+    this.validator = validator ?? new ConfigValidator();
   }
 
   async load(options: CliRuntimeOptions): Promise<EddieConfig> {
@@ -101,7 +104,7 @@ export class ConfigService {
       mergedOverrides,
     );
 
-    ConfigService.validator.validate(finalConfig);
+    this.validator.validate(finalConfig);
 
     return finalConfig;
   }

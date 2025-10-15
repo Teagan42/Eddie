@@ -11,6 +11,7 @@ import { initialConfigProvider } from "./initial-config.provider";
 import type { CliRuntimeOptions } from "./types";
 import { CONFIG_FILE_PATH_TOKEN, ConfigurableModuleClass, MODULE_OPTIONS_TOKEN } from './config.const';
 import { configFilePathProvider } from "./config-file-path.provider";
+import { ConfigValidator } from "./validation/config-validator";
 
 
 @Global()
@@ -22,12 +23,14 @@ import { configFilePathProvider } from "./config-file-path.provider";
     ConfigWatcher,
     initialConfigProvider,
     ConfigStore,
+    ConfigValidator,
   ],
   exports: [
     CONFIG_FILE_PATH_TOKEN,
     ConfigService,
     ConfigStore,
     ConfigWatcher,
+    ConfigValidator,
     NestConfigModule,
   ],
 })

@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ConfigService } from "../src/config.service";
 import type { CliRuntimeOptions } from "../src/types";
+import type { ConfigValidator } from "../src/validation/config-validator";
 
 describe("ConfigService validation aggregates issues", () => {
   it("collects multiple validation issues with a summary", async () => {
@@ -54,5 +55,21 @@ describe("ConfigService validation aggregates issues", () => {
         }),
       ]),
     });
+  });
+
+  it("uses a provided validator instance when supplied", async () => {
+    const validator = { validate: vi.fn() } as unknown as ConfigValidator;
+
+    const service = new ConfigService(
+      undefined,
+      {} as CliRuntimeOptions,
+      undefined,
+      null,
+      validator,
+    );
+
+    await service.compose({});
+
+    expect(validator.validate).toHaveBeenCalledTimes(1);
   });
 });
