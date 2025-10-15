@@ -7,7 +7,7 @@ describe("renderConfigSchemaMermaid", () => {
   it("connects root to key configuration sections", () => {
     const diagram = renderConfigSchemaMermaid(EDDIE_CONFIG_SCHEMA_BUNDLE);
 
-    expect(diagram).toContain("graph TD");
+    expect(diagram).toContain("graph LR");
     expect(diagram).toContain("root[Eddie Configuration]");
     expect(diagram).toContain("root --> model");
     expect(diagram).toContain("root --> provider");

@@ -4,6 +4,14 @@ import { readFileSync } from 'node:fs';
 const workflowPath = new URL('../.github/workflows/ci.yml', import.meta.url);
 const workflow = readFileSync(workflowPath, 'utf8');
 
+function extractJobSection(jobId: string): string {
+  const jobStart = workflow.indexOf(jobId);
+  expect(jobStart).toBeGreaterThan(-1);
+
+  const summaryStart = workflow.indexOf('\n  summary:', jobStart);
+  return summaryStart === -1 ? workflow.slice(jobStart) : workflow.slice(jobStart, summaryStart);
+}
+
 describe('ci workflow configuration', () => {
   it('defines a combined build-test job', () => {
     expect(workflow).toContain('build-test:');
@@ -24,15 +32,24 @@ describe('ci workflow configuration', () => {
   });
 
   it('regenerates and pushes third-party notices', () => {
-    const jobStart = workflow.indexOf('sync-third-party-licenses:');
-    expect(jobStart).toBeGreaterThan(-1);
-
-    const summaryStart = workflow.indexOf('\n  summary:', jobStart);
-    const jobSection = summaryStart === -1 ? workflow.slice(jobStart) : workflow.slice(jobStart, summaryStart);
+    const jobSection = extractJobSection('sync-third-party-licenses:');
 
     expect(jobSection).toMatch(/npm run licenses:write/);
     expect(jobSection).toMatch(
       /git commit --all --message "chore: update third-party notices"/
+    );
+    expect(jobSection).toMatch(/git push/);
+  });
+
+  it('regenerates and pushes the config schema diagram', () => {
+    const jobSection = extractJobSection('docs-config-schema:');
+    const expectedStatusCheck =
+      'git status --porcelain -- docs/generated/config-schema-diagram.md';
+
+    expect(jobSection).toMatch(/npm run docs:config-schema(\n|\s)/);
+    expect(jobSection).toContain(expectedStatusCheck);
+    expect(jobSection).toMatch(
+      /git commit --all --message "chore: update config schema diagram"/
     );
     expect(jobSection).toMatch(/git push/);
   });
