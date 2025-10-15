@@ -5,6 +5,11 @@
 {% set checkpoints_list = checkpoints or [] %}
 Provide an update that matches the cadence: {{ cadence }}.
 
+{% if prompt %}
+{{ prompt }}
+
+{% endif %}
+
 {% if checkpoints_list %}
 Touch on the following checkpoints:
 {% for item in checkpoints_list %}

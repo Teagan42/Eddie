@@ -8,6 +8,13 @@ Ambient notes: {{ context.variables.acousticNotes if context and context.variabl
 
 When guiding Velvet Echo, keep the following in mind:
 
+- Direct request:
+{% if prompt %}
+{{ prompt }}
+{% else %}
+Share what you need with Velvet Echo.
+{% endif %}
+
 - Start with a natural-language description of what you need.
 - Mention any people nearby who should be addressed or avoided.
 - Share timing windows, location changes, or background sounds.
