@@ -259,9 +259,7 @@ export class McpToolSourceService {
     descriptor: McpToolDescription
   ): ToolDefinition {
     const jsonSchema = structuredClone(descriptor.inputSchema);
-    const outputSchema = descriptor.outputSchema
-      ? structuredClone(descriptor.outputSchema)
-      : undefined;
+    const outputSchema = this.normalizeOutputSchema(descriptor.outputSchema);
 
     return {
       name: descriptor.name,
@@ -273,6 +271,49 @@ export class McpToolSourceService {
         return result;
       },
     };
+  }
+
+  private normalizeOutputSchema(
+    schema: McpToolDescription["outputSchema"]
+  ): Record<string, unknown> | undefined {
+    if (!schema) {
+      return undefined;
+    }
+
+    const cloned = structuredClone(schema) as {
+      $id?: unknown;
+      id?: unknown;
+      [key: string]: unknown;
+    };
+
+    const identifier = this.extractSchemaIdentifier(cloned);
+
+    if (!identifier) {
+      return undefined;
+    }
+
+    cloned.$id = identifier;
+
+    if (typeof cloned.id !== "string" || cloned.id.trim().length === 0) {
+      cloned.id = identifier;
+    }
+
+    return cloned;
+  }
+
+  private extractSchemaIdentifier(value: {
+    $id?: unknown;
+    id?: unknown;
+  }): string | undefined {
+    if (typeof value.$id === "string" && value.$id.trim().length > 0) {
+      return value.$id.trim();
+    }
+
+    if (typeof value.id === "string" && value.id.trim().length > 0) {
+      return value.id.trim();
+    }
+
+    return undefined;
   }
 
   private async callTool(
