@@ -1,4 +1,3 @@
-import { OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -6,38 +5,25 @@ import {
 import type { Server } from "ws";
 import { emitEvent } from "../websocket/utils";
 import { TraceDto } from "./dto/trace.dto";
-import { TracesListener, TracesService } from "./traces.service";
 
 @WebSocketGateway({
   path: "/traces",
 })
-export class TracesGateway
-implements TracesListener, OnModuleInit, OnModuleDestroy
-{
+export class TracesGateway {
   @WebSocketServer()
   private server!: Server;
 
-  private unregister: (() => void) | null = null;
-
-  constructor(private readonly traces: TracesService) {}
-
-  onModuleInit(): void {
-    if (!this.traces || typeof this.traces.registerListener !== "function") {
-      return;
-    }
-    this.unregister = this.traces.registerListener(this);
+  private emitTraceEvent(event: TraceEventName, trace: TraceDto): void {
+    emitEvent(this.server, event, trace);
   }
 
-  onModuleDestroy(): void {
-    this.unregister?.();
-    this.unregister = null;
+  emitTraceCreated(trace: TraceDto): void {
+    this.emitTraceEvent("trace.created", trace);
   }
 
-  onTraceCreated(trace: TraceDto): void {
-    emitEvent(this.server, "trace.created", trace);
-  }
-
-  onTraceUpdated(trace: TraceDto): void {
-    emitEvent(this.server, "trace.updated", trace);
+  emitTraceUpdated(trace: TraceDto): void {
+    this.emitTraceEvent("trace.updated", trace);
   }
 }
+
+type TraceEventName = "trace.created" | "trace.updated";

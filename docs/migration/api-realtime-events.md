@@ -25,12 +25,12 @@ designing new read models. Pair this table with the baseline note in `api-realti
 | ChatSessionStreamRendererService | ChatSessionToolResultEvent | `{ sessionId, id?, name?, result?, timestamp }` | `emitToolResultEvent` → `eventBus.publish` → `ChatSessionEventsService.emitToolResult` → `ToolsGateway.emitToolResult("tool.result")` | WebSocket clients on `/tools`; ChatSessionEventsService; ToolsGateway |
 | StreamRendererService | stream console output | Raw `StreamEvent` payload rendered to stdout/stderr | `StreamRendererService.render` writes formatted output directly | CLI users; process stdout/stderr |
 
-## TracesService
+## Traces CQRS Handlers
 
 | Source | Event | Payload | Dispatch Path | Consumers |
 | --- | --- | --- | --- | --- |
-| TracesService | trace.created | `TraceDto` (id, sessionId?, name, status, durationMs?, metadata, timestamps) | `notifyCreated` → `TracesGateway.onTraceCreated` → `emitEvent("trace.created")` | WebSocket clients on `/traces`; TracesGateway |
-| TracesService | trace.updated | `TraceDto` snapshot | `notifyUpdated` → `TracesGateway.onTraceUpdated` → `emitEvent("trace.updated")` | WebSocket clients on `/traces`; TracesGateway |
+| CreateTraceHandler | trace.created | `TraceDto` (id, sessionId?, name, status, durationMs?, metadata, timestamps) | `CommandBus.execute(CreateTraceCommand)` → `TraceCreated` domain event → `TracesGatewayEventsHandler.emitTraceCreated` | WebSocket clients on `/traces`; TracesGateway |
+| UpdateTraceHandler | trace.updated | `TraceDto` snapshot | `CommandBus.execute(UpdateTraceCommand)` → `TraceUpdated` domain event → `TracesGatewayEventsHandler.emitTraceUpdated` | WebSocket clients on `/traces`; TracesGateway |
 
 ## RuntimeConfigService
 

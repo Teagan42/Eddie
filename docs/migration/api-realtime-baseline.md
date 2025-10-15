@@ -42,12 +42,10 @@ flowchart LR
   Nest dependency injection. 【F:apps/api/src/chat-sessions/chat-sessions.module.ts†L60-L98】
 
 ### Traces Gateway
-- **Inbound Triggers:** Registers itself as a `TracesListener`, so `TracesService.create` and `TracesService.updateStatus`
-  notifications publish through the gateway. 【F:apps/api/src/traces/traces.gateway.ts†L1-L43】【F:apps/api/src/traces/traces.service.ts†L70-L135】
+- **Inbound Triggers:** Subscribed via `TracesGatewayEventsHandler`, which listens for `TraceCreated` and `TraceUpdated` CQRS domain events emitted by the trace command handlers. 【F:apps/api/src/traces/traces.gateway.events-handler.ts†L1-L37】【F:apps/api/src/traces/commands/create-trace.handler.ts†L1-L24】【F:apps/api/src/traces/commands/update-trace.handler.ts†L1-L26】
 - **Listeners:** Emits `trace.created` and `trace.updated` events to connected clients. 【F:apps/api/src/traces/traces.gateway.ts†L31-L38】
 - **Transports:** WebSocket gateway on `/traces` using the shared broadcast helper. 【F:apps/api/src/traces/traces.gateway.ts†L12-L38】【F:apps/api/src/websocket/utils.ts†L8-L22】
-- **Module Wiring:** `TracesModule` exposes the gateway and service, making it available to other modules (notably chat sessions
-  engine orchestration). 【F:apps/api/src/traces/traces.module.ts†L1-L11】
+- **Module Wiring:** `TracesModule` imports the CQRS module and registers the trace command/query handlers plus the gateway events handler alongside the service. 【F:apps/api/src/traces/traces.module.ts†L1-L23】
 
 ### Runtime Config Gateway
 - **Inbound Triggers:** Subscribes to the `RuntimeConfigService.changes$` observable during `onModuleInit`; any update pushed into
