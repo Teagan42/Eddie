@@ -4,6 +4,8 @@ Eddie unifies command-line power, hosted APIs, and a collaborative web workspace
 prompts with repository context, the NestJS API hosts shared agents and tooling, and the web UI visualises every run so teams can
 triage, replay, and collaborate on automation.
 
+**This project was authored entirely by AI collaborators.**
+
 ## Surface overview
 
 ### Command Line Interface
