@@ -1,16 +1,14 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
+import { EventBus } from "@nestjs/cqrs";
 import { randomUUID } from "crypto";
 import { LogEntryDto } from "./dto/log-entry.dto";
+import { LogCreatedEvent } from "./events/log-created.event";
 
 export const MAX_LOG_ENTRIES = 200;
 
 interface ListLogsOptions {
   offset?: number;
   limit?: number;
-}
-
-export interface LogsListener {
-  onLogCreated(entry: LogEntryDto): void;
 }
 
 interface LogEntryEntity {
@@ -24,12 +22,7 @@ interface LogEntryEntity {
 @Injectable()
 export class LogsService {
   private readonly logs: LogEntryEntity[] = [];
-  private readonly listeners = new Set<LogsListener>();
-
-  registerListener(listener: LogsListener): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
+  constructor(@Optional() private readonly eventBus?: EventBus) {}
 
   private toDto(entity: LogEntryEntity): LogEntryDto {
     return {
@@ -39,12 +32,6 @@ export class LogsService {
       context: entity.context,
       createdAt: entity.createdAt.toISOString(),
     };
-  }
-
-  private notify(entry: LogEntryDto): void {
-    for (const listener of this.listeners) {
-      listener.onLogCreated(entry);
-    }
   }
 
   list(options: ListLogsOptions = {}): LogEntryDto[] {
@@ -75,7 +62,7 @@ export class LogsService {
       this.logs.splice(0, this.logs.length - MAX_LOG_ENTRIES);
     }
     const dto = this.toDto(entity);
-    this.notify(dto);
+    this.eventBus?.publish(new LogCreatedEvent(dto));
     return dto;
   }
 }
