@@ -227,9 +227,15 @@ describe("ConfigService API persistence validation", () => {
           },
         },
       }),
-    ).rejects.toThrow(
-      "api.persistence.postgres must be provided when using the postgres driver.",
-    );
+    ).rejects.toMatchObject({
+      summary: expect.stringMatching(/configuration/i),
+      issues: expect.arrayContaining([
+        expect.objectContaining({
+          path: "api.persistence.postgres",
+          message: expect.stringContaining("must be provided"),
+        }),
+      ]),
+    });
   });
 
   it("allows postgres driver configuration with explicit connection details", async () => {
@@ -270,9 +276,15 @@ describe("ConfigService API persistence validation", () => {
           },
         },
       }),
-    ).rejects.toThrowError(
-      /^api\.persistence\.postgres\.url must be a string when provided\.$/,
-    );
+    ).rejects.toMatchObject({
+      summary: expect.stringMatching(/configuration/i),
+      issues: expect.arrayContaining([
+        expect.objectContaining({
+          path: "api.persistence.postgres.url",
+          message: expect.stringContaining("string"),
+        }),
+      ]),
+    });
   });
 });
 
