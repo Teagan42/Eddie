@@ -1,6 +1,11 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { TokenizerStrategy } from "./strategies";
 
+/**
+ * Provides a dependency injection token for tokenizer strategies.
+ * Expects a TokenizerStrategyRegistry mapping provider identifiers to strategies or factories.
+ * Typically injected into the TokenizerService to resolve provider-specific implementations.
+ */
 export const TOKENIZER_STRATEGIES = Symbol("TOKENIZER_STRATEGIES");
 
 export type TokenizerStrategyFactory = () => TokenizerStrategy;

@@ -21,7 +21,8 @@ TypeScript classes.
 
 - `create(provider?: string)` – returns a tokenizer strategy for the requested provider.
   Providers are cached by name and fall back to OpenAI when no explicit match exists.
-- `TOKENIZER_STRATEGIES` – injection token that resolves to a registry of strategy entries.
+- `TOKENIZER_STRATEGIES` – dependency injection token supplying the `TokenizerStrategyRegistry`
+  consumed by `TokenizerService` when selecting provider implementations.
 
 ### Strategies
 
