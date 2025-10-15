@@ -27,7 +27,9 @@ export function MessageComposer({ disabled, value, onChange, onSubmit }: Message
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== "Enter") {
+    const isEnterKey = event.key === "Enter" || ["Enter", "NumpadEnter"].includes(event.code);
+
+    if (!isEnterKey) {
       return;
     }
 

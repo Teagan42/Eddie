@@ -70,4 +70,23 @@ describe("MessageComposer", () => {
 
     expect(handleSubmit).toHaveBeenCalledTimes(1);
   });
+
+  it("submits when Enter is pressed with the Alt modifier", () => {
+    const handleSubmit = vi.fn((event) => event.preventDefault());
+
+    render(
+      <MessageComposer
+        disabled={false}
+        value=""
+        onChange={noop}
+        onSubmit={handleSubmit}
+      />,
+    );
+
+    const textArea = screen.getByPlaceholderText(/send a message/i);
+
+    fireEvent.keyDown(textArea, { key: "Unidentified", code: "Enter", altKey: true });
+
+    expect(handleSubmit).toHaveBeenCalledTimes(1);
+  });
 });
