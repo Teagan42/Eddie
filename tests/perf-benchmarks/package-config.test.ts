@@ -12,6 +12,7 @@ const loadManifest = () => JSON.parse(readFileSync(manifestPath, 'utf-8')) as {
   private?: boolean;
   scripts?: Record<string, string>;
 };
+const loadScripts = () => loadManifest().scripts ?? {};
 
 describe('perf-benchmarks package manifest', () => {
   it('declares private workspace with bench script invoking eslint and vitest bench', () => {
@@ -22,7 +23,7 @@ describe('perf-benchmarks package manifest', () => {
       private: true,
     });
 
-    const { bench: benchScript, test: testScript } = manifest.scripts ?? {};
+    const { bench: benchScript, test: testScript } = loadScripts();
 
     expect(typeof benchScript).toBe('string');
     expect(benchScript).toContain('eslint');
@@ -30,6 +31,13 @@ describe('perf-benchmarks package manifest', () => {
 
     expect(typeof testScript).toBe('string');
     expect(testScript).toContain('echo');
+  });
+
+  it('exposes build script to compile benchmark sources', () => {
+    const { build: buildScript } = loadScripts();
+
+    expect(typeof buildScript).toBe('string');
+    expect(buildScript).toContain('tsc');
   });
 
   it('provides eslint, tsconfig, and vitest configs tailored for benchmarking', async () => {

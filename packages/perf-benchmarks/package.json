@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "bench": "eslint . && vitest bench",
+    "build": "tsc --project tsconfig.json",
     "test": "echo \"No tests for perf benchmarks yet\""
   }
 }
