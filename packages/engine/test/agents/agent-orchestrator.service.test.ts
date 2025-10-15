@@ -40,6 +40,7 @@ describe("AgentOrchestratorService", () => {
         execute: vi.fn().mockResolvedValue({ schema: "tool", content: "done" }),
       },
       setSpawnHandler: vi.fn(),
+      setRuntime: vi.fn(),
       addChild: vi.fn(),
       spawn: vi.fn(),
       id: agentDefinition.id,
@@ -275,6 +276,7 @@ describe("AgentOrchestratorService", () => {
         execute: vi.fn().mockResolvedValue({ schema: "tool", content: "done" }),
       },
       setSpawnHandler: vi.fn(),
+      setRuntime: vi.fn(),
       addChild: vi.fn(),
       spawn: vi.fn(),
       id: agentDefinition.id,
@@ -396,6 +398,7 @@ describe("AgentOrchestratorService", () => {
       children: [],
       toolRegistry: { schemas: () => [], execute: vi.fn() },
       setSpawnHandler: vi.fn(),
+      setRuntime: vi.fn(),
       addChild: vi.fn(),
       spawn: vi.fn(),
       id: subagentDefinition.id,
@@ -415,6 +418,7 @@ describe("AgentOrchestratorService", () => {
       children: [],
       toolRegistry: { schemas: () => [], execute: vi.fn() },
       setSpawnHandler: vi.fn(),
+      setRuntime: vi.fn(),
       addChild: vi.fn(),
       spawn: vi.fn().mockResolvedValue(childInvocation),
       id: agentDefinition.id,
@@ -536,6 +540,7 @@ describe("AgentOrchestratorService", () => {
         spawn: vi.fn(),
         isRoot: id === "root",
         parent: undefined,
+        setRuntime: vi.fn(),
       }) as unknown as AgentInvocation;
 
     const leafA = createInvocation("leaf-a");

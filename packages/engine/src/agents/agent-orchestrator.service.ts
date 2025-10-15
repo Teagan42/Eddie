@@ -28,7 +28,11 @@ import {
   type AgentSpawnHandler,
 } from "./agent-invocation";
 import { AgentInvocationFactory } from "./agent-invocation.factory";
-import type { AgentRuntimeCatalog, AgentRuntimeDescriptor } from "./agent-runtime.types";
+import type {
+  AgentRuntimeCatalog,
+  AgentRuntimeDescriptor,
+  AgentRuntimeMetadata,
+} from "./agent-runtime.types";
 import { AgentRunner, type AgentTraceEvent } from "./agent-runner";
 import type { TemplateVariables } from "@eddie/templates";
 import type { TranscriptCompactorSelector } from "../transcript-compactors/types";
@@ -207,6 +211,11 @@ export class AgentOrchestratorService {
       );
     }
 
+    invocation.setRuntime({
+      provider: descriptor.provider.name,
+      model: descriptor.model,
+      metadata: this.toRuntimeMetadataRecord(descriptor.metadata),
+    });
     this.descriptorMap.set(invocation, descriptor);
     return descriptor;
   }
@@ -523,6 +532,22 @@ export class AgentOrchestratorService {
       provider: descriptor.provider.name,
       metadata: descriptor.metadata,
     };
+  }
+
+  private toRuntimeMetadataRecord(
+    metadata: AgentRuntimeMetadata | undefined
+  ): Record<string, unknown> | undefined {
+    if (!metadata) {
+      return undefined;
+    }
+
+    const entries = Object.entries(metadata).filter(([, value]) => value !== undefined);
+
+    if (entries.length === 0) {
+      return undefined;
+    }
+
+    return Object.fromEntries(entries) as Record<string, unknown>;
   }
 
   private isPlainObject(value: unknown): value is Record<string, unknown> {

@@ -471,4 +471,47 @@ describe("OrchestratorMetadataService", () => {
     );
     expect(researcherNode?.metadata?.prompt).toBe("Collect references");
   });
+
+  it("falls back to invocation runtime metadata when spawn details missing", async () => {
+    const session: ChatSessionDto = {
+      id: "session-runtime-fallback",
+      title: "Runtime metadata run",
+      status: "active",
+      createdAt: new Date("2024-05-01T00:00:00.000Z").toISOString(),
+      updatedAt: new Date("2024-05-01T00:00:00.000Z").toISOString(),
+    };
+
+    const agentInvocations: AgentInvocationSnapshot[] = [
+      {
+        id: "manager",
+        messages: [
+          {
+            role: ChatMessageRole.Assistant,
+            content: "Coordinating",
+          },
+        ],
+        children: [],
+        provider: "anthropic",
+        model: "claude-3-5-sonnet",
+      } as AgentInvocationSnapshot,
+    ];
+
+    const chatSessions = {
+      getSession: async () => session,
+      listMessages: async () => [],
+      listAgentInvocations: async () => agentInvocations,
+    } as unknown as ChatSessionsService;
+
+    const service = new OrchestratorMetadataService(chatSessions);
+
+    const metadata = await service.getMetadata(session.id);
+
+    expect(metadata.agentHierarchy).toHaveLength(1);
+    const [sessionNode] = metadata.agentHierarchy;
+    expect(sessionNode?.children).toHaveLength(1);
+    const [managerNode] = sessionNode?.children ?? [];
+
+    expect(managerNode?.provider).toBe("anthropic");
+    expect(managerNode?.model).toBe("claude-3-5-sonnet");
+  });
 });

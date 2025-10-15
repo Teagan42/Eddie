@@ -359,7 +359,10 @@ function mergeOrchestratorMetadata(
 
   const incomingAgentHierarchy = incoming.agentHierarchy;
   if (Array.isArray(incomingAgentHierarchy)) {
-    next.agentHierarchy = incomingAgentHierarchy;
+    next.agentHierarchy = mergeAgentHierarchyRuntimeDetails(
+      current.agentHierarchy ?? [],
+      incomingAgentHierarchy,
+    );
   } else if (!Array.isArray(next.agentHierarchy)) {
     next.agentHierarchy = [];
   }
@@ -399,6 +402,49 @@ function mergeOrchestratorMetadata(
   }
 
   return next;
+}
+
+type AgentHierarchyNode = OrchestratorMetadataDto["agentHierarchy"][number];
+
+function mergeAgentHierarchyRuntimeDetails(
+  current: AgentHierarchyNode[],
+  incoming: AgentHierarchyNode[],
+): AgentHierarchyNode[] {
+  const existingById = new Map(current.map((node) => [node.id, node]));
+
+  return incoming.map((node) => {
+    const existing = existingById.get(node.id);
+    const incomingChildren = node.children ?? [];
+    const existingChildren = existing?.children ?? [];
+    const mergedChildren = mergeAgentHierarchyRuntimeDetails(
+      existingChildren,
+      incomingChildren,
+    );
+
+    if (!existing) {
+      return {
+        ...node,
+        metadata: node.metadata ? { ...node.metadata } : undefined,
+        children: mergedChildren,
+      };
+    }
+
+    const mergedMetadata = node.metadata || existing?.metadata
+      ? {
+        ...(existing?.metadata ?? {}),
+        ...(node.metadata ?? {}),
+      }
+      : undefined;
+
+    return {
+      ...node,
+      provider: node.provider ?? existing?.provider,
+      model: node.model ?? existing?.model,
+      depth: node.depth ?? existing?.depth,
+      metadata: mergedMetadata,
+      children: mergedChildren,
+    };
+  });
 }
 
 function normalizeOrchestratorMetadata(
@@ -992,12 +1038,18 @@ export function ChatPage(): JSX.Element {
               const agentHierarchyUpdate = Array.isArray(resultRecord?.agentHierarchy)
                 ? resultRecord.agentHierarchy ?? []
                 : undefined;
+              const mergedAgentHierarchy = agentHierarchyUpdate
+                ? mergeAgentHierarchyRuntimeDetails(
+                  base.agentHierarchy ?? [],
+                  agentHierarchyUpdate,
+                )
+                : base.agentHierarchy ?? [];
 
               return {
                 ...base,
                 toolInvocations: nextToolInvocations,
                 contextBundles: contextBundlesUpdate ?? base.contextBundles ?? [],
-                agentHierarchy: agentHierarchyUpdate ?? base.agentHierarchy ?? [],
+                agentHierarchy: mergedAgentHierarchy,
                 capturedAt: createdAt ?? base.capturedAt,
               };
             });
