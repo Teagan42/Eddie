@@ -60,7 +60,6 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     getLogger: vi.fn(() => logger),
   };
   const agentOrchestrator = {
-    setStreamRenderer: vi.fn(),
     runAgent: vi.fn(async () => ({
       messages: [],
       definition: { id: "manager" },

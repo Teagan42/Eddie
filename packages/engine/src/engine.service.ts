@@ -14,7 +14,7 @@ import { ConfigStore } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { ProviderFactoryService } from "@eddie/providers";
 import { builtinTools } from "@eddie/tools";
-import { ConfirmService, LoggerService, StreamRendererService } from "@eddie/io";
+import { ConfirmService, LoggerService } from "@eddie/io";
 import { HooksService, HOOK_EVENTS } from "@eddie/hooks";
 import type { HookBus } from "@eddie/hooks";
 import type {
@@ -82,10 +82,6 @@ export class EngineService {
         private readonly agentOrchestrator: AgentOrchestratorService,
         private readonly mcpToolSourceService: McpToolSourceService
   ) {}
-
-  setStreamRenderer(streamRenderer: StreamRendererService): void {
-    this.agentOrchestrator.setStreamRenderer(streamRenderer);
-  }
 
   /**
      * Executes a single CLI run, emitting hooks in the order
