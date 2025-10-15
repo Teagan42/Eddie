@@ -159,6 +159,23 @@ type AutoSessionAttemptState = {
   lastFailureAt: number | null;
 };
 
+function createEmptyOrchestratorMetadata(sessionId: string): OrchestratorMetadataDto {
+  return {
+    sessionId,
+    contextBundles: [],
+    toolInvocations: [],
+    agentHierarchy: [],
+    capturedAt: new Date().toISOString(),
+  };
+}
+
+function getOrchestratorMetadataBase(
+  current: OrchestratorMetadataDto | null,
+  sessionId: string,
+): OrchestratorMetadataDto {
+  return current ?? createEmptyOrchestratorMetadata(sessionId);
+}
+
 // Small runtime type for realtime tool events forwarded over the "tools" socket.
 // We keep this conservative and shallow: server-side sanitization already
 // stringifies large values, so the client only needs to read common fields.
@@ -339,7 +356,56 @@ export function ChatPage(): JSX.Element {
     setAutoSessionAttemptState({ status: 'idle', lastAttemptAt: null, lastFailureAt: null });
   }, [setAutoSessionAttemptState]);
   const agentActivitySessionRef = useRef<string | null>(null);
-  const toolInvocationCacheRef = useRef<Map<string, ToolInvocationNode[]>>(new Map());
+  const [orchestratorMetadataBySession, setOrchestratorMetadataBySession] = useState<
+    Record<string, OrchestratorMetadataDto>
+  >({});
+
+  const syncOrchestratorMetadataCache = useCallback(
+    (sessionId: string, value: OrchestratorMetadataDto | null) => {
+      const queryKey = getOrchestratorMetadataQueryKey(sessionId);
+      queryClient.setQueryData<OrchestratorMetadataDto | null>(queryKey, value);
+    },
+    [queryClient],
+  );
+
+  const applyOrchestratorMetadataUpdate = useCallback(
+    (
+      sessionId: string,
+      updater: (current: OrchestratorMetadataDto | null) => OrchestratorMetadataDto | null,
+      options?: { syncQueryCache?: boolean },
+    ) => {
+      const { syncQueryCache = true } = options ?? {};
+      let nextValue: OrchestratorMetadataDto | null | undefined;
+
+      setOrchestratorMetadataBySession((previous) => {
+        const current = previous[sessionId] ?? null;
+        const next = updater(current);
+
+        if (Object.is(next, current)) {
+          nextValue = undefined;
+          return previous;
+        }
+
+        const nextState = { ...previous } as Record<string, OrchestratorMetadataDto>;
+
+        if (!next) {
+          delete nextState[sessionId];
+        } else {
+          nextState[sessionId] = next;
+        }
+
+        nextValue = next;
+        return nextState;
+      });
+
+      if (nextValue === undefined || !syncQueryCache) {
+        return;
+      }
+
+      syncOrchestratorMetadataCache(sessionId, nextValue ?? null);
+    },
+    [syncOrchestratorMetadataCache],
+  );
 
   const invalidateOrchestratorMetadata = useCallback(
     (sessionId?: string) => {
@@ -454,6 +520,14 @@ export function ChatPage(): JSX.Element {
         if (selectedSessionIdRef.current === sessionId) {
           setSelectedSessionId(null);
         }
+        setOrchestratorMetadataBySession((previous) => {
+          if (!(sessionId in previous)) {
+            return previous;
+          }
+          const next = { ...previous } as Record<string, OrchestratorMetadataDto>;
+          delete next[sessionId];
+          return next;
+        });
       }),
       api.sockets.chatSessions.onMessageCreated((message) => {
         queryClient.setQueryData<ChatMessageDto[]>(
@@ -510,50 +584,45 @@ export function ChatPage(): JSX.Element {
             const sessionId = p.sessionId ?? selectedSessionIdRef.current;
             if (!sessionId) return;
 
-            queryClient.setQueryData<OrchestratorMetadataDto | null>(
-              getOrchestratorMetadataQueryKey(sessionId),
-              (current) => {
-                const base: OrchestratorMetadataDto = current ?? {
-                  contextBundles: [],
-                  toolInvocations: [],
-                  agentHierarchy: [],
-                  sessionId,
-                  capturedAt: new Date().toISOString(),
-                };
+            applyOrchestratorMetadataUpdate(sessionId, (current) => {
+              const base = getOrchestratorMetadataBase(current, sessionId);
 
-                const id = coerceToolInvocationId(p.id, 'call');
-                const name = String(p.name ?? 'unknown');
-                const status = (p.status ?? ('pending' as ToolCallStatusDto)) as ToolCallStatusDto;
-                const createdAt = p.timestamp ?? new Date().toISOString();
-                // Normalize arguments into either a preview/command or arguments string
-                const argMeta =
-                  typeof p.arguments === 'string'
-                    ? { arguments: p.arguments, command: p.arguments, preview: p.arguments }
-                    : (() => {
-                      const summary = summarizeObject(p.arguments);
-                      return {
-                        arguments: summary ?? JSON.stringify(p.arguments),
-                        preview: summary ?? undefined,
-                      };
-                    })();
+              const id = coerceToolInvocationId(p.id, 'call');
+              const name = String(p.name ?? 'unknown');
+              const status = (p.status ?? ('pending' as ToolCallStatusDto)) as ToolCallStatusDto;
+              const createdAt = p.timestamp ?? new Date().toISOString();
+              const argMeta =
+                typeof p.arguments === 'string'
+                  ? { arguments: p.arguments, command: p.arguments, preview: p.arguments }
+                  : (() => {
+                    const summary = summarizeObject(p.arguments);
+                    return {
+                      arguments: summary ?? JSON.stringify(p.arguments),
+                      preview: summary ?? undefined,
+                    };
+                  })();
 
-                const node = normalizeToolInvocationNode({
-                  id,
-                  name,
-                  status,
-                  metadata: {
-                    ...argMeta,
-                    createdAt,
-                  },
-                  children: [],
-                });
+              const node = normalizeToolInvocationNode({
+                id,
+                name,
+                status,
+                metadata: {
+                  ...argMeta,
+                  createdAt,
+                },
+                children: [],
+              });
 
-                const nextToolInvocations = mergeToolInvocationNodes(base.toolInvocations, [node]);
-                const next = { ...base, toolInvocations: nextToolInvocations };
-                toolInvocationCacheRef.current.set(sessionId, nextToolInvocations);
-                return next;
-              },
-            );
+              const nextToolInvocations = mergeToolInvocationNodes(
+                base.toolInvocations ?? [],
+                [node],
+              );
+
+              return {
+                ...base,
+                toolInvocations: nextToolInvocations,
+              };
+            });
           } catch {
             // ignore optimistic merge errors
           }
@@ -565,70 +634,62 @@ export function ChatPage(): JSX.Element {
             const sessionId = p.sessionId ?? selectedSessionIdRef.current;
             if (!sessionId) return;
 
-            queryClient.setQueryData<OrchestratorMetadataDto | null>(
-              getOrchestratorMetadataQueryKey(sessionId),
-              (current) => {
-                const base: OrchestratorMetadataDto = current ?? {
-                  contextBundles: [],
-                  toolInvocations: [],
-                  agentHierarchy: [],
-                  sessionId,
-                  capturedAt: new Date().toISOString(),
-                };
+            applyOrchestratorMetadataUpdate(sessionId, (current) => {
+              const base = getOrchestratorMetadataBase(current, sessionId);
 
-                const resultRecord =
-                  typeof p.result === 'object' && p.result !== null
-                    ? (p.result as ToolRealtimeMetadataResult)
-                    : undefined;
-                const id = coerceToolInvocationId(p.id, 'call');
-                const status = (p.status ??
-                  ('completed' as ToolCallStatusDto)) as ToolCallStatusDto;
-                const createdAt = p.timestamp ?? new Date().toISOString();
-                const resultMeta =
-                  typeof p.result === 'string'
-                    ? { result: p.result }
-                    : { ...(resultRecord ?? {}) };
-
-                const previewFromArgs =
-                  typeof p.arguments === 'string'
-                    ? p.arguments
-                    : (summarizeObject(p.arguments) ?? undefined);
-
-                const node = normalizeToolInvocationNode({
-                  id,
-                  name: String(p.name ?? 'unknown'),
-                  status,
-                  metadata: {
-                    ...resultMeta,
-                    preview: previewFromArgs ?? summarizeObject(p.result) ?? undefined,
-                    arguments:
-                      typeof p.arguments === 'string'
-                        ? p.arguments
-                        : (summarizeObject(p.arguments) ?? undefined),
-                    createdAt,
-                  },
-                  children: [],
-                });
-
-                const nextToolInvocations = mergeToolInvocationNodes(base.toolInvocations, [node]);
-                const contextBundlesUpdate = Array.isArray(resultRecord?.contextBundles)
-                  ? resultRecord.contextBundles ?? []
+              const resultRecord =
+                typeof p.result === 'object' && p.result !== null
+                  ? (p.result as ToolRealtimeMetadataResult)
                   : undefined;
-                const agentHierarchyUpdate = Array.isArray(resultRecord?.agentHierarchy)
-                  ? resultRecord.agentHierarchy ?? []
-                  : undefined;
-                const nextContextBundles = contextBundlesUpdate ?? base.contextBundles ?? [];
-                const nextAgentHierarchy = agentHierarchyUpdate ?? base.agentHierarchy ?? [];
-                const next: OrchestratorMetadataDto = {
-                  ...base,
-                  toolInvocations: nextToolInvocations,
-                  contextBundles: nextContextBundles,
-                  agentHierarchy: nextAgentHierarchy,
-                };
-                toolInvocationCacheRef.current.set(sessionId, nextToolInvocations);
-                return next;
-              },
-            );
+              const id = coerceToolInvocationId(p.id, 'call');
+              const status = (p.status ??
+                ('completed' as ToolCallStatusDto)) as ToolCallStatusDto;
+              const createdAt = p.timestamp ?? new Date().toISOString();
+              const resultMeta =
+                typeof p.result === 'string'
+                  ? { result: p.result }
+                  : { ...(resultRecord ?? {}) };
+
+              const previewFromArgs =
+                typeof p.arguments === 'string'
+                  ? p.arguments
+                  : (summarizeObject(p.arguments) ?? undefined);
+
+              const node = normalizeToolInvocationNode({
+                id,
+                name: String(p.name ?? 'unknown'),
+                status,
+                metadata: {
+                  ...resultMeta,
+                  preview: previewFromArgs ?? summarizeObject(p.result) ?? undefined,
+                  arguments:
+                    typeof p.arguments === 'string'
+                      ? p.arguments
+                      : (summarizeObject(p.arguments) ?? undefined),
+                  createdAt,
+                },
+                children: [],
+              });
+
+              const nextToolInvocations = mergeToolInvocationNodes(
+                base.toolInvocations ?? [],
+                [node],
+              );
+              const contextBundlesUpdate = Array.isArray(resultRecord?.contextBundles)
+                ? resultRecord.contextBundles ?? []
+                : undefined;
+              const agentHierarchyUpdate = Array.isArray(resultRecord?.agentHierarchy)
+                ? resultRecord.agentHierarchy ?? []
+                : undefined;
+
+              return {
+                ...base,
+                toolInvocations: nextToolInvocations,
+                contextBundles: contextBundlesUpdate ?? base.contextBundles ?? [],
+                agentHierarchy: agentHierarchyUpdate ?? base.agentHierarchy ?? [],
+                capturedAt: createdAt ?? base.capturedAt,
+              };
+            });
           } catch {
             // ignore optimistic merge errors
           }
@@ -639,9 +700,9 @@ export function ChatPage(): JSX.Element {
     return () => {
       unsubscribes.forEach((unsubscribe) => unsubscribe());
     };
-  }, [api, invalidateOrchestratorMetadata, queryClient]);
+  }, [api, applyOrchestratorMetadataUpdate, invalidateOrchestratorMetadata, queryClient]);
 
-  const orchestratorQuery = useQuery({
+  const { data: orchestratorQueryData, dataUpdatedAt: orchestratorQueryUpdatedAt } = useQuery({
     queryKey: getOrchestratorMetadataQueryKey(selectedSessionId),
     enabled: Boolean(selectedSessionId),
     queryFn: () =>
@@ -652,39 +713,36 @@ export function ChatPage(): JSX.Element {
           toolInvocations: [],
           agentHierarchy: [],
         }),
-    select: (data) => {
-      const normalized = normalizeOrchestratorMetadata(data ?? null);
-      if (!normalized) {
-        return null;
-      }
-
-      const sessionId = normalized.sessionId ?? selectedSessionId ?? null;
-      if (!sessionId) {
-        return normalized;
-      }
-
-      if (normalized.toolInvocations.length === 0) {
-        const cached = toolInvocationCacheRef.current.get(sessionId);
-        if (
-          cached &&
-          cached.length > 0 &&
-          selectedSessionIdRef.current &&
-          selectedSessionIdRef.current === sessionId
-        ) {
-          return { ...normalized, toolInvocations: cached };
-        }
-
-        toolInvocationCacheRef.current.set(sessionId, []);
-        return normalized;
-      }
-
-      const cached = toolInvocationCacheRef.current.get(sessionId) ?? [];
-      const merged = mergeToolInvocationNodes(cached, normalized.toolInvocations);
-      toolInvocationCacheRef.current.set(sessionId, merged);
-      return { ...normalized, toolInvocations: merged };
-    },
+    select: (data) => normalizeOrchestratorMetadata(data ?? null),
     refetchInterval: 10_000,
   });
+
+  useEffect(() => {
+    if (orchestratorQueryData === undefined) {
+      return;
+    }
+
+    const fallbackSessionId = selectedSessionIdRef.current ?? selectedSessionId ?? null;
+    if (!orchestratorQueryData && !fallbackSessionId) {
+      return;
+    }
+
+    const sessionId = orchestratorQueryData?.sessionId ?? fallbackSessionId;
+    if (!sessionId) {
+      return;
+    }
+
+    const target = orchestratorQueryData
+      ? { ...getOrchestratorMetadataBase(orchestratorQueryData, sessionId), sessionId }
+      : createEmptyOrchestratorMetadata(sessionId);
+
+    applyOrchestratorMetadataUpdate(sessionId, () => target, { syncQueryCache: false });
+  }, [
+    applyOrchestratorMetadataUpdate,
+    orchestratorQueryData,
+    orchestratorQueryUpdatedAt,
+    selectedSessionId,
+  ]);
 
   const createSessionMutation = useMutation({
     mutationFn: (payload: CreateChatSessionDto) => api.http.chatSessions.create(payload),
@@ -827,7 +885,12 @@ export function ChatPage(): JSX.Element {
   const selectedModel = activeSettings.model ?? modelOptions[0] ?? '';
 
   const messages = messagesQuery.data ?? [];
-  const orchestratorMetadata: OrchestratorMetadataDto | null = orchestratorQuery.data ?? null;
+  const orchestratorMetadata: OrchestratorMetadataDto | null = useMemo(() => {
+    if (!selectedSessionId) {
+      return null;
+    }
+    return orchestratorMetadataBySession[selectedSessionId] ?? null;
+  }, [orchestratorMetadataBySession, selectedSessionId]);
   const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
   const lastMessage = messages[messages.length - 1] ?? null;
   const agentActivityState = useMemo<AgentActivityState>(() => {
