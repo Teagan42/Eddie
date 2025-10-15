@@ -1,3 +1,6 @@
+import { IEvent } from "@nestjs/cqrs";
+import { StreamEvent } from "../providers";
+
 export class ChatSessionCreatedEvent {
   constructor(public readonly sessionId: string) {}
 }
@@ -55,3 +58,7 @@ export const CHAT_SESSION_EVENT_CLASSES = [
   ChatSessionToolCallEvent,
   ChatSessionToolResultEvent,
 ] as const;
+
+export class AgentStreamEvent implements IEvent {
+  constructor(public readonly event: StreamEvent) {}
+}
