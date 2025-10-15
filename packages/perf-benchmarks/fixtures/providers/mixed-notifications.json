@@ -1,0 +1,151 @@
+{
+  "id": "mixed-notifications",
+  "label": "Mixed notifications",
+  "description": "Stream containing interleaved notification payloads and text deltas.",
+  "options": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Update me on the task and surface notifications."
+      }
+    ]
+  },
+  "provider": {
+    "events": [
+      {
+        "type": "message.delta",
+        "delta": {
+          "type": "notification",
+          "notification": {
+            "type": "lifecycle",
+            "message": "analysis-started"
+          },
+          "metadata": {
+            "stage": "analysis"
+          }
+        }
+      },
+      {
+        "type": "response.output_text.delta",
+        "delta": "Working through the checklist...",
+        "notifications": [
+          {
+            "payload": {
+              "type": "tool",
+              "message": "planner-invoked"
+            },
+            "metadata": {
+              "tool": "planner"
+            }
+          }
+        ]
+      },
+      {
+        "type": "response.completed",
+        "response": {
+          "id": "resp_notifications",
+          "status": "completed",
+          "usage": {
+            "input_tokens": 90,
+            "output_tokens": 30,
+            "total_tokens": 120
+          }
+        }
+      }
+    ],
+    "finalResponse": {
+      "id": "resp_notifications",
+      "status": "completed",
+      "usage": {
+        "input_tokens": 90,
+        "output_tokens": 30,
+        "total_tokens": 120
+      },
+      "notifications": [
+        {
+          "payload": {
+            "type": "completion",
+            "message": "task-complete"
+          },
+          "metadata": {
+            "stage": "complete"
+          }
+        }
+      ],
+      "output": [
+        {
+          "id": "out_text",
+          "type": "output_text",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "Final summary."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "expectations": {
+    "streamEvents": [
+      {
+        "type": "notification",
+        "payload": {
+          "type": "lifecycle",
+          "message": "analysis-started"
+        },
+        "metadata": {
+          "stage": "analysis"
+        }
+      },
+      {
+        "type": "notification",
+        "payload": {
+          "notification": {
+            "type": "lifecycle",
+            "message": "analysis-started"
+          },
+          "type": "notification"
+        },
+        "metadata": {
+          "stage": "analysis"
+        }
+      },
+      {
+        "type": "notification",
+        "payload": {
+          "type": "tool",
+          "message": "planner-invoked"
+        },
+        "metadata": {
+          "tool": "planner"
+        }
+      },
+      {
+        "type": "delta",
+        "text": "Working through the checklist..."
+      },
+      {
+        "type": "notification",
+        "payload": {
+          "type": "completion",
+          "message": "task-complete"
+        },
+        "metadata": {
+          "stage": "complete"
+        }
+      },
+      {
+        "type": "end",
+        "reason": "completed",
+        "usage": {
+          "input_tokens": 90,
+          "output_tokens": 30,
+          "total_tokens": 120
+        },
+        "responseId": "resp_notifications"
+      }
+    ]
+  }
+}
