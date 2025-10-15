@@ -11,6 +11,7 @@ import type {
   ProviderProfileConfig,
   ToolsConfig,
 } from "../types";
+import { CURRENT_CONFIG_VERSION } from "../migrations";
 
 const SQL_DRIVERS = ["postgres", "mysql", "mariadb"] as const;
 const SQL_DRIVER_SET = new Set<string>(SQL_DRIVERS);
@@ -50,6 +51,21 @@ export class ConfigValidationError extends Error {
 export class ConfigValidator {
   validate(config: EddieConfig): void {
     const issues: ConfigValidationIssue[] = [];
+
+    const { version } = config;
+    if (typeof version !== "number") {
+      this.pushValidationIssue(
+        issues,
+        "version",
+        "version must be provided as a number.",
+      );
+    } else if (version !== CURRENT_CONFIG_VERSION) {
+      this.pushValidationIssue(
+        issues,
+        "version",
+        `version must equal ${CURRENT_CONFIG_VERSION}. Received ${version}.`,
+      );
+    }
 
     if (
       typeof config.projectDir !== "string" ||

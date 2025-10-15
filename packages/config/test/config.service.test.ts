@@ -1,6 +1,8 @@
+import { Logger } from "@nestjs/common";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import fs from "fs/promises";
 import * as runtimeEnv from "../src/runtime-env";
+import * as migrations from "../src/migrations";
 
 import type { ConfigStore } from "../src/config.store";
 import { ConfigService } from "../src/config.service";
@@ -150,6 +152,67 @@ describe("ConfigService compose precedence", () => {
     await expect(service.compose({}, { preset: "missing" })).rejects.toThrow(
       /Unknown configuration preset: missing\. Available presets: .* Use --preset <name> to apply a preset\./,
     );
+  });
+});
+
+describe("ConfigService compose migrations", () => {
+  it("rejects configs that declare a newer version than supported", async () => {
+    const { service } = createService();
+
+    await expect(
+      service.compose({ version: 999 } as unknown as EddieConfigInput),
+    ).rejects.toThrow(/newer config version/i);
+  });
+
+  it("assigns the current version when composing configs without one", async () => {
+    const { service } = createService();
+
+    const composed = await service.compose({} as EddieConfigInput);
+
+    expect(typeof composed.version).toBe("number");
+    expect(composed.version).toBe(migrations.CURRENT_CONFIG_VERSION);
+  });
+
+  it("applies migration output and logs warnings when present", async () => {
+    const runSpy = vi
+      .spyOn(migrations, "runConfigMigrations")
+      .mockReturnValue({
+        initialVersion: 0,
+        finalVersion: migrations.CURRENT_CONFIG_VERSION,
+        appliedMigrations: ["0001-add-config-version"],
+        warnings: ["manual step required"],
+        migrated: {
+          version: migrations.CURRENT_CONFIG_VERSION,
+          model: "migrated",
+        },
+      });
+    const warnSpy = vi.spyOn(Logger.prototype, "warn");
+
+    const { service } = createService();
+
+    const composed = await service.compose({ version: 0 } as EddieConfigInput);
+
+    expect(runSpy).toHaveBeenCalledWith({ version: 0 });
+    expect(composed.model).toBe("migrated");
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("manual step required"),
+    );
+  });
+
+  it("throws when migrations cannot reach the current version", async () => {
+    vi.spyOn(migrations, "runConfigMigrations").mockReturnValue({
+      initialVersion: 0,
+      finalVersion: migrations.CURRENT_CONFIG_VERSION - 1,
+      appliedMigrations: ["incomplete"],
+      warnings: [],
+      migrated: { version: 0 },
+    });
+
+    const { service } = createService();
+
+    await expect(
+      service.compose({ version: 0 } as EddieConfigInput),
+    ).rejects.toThrow(/Unable to automatically migrate config version/);
   });
 });
 

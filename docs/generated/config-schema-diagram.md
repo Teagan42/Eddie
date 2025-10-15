@@ -313,4 +313,6 @@ graph TD
   transcript["transcript: object"]
   transcript --> transcript__compactor
   transcript__compactor["compactor: oneOf"]
+  root --> version
+  version["version (required): integer"]
 ```
