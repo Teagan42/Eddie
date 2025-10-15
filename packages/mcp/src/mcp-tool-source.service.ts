@@ -76,20 +76,14 @@ type ToolResultPayload = {
 export class McpToolSourceService {
   private readonly sessionCache = new Map<string, CachedSessionInfo>();
   private readonly logger: Logger;
-  private readonly loggerService: LoggerService;
   private sdkModulesPromise?: Promise<SdkModules>;
 
-  constructor(loggerService?: LoggerService) {
-    this.loggerService = this.resolveLoggerService(loggerService);
-    this.logger = this.loggerService.getLogger(LOGGER_SCOPE);
-  }
-
-  private resolveLoggerService(loggerService?: LoggerService): LoggerService {
-    if (loggerService) {
-      return loggerService;
+  constructor(private readonly loggerService: LoggerService) {
+    if (!loggerService) {
+      throw new Error("LoggerService is required");
     }
 
-    return new LoggerService();
+    this.logger = this.loggerService.getLogger(LOGGER_SCOPE);
   }
 
   async collectTools(

@@ -5,6 +5,8 @@ import type { IncomingMessage, ServerResponse } from "http";
 import { McpToolSourceService } from "@eddie/mcp";
 import { ToolRegistryFactory } from "@eddie/tools";
 import type { MCPToolSourceConfig } from "@eddie/config";
+import type { LoggerService } from "@eddie/io";
+import type { Logger } from "pino";
 
 interface RecordedRequest {
   method: string;
@@ -13,6 +15,24 @@ interface RecordedRequest {
 }
 
 describe("MCP tool source integration", () => {
+  const createLogger = (): Logger => {
+    const logger: Partial<Logger> = {
+      info: () => undefined,
+      warn: () => undefined,
+      error: () => undefined,
+      debug: () => undefined,
+      trace: () => undefined,
+    };
+
+    logger.child = () => logger as Logger;
+
+    return logger as Logger;
+  };
+
+  const createLoggerService = (): LoggerService => ({
+    getLogger: () => createLogger(),
+  }) as unknown as LoggerService;
+
   const requests: RecordedRequest[] = [];
   const expectedToken = "mock-token";
   const handshakeMethods = ["initialize", "notifications/initialized"] as const;
@@ -237,7 +257,7 @@ describe("MCP tool source integration", () => {
   it("discovers tools and executes MCP-backed handlers", async () => {
     requests.length = 0;
     serverCapabilities = { ...defaultServerCapabilities };
-    const service = new McpToolSourceService();
+    const service = new McpToolSourceService(createLoggerService());
     const config: MCPToolSourceConfig = {
       id: "mock",
       type: "mcp",
@@ -322,7 +342,7 @@ describe("MCP tool source integration", () => {
       prompts: { list: true, get: false },
     };
 
-    const service = new McpToolSourceService();
+    const service = new McpToolSourceService(createLoggerService());
     const config: MCPToolSourceConfig = {
       id: "mock",
       type: "mcp",
