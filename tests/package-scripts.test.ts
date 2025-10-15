@@ -5,6 +5,18 @@ const packageJson = JSON.parse(
   readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
 );
 
+const convenienceScripts = {
+  clean: 'npm run clean --workspaces --if-present && git clean -fdX',
+  reset: 'npm run clean && npm install',
+  typecheck: 'npm run typecheck --workspaces --if-present',
+  'test:coverage': 'npm run test --workspaces --if-present -- --coverage',
+  'test:integration': 'npm run test:integration --workspaces --if-present',
+  'test:unit': 'npm run test:unit --workspaces --if-present',
+  'docs:serve': 'npx serve docs',
+  'db:migrate': 'npm run db:migrate --workspace @eddie/api --if-present',
+  'db:seed': 'npm run db:seed --workspace @eddie/api --if-present',
+} as const;
+
 describe('root package scripts', () => {
   it('runs API and web development servers together', () => {
     expect(packageJson.scripts.dev).toBe(
@@ -14,5 +26,9 @@ describe('root package scripts', () => {
 
   it('installs concurrently to manage the dev processes', () => {
     expect(packageJson.devDependencies.concurrently).toBeDefined();
+  });
+
+  it.each(Object.entries(convenienceScripts))('exposes a "%s" convenience script', (script, command) => {
+    expect(packageJson.scripts[script]).toBe(command);
   });
 });
