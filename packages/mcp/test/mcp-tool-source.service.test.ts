@@ -103,6 +103,14 @@ const createLoggerService = (logger: Logger): LoggerService => ({
   getLogger: vi.fn().mockReturnValue(logger),
 } as unknown as LoggerService);
 
+const createService = () => {
+  const logger = createLogger();
+  const loggerService = createLoggerService(logger);
+  const service = new McpToolSourceService(loggerService);
+
+  return { service, logger, loggerService };
+};
+
 const createDeferred = <T>() => {
   let resolve!: (value: T | PromiseLike<T>) => void;
   let reject!: (reason?: unknown) => void;
@@ -191,9 +199,7 @@ describe("McpToolSourceService", () => {
   });
 
   it("unwraps tool listings returned under a result property", async () => {
-    const logger = createLogger();
-    const loggerService = createLoggerService(logger);
-    const service = new McpToolSourceService(loggerService);
+    const { service } = createService();
     const source: MCPToolSourceConfig = {
       id: "nested-list-result",
       type: "mcp",
@@ -232,6 +238,109 @@ describe("McpToolSourceService", () => {
         }),
       ])
     );
+  });
+
+  it("unwraps prompt listings returned under a result property", async () => {
+    const { service } = createService();
+    const source: MCPToolSourceConfig = {
+      id: "nested-prompts-result",
+      type: "mcp",
+      url: "https://example.com/mcp",
+    };
+
+    mockServerCapabilities.mockReturnValue({
+      tools: { list: true },
+      prompts: { list: true, get: true },
+    });
+
+    mockClientConnect.mockImplementation(async () => {
+      const instance = mockClientInstances.at(-1);
+      if (!instance) {
+        return;
+      }
+
+      instance.listPrompts.mockResolvedValue({
+        result: {
+          prompts: [
+            {
+              name: "welcome",
+              description: "Welcomes the user",
+            },
+          ],
+        },
+      });
+
+      instance.getPrompt.mockImplementation(async ({ name }: { name: string }) => {
+        if (name !== "welcome") {
+          throw new Error(`Unexpected prompt ${name}`);
+        }
+
+        return {
+          result: {
+            prompt: {
+              name: "welcome",
+              description: "Welcomes the user",
+              arguments: [],
+              messages: [],
+            },
+          },
+        };
+      });
+    });
+
+    const discoveries = await service.discoverSources([source]);
+
+    expect(discoveries[0]?.prompts).toEqual([
+      expect.objectContaining({
+        name: "welcome",
+        description: "Welcomes the user",
+        arguments: [],
+        messages: [],
+      }),
+    ]);
+  });
+
+  it("unwraps resource listings returned under a result property", async () => {
+    const { service } = createService();
+    const source: MCPToolSourceConfig = {
+      id: "nested-resources-result",
+      type: "mcp",
+      url: "https://example.com/mcp",
+    };
+
+    mockServerCapabilities.mockReturnValue({
+      tools: { list: true },
+      resources: { list: true },
+    });
+
+    mockClientConnect.mockImplementation(async () => {
+      const instance = mockClientInstances.at(-1);
+      if (!instance) {
+        return;
+      }
+
+      instance.listResources.mockResolvedValue({
+        result: {
+          resources: [
+            {
+              uri: "resource://example",
+              name: "Example",
+              description: "An example resource",
+            },
+          ],
+        },
+      });
+    });
+
+    const discoveries = await service.discoverSources([source]);
+
+    expect(discoveries[0]?.resources).toEqual([
+      expect.objectContaining({
+        uri: "resource://example",
+        name: "Example",
+        description: "An example resource",
+      }),
+    ]);
   });
 
   it("uses the SDK client to initialize and logs server capabilities", async () => {

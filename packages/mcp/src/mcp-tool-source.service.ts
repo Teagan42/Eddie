@@ -523,7 +523,11 @@ export class McpToolSourceService {
   }
 
   private unwrapResult<T>(payload: T | ResultEnvelope<T>): T {
-    if (payload && typeof payload === "object" && "result" in payload) {
+    if (
+      payload &&
+      typeof payload === "object" &&
+      Object.prototype.hasOwnProperty.call(payload, "result")
+    ) {
       const candidate = payload as ResultEnvelope<T>;
       if (candidate.result !== undefined) {
         return candidate.result;
