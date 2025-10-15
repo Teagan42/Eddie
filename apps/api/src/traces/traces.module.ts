@@ -17,6 +17,5 @@ import { TracesGatewayEventsHandler } from "./traces.gateway.events-handler";
     ...traceQueryHandlers,
   ],
   controllers: [TracesController],
-  exports: [TracesService],
 })
 export class TracesModule {}
