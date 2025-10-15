@@ -168,6 +168,33 @@ describe("McpToolSourceService", () => {
     );
   });
 
+  it("skips resource discovery when the server lacks resources support", async () => {
+    const logger = createLogger();
+    const loggerService = createLoggerService(logger);
+    const service = new McpToolSourceService(loggerService);
+    const source: MCPToolSourceConfig = {
+      id: "no-resources",
+      type: "mcp",
+      url: "https://example.com/mcp",
+    };
+
+    mockServerCapabilities.mockReturnValue({ tools: { list: true } });
+
+    const discoveries = await service.discoverSources([source]);
+
+    expect(mockClientInstances).toHaveLength(1);
+    const instance = mockClientInstances[0];
+    expect(instance.listResources).not.toHaveBeenCalled();
+    expect(discoveries).toEqual([
+      {
+        sourceId: source.id,
+        tools: [],
+        resources: [],
+        prompts: [],
+      },
+    ]);
+  });
+
   it("uses the SSE transport when configured", async () => {
     const logger = createLogger();
     const loggerService = createLoggerService(logger);

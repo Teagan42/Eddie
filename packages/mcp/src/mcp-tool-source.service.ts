@@ -136,28 +136,25 @@ export class McpToolSourceService {
     prompts: McpPromptDefinition[];
   }> {
     return this.withClient(source, async (context) => {
-      const toolsResult = await this.executeRequest<McpToolsListResult>(
+      const toolDescriptors = await this.listToolDescriptorsIfSupported(
         source,
-        context,
-        "tools/list",
-        () => context.client.listTools()
+        context
       );
-      const descriptors = toolsResult.tools ?? [];
-      if (typeof context.client.cacheToolOutputSchemas === "function") {
-        context.client.cacheToolOutputSchemas(descriptors);
+
+      if (
+        toolDescriptors.length > 0 &&
+        typeof context.client.cacheToolOutputSchemas === "function"
+      ) {
+        context.client.cacheToolOutputSchemas(toolDescriptors);
       }
 
-      const toolDefinitions = descriptors.map((tool) =>
+      const toolDefinitions = toolDescriptors.map((tool) =>
         this.toToolDefinition(source, tool)
       );
 
-      const resourcesResult = await this.executeRequest<McpResourcesListResult>(
-        source,
-        context,
-        "resources/list",
-        () => context.client.listResources()
-      );
-      const resources = (resourcesResult.resources ?? []).map((resource) => ({
+      const resources = (
+        await this.listResourceDescriptorsIfSupported(source, context)
+      ).map((resource) => ({
         ...resource,
         metadata: resource.metadata
           ? structuredClone(resource.metadata)
@@ -174,6 +171,9 @@ export class McpToolSourceService {
     source: MCPToolSourceConfig,
     context: ClientContext
   ): Promise<McpPromptDefinition[]> {
+    if (!this.supportsCapability(context.serverCapabilities, "prompts", "list")) {
+      return [];
+    }
     try {
       const result = await this.executeRequest<McpPromptsListResult>(
         source,
@@ -249,6 +249,11 @@ export class McpToolSourceService {
     args: ToolCallArguments
   ): Promise<ToolResult> {
     return this.withClient(source, async (context) => {
+      if (!this.supportsCapability(context.serverCapabilities, "tools", "call")) {
+        throw new Error(
+          `MCP server does not advertise tool.call capability for tool ${name}.`
+        );
+      }
       const params = {
         name,
         arguments: structuredClone(args ?? {}),
@@ -697,6 +702,76 @@ export class McpToolSourceService {
     }
 
     return undefined;
+  }
+
+  private supportsCapability(
+    capabilities: Record<string, unknown> | undefined,
+    capability: string,
+    operation?: string
+  ): boolean {
+    if (!capabilities || typeof capabilities !== "object") {
+      return false;
+    }
+
+    const value = (capabilities as Record<string, unknown>)[capability];
+    if (!value) {
+      return false;
+    }
+
+    if (!operation) {
+      return Boolean(value);
+    }
+
+    if (typeof value !== "object" || value === null) {
+      return Boolean(value);
+    }
+
+    const operationValue = (value as Record<string, unknown>)[operation];
+    if (operationValue === undefined) {
+      return true;
+    }
+
+    if (typeof operationValue === "boolean") {
+      return operationValue;
+    }
+
+    return Boolean(operationValue);
+  }
+
+  private async listToolDescriptorsIfSupported(
+    source: MCPToolSourceConfig,
+    context: ClientContext
+  ): Promise<McpToolDescription[]> {
+    if (!this.supportsCapability(context.serverCapabilities, "tools", "list")) {
+      return [];
+    }
+
+    const toolsResult = await this.executeRequest<McpToolsListResult>(
+      source,
+      context,
+      "tools/list",
+      () => context.client.listTools()
+    );
+
+    return toolsResult.tools ?? [];
+  }
+
+  private async listResourceDescriptorsIfSupported(
+    source: MCPToolSourceConfig,
+    context: ClientContext
+  ): Promise<McpResourceDescription[]> {
+    if (!this.supportsCapability(context.serverCapabilities, "resources", "list")) {
+      return [];
+    }
+
+    const resourcesResult = await this.executeRequest<McpResourcesListResult>(
+      source,
+      context,
+      "resources/list",
+      () => context.client.listResources()
+    );
+
+    return resourcesResult.resources ?? [];
   }
 }
 
