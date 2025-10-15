@@ -21,6 +21,8 @@
       "@eddie/engine/*": ["packages/engine/src/*"],
       "@eddie/hooks": ["packages/hooks/src"],
       "@eddie/hooks/*": ["packages/hooks/src/*"],
+      "@eddie/perf-benchmarks": ["packages/perf-benchmarks/src"],
+      "@eddie/perf-benchmarks/*": ["packages/perf-benchmarks/src/*"],
       "@eddie/io": ["packages/io/src"],
       "@eddie/io/*": ["packages/io/src/*"],
       "@eddie/mcp": ["packages/mcp/src"],

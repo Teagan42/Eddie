@@ -10,6 +10,7 @@
     { "path": "./packages/tokenizers" },
     { "path": "./packages/providers" },
     { "path": "./packages/hooks" },
+    { "path": "./packages/perf-benchmarks" },
     { "path": "./packages/context" },
     { "path": "./packages/mcp" },
     { "path": "./packages/engine" },
