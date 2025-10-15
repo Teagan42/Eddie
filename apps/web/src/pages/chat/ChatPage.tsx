@@ -436,10 +436,20 @@ function mergeAgentHierarchyRuntimeDetails(
       }
       : undefined;
 
+    const providerFromMetadata = (() => {
+      const metadataProvider = node.metadata?.provider ?? existing?.metadata?.provider;
+      return typeof metadataProvider === 'string' ? metadataProvider : undefined;
+    })();
+
+    const modelFromMetadata = (() => {
+      const metadataModel = node.metadata?.model ?? existing?.metadata?.model;
+      return typeof metadataModel === 'string' ? metadataModel : undefined;
+    })();
+
     return {
       ...node,
-      provider: node.provider ?? existing?.provider,
-      model: node.model ?? existing?.model,
+      provider: node.provider ?? providerFromMetadata ?? existing?.provider,
+      model: node.model ?? modelFromMetadata ?? existing?.model,
       depth: node.depth ?? existing?.depth,
       metadata: mergedMetadata,
       children: mergedChildren,
