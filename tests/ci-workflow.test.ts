@@ -43,8 +43,11 @@ describe('ci workflow configuration', () => {
 
   it('regenerates and pushes the config schema diagram', () => {
     const jobSection = extractJobSection('docs-config-schema:');
+    const expectedStatusCheck =
+      'git status --porcelain -- docs/generated/config-schema-diagram.md';
 
     expect(jobSection).toMatch(/npm run docs:config-schema(\n|\s)/);
+    expect(jobSection).toContain(expectedStatusCheck);
     expect(jobSection).toMatch(
       /git commit --all --message "chore: update config schema diagram"/
     );

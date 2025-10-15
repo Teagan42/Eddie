@@ -120,7 +120,7 @@ jobs:
         id: commit
         run: |
           set -euo pipefail
-          if git status --porcelain=./docs/generated/config-schema-diagram.md | grep .; then
+          if git status --porcelain -- docs/generated/config-schema-diagram.md | grep .; then
             git add docs/generated/config-schema-diagram.md
             git commit --all --message "chore: update config schema diagram"
             echo "committed=true" >> "$GITHUB_OUTPUT"
