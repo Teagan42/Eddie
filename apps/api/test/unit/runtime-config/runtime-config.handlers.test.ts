@@ -17,10 +17,13 @@ const runtimeConfig = {
 };
 
 describe("RuntimeConfig CQRS handlers", () => {
-  it("returns the runtime configuration snapshot through the query handler", async () => {
-    const service = {
+  const createServiceWithGet = () =>
+    ({
       get: vi.fn().mockReturnValue(runtimeConfig),
-    } as unknown as RuntimeConfigService;
+    } as unknown as RuntimeConfigService);
+
+  it("returns the runtime configuration snapshot through the query handler", async () => {
+    const service = createServiceWithGet();
 
     const handler = new GetRuntimeConfigHandler(service);
 
@@ -28,6 +31,14 @@ describe("RuntimeConfig CQRS handlers", () => {
       runtimeConfig
     );
     expect(service.get).toHaveBeenCalledTimes(1);
+  });
+
+  it("exposes a zero-arity execute method for the query handler", () => {
+    const service = createServiceWithGet();
+
+    const handler = new GetRuntimeConfigHandler(service);
+
+    expect(handler.execute.length).toBe(0);
   });
 
   it("updates the runtime configuration and publishes the update event", async () => {

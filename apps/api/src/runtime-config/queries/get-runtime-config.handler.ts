@@ -11,7 +11,7 @@ implements IQueryHandler<GetRuntimeConfigQuery, RuntimeConfigDto>
 {
   constructor(private readonly service: RuntimeConfigService) {}
 
-  async execute(_: GetRuntimeConfigQuery): Promise<RuntimeConfigDto> {
+  async execute(): Promise<RuntimeConfigDto> {
     return this.service.get();
   }
 }
