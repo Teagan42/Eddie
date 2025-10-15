@@ -17,6 +17,7 @@ const packageSourceRoot = `${packageRoot}/src`;
 const packageSourceGlobs = `${packageSourceRoot}/*`;
 const packageBuildTsconfigPath = `${packageRoot}/tsconfig.build.json`;
 const packageReferencePath = `./${packageRoot}`;
+const packageNodeModulesPath = `node_modules/${workspaceName}`;
 const loadManifest = () => JSON.parse(readFileSync(manifestUrl, 'utf8'));
 const loadJson = (url: URL) => JSON.parse(readFileSync(url, 'utf8'));
 const loadModule = async (url: URL) => {
@@ -127,6 +128,15 @@ describe('root workspace references perf benchmarks', () => {
     expect(packageLock.packages?.['packages/perf-benchmarks']).toMatchObject({
       name: workspaceName,
       version: '0.0.0',
+    });
+  });
+
+  it('links the workspace in node_modules metadata', () => {
+    const packageLock = loadJson(packageLockUrl);
+
+    expect(packageLock.packages?.[packageNodeModulesPath]).toMatchObject({
+      resolved: packageRoot,
+      link: true,
     });
   });
 });
