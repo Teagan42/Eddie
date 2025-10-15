@@ -16,8 +16,8 @@
   "scripts": {
     "clean": "npm run clean --workspaces --if-present && git clean -fdX",
     "reset": "npm run clean && npm install",
-    "build": "npm run build --workspaces",
-    "lint": "npm run lint --workspaces --if-present && npm run lint:licenses",
+    "build": "tsx scripts/workspace-script.ts build",
+    "lint": "tsx scripts/workspace-script.ts lint && npm run lint:licenses",
     "lint:licenses": "tsx scripts/license-check.ts --check",
     "licenses:write": "tsx scripts/license-check.ts",
     "typecheck": "npm run typecheck --workspaces --if-present",

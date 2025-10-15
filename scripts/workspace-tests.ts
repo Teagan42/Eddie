@@ -1,72 +1,13 @@
 import { spawn } from 'node:child_process';
-import { promises as fs } from 'node:fs';
-import os from 'node:os';
-import { createInterface } from 'node:readline';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-
-type Workspace = {
-  name: string;
-  dir: string;
-};
+import { determineConcurrency, runWithConcurrency } from './utils/workspace-concurrency';
+import { formatPrefix, pipeStream } from './utils/workspace-io';
+import { discoverWorkspacesWithScript, type Workspace } from './utils/workspaces';
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const forwardedArgs = process.argv.slice(2);
-
-async function readPackageJson(path: string) {
-  const content = await fs.readFile(path, 'utf8');
-  return JSON.parse(content) as { name?: string; scripts?: Record<string, string>; workspaces?: string[] };
-}
-
-async function resolveWorkspaceDirs(pattern: string): Promise<string[]> {
-  if (pattern.endsWith('/*')) {
-    const baseDir = pattern.slice(0, -2);
-    const absoluteBase = join(rootDir, baseDir);
-    try {
-      const entries = await fs.readdir(absoluteBase, { withFileTypes: true });
-      return entries.filter((entry) => entry.isDirectory()).map((entry) => join(baseDir, entry.name));
-    } catch {
-      return [];
-    }
-  }
-
-  return [pattern];
-}
-
-async function discoverWorkspaces(): Promise<Workspace[]> {
-  const rootPackageJson = await readPackageJson(join(rootDir, 'package.json'));
-  const patterns = rootPackageJson.workspaces ?? [];
-  const workspaceDirs = new Set<string>();
-
-  for (const pattern of patterns) {
-    const dirs = await resolveWorkspaceDirs(pattern);
-    dirs.forEach((dir) => workspaceDirs.add(dir));
-  }
-
-  const workspaces: Workspace[] = [];
-
-  for (const dir of workspaceDirs) {
-    try {
-      const pkg = await readPackageJson(join(rootDir, dir, 'package.json'));
-      if (pkg.scripts?.test) {
-        workspaces.push({
-          name: pkg.name ?? dir,
-          dir,
-        });
-      }
-    } catch {
-      // Ignore directories that do not contain a package.json
-    }
-  }
-
-  return workspaces.sort((a, b) => a.name.localeCompare(b.name));
-}
-
-function formatPrefix(name: string, width: number): string {
-  const padded = name.padEnd(width, ' ');
-  return `[${padded}]`;
-}
 
 type TestResult = {
   workspace: string;
@@ -93,22 +34,6 @@ export function createTestResult(
 }
 
 const activeChildren = new Set<ReturnType<typeof spawn>>();
-
-function pipeStream(stream: NodeJS.ReadableStream, writer: NodeJS.WritableStream, prefix: string) {
-  const rl = createInterface({ input: stream });
-  rl.on('line', (line) => {
-    writer.write(`${prefix} ${line}\n`);
-  });
-}
-
-function parsePositiveInteger(value?: string): number | undefined {
-  if (!value) {
-    return undefined;
-  }
-
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
-}
 
 process.once('SIGINT', () => {
   for (const child of activeChildren) {
@@ -149,67 +74,8 @@ async function runWorkspaceTest(workspace: Workspace, prefixWidth: number): Prom
   });
 }
 
-export async function runWithConcurrency<T>(tasks: Array<() => Promise<T>>, concurrency: number): Promise<T[]> {
-  if (tasks.length === 0) {
-    return [];
-  }
-
-  if (!Number.isFinite(concurrency) || concurrency < 1) {
-    throw new Error('Concurrency must be a positive integer.');
-  }
-
-  const results: T[] = new Array(tasks.length);
-  let nextIndex = 0;
-  let firstError: unknown;
-  const workerCount = Math.min(concurrency, tasks.length);
-
-  const workers = Array.from({ length: workerCount }, async () => {
-    while (true) {
-      if (firstError) {
-        return;
-      }
-
-      const currentIndex = nextIndex;
-      nextIndex += 1;
-
-      if (currentIndex >= tasks.length) {
-        return;
-      }
-
-      try {
-        results[currentIndex] = await tasks[currentIndex]();
-      } catch (error) {
-        firstError = error;
-      }
-    }
-  });
-
-  await Promise.all(workers);
-
-  if (firstError) {
-    throw firstError;
-  }
-
-  return results;
-}
-
-export function determineConcurrency(totalWorkspaces: number): number {
-  if (totalWorkspaces <= 0) {
-    return 0;
-  }
-
-  const parsedEnv = parsePositiveInteger(process.env.WORKSPACE_TEST_CONCURRENCY);
-  if (parsedEnv) {
-    return Math.min(parsedEnv, totalWorkspaces);
-  }
-
-  const cpuCount = os.cpus()?.length ?? 1;
-  const recommended = Math.min(3, cpuCount);
-  return Math.min(recommended, totalWorkspaces);
-}
-
 async function main() {
-  const workspaces = await discoverWorkspaces();
+  const workspaces = await discoverWorkspacesWithScript('test');
 
   if (workspaces.length === 0) {
     console.log('No workspace tests found.');
