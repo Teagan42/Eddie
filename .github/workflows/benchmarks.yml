@@ -1,0 +1,114 @@
+name: Benchmarks
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  deployments: write
+
+jobs:
+  perf-benchmarks:
+    name: Performance benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_DB: eddie_bench
+          POSTGRES_USER: eddie
+          POSTGRES_PASSWORD: eddie-pass
+        options: >-
+          --health-cmd="pg_isready -U $POSTGRES_USER"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      mysql:
+        image: mysql:8
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_DATABASE: eddie_bench
+          MYSQL_ROOT_PASSWORD: eddie-pass
+          MYSQL_USER: eddie
+          MYSQL_PASSWORD: eddie-pass
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u$MYSQL_USER -p$MYSQL_PASSWORD"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      mariadb:
+        image: mariadb:11
+        ports:
+          - 3307:3306
+        env:
+          MARIADB_DATABASE: eddie_bench
+          MARIADB_ROOT_PASSWORD: eddie-pass
+          MARIADB_USER: eddie
+          MARIADB_PASSWORD: eddie-pass
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u$MARIADB_USER -p$MARIADB_PASSWORD"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      BENCHMARK_OUTPUT_PATH: ${{ github.workspace }}/packages/perf-benchmarks/benchmark-results.json
+      CHAT_SESSIONS_BENCH_POSTGRES_URL: postgresql://eddie:eddie-pass@127.0.0.1:5432/eddie_bench
+      CHAT_SESSIONS_BENCH_MYSQL_URL: mysql://eddie:eddie-pass@127.0.0.1:3306/eddie_bench
+      CHAT_SESSIONS_BENCH_MARIADB_URL: mysql://eddie:eddie-pass@127.0.0.1:3307/eddie_bench
+      DATABASE_URL: postgresql://eddie:eddie-pass@127.0.0.1:5432/eddie_bench
+      MYSQL_URL: mysql://eddie:eddie-pass@127.0.0.1:3306/eddie_bench
+      MARIADB_URL: mysql://eddie:eddie-pass@127.0.0.1:3307/eddie_bench
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-20.x-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        run: ./scripts/install.sh
+
+      - name: Run performance benchmarks
+        run: |
+          npm run bench --workspace @eddie/perf-benchmarks -- --run --reporter=json --outputFile="${BENCHMARK_OUTPUT_PATH}"
+
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-benchmark-json
+          path: ${{ env.BENCHMARK_OUTPUT_PATH }}
+          if-no-files-found: error
+
+      - name: Publish benchmark history
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Eddie performance benchmarks
+          tool: 'customSmallerIsBetter'
+          output-file-path: ${{ env.BENCHMARK_OUTPUT_PATH }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          gh-pages-branch: benchmarks
+          benchmark-data-dir-path: perf
+          auto-push: true
+          alert-threshold: '5%'
+          fail-on-alert: true
+          comment-on-alert: true
+          alert-comment-cc-users: '@Teagan42'

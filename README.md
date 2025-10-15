@@ -51,6 +51,26 @@ Use the session list to rename or delete chat sessions; changes are broadcast im
 - Lifecycle hooks, optional OpenTelemetry spans, and JSONL traces for observability that every surface can replay
 - Interactive chat, single-shot prompts, context previews, automated run mode, and collaborative UI approvals
 
+## Performance benchmarks
+
+Continuous performance tracking lives in the [`benchmarks.yml`](.github/workflows/benchmarks.yml)
+workflow. Every push to `main` (and the scheduled weekly run) provisions SQLite,
+PostgreSQL, MySQL, and MariaDB backends, executes
+
+```
+npm run bench --workspace @eddie/perf-benchmarks -- --reporter=json
+```
+
+and publishes regression charts to the [`benchmarks` branch](https://github.com/Teagan42/Eddie/tree/benchmarks).
+Results are rendered on GitHub Pages so trends remain visible between releases,
+while the raw JSON is attached to the workflow run for offline analysis.
+
+The benchmark action raises regression alerts whenever a metric degrades by 5%
+or more compared to the last successful run. Alerts fail the workflow and leave
+an annotated comment on the offending commit so maintainers can respond quickly.
+See [docs/performance-benchmarks.md](docs/performance-benchmarks.md) for guidance
+on reading the charts and interpreting alert notifications.
+
 ## Web UI
 
 Start the full-stack experience locally by running the API and UI together:

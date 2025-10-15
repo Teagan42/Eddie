@@ -11,6 +11,14 @@ Run the suite locally with:
 npm run bench --workspace @eddie/perf-benchmarks
 ```
 
+The CI workflow defined in [`.github/workflows/benchmarks.yml`](../.github/workflows/benchmarks.yml)
+keeps the history fresh by running on every push to `main` and on a weekly
+schedule. The job provisions PostgreSQL, MySQL, and MariaDB service containers
+next to the default SQLite driver so the persistence benchmarks exercise every
+adapter with the same dataset. After the run completes the resulting JSON is
+published to the [`benchmarks` branch](https://github.com/Teagan42/Eddie/tree/benchmarks)
+and attached as a workflow artifact for reproducibility.
+
 ## Context pack scenarios
 
 `context-pack.bench.ts` builds a set of representative project directories once
@@ -64,3 +72,17 @@ The cache-bust timing should align with the cold render, while the warm result
 should remain stable. Any increase in warm render or memory metrics is a strong
 signal that cached templates are being rebuilt or additional allocations were
 introduced between renders.
+
+## Reading the published reports
+
+The GitHub Pages report rendered from the `benchmarks` branch overlays the most
+recent data on the full run history. Hover each point to view the commit SHA,
+duration, throughput, and any additional context emitted by the benchmark
+suite. Use the download button to capture the raw JSON for offline analysis or
+custom visualisations.
+
+Regression alerts are configured with a 5% threshold. When a metric degrades by
+more than that amount compared to the previous successful run the workflow will
+fail, upload the artifacts, and leave a comment on the offending commit. These
+alert notifications identify the regressions to investigate; once addressed,
+rerun the workflow or land a follow-up commit to clear the alert.
