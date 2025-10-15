@@ -1,0 +1,16 @@
+{% extends "layout.njk" %}
+
+{% block subject %}Welcome, {{ recipient.name }}!{% endblock %}
+
+{% block body %}
+  {% include "partials/greeting.njk" %}
+  <p>We've activated the following features for you:</p>
+  {% include "partials/features.njk" %}
+  <p>Next steps:</p>
+  <ol>
+    <li>Invite your teammates</li>
+    <li>Configure automations</li>
+    <li>Ship your first agent</li>
+  </ol>
+  {% include "partials/signature.njk" %}
+{% endblock %}
