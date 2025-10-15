@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { Buffer } from "buffer";
+import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { URL } from "node:url";
 import type {
@@ -75,6 +76,10 @@ type ToolResultPayload = {
 @Injectable()
 export class McpToolSourceService {
   private readonly sessionCache = new Map<string, CachedSessionInfo>();
+  private readonly sessionCacheByIdentity = new Map<
+    string,
+    Map<string, CachedSessionInfo>
+  >();
   private readonly logger: Logger;
   private readonly loggerService: LoggerService;
   private sdkModulesPromise?: Promise<SdkModules>;
@@ -437,8 +442,10 @@ export class McpToolSourceService {
       StreamableHTTPClientTransport,
       SSEClientTransport,
     } = await this.loadSdkModules();
-    const cached = this.sessionCache.get(source.id);
     const headers = this.buildHeaders(source);
+    const cacheKey = this.getSessionCacheKey(source, headers);
+    const identityCache = this.getIdentityCache(source.id);
+    const cached = identityCache.get(cacheKey);
     const transportUrl = new URL(source.url);
     const transportName = this.resolveTransportName(source);
     const transport = this.createTransport({
@@ -497,11 +504,13 @@ export class McpToolSourceService {
       cachedSessionId: cached?.sessionId,
     });
 
-    this.sessionCache.set(source.id, {
+    const cachedEntry: CachedSessionInfo = {
       sessionId,
       capabilities: serverCapabilities,
       serverInfo,
-    });
+    };
+    identityCache.set(cacheKey, cachedEntry);
+    this.sessionCache.set(source.id, cachedEntry);
 
     try {
       const context: ClientContext = {
@@ -646,6 +655,42 @@ export class McpToolSourceService {
     }
 
     return { message: String(error) };
+  }
+
+  private getSessionCacheKey(
+    source: MCPToolSourceConfig,
+    headers: Record<string, string>
+  ): string {
+    const normalized = this.normalizeHeadersForCache(headers);
+    const hash = createHash("sha256");
+    hash.update(source.id);
+    for (const [key, value] of normalized) {
+      hash.update("\0");
+      hash.update(key);
+      hash.update("\0");
+      hash.update(value);
+    }
+
+    return `${source.id}:${hash.digest("hex")}`;
+  }
+
+  private getIdentityCache(
+    sourceId: string
+  ): Map<string, CachedSessionInfo> {
+    let cache = this.sessionCacheByIdentity.get(sourceId);
+    if (!cache) {
+      cache = new Map<string, CachedSessionInfo>();
+      this.sessionCacheByIdentity.set(sourceId, cache);
+    }
+    return cache;
+  }
+
+  private normalizeHeadersForCache(
+    headers: Record<string, string>
+  ): Array<readonly [string, string]> {
+    return Object.entries(headers)
+      .map(([key, value]) => [key.toLowerCase(), value] as const)
+      .sort(([a], [b]) => a.localeCompare(b));
   }
 
   private buildHeaders(source: MCPToolSourceConfig): Record<string, string> {

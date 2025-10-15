@@ -634,6 +634,56 @@ describe("McpToolSourceService", () => {
     expect(getTransportSessionId(1)).toBe("session-123");
   });
 
+  it("keeps session caches isolated per source authentication", async () => {
+    const logger = createLogger();
+    const loggerService = createLoggerService(logger);
+    const service = new McpToolSourceService(loggerService);
+    const baseSource: MCPToolSourceConfig = {
+      id: "shared",
+      type: "mcp",
+      url: "https://example.com/mcp",
+      auth: { type: "bearer", token: "token-a" },
+    };
+
+    mockClientConnect
+      .mockImplementationOnce(async (transport: { sessionId?: string }) => {
+        transport.sessionId = "session-a";
+      })
+      .mockImplementationOnce(async (transport: { sessionId?: string }) => {
+        transport.sessionId = "session-b";
+      });
+
+    await service.discoverSources([baseSource]);
+
+    const alternateSource: MCPToolSourceConfig = {
+      ...baseSource,
+      auth: { type: "bearer", token: "token-b" },
+    };
+
+    await service.discoverSources([alternateSource]);
+
+    expect(mockTransportInstances).toHaveLength(2);
+    expect(getTransportSessionId(0)).toBeUndefined();
+    expect(getTransportSessionId(1)).toBeUndefined();
+
+    const caches = (
+      service as unknown as {
+        sessionCache: Map<string, { sessionId?: string }>;
+        sessionCacheByIdentity: Map<
+          string,
+          Map<string, { sessionId?: string }>
+        >;
+      }
+    );
+
+    const bucket = caches.sessionCacheByIdentity.get("shared");
+    expect(bucket?.size).toBe(2);
+    expect(
+      Array.from(bucket?.values() ?? []).map((entry) => entry.sessionId)
+    ).toEqual(expect.arrayContaining(["session-a", "session-b"]));
+    expect(caches.sessionCache.get("shared")?.sessionId).toBe("session-b");
+  });
+
   it("constructs with a default logger when no LoggerService is provided", async () => {
     const service = new McpToolSourceService();
     const source: MCPToolSourceConfig = {
