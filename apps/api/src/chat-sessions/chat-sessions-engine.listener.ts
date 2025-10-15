@@ -34,9 +34,7 @@ implements IEventHandler<ChatMessageCreatedEvent> {
         private readonly commandBus: CommandBus,
         private readonly logs: LogsService,
         private readonly streamRenderer: ChatSessionStreamRendererService
-  ) {
-    this.engine.setStreamRenderer(this.streamRenderer);
-  }
+  ) {}
 
   async handle(event: ChatMessageCreatedEvent): Promise<void> {
     await this.processMessage(event.sessionId, event.messageId);
