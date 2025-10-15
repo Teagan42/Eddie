@@ -45,6 +45,7 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
+          --health-start-period=40s
       mariadb:
         image: mariadb:11
         ports:
@@ -59,6 +60,7 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
+          --health-start-period=40s
     env:
       BENCHMARK_OUTPUT_PATH: ${{ github.workspace }}/packages/perf-benchmarks/benchmark-results.json
       CHAT_SESSIONS_BENCH_POSTGRES_URL: postgresql://eddie:eddie-pass@127.0.0.1:5432/eddie_bench

@@ -37,6 +37,14 @@ describe('benchmarks workflow', () => {
     expect(workflow).toContain('uses: actions/upload-artifact@');
   });
 
+  it('ensures database services allow ample time for startup health checks', () => {
+    const workflow = readFileSync(workflowPath, 'utf8');
+
+    for (const service of ['mysql', 'mariadb']) {
+      expect(workflow).toMatch(new RegExp(`${service}:[\\s\\S]*--health-start-period=40s`));
+    }
+  });
+
   it('documents where to find reports and what alerts mean', () => {
     const readme = readFileSync(readmePath, 'utf8');
     const docs = readFileSync(docsPath, 'utf8');
