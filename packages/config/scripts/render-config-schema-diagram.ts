@@ -9,6 +9,7 @@ import {
 } from "../src/schema";
 
 const OUTPUT_RELATIVE_PATH = "docs/generated/config-schema-diagram.md";
+const MERMAID_SPECIAL_CHARS = /[<>{}:()]/;
 
 export function renderConfigSchemaMermaid(
   bundle: EddieConfigSchemaBundle,
@@ -65,9 +66,10 @@ function describeObject(
 
     const childId = sanitizeId([...path, key].join("__"));
     const nodeLabel = buildNodeLabel(key, childSchema, required.has(key));
+    const mermaidLabel = formatMermaidLabel(nodeLabel);
 
     lines.push(`  ${parentId} --> ${childId}`);
-    lines.push(`  ${childId}[${nodeLabel}]`);
+    lines.push(`  ${childId}[${mermaidLabel}]`);
 
     if (isObjectSchema(childSchema)) {
       describeObject(childId, childSchema, lines, [...path, key]);
@@ -111,6 +113,16 @@ function buildNodeLabel(
 
 function formatDisplayKey(key: string, isRequired: boolean): string {
   return isRequired ? `${key} (required)` : key;
+}
+
+function formatMermaidLabel(label: string): string {
+  const needsQuotes = MERMAID_SPECIAL_CHARS.test(label);
+  if (!needsQuotes && !label.includes("\"")) {
+    return label;
+  }
+
+  const escaped = label.replace(/"/g, '\\"');
+  return needsQuotes ? `"${escaped}"` : escaped;
 }
 
 function summarizeSchema(schema: JSONSchema7): string {
