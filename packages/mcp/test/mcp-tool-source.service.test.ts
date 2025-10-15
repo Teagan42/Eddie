@@ -363,6 +363,76 @@ describe("McpToolSourceService", () => {
     ]);
   });
 
+  it("skips preloading prompts that declare arguments", async () => {
+    const { service } = createService();
+    const source: MCPToolSourceConfig = {
+      id: "prompts-with-arguments",
+      type: "mcp",
+      url: "https://example.com/mcp",
+    };
+
+    mockServerCapabilities.mockReturnValue({
+      tools: { list: true },
+      prompts: { list: true, get: true },
+    });
+
+    mockClientConnect.mockImplementation(async () => {
+      const instance = mockClientInstances.at(-1);
+      if (!instance) {
+        return;
+      }
+
+      instance.listPrompts.mockResolvedValue({
+        prompts: [
+          {
+            name: "no-args",
+            description: "Does not require arguments",
+          },
+          {
+            name: "needs-args",
+            description: "Requires arguments",
+            arguments: [
+              {
+                name: "topic",
+                required: true,
+              },
+            ],
+          },
+        ],
+      });
+
+      instance.getPrompt.mockImplementation(async ({ name }: { name: string }) => {
+        if (name === "needs-args") {
+          throw new Error("prompts with arguments should not be pre-loaded");
+        }
+
+        return {
+          prompt: {
+            name: "no-args",
+            description: "Does not require arguments",
+            arguments: [],
+            messages: [],
+          },
+        };
+      });
+    });
+
+    const discoveries = await service.discoverSources([source]);
+
+    expect(discoveries[0]?.prompts).toEqual([
+      expect.objectContaining({
+        name: "no-args",
+        description: "Does not require arguments",
+        arguments: [],
+        messages: [],
+      }),
+    ]);
+
+    const instance = mockClientInstances.at(-1);
+    expect(instance?.getPrompt).toHaveBeenCalledTimes(1);
+    expect(instance?.getPrompt).toHaveBeenCalledWith({ name: "no-args" });
+  });
+
   it("unwraps resource listings returned under a result property", async () => {
     const { service } = createService();
     const source: MCPToolSourceConfig = {

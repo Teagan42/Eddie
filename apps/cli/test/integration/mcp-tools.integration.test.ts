@@ -260,14 +260,7 @@ describe("MCP tool source integration", () => {
         metadata: { version: "1.0.0" },
       },
     ]);
-    expect(discovery.prompts).toEqual([
-      {
-        name: "mock_prompt",
-        description: "Provides a mock prompt",
-        arguments: promptArguments,
-        messages: promptMessages,
-      },
-    ]);
+    expect(discovery.prompts).toEqual([]);
 
     const methods = requests.map((req) => req.method);
     expect(methods).toEqual([
@@ -275,11 +268,9 @@ describe("MCP tool source integration", () => {
       "tools/list",
       "resources/list",
       "prompts/list",
-      "prompts/get",
     ]);
+    expect(methods).not.toContain("prompts/get");
     expect(requests[0].headers.authorization).toBe(`Bearer ${expectedToken}`);
-    const promptRequestIndex = handshakeMethods.length + 3;
-    expect(requests[promptRequestIndex].params?.name).toBe("mock_prompt");
 
     const cache = (
       service as unknown as {
@@ -309,11 +300,10 @@ describe("MCP tool source integration", () => {
       "tools/list",
       "resources/list",
       "prompts/list",
-      "prompts/get",
       ...handshakeMethods,
       "tools/call",
     ]);
-    const toolCallIndex = handshakeMethods.length * 2 + 4;
+    const toolCallIndex = handshakeMethods.length * 2 + 3;
     expect(requests[toolCallIndex].params?.arguments).toEqual({ query: "beta" });
 
     expect(result).toEqual({

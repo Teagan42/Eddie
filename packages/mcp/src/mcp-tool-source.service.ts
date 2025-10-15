@@ -11,6 +11,7 @@ import type { Logger } from "pino";
 import type {
   DiscoveredMcpResource,
   DiscoveredMcpPrompt,
+  McpPromptDescription,
   McpPromptDefinition,
   McpPromptGetResult,
   McpPromptsListResult,
@@ -203,8 +204,16 @@ export class McpToolSourceService {
         return [];
       }
 
+      const preloadableDescriptors = descriptors.filter((descriptor) =>
+        this.isPromptPreloadable(descriptor)
+      );
+
+      if (!preloadableDescriptors.length) {
+        return [];
+      }
+
       const prompts = await Promise.all(
-        descriptors.map((descriptor) =>
+        preloadableDescriptors.map((descriptor) =>
           this.executeRequest<McpPromptGetResult>(source, context, "prompts/get", () =>
             context.client.getPrompt({ name: descriptor.name })
           )
@@ -237,6 +246,12 @@ export class McpToolSourceService {
         content: structuredClone(message.content ?? []),
       })),
     };
+  }
+
+  private isPromptPreloadable(
+    descriptor: McpPromptDescription
+  ): boolean {
+    return !descriptor.arguments || descriptor.arguments.length === 0;
   }
 
   private toToolDefinition(
