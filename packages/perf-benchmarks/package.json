@@ -1,0 +1,9 @@
+{
+  "name": "@eddie/perf-benchmarks",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "bench": "eslint . && vitest bench",
+    "test": "echo \"No tests for perf benchmarks yet\""
+  }
+}
