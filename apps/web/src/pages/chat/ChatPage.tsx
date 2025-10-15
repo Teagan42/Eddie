@@ -741,14 +741,11 @@ export function ChatPage(): JSX.Element {
         if (selectedSessionIdRef.current === sessionId) {
           setSelectedSessionId(null);
         }
-        setOrchestratorMetadataBySession((previous) => {
-          if (!(sessionId in previous)) {
-            return previous;
-          }
-          const next = { ...previous } as Record<string, OrchestratorMetadataDto>;
-          delete next[sessionId];
-          return next;
-        });
+        setContextBundlesBySession((previous) => removeSessionKey(previous, sessionId));
+        setToolInvocationsBySession((previous) => removeSessionKey(previous, sessionId));
+        setAgentHierarchyBySession((previous) => removeSessionKey(previous, sessionId));
+        setCapturedAtBySession((previous) => removeSessionKey(previous, sessionId));
+        setMetadataPresenceBySession((previous) => removeSessionKey(previous, sessionId));
       }),
       api.sockets.chatSessions.onMessageCreated((message) => {
         queryClient.setQueryData<ChatMessageDto[]>(
