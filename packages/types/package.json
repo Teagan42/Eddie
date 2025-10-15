@@ -14,5 +14,8 @@
     "build": "tsc -b tsconfig.build.json",
     "lint": "eslint 'src/**/*.ts'",
     "test": "vitest --run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@nestjs/cqrs": "^11.0.0"
   }
 }

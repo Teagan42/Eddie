@@ -1,3 +1,4 @@
+import { IEvent } from "@nestjs/cqrs";
 import { env as ProcessEnv } from "process";
 export type Role = "system" | "user" | "assistant" | "tool";
 
@@ -90,7 +91,7 @@ export type StreamEvent =
         responseId?: string;
       } & AgentScopedEvent);
 
-export class AgentStreamEvent {
+export class AgentStreamEvent implements IEvent {
   constructor(public readonly event: StreamEvent) {}
 }
 
