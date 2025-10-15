@@ -1,4 +1,5 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { Injectable, OnModuleDestroy, OnModuleInit, Optional } from "@nestjs/common";
+import { CommandBus } from "@nestjs/cqrs";
 import {
   JsonlWriterEvent,
   JsonlWriterService,
@@ -6,7 +7,10 @@ import {
   LoggerService,
 } from "@eddie/io";
 import { LogsService } from "./logs.service";
-import { ToolsGateway } from "../tools/tools.gateway";
+import {
+  CompleteToolCallCommand,
+  StartToolCallCommand,
+} from "../tools/commands";
 import type { LogEntryDto } from "./dto/log-entry.dto";
 
 type RegisteredDisposer = () => void;
@@ -31,7 +35,7 @@ export class LogsForwarderService implements OnModuleInit, OnModuleDestroy {
         private readonly loggerService: LoggerService,
         private readonly jsonlWriter: JsonlWriterService,
         private readonly logs: LogsService,
-        private readonly toolsGateway: ToolsGateway
+        @Optional() private readonly commandBus?: CommandBus,
   ) { }
 
   onModuleInit(): void {
@@ -138,26 +142,10 @@ export class LogsForwarderService implements OnModuleInit, OnModuleDestroy {
         const args = (data && (data.arguments ?? data.args)) ?? (raw.arguments ?? raw.args) ?? undefined;
         const result = (data && (data.result)) ?? (raw.result) ?? undefined;
 
-        const safeStringify = (v: unknown): string | null => {
-          try {
-            if (v === undefined || v === null) return null;
-            if (typeof v === 'string') return v;
-            if (typeof v === 'number' || typeof v === 'boolean') return String(v);
-            return JSON.stringify(v);
-          } catch {
-            try {
-              return String(v);
-            } catch {
-              return null;
-            }
-          }
-        };
+        if (typeof sessionId !== "string" || sessionId.length === 0) {
+          return;
+        }
 
-        const forwardPayload: Record<string, unknown> = {
-          sessionId,
-          id,
-          name,
-        };
         // Prefer any timestamp present in the trace payload (data or raw),
         // otherwise fall back to the current time.
         const rawTimestamp = (data && (data.timestamp ?? data.time ?? data.ts)) ?? (raw.timestamp ?? raw.time ?? raw.ts);
@@ -167,27 +155,28 @@ export class LogsForwarderService implements OnModuleInit, OnModuleDestroy {
         } else if (typeof rawTimestamp === 'string') {
           timestampIso = rawTimestamp;
         }
-        forwardPayload.timestamp = timestampIso ?? new Date().toISOString();
-        if (phase === "tool_call") {
-          (forwardPayload as any).arguments = safeStringify(args) ?? null;
-        } else {
-          (forwardPayload as any).result = safeStringify(result) ?? null;
-        }
-
-        // Forwarding -- debug logging removed in cleanup
+        const timestamp = timestampIso ?? new Date().toISOString();
 
         if (phase === "tool_call") {
-          try {
-            this.toolsGateway.emitToolCall(forwardPayload);
-          } catch {
-            // swallow errors
-          }
+          this.dispatchToolCommand(
+            new StartToolCallCommand({
+              sessionId,
+              toolCallId: id ?? undefined,
+              name: name ?? undefined,
+              arguments: args ?? null,
+              timestamp,
+            })
+          );
         } else {
-          try {
-            this.toolsGateway.emitToolResult(forwardPayload);
-          } catch {
-            // swallow errors
-          }
+          this.dispatchToolCommand(
+            new CompleteToolCallCommand({
+              sessionId,
+              toolCallId: id ?? undefined,
+              name: name ?? undefined,
+              result: result ?? null,
+              timestamp,
+            })
+          );
         }
       } catch {
         // swallow errors
@@ -222,6 +211,19 @@ export class LogsForwarderService implements OnModuleInit, OnModuleDestroy {
             !Array.isArray(value) &&
             Object.getPrototypeOf(value) === Object.prototype
     );
+  }
+
+  private dispatchToolCommand(
+    command: StartToolCallCommand | CompleteToolCallCommand
+  ): void {
+    if (!this.commandBus) {
+      return;
+    }
+    try {
+      void this.commandBus.execute(command);
+    } catch {
+      // swallow errors to keep log forwarding resilient
+    }
   }
 
 }

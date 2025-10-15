@@ -20,6 +20,11 @@ import { ChatSessionsGateway } from "../../../src/chat-sessions/chat-sessions.ga
 import { ChatMessagesGateway } from "../../../src/chat-sessions/chat-messages.gateway";
 import { ChatSessionEventsService } from "../../../src/chat-sessions/chat-session-events.service";
 import { ToolsGateway } from "../../../src/tools/tools.gateway";
+import { ToolsModule } from "../../../src/tools/tools.module";
+import {
+  StartToolCallCommand,
+  CompleteToolCallCommand,
+} from "../../../src/tools/commands";
 import { SendChatMessagePayloadDto } from "../../../src/chat-sessions/dto/send-chat-message.dto";
 import { ChatSessionToolCallEvent, ChatSessionToolResultEvent } from "@eddie/types";
 import { ChatMessageSent } from "../../../src/chat-sessions/events";
@@ -35,6 +40,7 @@ describe("ChatSessionsController HTTP", () => {
   let service: ChatSessionsService;
   let eventBus: EventBus;
   let toolsGateway: ToolsGateway;
+  let commandBus: CommandBus;
 
   beforeEach(async () => {
     defineParamTypes(ChatSessionsController, [CommandBus, QueryBus]);
@@ -49,10 +55,10 @@ describe("ChatSessionsController HTTP", () => {
 
     defineParamTypes(ChatSessionsGatewayEventsHandler, [ChatSessionsGateway]);
 
-    defineParamTypes(ChatSessionEventsService, [ChatMessagesGateway, ToolsGateway]);
+    defineParamTypes(ChatSessionEventsService, [ChatMessagesGateway, CommandBus]);
 
     const moduleRef = await Test.createTestingModule({
-      imports: [CqrsModule],
+      imports: [CqrsModule, ToolsModule],
       controllers: [ChatSessionsController],
       providers: [
         {
@@ -89,6 +95,7 @@ describe("ChatSessionsController HTTP", () => {
     service = app.get(ChatSessionsService);
     eventBus = app.get(EventBus);
     toolsGateway = app.get(ToolsGateway);
+    commandBus = app.get(CommandBus);
   });
 
   afterEach(async () => {
@@ -177,6 +184,7 @@ describe("ChatSessionsController HTTP", () => {
     const emitSpy = vi
       .spyOn(gateway, "emitMessageCreated")
       .mockImplementation(() => undefined);
+    const executeSpy = vi.spyOn(commandBus, "execute");
 
     await eventBus.publishAll([
       new ChatSessionToolCallEvent(
@@ -213,7 +221,19 @@ describe("ChatSessionsController HTTP", () => {
     );
 
     await vi.waitFor(() => expect(emitSpy).toHaveBeenCalled());
-    await vi.waitFor(() => expect(toolsGateway.emitToolCall).toHaveBeenCalled());
-    await vi.waitFor(() => expect(toolsGateway.emitToolResult).toHaveBeenCalled());
+    await vi.waitFor(() =>
+      expect(
+        executeSpy.mock.calls.some(
+          ([command]) => command instanceof StartToolCallCommand
+        )
+      ).toBe(true)
+    );
+    await vi.waitFor(() =>
+      expect(
+        executeSpy.mock.calls.some(
+          ([command]) => command instanceof CompleteToolCallCommand
+        )
+      ).toBe(true)
+    );
   });
 });
