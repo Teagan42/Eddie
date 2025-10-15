@@ -8,8 +8,15 @@ function extractJobSection(jobId: string): string {
   const jobStart = workflow.indexOf(jobId);
   expect(jobStart).toBeGreaterThan(-1);
 
-  const summaryStart = workflow.indexOf('\n  summary:', jobStart);
-  return summaryStart === -1 ? workflow.slice(jobStart) : workflow.slice(jobStart, summaryStart);
+  const rest = workflow.slice(jobStart);
+  const afterJob = rest.slice(jobId.length);
+  const nextJobOffset = afterJob.search(/\r?\n  [a-z0-9-]+:/);
+
+  if (nextJobOffset === -1) {
+    return rest;
+  }
+
+  return rest.slice(0, jobId.length + nextJobOffset);
 }
 
 describe('ci workflow configuration', () => {
@@ -44,7 +51,7 @@ describe('ci workflow configuration', () => {
   it('regenerates and pushes the config schema diagram', () => {
     const jobSection = extractJobSection('docs-config-schema:');
     const expectedStatusCheck =
-      'git status --porcelain -- docs/generated/config-schema-diagram.md';
+      'git status --porcelain=./docs/generated/config-schema-diagram.md';
 
     expect(jobSection).toMatch(/npm run docs:config-schema(\n|\s)/);
     expect(jobSection).toContain(expectedStatusCheck);
@@ -52,5 +59,13 @@ describe('ci workflow configuration', () => {
       /git commit --all --message "chore: update config schema diagram"/
     );
     expect(jobSection).toMatch(/git push/);
+  });
+
+  it('runs diagram and license sync without gating dependencies', () => {
+    const docsJob = extractJobSection('docs-config-schema:');
+    const licensesJob = extractJobSection('sync-third-party-licenses:');
+
+    expect(docsJob).not.toMatch(/\n {4}needs:/);
+    expect(licensesJob).not.toMatch(/\n {4}needs:/);
   });
 });
