@@ -5,6 +5,7 @@ import { MODULE_METADATA } from '@nestjs/common/constants';
 import type { Provider } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { ConfigStore } from '@eddie/config';
+import { StreamRendererService } from '@eddie/io';
 
 import { ChatSessionsModule } from '../../../src/chat-sessions/chat-sessions.module';
 import { chatSessionCommandHandlers } from '../../../src/chat-sessions/commands';
@@ -16,6 +17,7 @@ import {
   InMemoryChatSessionsRepository,
   KnexChatSessionsRepository,
 } from '../../../src/chat-sessions/chat-sessions.repository';
+import { ChatSessionStreamRendererService } from '../../../src/chat-sessions/chat-session-stream-renderer.service';
 
 describe('ChatSessionsModule', () => {
   const getImports = () =>
@@ -163,5 +165,22 @@ describe('ChatSessionsModule', () => {
       'Unsupported chat sessions persistence driver "oracle". Supported drivers: memory, sqlite, postgres, mysql, mariadb.',
     );
     expect(moduleRef.get).not.toHaveBeenCalled();
+  });
+
+  it('provides the chat session stream renderer to engine consumers', () => {
+    const providers = getProviders();
+
+    expect(providers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          provide: StreamRendererService,
+          useClass: ChatSessionStreamRendererService,
+        }),
+        expect.objectContaining({
+          provide: ChatSessionStreamRendererService,
+          useExisting: StreamRendererService,
+        }),
+      ]),
+    );
   });
 });

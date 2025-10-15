@@ -111,8 +111,8 @@ describe("ChatSessionsEngineListener", () => {
     expect(events).toContain(ChatMessageCreatedEvent);
   });
 
-  it("registers the stream renderer with the engine", () => {
-    expect(engineSetStreamRenderer).toHaveBeenCalledWith(streamRenderer);
+  it("does not manually register the stream renderer", () => {
+    expect(engineSetStreamRenderer).not.toHaveBeenCalled();
   });
 
   it("ignores assistant messages", () => {
