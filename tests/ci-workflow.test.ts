@@ -22,4 +22,18 @@ describe('ci workflow configuration', () => {
     );
     expect(workflow).toMatch(/results\["\$job"\]/);
   });
+
+  it('regenerates and pushes third-party notices', () => {
+    const jobStart = workflow.indexOf('sync-third-party-licenses:');
+    expect(jobStart).toBeGreaterThan(-1);
+
+    const summaryStart = workflow.indexOf('\n  summary:', jobStart);
+    const jobSection = summaryStart === -1 ? workflow.slice(jobStart) : workflow.slice(jobStart, summaryStart);
+
+    expect(jobSection).toMatch(/npm run licenses:write/);
+    expect(jobSection).toMatch(
+      /git commit --all --message "chore: update third-party notices"/
+    );
+    expect(jobSection).toMatch(/git push/);
+  });
 });

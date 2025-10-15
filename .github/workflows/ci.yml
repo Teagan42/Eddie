@@ -1,6 +1,6 @@
 name: CI
 permissions:
-  contents: read
+  contents: write
   actions: write
 
 on:
@@ -131,12 +131,65 @@ jobs:
           path: ${{ matrix.workspace.coverage }}
           if-no-files-found: error
 
+  sync-third-party-licenses:
+    name: Sync third-party notices
+    runs-on: ubuntu-latest
+    needs:
+      - build-test
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-20.x-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        run: ./scripts/install.sh
+
+      - name: Regenerate third-party notices
+        run: npm run licenses:write
+
+      - name: Commit updated notices
+        id: commit
+        run: |
+          set -euo pipefail
+          if git status --porcelain=./THIRD_PARTY_NOTICES.md | grep .; then
+            git add THIRD_PARTY_NOTICES.md
+            git commit --all --message "chore: update third-party notices"
+            echo "committed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "committed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push updates
+        if: steps.commit.outputs.committed == 'true'
+        run: git push
+
   summary:
     name: CI summary
     runs-on: ubuntu-latest
     needs:
       - lint
       - build-test
+      - sync-third-party-licenses
     if: ${{ always() }}
     steps:
       - name: Report overall status
@@ -144,6 +197,7 @@ jobs:
           declare -A results
           results[lint]="${{ needs.lint.result }}"
           results["build-test"]="${{ needs['build-test'].result }}"
+          results["sync-third-party-licenses"]="${{ needs['sync-third-party-licenses'].result }}"
 
           printf "%-10s %s\n" "Job" "Result"
           declare -a jobs=("${!results[@]}")
