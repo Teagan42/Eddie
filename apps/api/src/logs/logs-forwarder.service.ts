@@ -220,7 +220,9 @@ export class LogsForwarderService implements OnModuleInit, OnModuleDestroy {
       return;
     }
     try {
-      void this.commandBus.execute(command);
+      void this.commandBus.execute(command).catch(() => {
+        // swallow errors to keep log forwarding resilient
+      });
     } catch {
       // swallow errors to keep log forwarding resilient
     }
