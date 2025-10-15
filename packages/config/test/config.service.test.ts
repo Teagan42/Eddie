@@ -11,9 +11,14 @@ import type { CliRuntimeOptions, EddieConfig, EddieConfigInput } from "../src/ty
 
 const clone = <T>(value: T): T => structuredClone(value);
 
-const createService = (defaults?: Partial<EddieConfig>) => {
-  const providerDefaults = defaults
-    ? { ...clone(DEFAULT_CONFIG), ...defaults }
+interface CreateServiceOptions {
+  defaults?: Partial<EddieConfig>;
+  moduleOptions?: CliRuntimeOptions;
+}
+
+const createService = (options?: CreateServiceOptions) => {
+  const providerDefaults = options?.defaults
+    ? { ...clone(DEFAULT_CONFIG), ...options.defaults }
     : undefined;
   let snapshot = clone(providerDefaults ?? DEFAULT_CONFIG);
   const configStore = {
@@ -22,7 +27,9 @@ const createService = (defaults?: Partial<EddieConfig>) => {
     }),
     getSnapshot: vi.fn(() => clone(snapshot)),
   } as unknown as ConfigStore;
-  const moduleOptions = {} as CliRuntimeOptions;
+  const moduleOptions = {
+    ...(options?.moduleOptions ?? {}),
+  } as CliRuntimeOptions;
 
   const service = new ConfigService(configStore, moduleOptions, providerDefaults, null);
 
@@ -70,7 +77,7 @@ describe("ConfigService compose precedence", () => {
       api: { host: "file.local", port: 4242 },
     };
 
-    const { service } = createService(defaults);
+    const { service } = createService({ defaults });
 
     const composed = await service.compose(configInput);
 
@@ -92,7 +99,7 @@ describe("ConfigService compose precedence", () => {
       },
     };
 
-    const { service } = createService(defaults);
+    const { service } = createService({ defaults });
 
     const composed = await service.compose(configInput);
 
@@ -114,13 +121,25 @@ describe("ConfigService compose precedence", () => {
       logLevel: "error",
     };
 
-    const { service, configStore } = createService(defaults);
+    const { service, configStore } = createService({ defaults });
 
     const composed = await service.compose(configInput, cliOverrides);
 
     expect(composed.model).toBe("cli-model");
     expect(composed.logging?.level).toBe("error");
     expect(configStore.setSnapshot).not.toHaveBeenCalled();
+  });
+
+  it("preserves module preset when CLI override is undefined", async () => {
+    const moduleOptions = { preset: "api-host" } as CliRuntimeOptions;
+    const { service } = createService({ moduleOptions });
+
+    const composed = await service.compose(
+      {},
+      { preset: undefined } as CliRuntimeOptions,
+    );
+
+    expect(composed.api?.port).toBe(8080);
   });
 
   it("merges presets before config files and CLI overrides", async () => {
