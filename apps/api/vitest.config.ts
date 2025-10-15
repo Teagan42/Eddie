@@ -60,6 +60,7 @@ export default defineConfig({
     globals: true,
     include: ["test/**/*.test.ts"],
     environment: "node",
+    pool: "threads",
     coverage: {
       reporter: ["text", "html"],
       statements: 90,
