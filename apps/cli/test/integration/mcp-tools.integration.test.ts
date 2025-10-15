@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import { beforeAll, afterAll, describe, expect, it } from "vitest";
+import { beforeAll, afterAll, beforeEach, describe, expect, it } from "vitest";
 import * as http from "http";
 import type { IncomingMessage, ServerResponse } from "http";
 import { McpToolSourceService } from "@eddie/mcp";
@@ -54,8 +54,21 @@ describe("MCP tool source integration", () => {
     },
   ];
 
+  const defaultServerCapabilities = {
+    tools: {},
+    resources: {},
+    prompts: { list: true, get: true },
+  } as const;
+
   let server: http.Server;
   let baseUrl: string;
+  let serverCapabilities: Record<string, unknown> = {
+    ...defaultServerCapabilities,
+  };
+
+  beforeEach(() => {
+    serverCapabilities = { ...defaultServerCapabilities };
+  });
 
   beforeAll(async () => {
     server = http.createServer(async (req: IncomingMessage, res: ServerResponse) => {
@@ -100,7 +113,7 @@ describe("MCP tool source integration", () => {
             result: {
               sessionId: "mock-session",
               protocolVersion: "2024-11-05",
-              capabilities: { tools: {}, resources: {} },
+              capabilities: serverCapabilities,
               serverInfo: { name: "mock-mcp", version: "2.0.0" },
             },
           };
@@ -223,13 +236,14 @@ describe("MCP tool source integration", () => {
 
   it("discovers tools and executes MCP-backed handlers", async () => {
     requests.length = 0;
+    serverCapabilities = { ...defaultServerCapabilities };
     const service = new McpToolSourceService();
     const config: MCPToolSourceConfig = {
       id: "mock",
       type: "mcp",
       url: `${baseUrl}/rpc`,
       auth: { type: "bearer", token: expectedToken },
-      capabilities: { tools: {}, resources: {} },
+      capabilities: { tools: {}, resources: {}, prompts: {} },
     };
 
     const discoveries = await service.discoverSources([config]);
@@ -308,5 +322,33 @@ describe("MCP tool source integration", () => {
       data: { items: ["alpha", "beta"] },
       metadata: { tookMs: 12 },
     });
+  });
+
+  it("skips prompt discovery when prompts.get capability is disabled", async () => {
+    requests.length = 0;
+    serverCapabilities = {
+      tools: {},
+      resources: {},
+      prompts: { list: true, get: false },
+    };
+
+    const service = new McpToolSourceService();
+    const config: MCPToolSourceConfig = {
+      id: "mock",
+      type: "mcp",
+      url: `${baseUrl}/rpc`,
+      auth: { type: "bearer", token: expectedToken },
+      capabilities: { tools: {}, resources: {}, prompts: {} },
+    };
+
+    const [discovery] = await service.discoverSources([config]);
+
+    expect(discovery.prompts).toEqual([]);
+    const methods = requests.map((req) => req.method);
+    expect(methods).toEqual([
+      ...handshakeMethods,
+      "tools/list",
+      "resources/list",
+    ]);
   });
 });

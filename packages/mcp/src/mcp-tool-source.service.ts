@@ -171,7 +171,18 @@ export class McpToolSourceService {
     source: MCPToolSourceConfig,
     context: ClientContext
   ): Promise<McpPromptDefinition[]> {
-    if (!this.supportsCapability(context.serverCapabilities, "prompts", "list")) {
+    const canListPrompts = this.supportsCapability(
+      context.serverCapabilities,
+      "prompts",
+      "list"
+    );
+    const canGetPrompts = this.supportsCapability(
+      context.serverCapabilities,
+      "prompts",
+      "get"
+    );
+
+    if (!canListPrompts || !canGetPrompts) {
       return [];
     }
     try {
