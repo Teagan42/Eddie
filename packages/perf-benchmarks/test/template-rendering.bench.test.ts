@@ -1,4 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+type AsyncFactoryRegistration = (
+  name: string,
+  factory: () => unknown | Promise<unknown>,
+) => void;
+type AsyncBenchRegistration = (
+  name: string,
+  handler: () => unknown | Promise<unknown>,
+) => void;
 
 import type {
   TemplateRenderingFixture,
@@ -49,5 +58,52 @@ describe('template-rendering benchmarks', () => {
     expect(measurement.cold.durationMs).toBeGreaterThan(0);
     expect(measurement.warm.durationMs).toBeGreaterThan(0);
     expect(measurement.cacheBusted.durationMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('registers benchmark groups after fixtures are loaded', async () => {
+    const suiteCallbacks: Array<() => unknown> = [];
+    const groupCallbacks: Array<() => unknown> = [];
+    const benchCallbacks: Array<() => unknown> = [];
+
+    const registerSuite = vi.fn<AsyncFactoryRegistration>((name, factory) => {
+      expect(name).toContain('TemplateRendererService');
+      suiteCallbacks.push(factory);
+    });
+    const registerGroup = vi.fn<AsyncFactoryRegistration>((name, factory) => {
+      expect(name).toMatch(/inline|descriptor/);
+      groupCallbacks.push(factory);
+    });
+    const registerBench = vi.fn<AsyncBenchRegistration>((name, handler) => {
+      expect(name).toMatch(/inline|descriptor/);
+      benchCallbacks.push(handler);
+    });
+
+    const { defineTemplateRenderingBenchmarks } = await import(
+      '../src/template-rendering.bench'
+    );
+
+    await defineTemplateRenderingBenchmarks({
+      suite: registerSuite,
+      group: registerGroup,
+      bench: registerBench,
+      loadFixtures: loadTemplateRenderingFixtures,
+    });
+
+    expect(registerSuite).toHaveBeenCalled();
+    expect(registerGroup).not.toHaveBeenCalled();
+    expect(registerBench).not.toHaveBeenCalled();
+
+    for (const suiteFactory of suiteCallbacks) {
+      await suiteFactory();
+    }
+
+    expect(registerGroup).toHaveBeenCalled();
+
+    for (const groupFactory of groupCallbacks) {
+      await groupFactory();
+    }
+
+    expect(registerBench).toHaveBeenCalled();
+    expect(benchCallbacks).not.toHaveLength(0);
   });
 });

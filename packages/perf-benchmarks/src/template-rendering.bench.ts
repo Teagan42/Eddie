@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 
-import { afterAll, beforeAll, bench, group, suite } from 'vitest';
+import { afterAll, bench, group, suite } from 'vitest';
 
 import { TemplateRendererService } from '@eddie/templates';
 import type { TemplateDescriptor, TemplateVariables } from '@eddie/templates';
@@ -220,6 +220,18 @@ const ensureSeries = (
   return created;
 };
 
+const recordMeasurement = (
+  series: ScenarioSeries,
+  measurement: TemplateRenderingMeasurement,
+) => {
+  series.coldDurations.push(measurement.cold.durationMs);
+  series.warmDurations.push(measurement.warm.durationMs);
+  series.cacheBustedDurations.push(measurement.cacheBusted.durationMs);
+  series.coldMemory.push(measurement.cold.memoryBytes);
+  series.warmMemory.push(measurement.warm.memoryBytes);
+  series.cacheBustedMemory.push(measurement.cacheBusted.memoryBytes);
+};
+
 const summarize = (samples: number[]) => {
   if (samples.length === 0) {
     return {
@@ -287,40 +299,54 @@ const emitScenarioReport = () => {
   console.log(JSON.stringify(report));
 };
 
-const vitestState = (import.meta as unknown as {
-  vitest?: { mode?: string };
-}).vitest;
+export interface TemplateBenchmarkRegistrationContext {
+  readonly suite: typeof suite;
+  readonly group: typeof group;
+  readonly bench: typeof bench;
+  readonly loadFixtures?: () => Promise<TemplateRenderingFixture[]>;
+}
 
-if (vitestState?.mode === 'benchmark') {
-  suite('TemplateRendererService render scenarios', () => {
-    let fixtures: TemplateRenderingFixture[] = [];
+export async function defineTemplateRenderingBenchmarks({
+  suite: registerSuite,
+  group: registerGroup,
+  bench: registerBench,
+  loadFixtures: loadFixturesFn = loadTemplateRenderingFixtures,
+}: TemplateBenchmarkRegistrationContext): Promise<void> {
+  const fixtures = await loadFixturesFn();
 
-    beforeAll(async () => {
-      fixtures = await loadTemplateRenderingFixtures();
-    });
-
+  registerSuite('TemplateRendererService render scenarios', () => {
     afterAll(() => {
       emitScenarioReport();
     });
 
     for (const fixture of fixtures) {
       for (const mode of ['descriptor', 'inline'] as const) {
-        group(`${fixture.label} (${mode})`, () => {
-          bench(`${fixture.id} ${mode}`, async () => {
+        registerGroup(`${fixture.label} (${mode})`, () => {
+          registerBench(`${fixture.id} ${mode}`, async () => {
             const measurement = await measureTemplateRenderingScenario(
               fixture,
               { mode },
             );
             const series = ensureSeries(fixture, mode);
-            series.coldDurations.push(measurement.cold.durationMs);
-            series.warmDurations.push(measurement.warm.durationMs);
-            series.cacheBustedDurations.push(measurement.cacheBusted.durationMs);
-            series.coldMemory.push(measurement.cold.memoryBytes);
-            series.warmMemory.push(measurement.warm.memoryBytes);
-            series.cacheBustedMemory.push(measurement.cacheBusted.memoryBytes);
+            recordMeasurement(series, measurement);
           });
         });
       }
     }
+  });
+}
+
+const vitestState = (import.meta as unknown as {
+  vitest?: { mode?: string };
+}).vitest;
+
+if (vitestState?.mode === 'benchmark') {
+  void defineTemplateRenderingBenchmarks({
+    suite,
+    group,
+    bench,
+    loadFixtures: loadTemplateRenderingFixtures,
+  }).catch((error) => {
+    console.error('Failed to register template rendering benchmarks', error);
   });
 }
