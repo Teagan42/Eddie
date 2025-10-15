@@ -31,6 +31,8 @@ import type {
   TranscriptConfig,
 } from "@eddie/types";
 
+export type { ConfigFileSnapshot };
+
 /**
  * ConfigService resolves Eddie configuration from disk and merges it with CLI
  * runtime overrides, normalising legacy fields along the way.

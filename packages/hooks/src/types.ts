@@ -1,5 +1,6 @@
 import {
   HOOK_EVENTS,
+  isHookEventName,
 } from "@eddie/types";
 import type {
   AgentCompletionPayload,
@@ -20,6 +21,7 @@ import type {
   HookDispatchResult,
   HookEventMap,
   HookEventName,
+  HookEventHandlers,
   HookListener,
   HookListenerResult,
   SessionEndPayload,
@@ -36,7 +38,7 @@ import type {
   UserPromptSubmitPayload,
 } from "@eddie/types";
 
-export { HOOK_EVENTS };
+export { HOOK_EVENTS, isHookEventName };
 export type {
   AgentCompletionPayload,
   AgentContextSummary,
@@ -56,6 +58,7 @@ export type {
   HookDispatchResult,
   HookEventMap,
   HookEventName,
+  HookEventHandlers,
   HookListener,
   HookListenerResult,
   SessionEndPayload,

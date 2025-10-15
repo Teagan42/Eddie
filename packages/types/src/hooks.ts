@@ -32,6 +32,14 @@ export const HOOK_EVENTS = {
 
 export type HookEventName = (typeof HOOK_EVENTS)[keyof typeof HOOK_EVENTS];
 
+const HOOK_EVENT_NAME_SET = new Set<HookEventName>(
+  Object.values(HOOK_EVENTS)
+);
+
+export function isHookEventName(value: unknown): value is HookEventName {
+  return typeof value === "string" && HOOK_EVENT_NAME_SET.has(value as HookEventName);
+}
+
 export interface SessionMetadata {
   id: string;
   startedAt: string;
@@ -219,6 +227,10 @@ export type HookListener<K extends HookEventName> = (
 export type HookListenerResult<K extends HookEventName> = Awaited<
   ReturnType<HookListener<K>>
 >;
+
+export type HookEventHandlers = {
+  [K in HookEventName]?: HookListener<K>;
+};
 
 export interface HookBlockResponse {
   blocked: true;
