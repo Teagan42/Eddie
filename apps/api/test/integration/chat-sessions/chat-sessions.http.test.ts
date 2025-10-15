@@ -2,38 +2,93 @@ import "reflect-metadata";
 import { INestApplication, NotFoundException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CqrsModule, CommandBus, EventBus, QueryBus } from "@nestjs/cqrs";
+import { WsAdapter } from "@nestjs/platform-ws";
 import { ChatSessionsController } from "../../../src/chat-sessions/chat-sessions.controller";
 import { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
-import { InMemoryChatSessionsRepository } from "../../../src/chat-sessions/chat-sessions.repository";
+import {
+  CHAT_SESSIONS_REPOSITORY,
+  InMemoryChatSessionsRepository,
+} from "../../../src/chat-sessions/chat-sessions.repository";
 import { ChatMessageRole } from "../../../src/chat-sessions/dto/create-chat-message.dto";
+import { chatSessionCommandHandlers } from "../../../src/chat-sessions/commands";
+import { chatSessionQueryHandlers } from "../../../src/chat-sessions/queries";
+import { ChatSessionsGatewayEventsHandler } from "../../../src/chat-sessions/chat-sessions.gateway.events-handler";
+import { ChatSessionsGateway } from "../../../src/chat-sessions/chat-sessions.gateway";
+import { ChatMessagesGateway } from "../../../src/chat-sessions/chat-messages.gateway";
+import { ChatSessionEventsService } from "../../../src/chat-sessions/chat-session-events.service";
+import { ToolsGateway } from "../../../src/tools/tools.gateway";
+import { SendChatMessagePayloadDto } from "../../../src/chat-sessions/dto/send-chat-message.dto";
+import { ChatSessionToolCallEvent, ChatSessionToolResultEvent } from "@eddie/types";
+import { ChatMessageSent } from "../../../src/chat-sessions/events";
 
 const UNKNOWN_SESSION_ID = "00000000-0000-0000-0000-000000000000";
+
+const defineParamTypes = (target: object, types: unknown[]): void => {
+  Reflect.defineMetadata("design:paramtypes", types, target);
+};
 
 describe("ChatSessionsController HTTP", () => {
   let app: INestApplication;
   let service: ChatSessionsService;
+  let eventBus: EventBus;
+  let toolsGateway: ToolsGateway;
 
   beforeEach(async () => {
-    const serviceInstance = new ChatSessionsService(
-      new InMemoryChatSessionsRepository()
-    );
+    defineParamTypes(ChatSessionsController, [CommandBus, QueryBus]);
 
-    Reflect.defineMetadata(
-      "design:paramtypes",
-      [ChatSessionsService],
-      ChatSessionsController
-    );
+    for (const handler of chatSessionCommandHandlers) {
+      defineParamTypes(handler, [ChatSessionsService]);
+    }
+
+    for (const handler of chatSessionQueryHandlers) {
+      defineParamTypes(handler, [ChatSessionsService]);
+    }
+
+    defineParamTypes(ChatSessionsGatewayEventsHandler, [ChatSessionsGateway]);
+
+    defineParamTypes(ChatSessionEventsService, [ChatMessagesGateway, ToolsGateway]);
 
     const moduleRef = await Test.createTestingModule({
+      imports: [CqrsModule],
       controllers: [ChatSessionsController],
-      providers: [{ provide: ChatSessionsService, useValue: serviceInstance }],
-    }).compile();
+      providers: [
+        {
+          provide: ChatSessionsService,
+          useFactory: (
+            repository: InMemoryChatSessionsRepository,
+            bus: EventBus
+          ) => new ChatSessionsService(repository, bus),
+          inject: [CHAT_SESSIONS_REPOSITORY, EventBus],
+        },
+        ChatSessionsGatewayEventsHandler,
+        ChatSessionsGateway,
+        ChatMessagesGateway,
+        ChatSessionEventsService,
+        ToolsGateway,
+        ...chatSessionCommandHandlers,
+        ...chatSessionQueryHandlers,
+        {
+          provide: CHAT_SESSIONS_REPOSITORY,
+          useClass: InMemoryChatSessionsRepository,
+        },
+      ],
+    })
+      .overrideProvider(ToolsGateway)
+      .useValue({
+        emitToolCall: vi.fn(),
+        emitToolResult: vi.fn(),
+      })
+      .compile();
 
     app = moduleRef.createNestApplication();
+    app.useWebSocketAdapter(new WsAdapter(app));
     await app.init();
     service = app.get(ChatSessionsService);
+    eventBus = app.get(EventBus);
+    toolsGateway = app.get(ToolsGateway);
   });
 
   afterEach(async () => {
@@ -42,7 +97,7 @@ describe("ChatSessionsController HTTP", () => {
 
   it("renames sessions via PATCH /chat-sessions/:id", async () => {
     const controller = app.get(ChatSessionsController);
-    expect((controller as { chatSessions?: unknown }).chatSessions).toBeDefined();
+    expect(controller).toBeInstanceOf(ChatSessionsController);
 
     const session = await service.createSession({ title: "Original" });
 
@@ -64,9 +119,32 @@ describe("ChatSessionsController HTTP", () => {
     expect(response.status).toBe(404);
   });
 
+  it("archives sessions via PATCH /chat-sessions/:id/archive", async () => {
+    const session = await service.createSession({ title: "Original" });
+    const gateway = app.get(ChatSessionsGateway);
+    const emitSpy = vi
+      .spyOn(gateway, "emitSessionUpdated")
+      .mockImplementation(() => undefined);
+
+    const response = await request(app.getHttpServer())
+      .patch(`/chat-sessions/${session.id}/archive`)
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      id: session.id,
+      status: "archived",
+    });
+
+    await vi.waitFor(() =>
+      expect(emitSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ id: session.id, status: "archived" })
+      )
+    );
+  });
+
   it("deletes sessions via DELETE /chat-sessions/:id", async () => {
     const controller = app.get(ChatSessionsController);
-    expect((controller as { chatSessions?: unknown }).chatSessions).toBeDefined();
+    expect(controller).toBeInstanceOf(ChatSessionsController);
 
     const session = await service.createSession({ title: "Disposable" });
     await service.addMessage(session.id, {
@@ -86,5 +164,56 @@ describe("ChatSessionsController HTTP", () => {
       .expect(404);
 
     expect(response.status).toBe(404);
+  });
+
+  it("forwards stream events to websocket gateways", async () => {
+    const session = await service.createSession({ title: "Original" });
+    const payload: SendChatMessagePayloadDto = {
+      sessionId: session.id,
+      message: { role: ChatMessageRole.User, content: "Hello" },
+    };
+
+    const gateway = app.get(ChatSessionsGateway);
+    const emitSpy = vi
+      .spyOn(gateway, "emitMessageCreated")
+      .mockImplementation(() => undefined);
+
+    await eventBus.publishAll([
+      new ChatSessionToolCallEvent(
+        session.id,
+        "call-1",
+        "tool",
+        { foo: "bar" },
+        new Date().toISOString()
+      ),
+      new ChatSessionToolResultEvent(
+        session.id,
+        "call-1",
+        "tool",
+        { ok: true },
+        new Date().toISOString()
+      ),
+    ]);
+
+    await request(app.getHttpServer())
+      .post(`/chat-sessions/${session.id}/messages`)
+      .send(payload.message)
+      .expect(201);
+
+    const messages = await service.listMessages(session.id);
+    const latest = messages.at(-1);
+    const sessionDto = await service.getSession(session.id);
+
+    if (!latest) {
+      throw new Error("Expected a chat message to be persisted");
+    }
+
+    await eventBus.publish(
+      new ChatMessageSent(session.id, latest, "created", sessionDto)
+    );
+
+    await vi.waitFor(() => expect(emitSpy).toHaveBeenCalled());
+    await vi.waitFor(() => expect(toolsGateway.emitToolCall).toHaveBeenCalled());
+    await vi.waitFor(() => expect(toolsGateway.emitToolResult).toHaveBeenCalled());
   });
 });

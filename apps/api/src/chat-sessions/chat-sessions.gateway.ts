@@ -1,4 +1,5 @@
 import { UsePipes, ValidationPipe } from "@nestjs/common";
+import { CommandBus } from "@nestjs/cqrs";
 import {
   MessageBody,
   SubscribeMessage,
@@ -7,10 +8,10 @@ import {
 } from "@nestjs/websockets";
 import type { Server } from "ws";
 import { emitEvent } from "../websocket/utils";
-import { ChatSessionsService } from "./chat-sessions.service";
 import type { AgentActivityState } from "./chat-session.types";
 import { ChatMessageDto, ChatSessionDto } from "./dto/chat-session.dto";
 import { SendChatMessagePayloadDto } from "./dto/send-chat-message.dto";
+import { SendChatMessageCommand } from "./commands/send-chat-message.command";
 
 @WebSocketGateway({
   path: "/chat-sessions",
@@ -19,7 +20,7 @@ export class ChatSessionsGateway {
   @WebSocketServer()
   private server!: Server;
 
-  constructor(private readonly service: ChatSessionsService) {}
+  constructor(private readonly commandBus: CommandBus) {}
 
   emitSessionCreated(session: ChatSessionDto): void {
     emitEvent(this.server, "session.created", session);
@@ -61,6 +62,6 @@ export class ChatSessionsGateway {
     @MessageBody() payload: SendChatMessagePayloadDto
   ): Promise<void> {
     const { sessionId, message } = payload;
-    await this.service.addMessage(sessionId, message);
+    await this.commandBus.execute(new SendChatMessageCommand(sessionId, message));
   }
 }
