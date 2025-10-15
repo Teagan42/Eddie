@@ -70,6 +70,10 @@ in `docs/adr/0007-agent-orchestrator.md` for the architectural motivation and to
 
 ## Configuration
 
+The complete configuration schema and relationships are captured in the
+[configuration diagram](./configuration.md#schema-visualization). Consult that
+view to understand how API-specific settings align with shared agent controls.
+
 All provider behaviour is driven by the new `api` section in `eddie.config.*`:
 
 ```jsonc
