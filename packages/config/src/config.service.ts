@@ -114,10 +114,10 @@ export class ConfigService {
       ...this.moduleOptions,
       ...options,
     };
+    const presetName = mergedOverrides.preset ?? migratedInput.preset;
     const defaultsWithPreset = this.applyPreset(
       this.resolveDefaultConfig(),
-      migratedInput,
-      mergedOverrides.preset,
+      presetName,
     );
 
     const finalConfig = this.composeLayers(
