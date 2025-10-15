@@ -4,6 +4,10 @@ import { readFileSync } from 'node:fs';
 const workflowPath = new URL('../.github/workflows/benchmarks.yml', import.meta.url);
 const readmePath = new URL('../README.md', import.meta.url);
 const docsPath = new URL('../docs/performance-benchmarks.md', import.meta.url);
+const mysqlLikeServices = [
+  { name: 'mysql', rootEnv: 'MYSQL' },
+  { name: 'mariadb', rootEnv: 'MARIADB' },
+] as const;
 
 describe('benchmarks workflow', () => {
   it('provisions database-backed performance reporting with regression alerts', () => {
@@ -35,6 +39,23 @@ describe('benchmarks workflow', () => {
     expect(workflow).toMatch(/fail-on-alert: true/);
     expect(workflow).toMatch(/alert-threshold: '5%'/);
     expect(workflow).toContain('uses: actions/upload-artifact@');
+  });
+
+  it('ensures database services allow ample time for startup health checks', () => {
+    const workflow = readFileSync(workflowPath, 'utf8');
+
+    for (const { name } of mysqlLikeServices) {
+      expect(workflow).toMatch(new RegExp(`${name}:[\\s\\S]*--health-start-period=40s`));
+    }
+  });
+
+  it('checks mysql-compatible services using admin credentials over TCP', () => {
+    const workflow = readFileSync(workflowPath, 'utf8');
+
+    for (const { rootEnv } of mysqlLikeServices) {
+      const expectedCmd = `--health-cmd="mysqladmin ping --protocol=TCP -h 127.0.0.1 -uroot -p$${rootEnv}_ROOT_PASSWORD --silent || exit 1"`;
+      expect(workflow).toContain(expectedCmd);
+    }
   });
 
   it('documents where to find reports and what alerts mean', () => {
