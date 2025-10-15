@@ -1,13 +1,13 @@
 import type { AgentInvocation } from "../agents/agent-invocation";
 import type { AgentRuntimeDescriptor } from "../agents/agent-runtime.types";
 import type {
-  TranscriptCompactorConfig as ConfigTranscriptCompactorConfig,
+  AgentContextRequirements as ConfigAgentContextRequirements,
+  IntelligentTranscriptCompactorConfig as ConfigIntelligentTranscriptCompactorConfig,
   SimpleTranscriptCompactorConfig as ConfigSimpleTranscriptCompactorConfig,
   SummarizerTranscriptCompactorConfig as ConfigSummarizerTranscriptCompactorConfig,
-  IntelligentTranscriptCompactorConfig as ConfigIntelligentTranscriptCompactorConfig,
-  AgentContextRequirements as ConfigAgentContextRequirements,
   TokenBudgetTranscriptCompactorConfig as ConfigTokenBudgetTranscriptCompactorConfig,
-} from "@eddie/config";
+  TranscriptCompactorConfig as ConfigTranscriptCompactorConfig,
+} from "@eddie/types";
 
 export interface TranscriptCompactionResult {
   removedMessages?: number;

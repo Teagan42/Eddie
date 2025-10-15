@@ -3,11 +3,13 @@ import {
   ConfigService,
   ConfigStore,
   EDDIE_CONFIG_SCHEMA_BUNDLE,
-  type ConfigFileFormat,
-  type ConfigFileSnapshot,
-  type EddieConfig,
-  type EddieConfigInput,
 } from "@eddie/config";
+import type {
+  ConfigFileFormat,
+  ConfigFileSnapshot,
+  EddieConfig,
+  EddieConfigInput,
+} from "@eddie/types";
 import { ConfigHotReloadService } from "./config-hot-reload.service";
 
 @Injectable()

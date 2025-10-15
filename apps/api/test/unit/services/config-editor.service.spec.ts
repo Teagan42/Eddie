@@ -1,11 +1,11 @@
 import { BadRequestException } from "@nestjs/common";
-import {
-  EDDIE_CONFIG_SCHEMA_BUNDLE,
-  type ConfigFileFormat,
-  type ConfigFileSnapshot,
-  type EddieConfig,
-  type EddieConfigInput,
-} from "@eddie/config";
+import { EDDIE_CONFIG_SCHEMA_BUNDLE } from "@eddie/config";
+import type {
+  ConfigFileFormat,
+  ConfigFileSnapshot,
+  EddieConfig,
+  EddieConfigInput,
+} from "@eddie/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConfigEditorService } from "../../../src/config-editor/config-editor.service";
 import type { ConfigHotReloadService } from "../../../src/config-editor/config-hot-reload.service";

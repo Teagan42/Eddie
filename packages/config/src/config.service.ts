@@ -19,6 +19,8 @@ import type {
   AgentsConfigInput,
   ApiConfig,
   CliRuntimeOptions,
+  ConfigFileFormat,
+  ConfigFileSnapshot,
   ContextConfig,
   ContextResourceConfig,
   EddieConfig,
@@ -27,18 +29,7 @@ import type {
   ProviderConfig,
   ProviderProfileConfig,
   TranscriptConfig,
-} from "./types";
-
-export type ConfigFileFormat = "yaml" | "json";
-
-export interface ConfigFileSnapshot {
-  path: string | null;
-  format: ConfigFileFormat;
-  content: string;
-  input: EddieConfigInput;
-  config?: EddieConfig;
-  error?: string;
-}
+} from "@eddie/types";
 
 /**
  * ConfigService resolves Eddie configuration from disk and merges it with CLI

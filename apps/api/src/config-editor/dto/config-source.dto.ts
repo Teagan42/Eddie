@@ -1,11 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import type {
-  ConfigFileFormat,
+  ConfigSourcePayload,
   EddieConfig,
   EddieConfigInput,
-} from "@eddie/config";
+} from "@eddie/types";
 
-export class ConfigSourceDto {
+export class ConfigSourceDto implements ConfigSourcePayload {
   @ApiProperty({
     description: "Absolute path to the configuration file when available.",
     nullable: true,
@@ -16,7 +16,7 @@ export class ConfigSourceDto {
     description: "Format used for the configuration file.",
     enum: ["yaml", "json"],
   })
-    format!: ConfigFileFormat;
+    format!: ConfigSourcePayload["format"];
 
   @ApiProperty({ description: "Raw configuration source." })
     content!: string;
@@ -34,12 +34,12 @@ export class ConfigSourceDto {
     additionalProperties: true,
     nullable: true,
   })
-    config?: EddieConfig | null;
+    config!: EddieConfig | null;
 
   @ApiPropertyOptional({
     description:
       "Configuration validation error when the source cannot be composed.",
     nullable: true,
   })
-    error?: string | null;
+    error!: string | null;
 }

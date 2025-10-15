@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { EngineService } from "../src/engine.service";
-import type { EddieConfig } from "@eddie/config";
+import type { EddieConfig } from "@eddie/types";
 import type { PackedContext } from "@eddie/types";
 import type { DiscoveredMcpResource } from "@eddie/mcp";
 

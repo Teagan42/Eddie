@@ -1,10 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import {
-  ConfigService,
-  ConfigStore,
-  type ConfigFileFormat,
-  type ConfigFileSnapshot,
-} from "@eddie/config";
+import { ConfigService, ConfigStore } from "@eddie/config";
+import type { ConfigFileFormat, ConfigFileSnapshot } from "@eddie/types";
 
 @Injectable()
 export class ConfigHotReloadService {

@@ -1,10 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ProviderConfig } from "@eddie/config";
+import type { ProviderAdapterFactory, ProviderConfig } from "@eddie/types";
 import { AnthropicAdapterFactory } from "../src/anthropic";
 import { OpenAIAdapterFactory } from "../src/openai";
 import { OpenAICompatibleAdapterFactory } from "../src/openai_compatible";
 import { ProviderFactoryService } from "../src/provider-factory.service";
-import type { ProviderAdapterFactory } from "../src/provider.tokens";
 
 const baseConfig: ProviderConfig = { name: "openai", apiKey: "key" };
 

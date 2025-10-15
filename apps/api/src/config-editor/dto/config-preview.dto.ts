@@ -1,7 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
-import type { EddieConfig, EddieConfigInput } from "@eddie/config";
+import type { ConfigPreviewPayload, EddieConfig, EddieConfigInput } from "@eddie/types";
 
-export class ConfigPreviewDto {
+export class ConfigPreviewDto implements ConfigPreviewPayload {
   @ApiProperty({
     description: "Parsed configuration input object.",
     type: "object",

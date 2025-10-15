@@ -1,11 +1,4 @@
-import type { ProviderConfig } from "@eddie/config";
-import type { ProviderAdapter } from "@eddie/types";
-
-export interface ProviderAdapterFactory {
-  readonly name: string;
-  create(config: ProviderConfig): ProviderAdapter;
-  listModels(config: ProviderConfig): Promise<string[]>;
-}
+import type { ProviderAdapterFactory } from "@eddie/types";
 
 /**
  * Provides the dependency injection token for provider adapter factories.
@@ -15,3 +8,9 @@ export interface ProviderAdapterFactory {
 export const PROVIDER_ADAPTER_FACTORIES = Symbol(
   "PROVIDER_ADAPTER_FACTORIES"
 );
+
+/**
+ * Helper alias describing the expected dependency injection payload for
+ * {@link PROVIDER_ADAPTER_FACTORIES} consumers.
+ */
+export type ProviderAdapterFactoryRegistry = ProviderAdapterFactory[];
