@@ -67,6 +67,15 @@
         "deleteOutDir": true
       }
     },
+    "perf-benchmarks": {
+      "type": "library",
+      "root": "packages/perf-benchmarks",
+      "sourceRoot": "packages/perf-benchmarks/src",
+      "compilerOptions": {
+        "tsConfigPath": "packages/perf-benchmarks/tsconfig.build.json",
+        "deleteOutDir": true
+      }
+    },
     "templates": {
       "type": "library",
       "root": "packages/templates",

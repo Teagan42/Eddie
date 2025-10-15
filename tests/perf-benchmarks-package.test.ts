@@ -6,6 +6,17 @@ const tsconfigUrl = new URL('../packages/perf-benchmarks/tsconfig.json', import.
 const tsconfigBuildUrl = new URL('../packages/perf-benchmarks/tsconfig.build.json', import.meta.url);
 const eslintConfigUrl = new URL('../packages/perf-benchmarks/eslint.config.cjs', import.meta.url);
 const vitestConfigUrl = new URL('../packages/perf-benchmarks/vitest.config.ts', import.meta.url);
+const rootTsconfigUrl = new URL('../tsconfig.json', import.meta.url);
+const rootTsconfigBaseUrl = new URL('../tsconfig.base.json', import.meta.url);
+const nestCliConfigUrl = new URL('../nest-cli.json', import.meta.url);
+const rootPackageJsonUrl = new URL('../package.json', import.meta.url);
+const packageLockUrl = new URL('../package-lock.json', import.meta.url);
+const workspaceName = '@eddie/perf-benchmarks';
+const packageRoot = 'packages/perf-benchmarks';
+const packageSourceRoot = `${packageRoot}/src`;
+const packageSourceGlobs = `${packageSourceRoot}/*`;
+const packageBuildTsconfigPath = `${packageRoot}/tsconfig.build.json`;
+const packageReferencePath = `./${packageRoot}`;
 const loadManifest = () => JSON.parse(readFileSync(manifestUrl, 'utf8'));
 const loadJson = (url: URL) => JSON.parse(readFileSync(url, 'utf8'));
 const loadModule = async (url: URL) => {
@@ -58,12 +69,64 @@ describe('@eddie/perf-benchmarks workspace configuration', () => {
 describe('@eddie/perf-benchmarks package manifest', () => {
   it('declares the perf benchmarks workspace as private', () => {
     const packageJson = loadManifest();
-    expect(packageJson.name).toBe('@eddie/perf-benchmarks');
+    expect(packageJson.name).toBe(workspaceName);
     expect(packageJson.private).toBe(true);
   });
 
   it('exposes lint, build, and bench scripts for perf workflows', () => {
     const packageJson = loadManifest();
     expect(packageJson.scripts).toMatchObject(expectedScripts);
+  });
+});
+
+describe('root workspace references perf benchmarks', () => {
+  it('registers the library in the Nest CLI projects map', () => {
+    const nestCliConfig = loadJson(nestCliConfigUrl);
+
+    expect(nestCliConfig.projects?.['perf-benchmarks']).toMatchObject({
+      type: 'library',
+      root: packageRoot,
+      sourceRoot: packageSourceRoot,
+      compilerOptions: {
+        tsConfigPath: packageBuildTsconfigPath,
+        deleteOutDir: true,
+      },
+    });
+  });
+
+  it('includes the package in the root tsconfig project references', () => {
+    const tsconfig = loadJson(rootTsconfigUrl);
+
+    expect(tsconfig.references).toEqual(
+      expect.arrayContaining([{ path: packageReferencePath }]),
+    );
+  });
+
+  it('maps the @eddie/perf-benchmarks path alias', () => {
+    const tsconfigBase = loadJson(rootTsconfigBaseUrl);
+
+    expect(tsconfigBase.compilerOptions?.paths?.['@eddie/perf-benchmarks']).toEqual([
+      packageSourceRoot,
+    ]);
+    expect(tsconfigBase.compilerOptions?.paths?.['@eddie/perf-benchmarks/*']).toEqual([
+      packageSourceGlobs,
+    ]);
+  });
+
+  it('exposes a root npm script for running perf benchmarks', () => {
+    const packageJson = loadJson(rootPackageJsonUrl);
+
+    expect(packageJson.scripts?.['bench:perf-benchmarks']).toBe(
+      `npm run bench --workspace ${workspaceName} --if-present`,
+    );
+  });
+
+  it('locks the workspace in the package-lock metadata', () => {
+    const packageLock = loadJson(packageLockUrl);
+
+    expect(packageLock.packages?.['packages/perf-benchmarks']).toMatchObject({
+      name: workspaceName,
+      version: '0.0.0',
+    });
   });
 });
