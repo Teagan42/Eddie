@@ -1,13 +1,14 @@
-import { forwardRef, Inject, Injectable } from "@nestjs/common";
-import { EventsHandler, type IEventHandler } from "@nestjs/cqrs";
+import { forwardRef, Inject, Injectable, Optional } from "@nestjs/common";
+import { CommandBus, EventsHandler, type IEventHandler } from "@nestjs/cqrs";
 import { ChatMessagesGateway } from "./chat-messages.gateway";
-import { ToolsGateway } from "../tools/tools.gateway";
 import type { ChatMessageDto } from "./dto/chat-session.dto";
 import {
   ChatMessagePartialEvent,
   ChatSessionToolCallEvent,
   ChatSessionToolResultEvent,
 } from "@eddie/types";
+import { StartToolCallCommand } from "../tools/commands/start-tool-call.command";
+import { CompleteToolCallCommand } from "../tools/commands/complete-tool-call.command";
 
 @Injectable()
 @EventsHandler(
@@ -24,7 +25,7 @@ implements
     > {
   constructor(
     @Inject(forwardRef(() => ChatMessagesGateway)) private readonly messagesGateway: ChatMessagesGateway,
-    @Inject(forwardRef(() => ToolsGateway)) private readonly toolsGateway?: ToolsGateway,
+    @Optional() private readonly commandBus?: CommandBus,
   ) { }
 
   handle(
@@ -39,24 +40,28 @@ implements
     }
 
     if (event instanceof ChatSessionToolCallEvent) {
-      this.emitToolCall({
-        sessionId: event.sessionId,
-        id: event.id,
-        name: event.name,
-        arguments: event.arguments,
-        timestamp: event.timestamp,
-      });
+      this.dispatchCommand(
+        new StartToolCallCommand({
+          sessionId: event.sessionId,
+          toolCallId: event.id,
+          name: event.name,
+          arguments: event.arguments,
+          timestamp: event.timestamp,
+        })
+      );
       return;
     }
 
     if (event instanceof ChatSessionToolResultEvent) {
-      this.emitToolResult({
-        sessionId: event.sessionId,
-        id: event.id,
-        name: event.name,
-        result: event.result,
-        timestamp: event.timestamp,
-      });
+      this.dispatchCommand(
+        new CompleteToolCallCommand({
+          sessionId: event.sessionId,
+          toolCallId: event.id,
+          name: event.name,
+          result: event.result,
+          timestamp: event.timestamp,
+        })
+      );
     }
   }
 
@@ -68,33 +73,14 @@ implements
     }
   }
 
-  private emitToolCall(payload: {
-    sessionId: string;
-    id?: string;
-    name?: string;
-    arguments?: unknown;
-    timestamp?: string;
-  }): void {
-    if (!this.toolsGateway) return;
+  private dispatchCommand(command: StartToolCallCommand | CompleteToolCallCommand): void {
+    if (!this.commandBus) return;
     try {
-      this.toolsGateway.emitToolCall(payload);
+      void this.commandBus.execute(command).catch(() => {
+        // Ignore command bus failures to keep event pipeline resilient.
+      });
     } catch {
-      // Ignore to isolate transport concerns.
-    }
-  }
-
-  private emitToolResult(payload: {
-    sessionId: string;
-    id?: string;
-    name?: string;
-    result?: unknown;
-    timestamp?: string;
-  }): void {
-    if (!this.toolsGateway) return;
-    try {
-      this.toolsGateway.emitToolResult(payload);
-    } catch {
-      // Ignore to isolate transport concerns.
+      // Ignore command bus failures to keep event pipeline resilient.
     }
   }
 }

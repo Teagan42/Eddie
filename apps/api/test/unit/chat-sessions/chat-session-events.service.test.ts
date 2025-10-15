@@ -1,13 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
+import type { CommandBus } from "@nestjs/cqrs";
 import { ChatSessionEventsService } from "../../../src/chat-sessions/chat-session-events.service";
 import type { ChatMessagesGateway } from "../../../src/chat-sessions/chat-messages.gateway";
-import type { ToolsGateway } from "../../../src/tools/tools.gateway";
 import type { ChatMessageDto } from "../../../src/chat-sessions/dto/chat-session.dto";
 import {
   ChatMessagePartialEvent,
   ChatSessionToolCallEvent,
   ChatSessionToolResultEvent,
 } from "@eddie/types";
+import { StartToolCallCommand } from "../../../src/tools/commands/start-tool-call.command";
+import { CompleteToolCallCommand } from "../../../src/tools/commands/complete-tool-call.command";
 
 describe("ChatSessionEventsService", () => {
     const sampleMessage = { id: "m1" } as unknown as ChatMessageDto;
@@ -21,34 +23,40 @@ describe("ChatSessionEventsService", () => {
         expect((gateway.emitPartial as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(sampleMessage);
     });
 
-    it("forwards tool events when the tools gateway is provided", () => {
+    it("dispatches tool commands for tool events", () => {
         const gateway = { emitPartial: vi.fn() } as unknown as ChatMessagesGateway;
-        const tools = { emitToolCall: vi.fn(), emitToolResult: vi.fn() } as unknown as ToolsGateway;
-        const events = new ChatSessionEventsService(gateway, tools);
+        const execute = vi.fn();
+        const commandBus = { execute } as unknown as CommandBus;
+        const events = new ChatSessionEventsService(gateway, commandBus);
 
-        const callEvent = new ChatSessionToolCallEvent("s1", "t1", "tool", {}, "2024-01-01T00:00:00.000Z");
+        const callEvent = new ChatSessionToolCallEvent("s1", "t1", "tool", { input: "x" }, "2024-01-01T00:00:00.000Z");
         const resultEvent = new ChatSessionToolResultEvent("s1", "t1", "tool", "ok", "2024-01-01T00:00:00.000Z");
 
         events.handle(callEvent);
         events.handle(resultEvent);
 
-        expect((tools.emitToolCall as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith({
+        const [ startCommand ] = execute.mock.calls[0] ?? [];
+        expect(startCommand).toBeInstanceOf(StartToolCallCommand);
+        expect(startCommand.input).toEqual({
             sessionId: "s1",
-            id: "t1",
+            toolCallId: "t1",
             name: "tool",
-            arguments: {},
+            arguments: { input: "x" },
             timestamp: "2024-01-01T00:00:00.000Z",
         });
-        expect((tools.emitToolResult as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith({
+
+        const [ completeCommand ] = execute.mock.calls[1] ?? [];
+        expect(completeCommand).toBeInstanceOf(CompleteToolCallCommand);
+        expect(completeCommand.input).toEqual({
             sessionId: "s1",
-            id: "t1",
+            toolCallId: "t1",
             name: "tool",
             result: "ok",
             timestamp: "2024-01-01T00:00:00.000Z",
         });
     });
 
-    it("ignores tool events when the tools gateway is absent", () => {
+    it("does not throw when no command bus is provided", () => {
         const gateway = { emitPartial: vi.fn() } as unknown as ChatMessagesGateway;
         const events = new ChatSessionEventsService(gateway);
 
