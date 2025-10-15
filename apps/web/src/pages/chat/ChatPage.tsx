@@ -172,6 +172,11 @@ type ToolRealtimePayload = {
   timestamp?: string | null;
 };
 
+type ToolRealtimeMetadataResult = Partial<
+  Pick<OrchestratorMetadataDto, 'contextBundles' | 'agentHierarchy'>
+> &
+  Record<string, unknown>;
+
 type ToolInvocationNode = OrchestratorMetadataDto['toolInvocations'][number];
 
 let toolInvocationIdCounter = 0;
@@ -571,12 +576,18 @@ export function ChatPage(): JSX.Element {
                   capturedAt: new Date().toISOString(),
                 };
 
+                const resultRecord =
+                  typeof p.result === 'object' && p.result !== null
+                    ? (p.result as ToolRealtimeMetadataResult)
+                    : undefined;
                 const id = coerceToolInvocationId(p.id, 'call');
                 const status = (p.status ??
                   ('completed' as ToolCallStatusDto)) as ToolCallStatusDto;
                 const createdAt = p.timestamp ?? new Date().toISOString();
                 const resultMeta =
-                  typeof p.result === 'string' ? { result: p.result } : { ...(p.result ?? {}) };
+                  typeof p.result === 'string'
+                    ? { result: p.result }
+                    : { ...(resultRecord ?? {}) };
 
                 const previewFromArgs =
                   typeof p.arguments === 'string'
@@ -600,7 +611,20 @@ export function ChatPage(): JSX.Element {
                 });
 
                 const nextToolInvocations = mergeToolInvocationNodes(base.toolInvocations, [node]);
-                const next = { ...base, toolInvocations: nextToolInvocations };
+                const contextBundlesUpdate = Array.isArray(resultRecord?.contextBundles)
+                  ? resultRecord.contextBundles ?? []
+                  : undefined;
+                const agentHierarchyUpdate = Array.isArray(resultRecord?.agentHierarchy)
+                  ? resultRecord.agentHierarchy ?? []
+                  : undefined;
+                const nextContextBundles = contextBundlesUpdate ?? base.contextBundles ?? [];
+                const nextAgentHierarchy = agentHierarchyUpdate ?? base.agentHierarchy ?? [];
+                const next: OrchestratorMetadataDto = {
+                  ...base,
+                  toolInvocations: nextToolInvocations,
+                  contextBundles: nextContextBundles,
+                  agentHierarchy: nextAgentHierarchy,
+                };
                 toolInvocationCacheRef.current.set(sessionId, nextToolInvocations);
                 return next;
               },
