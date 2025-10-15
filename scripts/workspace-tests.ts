@@ -71,7 +71,26 @@ function formatPrefix(name: string, width: number): string {
 type TestResult = {
   workspace: string;
   code: number;
+  signal?: NodeJS.Signals;
 };
+
+export function createTestResult(
+  workspace: string,
+  code: number | null,
+  signal: NodeJS.Signals | null,
+): TestResult {
+  let normalizedCode = typeof code === 'number' ? code : 0;
+
+  if (signal) {
+    if (normalizedCode === 0) {
+      normalizedCode = 1;
+    }
+
+    return { workspace, code: normalizedCode, signal };
+  }
+
+  return { workspace, code: normalizedCode };
+}
 
 const activeChildren = new Set<ReturnType<typeof spawn>>();
 
@@ -118,9 +137,9 @@ async function runWorkspaceTest(workspace: Workspace, prefixWidth: number): Prom
     pipeStream(child.stdout, process.stdout, prefix);
     pipeStream(child.stderr, process.stderr, prefix);
 
-    child.on('close', (code) => {
+    child.on('close', (code, signal) => {
       activeChildren.delete(child);
-      resolve({ workspace: workspace.name, code: code ?? 0 });
+      resolve(createTestResult(workspace.name, code, signal));
     });
 
     child.on('error', () => {
@@ -213,7 +232,8 @@ async function main() {
   if (failed.length > 0) {
     console.error('\nTest failures detected:');
     failed.forEach((result) => {
-      console.error(` - ${result.workspace} (exit code ${result.code})`);
+      const signalInfo = result.signal ? `, signal ${result.signal}` : '';
+      console.error(` - ${result.workspace} (exit code ${result.code}${signalInfo})`);
     });
     process.exit(1);
   }

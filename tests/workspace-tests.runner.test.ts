@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { determineConcurrency, runWithConcurrency } from '../scripts/workspace-tests';
+import { createTestResult, determineConcurrency, runWithConcurrency } from '../scripts/workspace-tests';
 
 describe('workspace test runner concurrency', () => {
   it('does not exceed the requested concurrency', async () => {
@@ -28,5 +28,19 @@ describe('workspace test runner concurrency', () => {
     if (previous !== undefined) {
       process.env.WORKSPACE_TEST_CONCURRENCY = previous;
     }
+  });
+
+  it('treats signaled processes as failures', () => {
+    const result = createTestResult('example', null, 'SIGTERM');
+
+    expect(result.code).toBe(1);
+    expect(result.signal).toBe('SIGTERM');
+  });
+
+  it('preserves non-zero exit codes alongside signals', () => {
+    const result = createTestResult('example', 137, 'SIGKILL');
+
+    expect(result.code).toBe(137);
+    expect(result.signal).toBe('SIGKILL');
   });
 });
