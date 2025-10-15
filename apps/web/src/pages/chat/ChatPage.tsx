@@ -467,7 +467,14 @@ function filterAgentHierarchyToLineage(
     .map((node) => {
       const filteredChildren = filterAgentHierarchyToLineage(node.children ?? [], agentId);
 
-      if (node.id === agentId || filteredChildren.length > 0) {
+      if (node.id === agentId) {
+        return {
+          ...node,
+          children: cloneAgentHierarchy(node.children ?? []),
+        } satisfies AgentHierarchyNode;
+      }
+
+      if (filteredChildren.length > 0) {
         return {
           ...node,
           children: filteredChildren,
