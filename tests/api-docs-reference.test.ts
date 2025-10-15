@@ -9,6 +9,12 @@ function readApiDoc(): string {
   return readFileSync(join(repoRoot, 'docs/api.md'), 'utf8');
 }
 
+function expectAllMatches(source: string, patterns: RegExp[]): void {
+  for (const pattern of patterns) {
+    expect(source).toMatch(pattern);
+  }
+}
+
 describe('api documentation reference examples', () => {
   let apiDoc: string;
   const renameExamplePayload = '{\n  "name": "Renamed session title"\n}';
@@ -36,6 +42,42 @@ describe('api documentation reference examples', () => {
     expect(apiDoc).toMatch(/GET\s+\/providers\/catalog/);
     expect(apiDoc).toMatch(/GET\s+\/user\/preferences\/layout/);
     expect(apiDoc).toMatch(/PUT\s+\/user\/preferences\/layout/);
+  });
+
+  it('documents CQRS buses and module boundaries', () => {
+    expectAllMatches(apiDoc, [
+      /##\s+CQRS\s+buses\s+and\s+module\s+boundaries/i,
+      /Command\s+Bus/i,
+      /Query\s+Bus/i,
+      /Event\s+Bus/i,
+      /ChatSessionsModule/,
+      /TracesModule/,
+      /RuntimeConfigModule/,
+      /ToolsModule/,
+    ]);
+  });
+
+  it('lists CQRS-driven endpoints and websocket topics', () => {
+    expectAllMatches(apiDoc, [
+      /GET\s+\/config\s+\(runtime config\)/i,
+      /PATCH\s+\/config\s+\(runtime config\)/i,
+      /GET\s+\/traces/,
+      /GET\s+\/traces\/:id/,
+      /session\.created/,
+      /message\.updated/,
+      /config\.updated/,
+      /trace\.updated/,
+      /message\.send/,
+    ]);
+  });
+
+  it('cross-links to the ADR and design references for the CQRS refactor', () => {
+    expectAllMatches(apiDoc, [
+      /docs\/adr\//,
+      /migration\/api-cqrs-design\.md/,
+      /migration\/api-cqrs-guidelines\.md/,
+      /migration\/api-realtime-events\.md/,
+    ]);
   });
 
   it('mentions orchestrator metadata endpoint with optional session query', () => {
