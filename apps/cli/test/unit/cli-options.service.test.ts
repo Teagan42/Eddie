@@ -31,4 +31,13 @@ describe("CliOptionsService", () => {
 
     expect(result.disableContext).toBe(true);
   });
+
+  it("passes through preset selections", () => {
+    const service = new CliOptionsService();
+    const result = service.parse({
+      preset: "api-host",
+    });
+
+    expect(result.preset).toBe("api-host");
+  });
 });

@@ -15,6 +15,17 @@ function toStringArray(value: unknown): string[] | undefined {
   return undefined;
 }
 
+function assignStringOption<Key extends keyof CliRuntimeOptions>(
+  target: CliRuntimeOptions,
+  options: Record<string, unknown>,
+  key: Key,
+): void {
+  const value = options[key];
+  if (typeof value === "string") {
+    target[key] = value as CliRuntimeOptions[Key];
+  }
+}
+
 @Injectable()
 export class CliOptionsService {
   parse(options: Record<string, unknown>): EngineOptions {
@@ -23,21 +34,16 @@ export class CliOptionsService {
     const context = toStringArray(options.context);
     if (context) base.context = context;
 
-    if (typeof options.config === "string") base.config = options.config;
-    if (typeof options.model === "string") base.model = options.model;
-    if (typeof options.provider === "string") base.provider = options.provider;
-    if (typeof options.jsonlTrace === "string") {
-      base.jsonlTrace = options.jsonlTrace;
-    }
+    assignStringOption(base, options, "config");
+    assignStringOption(base, options, "preset");
+    assignStringOption(base, options, "model");
+    assignStringOption(base, options, "provider");
+    assignStringOption(base, options, "jsonlTrace");
     if (typeof options.logLevel === "string") {
       base.logLevel = options.logLevel as CliRuntimeOptions["logLevel"];
     }
-    if (typeof options.logFile === "string") {
-      base.logFile = options.logFile;
-    }
-    if (typeof options.agentMode === "string") {
-      base.agentMode = options.agentMode;
-    }
+    assignStringOption(base, options, "logFile");
+    assignStringOption(base, options, "agentMode");
     if (typeof options.disableSubagents === "boolean") {
       base.disableSubagents = options.disableSubagents;
     }

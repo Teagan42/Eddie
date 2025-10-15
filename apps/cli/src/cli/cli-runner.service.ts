@@ -1,3 +1,4 @@
+import { CONFIG_PRESET_NAMES } from "@eddie/config";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { CLI_COMMANDS } from "./cli.constants";
 import type { CliCommand } from "./commands/cli-command";
@@ -72,6 +73,14 @@ export class CliRunnerService {
     console.log("Available commands:");
     for (const row of rows) {
       console.log(row);
+    }
+    const presetRows = CONFIG_PRESET_NAMES.map((preset) => `- ${preset}`);
+    if (presetRows.length > 0) {
+      console.log("");
+      console.log("Configuration presets:");
+      for (const row of presetRows) {
+        console.log(row);
+      }
     }
   }
 }

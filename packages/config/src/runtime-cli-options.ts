@@ -6,6 +6,7 @@ export const CLI_LOG_LEVEL_VALUES = new Set<LogLevel>(LOG_LEVEL_VALUES);
 
 type CliStringOptionKey =
   | "config"
+  | "preset"
   | "model"
   | "provider"
   | "jsonlTrace"
@@ -67,6 +68,11 @@ export const CLI_VALUE_OPTION_DEFINITIONS: readonly CliValueOptionDefinition[] =
   {
     runtimeKey: "config",
     keys: ["--config", "-c"],
+    valueType: "string",
+  },
+  {
+    runtimeKey: "preset",
+    keys: ["--preset"],
     valueType: "string",
   },
   {
