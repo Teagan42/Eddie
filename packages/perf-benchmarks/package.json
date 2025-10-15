@@ -5,6 +5,7 @@
   "scripts": {
     "lint": "eslint --no-error-on-unmatched-pattern .",
     "build": "echo \"Perf benchmarks have no build step\"",
-    "bench": "vitest bench"
+    "bench": "vitest bench",
+    "test": "vitest run"
   }
 }
