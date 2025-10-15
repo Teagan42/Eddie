@@ -306,6 +306,100 @@ function mergeToolInvocationNodes(
   return result;
 }
 
+function orchestratorMetadataEquals(
+  a: OrchestratorMetadataDto | null,
+  b: OrchestratorMetadataDto | null,
+): boolean {
+  if (a === b) {
+    return true;
+  }
+
+  if (!a || !b) {
+    return false;
+  }
+
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
+}
+
+function mergeOrchestratorMetadata(
+  current: OrchestratorMetadataDto | null,
+  incoming: OrchestratorMetadataDto | null,
+): OrchestratorMetadataDto | null {
+  if (!incoming) {
+    return current ?? null;
+  }
+
+  if (!current) {
+    return incoming;
+  }
+
+  const next: OrchestratorMetadataDto = {
+    ...current,
+  };
+
+  if (incoming.sessionId) {
+    next.sessionId = incoming.sessionId;
+  }
+
+  if (incoming.capturedAt) {
+    next.capturedAt = incoming.capturedAt;
+  }
+
+  const incomingContextBundles = incoming.contextBundles;
+  if (Array.isArray(incomingContextBundles)) {
+    next.contextBundles = incomingContextBundles;
+  } else if (!Array.isArray(next.contextBundles)) {
+    next.contextBundles = [];
+  }
+
+  const incomingAgentHierarchy = incoming.agentHierarchy;
+  if (Array.isArray(incomingAgentHierarchy)) {
+    next.agentHierarchy = incomingAgentHierarchy;
+  } else if (!Array.isArray(next.agentHierarchy)) {
+    next.agentHierarchy = [];
+  }
+
+  const incomingToolInvocations = incoming.toolInvocations;
+  if (Array.isArray(incomingToolInvocations)) {
+    if (incomingToolInvocations.length === 0) {
+      next.toolInvocations = [];
+    } else {
+      next.toolInvocations = mergeToolInvocationNodes(
+        current.toolInvocations ?? [],
+        incomingToolInvocations,
+      );
+    }
+  } else {
+    next.toolInvocations = current.toolInvocations ?? [];
+  }
+
+  for (const [key, value] of Object.entries(incoming)) {
+    if (key === 'sessionId' || key === 'capturedAt') {
+      continue;
+    }
+
+    if (key === 'contextBundles' || key === 'agentHierarchy' || key === 'toolInvocations') {
+      continue;
+    }
+
+    if (value === null || value === undefined) {
+      continue;
+    }
+
+    (next as Record<string, unknown>)[key] = value;
+  }
+
+  if (orchestratorMetadataEquals(next, current)) {
+    return current;
+  }
+
+  return next;
+}
+
 function normalizeOrchestratorMetadata(
   input: OrchestratorMetadataDto | null | undefined,
 ): OrchestratorMetadataDto | null {
@@ -373,7 +467,7 @@ export function ChatPage(): JSX.Element {
       sessionId: string,
       updater: (current: OrchestratorMetadataDto | null) => OrchestratorMetadataDto | null,
       options?: { syncQueryCache?: boolean },
-    ) => {
+    ): OrchestratorMetadataDto | null | undefined => {
       const { syncQueryCache = true } = options ?? {};
       let nextValue: OrchestratorMetadataDto | null | undefined;
 
@@ -399,10 +493,11 @@ export function ChatPage(): JSX.Element {
       });
 
       if (nextValue === undefined || !syncQueryCache) {
-        return;
+        return nextValue;
       }
 
       syncOrchestratorMetadataCache(sessionId, nextValue ?? null);
+      return nextValue;
     },
     [syncOrchestratorMetadataCache],
   );
@@ -705,15 +800,26 @@ export function ChatPage(): JSX.Element {
   const { data: orchestratorQueryData, dataUpdatedAt: orchestratorQueryUpdatedAt } = useQuery({
     queryKey: getOrchestratorMetadataQueryKey(selectedSessionId),
     enabled: Boolean(selectedSessionId),
-    queryFn: () =>
-      selectedSessionId
-        ? api.http.orchestrator.getMetadata(selectedSessionId)
-        : Promise.resolve({
-          contextBundles: [],
-          toolInvocations: [],
-          agentHierarchy: [],
-        }),
-    select: (data) => normalizeOrchestratorMetadata(data ?? null),
+    queryFn: async () => {
+      if (!selectedSessionId) {
+        return null;
+      }
+
+      const raw = await api.http.orchestrator.getMetadata(selectedSessionId);
+      const normalized = normalizeOrchestratorMetadata(raw ?? null);
+      const sessionId = normalized?.sessionId ?? selectedSessionId;
+      const existing =
+        queryClient.getQueryData<OrchestratorMetadataDto | null>(
+          getOrchestratorMetadataQueryKey(sessionId),
+        ) ?? null;
+
+      if (!normalized) {
+        return existing;
+      }
+
+      const target = { ...getOrchestratorMetadataBase(normalized, sessionId), sessionId };
+      return mergeOrchestratorMetadata(existing, target);
+    },
     refetchInterval: 10_000,
   });
 
@@ -736,7 +842,7 @@ export function ChatPage(): JSX.Element {
       ? { ...getOrchestratorMetadataBase(orchestratorQueryData, sessionId), sessionId }
       : createEmptyOrchestratorMetadata(sessionId);
 
-    applyOrchestratorMetadataUpdate(sessionId, () => target, { syncQueryCache: false });
+    applyOrchestratorMetadataUpdate(sessionId, (current) => mergeOrchestratorMetadata(current, target));
   }, [
     applyOrchestratorMetadataUpdate,
     orchestratorQueryData,
