@@ -13,6 +13,7 @@ import { HookBus, type HooksService } from "@eddie/hooks";
 import {
   type ConfirmService,
   type LoggerService as LoggerServiceType,
+  StreamRendererService,
 } from "@eddie/io";
 import type { TokenizerService } from "@eddie/tokenizers";
 import type { McpToolSourceService } from "@eddie/mcp";
@@ -134,6 +135,8 @@ describe("EngineService MCP resource integration", () => {
       })),
     } as unknown as McpToolSourceService;
 
+    const streamRenderer = new StreamRendererService();
+
     const engine = new EngineService(
       store,
       contextService,
@@ -143,7 +146,8 @@ describe("EngineService MCP resource integration", () => {
       tokenizerService,
       loggerService as LoggerServiceType,
       orchestrator,
-      mcpToolSourceService
+      mcpToolSourceService,
+      streamRenderer
     );
 
     const result = await engine.run("Summarize docs");

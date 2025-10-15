@@ -11,6 +11,7 @@ import type {
   AgentInvocation,
   AgentRuntimeDescriptor,
 } from "../../src/agents/agent-runtime.types";
+import { StreamRendererService } from "@eddie/io";
 
 class FakeCompactor implements TranscriptCompactor {
   constructor(readonly tag: string) {}
@@ -82,13 +83,13 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     getLogger: vi.fn(() => logger),
   };
   const agentOrchestrator = {
-    setStreamRenderer: vi.fn(),
     runAgent: vi.fn(async () => ({
       messages: [],
       definition: { id: "manager" },
     })),
     collectInvocations: vi.fn(() => []),
   };
+  const streamRenderer = new StreamRendererService();
   const mcpToolSourceService = {
     collectTools: vi.fn(async () => ({
       tools: [],
@@ -107,6 +108,7 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     loggerService as any,
     agentOrchestrator as any,
     mcpToolSourceService as any,
+    streamRenderer as any,
   );
 
   return { service, config };

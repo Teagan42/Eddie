@@ -80,12 +80,9 @@ export class EngineService {
         private readonly tokenizerService: TokenizerService,
         private readonly loggerService: LoggerService,
         private readonly agentOrchestrator: AgentOrchestratorService,
-        private readonly mcpToolSourceService: McpToolSourceService
+        private readonly mcpToolSourceService: McpToolSourceService,
+        private readonly streamRenderer: StreamRendererService
   ) {}
-
-  setStreamRenderer(streamRenderer: StreamRendererService): void {
-    this.agentOrchestrator.setStreamRenderer(streamRenderer);
-  }
 
   /**
      * Executes a single CLI run, emitting hooks in the order

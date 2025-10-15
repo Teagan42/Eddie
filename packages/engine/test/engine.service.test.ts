@@ -3,6 +3,7 @@ import { EngineService } from "../src/engine.service";
 import type { EddieConfig } from "@eddie/config";
 import type { PackedContext } from "@eddie/types";
 import type { DiscoveredMcpResource } from "@eddie/mcp";
+import { StreamRendererService } from "@eddie/io";
 
 const baseConfig: EddieConfig = {
   model: "base-model",
@@ -60,13 +61,13 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     getLogger: vi.fn(() => logger),
   };
   const agentOrchestrator = {
-    setStreamRenderer: vi.fn(),
     runAgent: vi.fn(async () => ({
       messages: [],
       definition: { id: "manager" },
     })),
     collectInvocations: vi.fn(() => []),
   };
+  const streamRenderer = new StreamRendererService();
   const mcpToolSourceService = {
     collectTools: vi.fn(async () => ({
       tools: [],
@@ -85,6 +86,7 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     loggerService as any,
     agentOrchestrator as any,
     mcpToolSourceService as any,
+    streamRenderer as any,
   );
 
   return {
@@ -108,7 +110,7 @@ afterEach(() => {
 
 describe("EngineService", () => {
   it("does not declare a ConfigService dependency", () => {
-    expect(EngineService.length).toBe(9);
+    expect(EngineService.length).toBe(10);
   });
 
   it("does not reload configuration when runtime overrides are provided", async () => {

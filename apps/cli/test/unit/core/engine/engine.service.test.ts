@@ -29,6 +29,7 @@ import {
 import {
   LoggerService,
   type ConfirmService,
+  StreamRendererService,
 } from "@eddie/io";
 import { ToolRegistryFactory } from "@eddie/tools";
 import type { TokenizerService } from "@eddie/tokenizers";
@@ -148,6 +149,7 @@ function createEngineHarness(
   } as unknown as TokenizerService;
 
   const loggerService = new LoggerService();
+  const streamRenderer = new StreamRendererService();
   const mcpToolSourceService = {
     collectTools: vi.fn(async () => ({ tools: [], resources: [], prompts: [] })),
   } as unknown as McpToolSourceService;
@@ -166,7 +168,8 @@ function createEngineHarness(
     tokenizerService,
     loggerService,
     fakeOrchestrator as unknown as AgentOrchestratorService,
-    mcpToolSourceService
+    mcpToolSourceService,
+    streamRenderer
   );
 
   return {
@@ -576,6 +579,7 @@ describe("EngineService hot configuration", () => {
     } as unknown as TokenizerService;
 
     const loggerService = new LoggerService();
+    const streamRenderer = new StreamRendererService();
     const mcpToolSourceService = {
       collectTools: vi.fn(async () => ({ tools: [], resources: [], prompts: [] })),
     } as unknown as McpToolSourceService;
@@ -591,7 +595,8 @@ describe("EngineService hot configuration", () => {
       tokenizerService,
       loggerService,
       orchestrator as unknown as AgentOrchestratorService,
-      mcpToolSourceService
+      mcpToolSourceService,
+      streamRenderer
     );
 
     await engine.run("initial run");
