@@ -1,7 +1,8 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createChatPageRenderer } from "./test-utils";
+import { buildToolInvocationFixture, createChatPageRenderer } from "./test-utils";
 import type { OrchestratorMetadataDto } from "@eddie/api-client";
 
 const listSessionsMock = vi.fn();
@@ -170,6 +171,136 @@ describe("ChatPage tool metadata merging", () => {
         "session-1",
       ]);
       expect(snapshot?.toolInvocations?.[0]?.metadata?.arguments).toBe("query: cats");
+    });
+  });
+
+  it("filters tool tree to the selected agent lineage until toggled off", async () => {
+    const user = userEvent.setup();
+    const timestamp = new Date().toISOString();
+
+    const agentHierarchy = [
+      {
+        id: "root-agent",
+        name: "orchestrator",
+        provider: "openai",
+        model: "gpt-4o",
+        depth: 0,
+        metadata: { messageCount: 3 },
+        children: [
+          {
+            id: "child-agent",
+            name: "scout",
+            provider: "anthropic",
+            model: "claude-3.5",
+            depth: 1,
+            metadata: { messageCount: 2 },
+            children: [],
+          },
+          {
+            id: "sibling-agent",
+            name: "watcher",
+            provider: "openai",
+            model: "gpt-4o-mini",
+            depth: 1,
+            metadata: { messageCount: 1 },
+            children: [],
+          },
+        ],
+      },
+    ];
+
+    const toolInvocations = [
+      buildToolInvocationFixture({
+        id: "root-call",
+        name: "plan",
+        status: "completed",
+        agentId: "root-agent",
+        metadata: {
+          createdAt: timestamp,
+          arguments: "{}",
+          result: "ok",
+        },
+        children: [
+          {
+            id: "child-call",
+            name: "search",
+            status: "completed",
+            agentId: "child-agent",
+            metadata: {
+              createdAt: timestamp,
+              arguments: "{}",
+              result: "ok",
+            },
+          },
+        ],
+      }),
+      buildToolInvocationFixture({
+        id: "sibling-call",
+        name: "summarize",
+        status: "completed",
+        agentId: "sibling-agent",
+        metadata: {
+          createdAt: timestamp,
+          arguments: "{}",
+          result: "ok",
+        },
+      }),
+    ];
+
+    getMetadataMock.mockResolvedValueOnce({
+      sessionId: "session-1",
+      contextBundles: [],
+      toolInvocations,
+      agentHierarchy,
+    });
+
+    renderChatPage();
+
+    const toolPanelHeading = await screen.findByRole("heading", { name: /tool call tree/i });
+    const toolPanel = toolPanelHeading.closest("section");
+    expect(toolPanel).toBeInstanceOf(HTMLElement);
+    const toolPanelQueries = within(toolPanel as HTMLElement);
+
+    await waitFor(() => {
+      expect(getMetadataMock).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(
+        toolPanelQueries.queryByText(/no tool calls recorded for this session yet\./i),
+      ).not.toBeInTheDocument();
+    });
+
+    const toggleChildAgents = toolPanelQueries.getByRole("button", {
+      name: /toggle orchestrator agents/i,
+    });
+    await user.click(toggleChildAgents);
+
+    await waitFor(() => {
+      expect(toolPanelQueries.getByText("orchestrator")).toBeInTheDocument();
+      expect(toolPanelQueries.getByText("scout")).toBeInTheDocument();
+      expect(toolPanelQueries.getByText("watcher")).toBeInTheDocument();
+    });
+
+    const agentPanelHeading = screen.getByRole("heading", { name: /agent hierarchy/i });
+    const agentPanel = agentPanelHeading.closest("section");
+    expect(agentPanel).toBeInstanceOf(HTMLElement);
+    const scoutButton = within(agentPanel as HTMLElement).getByRole("button", {
+      name: /select scout agent/i,
+    });
+
+    await user.click(scoutButton);
+
+    await waitFor(() => {
+      expect(toolPanelQueries.getByText("orchestrator")).toBeInTheDocument();
+      expect(toolPanelQueries.getByText("scout")).toBeInTheDocument();
+      expect(toolPanelQueries.queryByText("watcher")).not.toBeInTheDocument();
+    });
+
+    await user.click(scoutButton);
+
+    await waitFor(() => {
+      expect(toolPanelQueries.getByText("watcher")).toBeInTheDocument();
     });
   });
 });
