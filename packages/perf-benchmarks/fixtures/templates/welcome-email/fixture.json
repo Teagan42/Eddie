@@ -1,0 +1,23 @@
+{
+  "id": "welcome-email",
+  "label": "Welcome email layout",
+  "description": "Renders a marketing welcome email that extends a base layout and pulls in shared partials.",
+  "template": {
+    "entry": "welcome-email.njk",
+    "baseDir": "templates"
+  },
+  "variables": {
+    "recipient": {
+      "name": "Ava"
+    },
+    "features": [
+      "Shared memory",
+      "Realtime co-editing",
+      "Human oversight"
+    ],
+    "cta": {
+      "label": "Activate workspace",
+      "url": "https://eddie.dev/start"
+    }
+  }
+}
