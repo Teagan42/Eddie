@@ -12,3 +12,4 @@ export * from "./runtime-cli";
 export * from "./runtime-cli-options";
 export * from "./config.const";
 export * from "./presets";
+export * from "./validation/config-validator";
