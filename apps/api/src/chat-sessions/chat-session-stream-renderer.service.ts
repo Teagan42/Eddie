@@ -8,10 +8,8 @@ import {
   ChatSessionToolCallEvent,
   ChatSessionToolResultEvent,
 } from "@eddie/types";
-import {
-  ChatSessionsService,
-  type AgentActivityState,
-} from "./chat-sessions.service";
+import { ChatSessionsService } from "./chat-sessions.service";
+import type { AgentActivityState } from "./chat-session.types";
 import { ChatMessageRole } from "./dto/create-chat-message.dto";
 import type { ChatMessageDto } from "./dto/chat-session.dto";
 

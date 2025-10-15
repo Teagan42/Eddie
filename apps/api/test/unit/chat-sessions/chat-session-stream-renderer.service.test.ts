@@ -6,57 +6,48 @@ import {
   ChatSessionToolCallEvent,
   ChatSessionToolResultEvent,
 } from "@eddie/types";
-import {
-  ChatSessionsService,
-  type ChatSessionsListener,
-} from "../../../src/chat-sessions/chat-sessions.service";
+import { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
 import { ChatSessionStreamRendererService } from "../../../src/chat-sessions/chat-session-stream-renderer.service";
 import { InMemoryChatSessionsRepository } from "../../../src/chat-sessions/chat-sessions.repository";
+import { AgentActivity } from "../../../src/chat-sessions/events";
 
 describe("ChatSessionStreamRendererService", () => {
-    let service: ChatSessionsService;
-    let renderer: ChatSessionStreamRendererService;
-    let sessionId: string;
-    let eventBus: EventBus;
-    let publish: ReturnType<typeof vi.fn>;
-    const captureActivity = (): Array<{ sessionId: string; state: string }> => {
-      const events: Array<{ sessionId: string; state: string }> = [];
-      service.registerListener({
-        onSessionCreated: () => {},
-        onSessionUpdated: () => {},
-        onSessionDeleted: () => {},
-        onMessageCreated: () => {},
-        onMessageUpdated: () => {},
-        onAgentActivity: (event: { sessionId: string; state: string }) => {
-          events.push(event);
-        },
-      } as unknown as ChatSessionsListener);
-      return events;
-    };
+  let service: ChatSessionsService;
+  let renderer: ChatSessionStreamRendererService;
+  let sessionId: string;
+  let eventBus: EventBus;
+  let publish: ReturnType<typeof vi.fn>;
 
-    const getPublishedEvents = () =>
-      publish.mock.calls.map(([ event ]) => event);
+  const getPublishedEvents = () => publish.mock.calls.map(([ event ]) => event);
 
-    const getPartialEvents = () =>
-      getPublishedEvents().filter(
-        (event): event is ChatMessagePartialEvent =>
-          event instanceof ChatMessagePartialEvent
-      );
+  const getPartialEvents = () =>
+    getPublishedEvents().filter(
+      (event): event is ChatMessagePartialEvent =>
+        event instanceof ChatMessagePartialEvent
+    );
 
-    beforeEach(async () => {
-        service = new ChatSessionsService(new InMemoryChatSessionsRepository());
-        publish = vi.fn();
-        eventBus = { publish } as unknown as EventBus;
-        renderer = new ChatSessionStreamRendererService(service, eventBus);
-        sessionId = (await service.createSession({ title: "Stream" })).id;
-    });
+  const getActivityEvents = () =>
+    getPublishedEvents().filter(
+      (event): event is AgentActivity => event instanceof AgentActivity
+    );
 
-    it("creates and updates assistant messages from deltas", async () => {
+  beforeEach(async () => {
+    publish = vi.fn();
+    eventBus = { publish } as unknown as EventBus;
+    service = new ChatSessionsService(
+      new InMemoryChatSessionsRepository(),
+      eventBus
+    );
+    renderer = new ChatSessionStreamRendererService(service, eventBus);
+    sessionId = (await service.createSession({ title: "Stream" })).id;
+  });
+
+  it("creates and updates assistant messages from deltas", async () => {
     const capture = await renderer.capture(sessionId, async () => {
-        renderer.render({ type: "delta", text: "Hello" });
-        renderer.render({ type: "delta", text: " world" });
-        renderer.render({ type: "end" });
-        return "ok";
+      renderer.render({ type: "delta", text: "Hello" });
+      renderer.render({ type: "delta", text: " world" });
+      renderer.render({ type: "end" });
+      return "ok";
     });
 
     expect(capture.error).toBeUndefined();
@@ -64,88 +55,99 @@ describe("ChatSessionStreamRendererService", () => {
     expect(capture.state.messageId).toBeDefined();
 
     const messages = await service.listMessages(sessionId);
-        expect(messages).toHaveLength(1);
-        expect(messages[ 0 ]?.role).toBe("assistant");
-        expect(messages[ 0 ]?.content).toBe("Hello world");
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.role).toBe("assistant");
+    expect(messages[0]?.content).toBe("Hello world");
+  });
+
+  it("avoids emitting duplicate partial events when ending with unchanged content", async () => {
+    await renderer.capture(sessionId, async () => {
+      renderer.render({ type: "delta", text: "Hello" });
+      renderer.render({ type: "delta", text: " world" });
+      renderer.render({ type: "end" });
     });
 
-    it("avoids emitting duplicate partial events when ending with unchanged content", async () => {
-      await renderer.capture(sessionId, async () => {
-        renderer.render({ type: "delta", text: "Hello" });
-        renderer.render({ type: "delta", text: " world" });
-        renderer.render({ type: "end" });
-      });
+    const partialEvents = getPartialEvents();
 
-      const partialEvents = getPartialEvents();
+    expect(partialEvents).toHaveLength(2);
+    expect(partialEvents.map((event) => event.message.content)).toEqual([
+      "Hello",
+      "Hello world",
+    ]);
+  });
 
-      expect(partialEvents).toHaveLength(2);
-      expect(partialEvents.map((event) => event.message.content)).toEqual([
-        "Hello",
-        "Hello world",
-      ]);
+  it("does not create messages when no deltas are rendered", async () => {
+    const capture = await renderer.capture(sessionId, async () => {
+      renderer.render({ type: "notification", payload: "noop" });
+      renderer.render({ type: "end" });
     });
 
-    it("does not create messages when no deltas are rendered", async () => {
-        const capture = await renderer.capture(sessionId, async () => {
-            renderer.render({ type: "notification", payload: "noop" });
-            renderer.render({ type: "end" });
-        });
+    expect(capture.error).toBeUndefined();
+    expect(capture.state.messageId).toBeUndefined();
+    await expect(service.listMessages(sessionId)).resolves.toEqual([]);
+  });
 
-        expect(capture.error).toBeUndefined();
-        expect(capture.state.messageId).toBeUndefined();
-        await expect(service.listMessages(sessionId)).resolves.toEqual([]);
+  it("preserves streamed content when the engine run fails", async () => {
+    const capture = await renderer.capture(sessionId, async () => {
+      renderer.render({ type: "delta", text: "Partial" });
+      throw new Error("boom");
     });
 
-    it("preserves streamed content when the engine run fails", async () => {
-        const capture = await renderer.capture(sessionId, async () => {
-            renderer.render({ type: "delta", text: "Partial" });
-            throw new Error("boom");
-        });
+    expect(capture.error).toBeInstanceOf(Error);
+    expect(capture.state.messageId).toBeDefined();
+    const messages = await service.listMessages(sessionId);
+    expect(messages[0]?.content).toBe("Partial");
+  });
 
-        expect(capture.error).toBeInstanceOf(Error);
-        expect(capture.state.messageId).toBeDefined();
-        const messages = await service.listMessages(sessionId);
-        expect(messages[ 0 ]?.content).toBe("Partial");
+  it("publishes partial events for assistant responses", async () => {
+    await renderer.capture(sessionId, async () => {
+      renderer.render({ type: "delta", text: "Hello" });
+      renderer.render({ type: "delta", text: " world" });
     });
-    it("publishes partial events for assistant responses", async () => {
-        await renderer.capture(sessionId, async () => {
-            renderer.render({ type: "delta", text: "Hello" });
-            renderer.render({ type: "delta", text: " world" });
-        });
 
-        const partialEvents = getPartialEvents();
-        expect(partialEvents).toHaveLength(2);
-        const [ first, second ] = partialEvents;
-        expect(first.message.content).toBe("Hello");
-        expect(second.message.content).toBe("Hello world");
-    });
+    const partialEvents = getPartialEvents();
+    expect(partialEvents).toHaveLength(2);
+    const [ first, second ] = partialEvents;
+    expect(first.message.content).toBe("Hello");
+    expect(second.message.content).toBe("Hello world");
+  });
 
   it("publishes tool call and result events", async () => {
-      const toolCall: StreamEvent = {
-        type: "tool_call",
-        name: "echo",
-        arguments: { text: "hi" },
-        id: "t1",
-      };
-      const toolResult: StreamEvent = {
-        type: "tool_result",
-        name: "echo",
-        result: { schema: "s1", content: "ok" },
-        id: "t1",
-      };
-      await renderer.capture(sessionId, async () => {
-          renderer.render(toolCall);
-          renderer.render(toolResult);
-      });
+    const toolCall: StreamEvent = {
+      type: "tool_call",
+      name: "echo",
+      arguments: { text: "hi" },
+      id: "t1",
+    };
+    const toolResult: StreamEvent = {
+      type: "tool_result",
+      name: "echo",
+      result: { schema: "s1", content: "ok" },
+      id: "t1",
+    };
+    await renderer.capture(sessionId, async () => {
+      renderer.render(toolCall);
+      renderer.render(toolResult);
+    });
 
-      const publishedEvents = getPublishedEvents();
-      expect(publishedEvents.some((event) => event instanceof ChatSessionToolCallEvent)).toBe(true);
-      expect(publishedEvents.some((event) => event instanceof ChatSessionToolResultEvent)).toBe(true);
-      const callEvent = publishedEvents.find((event): event is ChatSessionToolCallEvent => event instanceof ChatSessionToolCallEvent)!;
-      const resultEvent = publishedEvents.find((event): event is ChatSessionToolResultEvent => event instanceof ChatSessionToolResultEvent)!;
+    const publishedEvents = getPublishedEvents();
+    expect(publishedEvents.some((event) => event instanceof ChatSessionToolCallEvent)).toBe(
+      true
+    );
+    expect(publishedEvents.some((event) => event instanceof ChatSessionToolResultEvent)).toBe(
+      true
+    );
+    const callEvent = publishedEvents.find(
+      (event): event is ChatSessionToolCallEvent =>
+        event instanceof ChatSessionToolCallEvent
+    )!;
+    const resultEvent = publishedEvents.find(
+      (event): event is ChatSessionToolResultEvent =>
+        event instanceof ChatSessionToolResultEvent
+    )!;
 
-      expect(callEvent).toMatchObject({ sessionId, name: "echo", id: "t1" });
-      expect(resultEvent).toMatchObject({ sessionId, name: "echo", id: "t1" });
+    expect(callEvent).toMatchObject({ sessionId, name: "echo", id: "t1" });
+    expect(resultEvent).toMatchObject({ sessionId, name: "echo", id: "t1" });
   });
 
   it("annotates tool events with consistent timestamps", async () => {
@@ -172,8 +174,14 @@ describe("ChatSessionStreamRendererService", () => {
     });
 
     const publishedEvents = getPublishedEvents();
-    const callEvent = publishedEvents.find((event): event is ChatSessionToolCallEvent => event instanceof ChatSessionToolCallEvent)!;
-    const resultEvent = publishedEvents.find((event): event is ChatSessionToolResultEvent => event instanceof ChatSessionToolResultEvent)!;
+    const callEvent = publishedEvents.find(
+      (event): event is ChatSessionToolCallEvent =>
+        event instanceof ChatSessionToolCallEvent
+    )!;
+    const resultEvent = publishedEvents.find(
+      (event): event is ChatSessionToolResultEvent =>
+        event instanceof ChatSessionToolResultEvent
+    )!;
 
     expect(callEvent.timestamp).toBe(now.toISOString());
     expect(resultEvent.timestamp).toBe(now.toISOString());
@@ -182,8 +190,6 @@ describe("ChatSessionStreamRendererService", () => {
   });
 
   it("announces agent activity transitions for stream events", async () => {
-    const events = captureActivity();
-
     await renderer.capture(sessionId, async () => {
       renderer.render({ type: "delta", text: "Hello" });
       renderer.render({
@@ -202,7 +208,7 @@ describe("ChatSessionStreamRendererService", () => {
     });
 
     expect(
-      events.map(({ sessionId: id, state }) => ({ sessionId: id, state }))
+      getActivityEvents().map(({ sessionId: id, state }) => ({ sessionId: id, state }))
     ).toEqual([
       { sessionId, state: "thinking" },
       { sessionId, state: "tool" },
@@ -212,8 +218,6 @@ describe("ChatSessionStreamRendererService", () => {
   });
 
   it("emits error activity for error and notification events", async () => {
-    const events = captureActivity();
-
     await renderer.capture(sessionId, async () => {
       renderer.render({ type: "delta", text: "Hi" });
       renderer.render({
@@ -225,7 +229,7 @@ describe("ChatSessionStreamRendererService", () => {
     });
 
     expect(
-      events.map(({ sessionId: id, state }) => ({ sessionId: id, state }))
+      getActivityEvents().map(({ sessionId: id, state }) => ({ sessionId: id, state }))
     ).toEqual([
       { sessionId, state: "thinking" },
       { sessionId, state: "error" },

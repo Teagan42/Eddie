@@ -4,7 +4,6 @@ import { EngineService } from "@eddie/engine";
 import type { AgentInvocation, EngineResult } from "@eddie/engine";
 import type { ChatMessage } from "@eddie/types";
 import {
-  ChatSessionsListener,
   ChatSessionsService,
   type AgentInvocationSnapshot,
 } from "./chat-sessions.service";
@@ -26,9 +25,7 @@ const DEFAULT_ENGINE_FAILURE_MESSAGE =
 @Injectable()
 @EventsHandler(ChatMessageCreatedEvent)
 export class ChatSessionsEngineListener
-implements
-    ChatSessionsListener,
-    IEventHandler<ChatMessageCreatedEvent> {
+implements IEventHandler<ChatMessageCreatedEvent> {
   private readonly logger = new Logger(ChatSessionsEngineListener.name);
 
   constructor(
@@ -41,25 +38,8 @@ implements
     this.engine.setStreamRenderer(this.streamRenderer);
   }
 
-  onSessionCreated(): void {
-    // No engine side-effects for session creation events.
-  }
-
-  onSessionUpdated(): void {
-    // No engine side-effects for session updates.
-  }
-
-  onSessionDeleted(id: string): void {
-    void id;
-    // No engine side-effects for session deletion.
-  }
-
   async handle(event: ChatMessageCreatedEvent): Promise<void> {
     await this.processMessage(event.sessionId, event.messageId);
-  }
-
-  onMessageCreated(message: ChatMessageDto): void {
-    void this.processMessage(message.sessionId, message.id);
   }
 
   private async processMessage(
@@ -73,11 +53,6 @@ implements
     }
 
     await this.executeEngine(message, messages);
-  }
-
-  onMessageUpdated(message: ChatMessageDto): void {
-    void message;
-    // No engine side-effects for message updates.
   }
 
   private shouldInvokeEngine(message: ChatMessageDto): boolean {

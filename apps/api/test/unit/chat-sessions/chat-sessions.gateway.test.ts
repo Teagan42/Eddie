@@ -7,18 +7,10 @@ import * as websocketUtils from "../../../src/websocket/utils";
 const emitEventSpy = vi.spyOn(websocketUtils, "emitEvent");
 
 describe("ChatSessionsGateway", () => {
-  let registerListener: ReturnType<typeof vi.fn>;
-  let unregister: ReturnType<typeof vi.fn>;
   let gateway: ChatSessionsGateway;
 
   beforeEach(() => {
-    registerListener = vi.fn();
-    unregister = vi.fn();
-    registerListener.mockReturnValue(unregister);
-
-    const service = {
-      registerListener,
-    } as unknown as ChatSessionsService;
+    const service = {} as unknown as ChatSessionsService;
 
     gateway = new ChatSessionsGateway(service);
     (gateway as unknown as { server: unknown }).server = {
@@ -28,26 +20,12 @@ describe("ChatSessionsGateway", () => {
     emitEventSpy.mockClear();
   });
 
-  it("registers itself as a listener when the module starts", () => {
-    gateway.onModuleInit();
-
-    expect(registerListener).toHaveBeenCalledWith(gateway);
-  });
-
-  it("unregisters the listener during shutdown", () => {
-    gateway.onModuleInit();
-
-    gateway.onModuleDestroy();
-
-    expect(unregister).toHaveBeenCalledTimes(1);
-  });
-
   it("emits websocket events for deleted sessions", () => {
     const server = (gateway as unknown as { server: unknown }).server;
 
     (gateway as unknown as {
-      onSessionDeleted: (id: string) => void;
-    }).onSessionDeleted("session-1");
+      emitSessionDeleted: (id: string) => void;
+    }).emitSessionDeleted("session-1");
 
     expect(emitEventSpy).toHaveBeenCalledWith(server, "session.deleted", {
       id: "session-1",
@@ -65,7 +43,7 @@ describe("ChatSessionsGateway", () => {
       updatedAt: new Date().toISOString(),
     };
 
-    gateway.onSessionCreated(session);
+    gateway.emitSessionCreated(session);
 
     expect(emitEventSpy).toHaveBeenCalledWith(server, "session.created", session);
   });
@@ -81,7 +59,7 @@ describe("ChatSessionsGateway", () => {
       updatedAt: new Date().toISOString(),
     };
 
-    gateway.onSessionUpdated(session);
+    gateway.emitSessionUpdated(session);
 
     expect(emitEventSpy).toHaveBeenCalledWith(server, "session.updated", session);
   });
@@ -96,7 +74,7 @@ describe("ChatSessionsGateway", () => {
       createdAt: new Date().toISOString(),
     };
 
-    gateway.onMessageCreated(message);
+    gateway.emitMessageCreated(message);
 
     expect(emitEventSpy).toHaveBeenCalledWith(server, "message.created", message);
   });
@@ -111,7 +89,7 @@ describe("ChatSessionsGateway", () => {
       createdAt: new Date().toISOString(),
     };
 
-    gateway.onMessageUpdated(message);
+    gateway.emitMessageUpdated(message);
 
     expect(emitEventSpy).toHaveBeenCalledWith(server, "message.updated", message);
   });
@@ -119,7 +97,7 @@ describe("ChatSessionsGateway", () => {
   it("emits websocket events for agent activity", () => {
     const server = (gateway as unknown as { server: unknown }).server;
 
-    gateway.onAgentActivity({
+    gateway.emitAgentActivity({
       sessionId: "session-1",
       state: "thinking",
       timestamp: new Date().toISOString(),

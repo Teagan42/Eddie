@@ -1,5 +1,7 @@
 import { NotFoundException } from "@nestjs/common";
 import { describe, expect, expectTypeOf, it } from "vitest";
+import type { IEvent } from "@nestjs/cqrs";
+import type { ChatSessionsDomainEvent } from "../../../src/chat-sessions/events";
 import {
   ChatSessionsService,
   type AgentInvocationSnapshot,
@@ -10,42 +12,36 @@ import {
   InMemoryChatSessionsRepository,
   type AgentInvocationSnapshot as RepositoryInvocationSnapshot,
 } from "../../../src/chat-sessions/chat-sessions.repository";
+import {
+  AgentActivity,
+  ChatMessageSent,
+  ChatSessionCreated,
+  ChatSessionDeleted,
+  ChatSessionUpdated,
+} from "../../../src/chat-sessions/events";
 
-class ListenerSpy {
-  created = 0;
-  updated = 0;
-  deleted = 0;
-  deletedIds: string[] = [];
-  messages = 0;
-  messageUpdates = 0;
+class EventBusStub {
+  events: ChatSessionsDomainEvent[] = [];
 
-  onSessionCreated(): void {
-    this.created += 1;
+  publish(event: ChatSessionsDomainEvent): void {
+    this.events.push(event);
   }
 
-  onSessionUpdated(): void {
-    this.updated += 1;
-  }
-
-  onSessionDeleted(id: string): void {
-    this.deleted += 1;
-    this.deletedIds.push(id);
-  }
-
-  onMessageCreated(): void {
-    this.messages += 1;
-  }
-
-  onMessageUpdated(): void {
-    this.messageUpdates += 1;
+  ofType<T>(ctor: new (...args: any[]) => T): T[] {
+    return this.events.filter((event): event is T => event instanceof ctor);
   }
 }
 
 describe("ChatSessionsService", () => {
   let service: ChatSessionsService;
+  let eventBus: EventBusStub;
 
   beforeEach(() => {
-    service = new ChatSessionsService(new InMemoryChatSessionsRepository());
+    eventBus = new EventBusStub();
+    service = new ChatSessionsService(
+      new InMemoryChatSessionsRepository(),
+      eventBus as unknown as { publish: (event: IEvent) => void }
+    );
   });
 
   it("exposes AgentInvocationSnapshot type to consumers", () => {
@@ -54,16 +50,15 @@ describe("ChatSessionsService", () => {
     >();
   });
 
-  it("creates sessions and notifies listeners", async () => {
-    const listener = new ListenerSpy();
-    service.registerListener(listener);
-
+  it("creates sessions and publishes domain events", async () => {
     const dto: CreateChatSessionDto = { title: "My Session" };
     const session = await service.createSession(dto);
 
     expect(session.title).toBe("My Session");
-    expect(listener.created).toBe(1);
-    expect(listener.updated).toBe(0);
+
+    const [created] = eventBus.ofType(ChatSessionCreated);
+    expect(created?.session.id).toBe(session.id);
+    expect(created?.session.title).toBe("My Session");
 
     const messageDto: CreateChatMessageDto = {
       role: "user",
@@ -72,8 +67,16 @@ describe("ChatSessionsService", () => {
     const { message } = await service.addMessage(session.id, messageDto);
 
     expect(message.content).toBe("Hello world");
-    expect(listener.messages).toBe(1);
-    expect(listener.updated).toBe(1);
+
+    const [sent] = eventBus.ofType(ChatMessageSent);
+    expect(sent?.sessionId).toBe(session.id);
+    expect(sent?.message.id).toBe(message.id);
+    expect(sent?.mode).toBe("created");
+
+    const updates = eventBus
+      .ofType(ChatSessionUpdated)
+      .filter((event) => event.session.id === session.id);
+    expect(updates.length).toBeGreaterThan(0);
   });
 
   it("persists tool identifiers and names on stored messages", async () => {
@@ -137,9 +140,6 @@ describe("ChatSessionsService", () => {
   });
 
   it("updates message content without reordering sessions", async () => {
-    const listener = new ListenerSpy();
-    service.registerListener(listener);
-
     const session = await service.createSession({ title: "Streaming" });
     const { message } = await service.addMessage(session.id, {
       role: "assistant",
@@ -153,16 +153,17 @@ describe("ChatSessionsService", () => {
     );
 
     expect(updated.content).toBe("Final response");
-    expect(listener.messageUpdates).toBe(1);
-    expect(listener.updated).toBe(1);
+
+    const messageEvents = eventBus
+      .ofType(ChatMessageSent)
+      .filter((event) => event.message.id === message.id && event.mode === "updated");
+    expect(messageEvents.length).toBe(1);
+
     const messages = await service.listMessages(session.id);
     expect(messages[0]?.content).toBe("Final response");
   });
 
-  it("updates session metadata and notifies listeners", async () => {
-    const listener = new ListenerSpy();
-    service.registerListener(listener);
-
+  it("updates session metadata and publishes updates", async () => {
     const session = await service.createSession({ title: "Original" });
     const renamed = await (service as unknown as {
       renameSession(
@@ -176,7 +177,10 @@ describe("ChatSessionsService", () => {
 
     expect(renamed.title).toBe("Updated");
     expect(renamed.description).toBe("details");
-    expect(listener.updated).toBe(1);
+
+    const [updatedEvent] = eventBus.ofType(ChatSessionUpdated);
+    expect(updatedEvent?.session.id).toBe(session.id);
+    expect(updatedEvent?.session.title).toBe("Updated");
   });
 
   it("throws when renaming unknown sessions", async () => {
@@ -187,29 +191,38 @@ describe("ChatSessionsService", () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it("deletes sessions, cleans up messages, and notifies listeners", async () => {
-    const listener = new ListenerSpy();
-    service.registerListener(listener);
-
+  it("deletes sessions, cleans up messages, and publishes deletion event", async () => {
     const session = await service.createSession({ title: "Disposable" });
     await service.addMessage(session.id, { role: "user", content: "ping" });
-
-    const before = listener.updated;
 
     await (service as unknown as { deleteSession(id: string): Promise<void> }).deleteSession(
       session.id
     );
 
-    expect(listener.updated).toBe(before + 1);
-    expect(listener.deleted).toBe(1);
-    expect(listener.deletedIds).toEqual([session.id]);
+    const [deleted] = eventBus.ofType(ChatSessionDeleted);
+    expect(deleted?.sessionId).toBe(session.id);
+
     await expect(service.listMessages(session.id)).rejects.toBeInstanceOf(NotFoundException);
     await expect(service.getSession(session.id)).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it("publishes agent activity events", async () => {
+    const session = await service.createSession({ title: "With agent" });
+
+    await service.setAgentActivity(session.id, "thinking");
+
+    const [activity] = eventBus.ofType(AgentActivity);
+
+    expect(activity?.sessionId).toBe(session.id);
+    expect(activity?.state).toBe("thinking");
+    expect(typeof activity?.timestamp).toBe("string");
+  });
+
   it("throws when deleting unknown sessions", async () => {
     await expect(
-      (service as unknown as { deleteSession(id: string): Promise<void> }).deleteSession("missing")
+      (service as unknown as { deleteSession(id: string): Promise<void> }).deleteSession(
+        "missing"
+      )
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
