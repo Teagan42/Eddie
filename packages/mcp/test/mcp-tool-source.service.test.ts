@@ -134,6 +134,106 @@ describe("McpToolSourceService", () => {
     vi.unstubAllGlobals();
   });
 
+  it("unwraps tool call results returned under a result property", async () => {
+    const logger = createLogger();
+    const loggerService = createLoggerService(logger);
+    const service = new McpToolSourceService(loggerService);
+    const source: MCPToolSourceConfig = {
+      id: "nested-result",
+      type: "mcp",
+      url: "https://example.com/mcp",
+    };
+
+    mockServerCapabilities.mockReturnValue({ tools: { list: true, call: true } });
+    mockClientConnect.mockImplementation(async () => {
+      const instance = mockClientInstances.at(-1);
+      if (!instance) {
+        return;
+      }
+
+      if (mockClientInstances.length === 1) {
+        instance.listTools.mockResolvedValue({
+          tools: [
+            {
+              name: "echo",
+              description: "Echo", // description required to form ToolDefinition
+              inputSchema: { type: "object", properties: {} },
+            },
+          ],
+        });
+      }
+
+      if (mockClientInstances.length === 2) {
+        instance.callTool.mockResolvedValue({
+          result: {
+            content: [
+              {
+                type: "text",
+                text: "hello world",
+              },
+            ],
+          },
+        });
+      }
+    });
+
+    const discoveries = await service.discoverSources([source]);
+    expect(discoveries[0]?.tools).toHaveLength(1);
+    const handler = discoveries[0]?.tools[0]?.handler;
+    expect(handler).toBeTypeOf("function");
+
+    const result = await handler?.({});
+
+    expect(result).toEqual({
+      schema: "mcp.tool.result",
+      content: "hello world",
+    });
+  });
+
+  it("unwraps tool listings returned under a result property", async () => {
+    const logger = createLogger();
+    const loggerService = createLoggerService(logger);
+    const service = new McpToolSourceService(loggerService);
+    const source: MCPToolSourceConfig = {
+      id: "nested-list-result",
+      type: "mcp",
+      url: "https://example.com/mcp",
+    };
+
+    mockServerCapabilities.mockReturnValue({ tools: { list: true } });
+    mockClientConnect.mockImplementation(async () => {
+      const instance = mockClientInstances.at(-1);
+      if (!instance) {
+        return;
+      }
+
+      if (mockClientInstances.length === 1) {
+        instance.listTools.mockResolvedValue({
+          result: {
+            tools: [
+              {
+                name: "echo",
+                description: "Echo tool",
+                inputSchema: { type: "object", properties: {} },
+              },
+            ],
+          },
+        });
+      }
+    });
+
+    const discoveries = await service.discoverSources([source]);
+
+    expect(discoveries[0]?.tools).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "echo",
+          description: "Echo tool",
+        }),
+      ])
+    );
+  });
+
   it("uses the SDK client to initialize and logs server capabilities", async () => {
     const logger = createLogger();
     const loggerService = createLoggerService(logger);

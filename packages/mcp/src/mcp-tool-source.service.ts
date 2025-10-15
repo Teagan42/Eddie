@@ -20,7 +20,12 @@ import type {
   McpToolSourceDiscovery,
   McpToolsListResult,
 } from "./types";
-import type { ToolDefinition, ToolResult, ToolCallArguments } from "@eddie/types";
+import type {
+  ToolDefinition,
+  ToolResult,
+  ToolCallArguments,
+} from "@eddie/types";
+import type { CallToolResult, ContentBlock } from "@modelcontextprotocol/sdk/types";
 
 interface CachedSessionInfo {
   sessionId?: string;
@@ -41,13 +46,6 @@ interface ServerIdentity {
   serverVersion?: string;
 }
 
-interface CallToolResultPayload {
-  content?: unknown[];
-  structuredContent?: unknown;
-  isError?: boolean;
-  _meta?: Record<string, unknown>;
-}
-
 const DEFAULT_CLIENT_NAME = "eddie";
 const DEFAULT_CLIENT_VERSION = "unknown";
 const STREAMABLE_TRANSPORT_NAME = "streamable-http" as const;
@@ -64,6 +62,8 @@ type Client = typeof import("@modelcontextprotocol/sdk/client/index.js").Client;
 type TransportName =
   | typeof STREAMABLE_TRANSPORT_NAME
   | typeof SSE_TRANSPORT_NAME;
+
+type ResultEnvelope<T> = { result?: T };
 
 @Injectable()
 export class McpToolSourceService {
@@ -265,11 +265,12 @@ export class McpToolSourceService {
           `MCP server does not advertise tool.call capability for tool ${name}.`
         );
       }
+
       const params = {
         name,
         arguments: structuredClone(args ?? {}),
       };
-      const rawResult = await this.executeRequest<CallToolResultPayload>(
+      const rawResult = await this.executeRequest<CallToolResult>(
         source,
         context,
         "tools/call",
@@ -280,7 +281,7 @@ export class McpToolSourceService {
     });
   }
 
-  private toToolResult(name: string, result: CallToolResultPayload): ToolResult {
+  private toToolResult(name: string, result: CallToolResult): ToolResult {
     if (result.isError) {
       const message = this.flattenContent(result.content ?? []) ??
         `Tool ${name} reported an error.`;
@@ -311,7 +312,7 @@ export class McpToolSourceService {
       };
     }
 
-    const fallbackContent = this.flattenContent(result.content ?? []);
+    const fallbackContent = this.flattenContent(result.content);
     if (!fallbackContent) {
       throw new Error(
         `Tool ${name} did not return structured content or textual output.`
@@ -328,21 +329,15 @@ export class McpToolSourceService {
     };
   }
 
-  private flattenContent(content: unknown[]): string | undefined {
-    if (!Array.isArray(content) || content.length === 0) {
+  private flattenContent(content: ContentBlock[] | undefined): string | undefined {
+    if (!content || content.length === 0) {
       return undefined;
     }
 
     const parts: string[] = [];
     for (const block of content) {
-      if (!block || typeof block !== "object") {
-        parts.push(String(block));
-        continue;
-      }
-
-      const candidate = block as { type?: unknown; text?: unknown };
-      if (candidate.type === "text" && typeof candidate.text === "string") {
-        parts.push(candidate.text);
+      if (block.type === "text") {
+        parts.push(block.text);
         continue;
       }
 
@@ -351,6 +346,7 @@ export class McpToolSourceService {
 
     return parts.join("\n");
   }
+
 
   private async withClient<T>(
     source: MCPToolSourceConfig,
@@ -485,11 +481,12 @@ export class McpToolSourceService {
     source: MCPToolSourceConfig,
     context: ClientContext,
     method: string,
-    operation: () => Promise<T>
+    operation: () => Promise<T | ResultEnvelope<T>>
   ): Promise<T> {
     const startedAt = performance.now();
     try {
-      const result = await operation();
+      const rawResult = await operation();
+      const result = this.unwrapResult(rawResult);
       const durationMs = performance.now() - startedAt;
       this.logger.info(
         {
@@ -523,6 +520,17 @@ export class McpToolSourceService {
       );
       throw error;
     }
+  }
+
+  private unwrapResult<T>(payload: T | ResultEnvelope<T>): T {
+    if (payload && typeof payload === "object" && "result" in payload) {
+      const candidate = payload as ResultEnvelope<T>;
+      if (candidate.result !== undefined) {
+        return candidate.result;
+      }
+    }
+
+    return payload as T;
   }
 
   private resolveServerIdentity(info?: Record<string, unknown>): ServerIdentity {
