@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { EventsHandler, type IEventHandler } from "@nestjs/cqrs";
+import { CommandBus, EventsHandler, type IEventHandler } from "@nestjs/cqrs";
 import { EngineService } from "@eddie/engine";
 import type { AgentInvocation, EngineResult } from "@eddie/engine";
 import type { ChatMessage } from "@eddie/types";
@@ -13,8 +13,8 @@ import {
 } from "./chat-session-stream-renderer.service";
 import { ChatMessageDto } from "./dto/chat-session.dto";
 import { ChatMessageRole, CreateChatMessageDto } from "./dto/create-chat-message.dto";
-import { TracesService } from "../traces/traces.service";
 import type { TraceDto } from "../traces/dto/trace.dto";
+import { CreateTraceCommand, UpdateTraceCommand } from "../traces/commands";
 import { LogsService } from "../logs/logs.service";
 import type { LogEntryDto } from "../logs/dto/log-entry.dto";
 import { ChatMessageCreatedEvent } from "@eddie/types";
@@ -31,7 +31,7 @@ implements IEventHandler<ChatMessageCreatedEvent> {
   constructor(
         private readonly chatSessions: ChatSessionsService,
         private readonly engine: EngineService,
-        private readonly traces: TracesService,
+        private readonly commandBus: CommandBus,
         private readonly logs: LogsService,
         private readonly streamRenderer: ChatSessionStreamRendererService
   ) {
@@ -67,7 +67,7 @@ implements IEventHandler<ChatMessageCreatedEvent> {
     messages: ChatMessageDto[]
   ): Promise<void> {
     const history = this.createHistory(messages, message.id);
-    const trace = this.createTrace(message);
+    const trace = await this.createTrace(message);
     const startedAt = Date.now();
 
     this.appendLog("info", "Engine run started", {
@@ -140,7 +140,7 @@ implements IEventHandler<ChatMessageCreatedEvent> {
       }
 
       const duration = Date.now() - startedAt;
-      this.updateTrace(trace, "completed", duration, {
+      await this.updateTrace(trace, "completed", duration, {
         responseCount,
       });
       this.appendLog("info", "Engine run completed", {
@@ -158,7 +158,7 @@ implements IEventHandler<ChatMessageCreatedEvent> {
         error instanceof Error ? error.stack : undefined
       );
 
-      this.updateTrace(trace, "failed", undefined, {
+      await this.updateTrace(trace, "failed", undefined, {
         error: reason,
       });
       this.appendLog("error", "Engine run failed", {
@@ -182,16 +182,18 @@ implements IEventHandler<ChatMessageCreatedEvent> {
     }
   }
 
-  private createTrace(message: ChatMessageDto): TraceDto | null {
+  private async createTrace(message: ChatMessageDto): Promise<TraceDto | null> {
     try {
-      return this.traces.create({
-        sessionId: message.sessionId,
-        name: "engine.run",
-        status: "running",
-        metadata: {
-          messageId: message.id,
-        },
-      });
+      return await this.commandBus.execute(
+        new CreateTraceCommand({
+          sessionId: message.sessionId,
+          name: "engine.run",
+          status: "running",
+          metadata: {
+            messageId: message.id,
+          },
+        })
+      );
     } catch (error) {
       this.logger.warn(
         {
@@ -205,21 +207,28 @@ implements IEventHandler<ChatMessageCreatedEvent> {
     }
   }
 
-  private updateTrace(
+  private async updateTrace(
     trace: TraceDto | null,
     status: TraceDto[ "status" ],
     durationMs: number | undefined,
     metadata: Record<string, unknown>
-  ): void {
+  ): Promise<void> {
     if (!trace) {
       return;
     }
 
     try {
-      this.traces.updateStatus(trace.id, status, durationMs, {
+      const nextMetadata = {
         ...(trace.metadata ?? {}),
         ...metadata,
-      });
+      };
+      await this.commandBus.execute(
+        new UpdateTraceCommand(trace.id, {
+          status,
+          durationMs,
+          metadata: nextMetadata,
+        })
+      );
     } catch (error) {
       this.logger.warn(
         {

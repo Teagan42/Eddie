@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { CommandBus } from "@nestjs/cqrs";
 import { EVENTS_HANDLER_METADATA } from "@nestjs/cqrs/dist/decorators/constants";
 import type { EngineService, EngineResult } from "@eddie/engine";
 import { ChatSessionsEngineListener } from "../../../src/chat-sessions/chat-sessions-engine.listener";
@@ -9,7 +10,7 @@ import { ChatMessageRole } from "../../../src/chat-sessions/dto/create-chat-mess
 import type { ChatMessageDto } from "../../../src/chat-sessions/dto/chat-session.dto";
 import type { LogsService } from "../../../src/logs/logs.service";
 import type { TraceDto } from "../../../src/traces/dto/trace.dto";
-import type { TracesService } from "../../../src/traces/traces.service";
+import { CreateTraceCommand, UpdateTraceCommand } from "../../../src/traces/commands";
 import { ChatMessageCreatedEvent } from "@eddie/types";
 
 const createChatMessage = (
@@ -31,8 +32,7 @@ describe("ChatSessionsEngineListener", () => {
   const capture = vi.fn();
   let engineSetStreamRenderer: ReturnType<typeof vi.fn>;
   let engineRun: ReturnType<typeof vi.fn>;
-  let tracesCreate: ReturnType<typeof vi.fn>;
-  let tracesUpdateStatus: ReturnType<typeof vi.fn>;
+  let commandExecute: ReturnType<typeof vi.fn>;
   let logsAppend: ReturnType<typeof vi.fn>;
   let chatSessions: ChatSessionsService;
   let streamRenderer: ChatSessionStreamRendererService;
@@ -60,12 +60,10 @@ describe("ChatSessionsEngineListener", () => {
       setStreamRenderer: engineSetStreamRenderer,
     } as unknown as EngineService;
 
-    tracesCreate = vi.fn();
-    tracesUpdateStatus = vi.fn();
-    const traces = {
-      create: tracesCreate,
-      updateStatus: tracesUpdateStatus,
-    } as unknown as TracesService;
+    commandExecute = vi.fn();
+    const commandBus = {
+      execute: commandExecute,
+    } as unknown as CommandBus;
     const defaultTrace: TraceDto = {
       id: "trace-default",
       name: "engine.run",
@@ -73,7 +71,12 @@ describe("ChatSessionsEngineListener", () => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    tracesCreate.mockReturnValue(defaultTrace);
+    commandExecute.mockImplementation((command: unknown) => {
+      if (command instanceof CreateTraceCommand) {
+        return defaultTrace;
+      }
+      return undefined;
+    });
 
     logsAppend = vi.fn();
     const logs = {
@@ -87,11 +90,16 @@ describe("ChatSessionsEngineListener", () => {
     listener = new ChatSessionsEngineListener(
       chatSessions,
       engine,
-      traces,
+      commandBus,
       logs,
       streamRenderer
     );
   });
+
+  const findCommand = <T>(CommandType: new (...args: unknown[]) => T): T | undefined =>
+    commandExecute.mock.calls
+      .map(([command]) => command)
+      .find((command): command is T => command instanceof CommandType);
 
   it("subscribes to ChatMessageCreatedEvent", () => {
     const events =
@@ -131,7 +139,12 @@ describe("ChatSessionsEngineListener", () => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    tracesCreate.mockReturnValue(trace);
+    commandExecute.mockImplementation((command: unknown) => {
+      if (command instanceof CreateTraceCommand) {
+        return trace;
+      }
+      return undefined;
+    });
 
     const engineResult: EngineResult = {
       messages: [
@@ -185,21 +198,25 @@ describe("ChatSessionsEngineListener", () => {
       "Next steps"
     );
 
-    expect(tracesCreate).toHaveBeenCalledWith({
+    const createCommand = findCommand(CreateTraceCommand);
+    expect(createCommand).toBeInstanceOf(CreateTraceCommand);
+    expect(createCommand?.input).toEqual({
       sessionId: "session-1",
       name: "engine.run",
       status: "running",
       metadata: { messageId: "m-3" },
     });
 
-    expect(tracesUpdateStatus).toHaveBeenCalledWith(
-      "trace-success",
-      "completed",
-      expect.any(Number),
-      expect.objectContaining({
+    const updateCommand = findCommand(UpdateTraceCommand);
+    expect(updateCommand).toBeInstanceOf(UpdateTraceCommand);
+    expect(updateCommand?.id).toBe("trace-success");
+    expect(updateCommand?.input).toMatchObject({
+      status: "completed",
+      durationMs: expect.any(Number),
+      metadata: expect.objectContaining({
         responseCount: 1,
-      })
-    );
+      }),
+    });
 
     expect(logsAppend).toHaveBeenCalledWith(
       "info",
@@ -232,7 +249,12 @@ describe("ChatSessionsEngineListener", () => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    tracesCreate.mockReturnValue(trace);
+    commandExecute.mockImplementation((command: unknown) => {
+      if (command instanceof CreateTraceCommand) {
+        return trace;
+      }
+      return undefined;
+    });
 
     capture.mockImplementation(async (_sessionId: string, handler: () => Promise<EngineResult>) => {
       const state = {
@@ -263,12 +285,14 @@ describe("ChatSessionsEngineListener", () => {
 
     expect(saveAgentInvocations).not.toHaveBeenCalled();
 
-    expect(tracesUpdateStatus).toHaveBeenCalledWith(
-      "trace-1",
-      "failed",
-      undefined,
-      expect.objectContaining({ error: "boom" })
-    );
+    const updateCommand = findCommand(UpdateTraceCommand);
+    expect(updateCommand).toBeInstanceOf(UpdateTraceCommand);
+    expect(updateCommand?.id).toBe("trace-1");
+    expect(updateCommand?.input).toMatchObject({
+      status: "failed",
+      durationMs: undefined,
+      metadata: expect.objectContaining({ error: "boom" }),
+    });
 
     expect(logsAppend).toHaveBeenCalledWith(
       "info",
