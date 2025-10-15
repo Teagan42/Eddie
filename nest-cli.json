@@ -120,6 +120,15 @@
         "tsConfigPath": "packages/types/tsconfig.build.json",
         "deleteOutDir": true
       }
+    },
+    "perf-benchmarks": {
+      "type": "library",
+      "root": "packages/perf-benchmarks",
+      "sourceRoot": "packages/perf-benchmarks/bench",
+      "compilerOptions": {
+        "tsConfigPath": "packages/perf-benchmarks/tsconfig.json",
+        "deleteOutDir": true
+      }
     }
   }
 }

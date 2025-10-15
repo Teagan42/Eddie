@@ -8,6 +8,7 @@
   },
   "workspaces": [
     "apps/*",
+    "packages/perf-benchmarks",
     "packages/*"
   ],
   "engines": {
@@ -37,7 +38,8 @@
     "dev": "concurrently \"npm run dev:api --if-present\" \"npm run web:dev --if-present\"",
     "start": "concurrently \"npm run start:api --if-present\" \"npm run web:start --if-present\"",
     "web:build": "npm run build --workspace @eddie/web --if-present",
-    "web:test": "npm run test --workspace @eddie/web --if-present"
+    "web:test": "npm run test --workspace @eddie/web --if-present",
+    "bench": "npm run bench --workspace @eddie/perf-benchmarks --if-present"
   },
   "repository": {
     "type": "git",

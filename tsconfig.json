@@ -13,6 +13,7 @@
     { "path": "./packages/context" },
     { "path": "./packages/mcp" },
     { "path": "./packages/engine" },
+    { "path": "./packages/perf-benchmarks" },
     { "path": "./apps/cli" },
     { "path": "./apps/api" }
   ]

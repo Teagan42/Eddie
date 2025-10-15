@@ -27,6 +27,8 @@
       "@eddie/mcp/*": ["packages/mcp/src/*"],
       "@eddie/providers": ["packages/providers/src"],
       "@eddie/providers/*": ["packages/providers/src/*"],
+      "@eddie/perf-benchmarks": ["packages/perf-benchmarks/src"],
+      "@eddie/perf-benchmarks/*": ["packages/perf-benchmarks/src/*"],
       "@eddie/templates": ["packages/templates/src"],
       "@eddie/templates/*": ["packages/templates/src/*"],
       "@eddie/tokenizers": ["packages/tokenizers/src"],
