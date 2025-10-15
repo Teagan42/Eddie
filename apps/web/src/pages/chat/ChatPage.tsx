@@ -195,6 +195,7 @@ type ToolRealtimeMetadataResult = Partial<
   Record<string, unknown>;
 
 type ToolInvocationNode = OrchestratorMetadataDto['toolInvocations'][number];
+type AgentHierarchyNode = OrchestratorMetadataDto['agentHierarchy'][number];
 
 let toolInvocationIdCounter = 0;
 
@@ -444,6 +445,97 @@ function removeSessionKey<T extends Record<string, unknown>>(
   return next;
 }
 
+function agentHierarchyContainsAgent(nodes: AgentHierarchyNode[], agentId: string): boolean {
+  for (const node of nodes) {
+    if (node.id === agentId) {
+      return true;
+    }
+
+    if (agentHierarchyContainsAgent(node.children ?? [], agentId)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function filterAgentHierarchyToLineage(
+  nodes: AgentHierarchyNode[],
+  agentId: string,
+): AgentHierarchyNode[] {
+  return nodes
+    .map((node) => {
+      const filteredChildren = filterAgentHierarchyToLineage(node.children ?? [], agentId);
+
+      if (node.id === agentId) {
+        return {
+          ...node,
+          children: cloneAgentHierarchy(node.children ?? []),
+        } satisfies AgentHierarchyNode;
+      }
+
+      if (filteredChildren.length > 0) {
+        return {
+          ...node,
+          children: filteredChildren,
+        } satisfies AgentHierarchyNode;
+      }
+
+      return null;
+    })
+    .filter((node): node is AgentHierarchyNode => node != null);
+}
+
+function collectAgentIdsFromHierarchy(nodes: AgentHierarchyNode[]): Set<string> {
+  const ids = new Set<string>();
+  const visit = (node: AgentHierarchyNode): void => {
+    ids.add(node.id);
+    for (const child of node.children ?? []) {
+      visit(child);
+    }
+  };
+
+  for (const node of nodes) {
+    visit(node);
+  }
+
+  return ids;
+}
+
+function filterToolInvocationsByAgentIds(
+  nodes: ToolInvocationNode[],
+  allowedAgentIds: ReadonlySet<string>,
+): ToolInvocationNode[] {
+  const filterNode = (node: ToolInvocationNode): ToolInvocationNode | null => {
+    const filteredChildren = (node.children ?? [])
+      .map((child) => filterNode(child))
+      .filter((child): child is ToolInvocationNode => child != null);
+
+    const agentId = typeof node.metadata?.agentId === 'string' ? node.metadata.agentId : null;
+    if (agentId && allowedAgentIds.has(agentId)) {
+      return {
+        ...node,
+        metadata: node.metadata ? { ...node.metadata } : undefined,
+        children: filteredChildren,
+      } satisfies ToolInvocationNode;
+    }
+
+    if (filteredChildren.length > 0) {
+      return {
+        ...node,
+        metadata: node.metadata ? { ...node.metadata } : undefined,
+        children: filteredChildren,
+      } satisfies ToolInvocationNode;
+    }
+
+    return null;
+  };
+
+  return nodes
+    .map((node) => filterNode(node))
+    .filter((node): node is ToolInvocationNode => node != null);
+}
+
 export function ChatPage(): JSX.Element {
   const api = useApi();
   const { apiKey } = useAuth();
@@ -495,6 +587,7 @@ export function ChatPage(): JSX.Element {
   >({});
   const [capturedAtBySession, setCapturedAtBySession] = useState<Record<string, string | undefined>>({});
   const [metadataPresenceBySession, setMetadataPresenceBySession] = useState<Record<string, true>>({});
+  const [focusedAgentId, setFocusedAgentId] = useState<string | null>(null);
 
   const composeOrchestratorMetadata = useCallback(
     (sessionId: string): OrchestratorMetadataDto | null => {
@@ -1114,15 +1207,51 @@ export function ChatPage(): JSX.Element {
   const selectedModel = activeSettings.model ?? modelOptions[0] ?? '';
 
   const messages = messagesQuery.data ?? [];
-  const selectedContextBundles = selectedSessionId
-    ? contextBundlesBySession[selectedSessionId] ?? []
-    : [];
-  const selectedToolInvocations = selectedSessionId
-    ? toolInvocationsBySession[selectedSessionId] ?? []
-    : [];
-  const selectedAgentHierarchy = selectedSessionId
-    ? agentHierarchyBySession[selectedSessionId] ?? []
-    : [];
+  const selectedContextBundles = useMemo(
+    () => (selectedSessionId ? contextBundlesBySession[selectedSessionId] ?? [] : []),
+    [contextBundlesBySession, selectedSessionId],
+  );
+  const selectedToolInvocations = useMemo(
+    () => (selectedSessionId ? toolInvocationsBySession[selectedSessionId] ?? [] : []),
+    [selectedSessionId, toolInvocationsBySession],
+  );
+  const selectedAgentHierarchy = useMemo(
+    () => (selectedSessionId ? agentHierarchyBySession[selectedSessionId] ?? [] : []),
+    [agentHierarchyBySession, selectedSessionId],
+  );
+  useEffect(() => {
+    if (focusedAgentId && !agentHierarchyContainsAgent(selectedAgentHierarchy, focusedAgentId)) {
+      setFocusedAgentId(null);
+    }
+  }, [focusedAgentId, selectedAgentHierarchy]);
+
+  const { toolAgentHierarchy, allowedAgentIds } = useMemo(() => {
+    if (!focusedAgentId) {
+      return {
+        toolAgentHierarchy: selectedAgentHierarchy,
+        allowedAgentIds: null as ReadonlySet<string> | null,
+      };
+    }
+
+    const lineage = filterAgentHierarchyToLineage(selectedAgentHierarchy, focusedAgentId);
+    if (lineage.length === 0) {
+      return {
+        toolAgentHierarchy: selectedAgentHierarchy,
+        allowedAgentIds: null as ReadonlySet<string> | null,
+      };
+    }
+
+    const ids = collectAgentIdsFromHierarchy(lineage);
+    return { toolAgentHierarchy: lineage, allowedAgentIds: ids };
+  }, [focusedAgentId, selectedAgentHierarchy]);
+
+  const visibleToolInvocations = useMemo(() => {
+    if (!allowedAgentIds || allowedAgentIds.size === 0) {
+      return selectedToolInvocations;
+    }
+
+    return filterToolInvocationsByAgentIds(selectedToolInvocations, allowedAgentIds);
+  }, [selectedToolInvocations, allowedAgentIds]);
   const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
   const lastMessage = messages[messages.length - 1] ?? null;
   const agentActivityState = useMemo<AgentActivityState>(() => {
@@ -1615,8 +1744,8 @@ export function ChatPage(): JSX.Element {
               onToggle={handleTogglePanel}
             >
               <ToolTree
-                nodes={selectedToolInvocations}
-                agentHierarchy={selectedAgentHierarchy}
+                nodes={visibleToolInvocations}
+                agentHierarchy={toolAgentHierarchy}
               />
             </CollapsiblePanel>
 
@@ -1627,7 +1756,11 @@ export function ChatPage(): JSX.Element {
               collapsed={Boolean(collapsedPanels[PANEL_IDS.agents])}
               onToggle={handleTogglePanel}
             >
-              <AgentTree nodes={selectedAgentHierarchy} />
+              <AgentTree
+                nodes={selectedAgentHierarchy}
+                selectedAgentId={focusedAgentId}
+                onSelectAgent={setFocusedAgentId}
+              />
             </CollapsiblePanel>
           </div>
         </div>
