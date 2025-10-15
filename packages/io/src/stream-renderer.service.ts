@@ -11,6 +11,10 @@ const DEFAULT_PATTERNS = [
 
 @Injectable()
 export class StreamRendererService {
+  private lastAgentId?: string;
+
+  private lastNotificationAgentId?: string;
+
   render(event: StreamEvent): void {
     const prefix =
       event.type === "notification"
@@ -82,14 +86,25 @@ export class StreamRendererService {
   }
 
   private formatAgentPrefix(event: StreamEvent): string {
-    if (!event.agentId) {
+    const agentId = event.agentId;
+
+    if (!agentId) {
+      this.lastAgentId = undefined;
       return "";
     }
 
-    return this.createAgentPrefix(event.agentId);
+    if (this.shouldSuppressAgentPrefix(event, agentId)) {
+      return "";
+    }
+
+    this.lastAgentId = agentId;
+
+    return this.createAgentPrefix(agentId);
   }
 
-  private lastNotificationAgentId?: string;
+  private shouldSuppressAgentPrefix(event: StreamEvent, agentId: string): boolean {
+    return event.type === "delta" && agentId === this.lastAgentId;
+  }
 
   private formatNotificationPrefix(event: StreamEvent): string {
     const agentId = event.agentId;

@@ -29,6 +29,25 @@ describe("StreamRendererService", () => {
     expect(writeSpy).toHaveBeenCalledWith(`${prefixFor("manager")}hello world`);
   });
 
+  it("does not repeat the delta prefix when the agent is unchanged", () => {
+    const renderer = new StreamRendererService();
+
+    renderer.render({
+      type: "delta",
+      text: "hello",
+      agentId: "manager",
+    } as StreamEvent);
+
+    renderer.render({
+      type: "delta",
+      text: "world",
+      agentId: "manager",
+    } as StreamEvent);
+
+    expect(writeSpy).toHaveBeenNthCalledWith(1, `${prefixFor("manager")}hello`);
+    expect(writeSpy).toHaveBeenNthCalledWith(2, "world");
+  });
+
   it("prefixes each newline-delimited delta segment with the agent identifier", () => {
     const renderer = new StreamRendererService();
     const event = {
