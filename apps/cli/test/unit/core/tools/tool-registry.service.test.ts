@@ -89,27 +89,83 @@ describe("ToolRegistry", () => {
     ).rejects.toThrow(/Output validation failed/);
   });
 
-  it("requires output schemas to provide a discriminator id", () => {
-    expect(
-      () =>
-        new ToolRegistry([
-          {
-            name: "missing",
-            description: "missing id",
-            jsonSchema: { type: "object" },
-            // @ts-expect-error intentionally omit $id to assert runtime guard
-            outputSchema: {
-              type: "object",
-            },
-            async handler() {
-              return {
-                schema: "missing",
-                content: "",
-              };
-            },
-          },
-        ]),
-    ).toThrow(/output schema must declare a string \$id/);
+  it("generates a discriminator id when the output schema omits one", async () => {
+    let generatedId: string | undefined;
+
+    const registry = new ToolRegistry([
+      {
+        name: "missing",
+        description: "missing id",
+        jsonSchema: { type: "object" },
+        // @ts-expect-error intentionally omit $id to assert runtime guard
+        outputSchema: {
+          type: "object",
+          additionalProperties: false,
+        },
+        async handler() {
+          if (!generatedId) {
+            throw new Error("expected schema id to be generated before execution");
+          }
+
+          return {
+            schema: generatedId,
+            content: "",
+            data: {},
+          };
+        },
+      },
+    ]);
+
+    const tool = registry.get("missing");
+    expect(tool?.expectedSchemaId).toBeTruthy();
+    generatedId = tool?.expectedSchemaId;
+    expect(generatedId).toBeDefined();
+
+    const schema = tool?.outputSchema as { $id?: string; id?: string } | undefined;
+    expect(schema?.$id).toBe(generatedId);
+    expect(schema?.id).toBe(generatedId);
+
+    await expect(
+      registry.execute({ name: "missing", arguments: {} }, ctx),
+    ).resolves.toMatchObject({ schema: generatedId, content: "", data: {} });
+  });
+
+  it("reuses compiled validators when tools share an output schema", async () => {
+    const sharedSchema = {
+      $id: "test.registry.shared.result",
+      type: "object",
+      properties: {
+        value: { type: "string" },
+      },
+      required: ["value"],
+      additionalProperties: false,
+    } as const;
+
+    const registry = new ToolRegistry([
+      {
+        name: "first",
+        jsonSchema: { type: "object" },
+        outputSchema: sharedSchema,
+        async handler() {
+          return { schema: sharedSchema.$id, content: "first", data: { value: "one" } };
+        },
+      },
+      {
+        name: "second",
+        jsonSchema: { type: "object" },
+        outputSchema: sharedSchema,
+        async handler() {
+          return { schema: sharedSchema.$id, content: "second", data: { value: "two" } };
+        },
+      },
+    ]);
+
+    await expect(
+      registry.execute({ name: "first", arguments: {} }, ctx),
+    ).resolves.toMatchObject({ schema: sharedSchema.$id, content: "first" });
+    await expect(
+      registry.execute({ name: "second", arguments: {} }, ctx),
+    ).resolves.toMatchObject({ schema: sharedSchema.$id, content: "second" });
   });
 
   it("fails when structured data is omitted despite declaring a schema", async () => {
