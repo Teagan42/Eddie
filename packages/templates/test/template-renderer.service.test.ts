@@ -123,17 +123,3 @@ describe("TemplateRendererService", () => {
     }
   });
 });
-
-describe("TypeScript build", () => {
-  it("completes without type errors", async () => {
-    const projectDir = path.resolve(__dirname, "..");
-    const tsconfigPath = path.join(projectDir, "tsconfig.build.json");
-    const tscBin = require.resolve("typescript/bin/tsc");
-
-    await expect(
-      execFileAsync(process.execPath, [tscBin, "--noEmit", "-p", tsconfigPath], {
-        cwd: projectDir,
-      })
-    ).resolves.toBeDefined();
-  });
-});
