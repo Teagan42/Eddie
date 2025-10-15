@@ -1,21 +1,22 @@
+import type { IEvent } from "@nestjs/cqrs";
 import type { ChatMessageDto, ChatSessionDto } from "../dto/chat-session.dto";
 import type { AgentActivityState } from "../chat-session.types";
 
-export class ChatSessionCreated {
+export class ChatSessionCreated implements IEvent {
   constructor(public readonly session: ChatSessionDto) {}
 }
 
-export class ChatSessionUpdated {
+export class ChatSessionUpdated implements IEvent {
   constructor(public readonly session: ChatSessionDto) {}
 }
 
-export class ChatSessionDeleted {
+export class ChatSessionDeleted implements IEvent {
   constructor(public readonly sessionId: string) {}
 }
 
 export type ChatMessageSentMode = "created" | "updated";
 
-export class ChatMessageSent {
+export class ChatMessageSent implements IEvent {
   constructor(
     public readonly sessionId: string,
     public readonly message: ChatMessageDto,
@@ -24,7 +25,7 @@ export class ChatMessageSent {
   ) {}
 }
 
-export class AgentActivity {
+export class AgentActivity implements IEvent {
   constructor(
     public readonly sessionId: string,
     public readonly state: AgentActivityState,

@@ -1,5 +1,7 @@
 import { NotFoundException } from "@nestjs/common";
 import { describe, expect, expectTypeOf, it } from "vitest";
+import type { IEvent } from "@nestjs/cqrs";
+import type { ChatSessionsDomainEvent } from "../../../src/chat-sessions/events";
 import {
   ChatSessionsService,
   type AgentInvocationSnapshot,
@@ -19,9 +21,9 @@ import {
 } from "../../../src/chat-sessions/events";
 
 class EventBusStub {
-  events: unknown[] = [];
+  events: ChatSessionsDomainEvent[] = [];
 
-  publish(event: unknown): void {
+  publish(event: ChatSessionsDomainEvent): void {
     this.events.push(event);
   }
 
@@ -38,7 +40,7 @@ describe("ChatSessionsService", () => {
     eventBus = new EventBusStub();
     service = new ChatSessionsService(
       new InMemoryChatSessionsRepository(),
-      eventBus as unknown as { publish: (event: unknown) => void }
+      eventBus as unknown as { publish: (event: IEvent) => void }
     );
   });
 

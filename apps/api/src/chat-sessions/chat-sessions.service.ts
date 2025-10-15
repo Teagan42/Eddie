@@ -19,6 +19,7 @@ import {
   ChatSessionCreated,
   ChatSessionDeleted,
   ChatSessionUpdated,
+  type ChatSessionsDomainEvent,
 } from "./events";
 import type { AgentActivityState } from "./chat-session.types";
 
@@ -32,7 +33,7 @@ export class ChatSessionsService {
     @Optional() private readonly eventBus?: EventBus
   ) {}
 
-  private publish(event: unknown): void {
+  private publish(event: ChatSessionsDomainEvent): void {
     this.eventBus?.publish(event);
   }
 
