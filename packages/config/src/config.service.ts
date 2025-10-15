@@ -52,17 +52,17 @@ export class ConfigService {
   constructor(
     @Optional()
     @Inject(forwardRef(() => ConfigStore))
-    private readonly configStore?: ConfigStore,
+    private readonly configStore: ConfigStore | undefined,
     @Optional()
     @Inject(MODULE_OPTIONS_TOKEN)
-    moduleOptions?: CliRuntimeOptions,
+    moduleOptions: CliRuntimeOptions | undefined,
     @Optional()
     @Inject(eddieConfig.KEY)
-    private readonly defaultsProvider?: ConfigType<typeof eddieConfig>,
+    private readonly defaultsProvider: ConfigType<typeof eddieConfig> | undefined,
     private readonly validator: ConfigValidator,
     @Optional()
     @Inject(CONFIG_FILE_PATH_TOKEN)
-    configFilePath?: string | null,
+    configFilePath: string | null | undefined,
   ) {
     this.moduleOptions = moduleOptions ?? {};
     this.configFilePath = configFilePath ?? null;
