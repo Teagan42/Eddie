@@ -10,6 +10,7 @@ import { ContextService } from "@eddie/context";
 import { LoggerService } from "@eddie/io";
 import { Subject } from "rxjs";
 import { ApiModule } from "../../src/api.module";
+import { EngineService } from "@eddie/engine";
 import { HealthController } from "../../src/controllers/health.controller";
 import { ApiValidationPipe } from "../../src/validation.pipe";
 import { ApiKeyGuard } from "../../src/auth/api-key.guard";
@@ -75,6 +76,7 @@ describe("ApiModule integration", () => {
   let logsServiceStub: LogsService;
   let runtimeConfigServiceStub: RuntimeConfigService;
   let runtimeConfigGatewayStub: RuntimeConfigGateway;
+  let engineServiceStub: EngineService;
 
   const createLoggerStub = () => {
     const stub = {
@@ -238,6 +240,10 @@ describe("ApiModule integration", () => {
       onMessageCreated: vi.fn(),
     } as unknown as ChatSessionsEngineListener;
 
+    engineServiceStub = {
+      run: vi.fn(),
+    } as unknown as EngineService;
+
     tracesServiceStub = {
       registerListener: vi.fn(() => vi.fn()),
       list: vi.fn(() => []),
@@ -318,6 +324,8 @@ describe("ApiModule integration", () => {
       .useValue(chatSessionsServiceStub)
       .overrideProvider(ChatSessionsEngineListener)
       .useValue(chatSessionsEngineListenerStub)
+      .overrideProvider(EngineService)
+      .useValue(engineServiceStub)
       .overrideProvider(TracesService)
       .useValue(tracesServiceStub)
       .overrideProvider(LogsService)

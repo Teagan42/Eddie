@@ -80,11 +80,10 @@ export class EngineService {
         private readonly tokenizerService: TokenizerService,
         private readonly loggerService: LoggerService,
         private readonly agentOrchestrator: AgentOrchestratorService,
-        private readonly mcpToolSourceService: McpToolSourceService
-  ) {}
-
-  setStreamRenderer(streamRenderer: StreamRendererService): void {
-    this.agentOrchestrator.setStreamRenderer(streamRenderer);
+        private readonly mcpToolSourceService: McpToolSourceService,
+        private readonly streamRenderer: StreamRendererService,
+  ) {
+    this.agentOrchestrator.setStreamRenderer(this.streamRenderer);
   }
 
   /**

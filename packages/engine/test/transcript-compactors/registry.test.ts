@@ -89,6 +89,10 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     })),
     collectInvocations: vi.fn(() => []),
   };
+  const streamRenderer = {
+    render: vi.fn(),
+    flush: vi.fn(),
+  };
   const mcpToolSourceService = {
     collectTools: vi.fn(async () => ({
       tools: [],
@@ -107,6 +111,7 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     loggerService as any,
     agentOrchestrator as any,
     mcpToolSourceService as any,
+    streamRenderer as any,
   );
 
   return { service, config };

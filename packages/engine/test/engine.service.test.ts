@@ -67,6 +67,10 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     })),
     collectInvocations: vi.fn(() => []),
   };
+  const streamRenderer = {
+    render: vi.fn(),
+    flush: vi.fn(),
+  };
   const mcpToolSourceService = {
     collectTools: vi.fn(async () => ({
       tools: [],
@@ -85,6 +89,7 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     loggerService as any,
     agentOrchestrator as any,
     mcpToolSourceService as any,
+    streamRenderer as any,
   );
 
   return {
@@ -93,6 +98,8 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     contextService,
     mcpToolSourceService,
     logger,
+    agentOrchestrator,
+    streamRenderer,
   };
 }
 
@@ -108,7 +115,19 @@ afterEach(() => {
 
 describe("EngineService", () => {
   it("does not declare a ConfigService dependency", () => {
-    expect(EngineService.length).toBe(9);
+    expect(EngineService.length).toBe(10);
+  });
+
+  it("registers the stream renderer with the agent orchestrator", () => {
+    const { agentOrchestrator, streamRenderer } = createService();
+
+    expect(agentOrchestrator.setStreamRenderer).toHaveBeenCalledWith(
+      streamRenderer,
+    );
+  });
+
+  it("does not expose a setStreamRenderer mutator", () => {
+    expect("setStreamRenderer" in EngineService.prototype).toBe(false);
   });
 
   it("does not reload configuration when runtime overrides are provided", async () => {
