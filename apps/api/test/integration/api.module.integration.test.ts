@@ -290,7 +290,7 @@ describe("ApiModule integration", () => {
     runtimeConfigGatewayStub = {
       onModuleInit: vi.fn(),
       onModuleDestroy: vi.fn(),
-      onConfigChanged: vi.fn(),
+      emitConfigUpdated: vi.fn(),
     } as unknown as RuntimeConfigGateway;
 
     const moduleRef = await Test.createTestingModule({
