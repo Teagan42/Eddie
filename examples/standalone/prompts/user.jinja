@@ -7,6 +7,11 @@
 You are preparing the next action plan for the developer.
 
 Provide the findings in {{ format }}.
+{% if prompt %}
+
+{{ prompt }}
+
+{% endif %}
 {% if sections %}
 Organise the response with the following sections:
 {% for section in sections %}

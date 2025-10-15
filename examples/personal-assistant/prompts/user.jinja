@@ -7,6 +7,11 @@
 Share what you need from Cosmic Concierge.
 
 Respond in {{ format }} so the assistant can slot your notes into the plan.
+{% if prompt %}
+
+{{ prompt }}
+
+{% endif %}
 {% if sections %}
 Organise the assistant's reply into:
 {% for section in sections %}
