@@ -33,6 +33,7 @@
     "nunjucks": "^3.2.4",
     "fast-glob": "^3.3.3",
     "ignore": "^7.0.5",
+    "inquirer": "^9.3.8",
     "openai": "^6.2.0",
     "pino": "^10.0.0",
     "reflect-metadata": "^0.2.2",
