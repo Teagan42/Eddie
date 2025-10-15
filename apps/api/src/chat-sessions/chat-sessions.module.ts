@@ -12,6 +12,7 @@ import { KNEX_INSTANCE } from "../persistence/knex.provider";
 import { ChatSessionsService } from "./chat-sessions.service";
 import { ChatSessionsController } from "./chat-sessions.controller";
 import { ChatSessionsGateway } from "./chat-sessions.gateway";
+import { ChatSessionsGatewayEventsHandler } from "./chat-sessions.gateway.events-handler";
 import { ChatSessionsEngineListener } from "./chat-sessions-engine.listener";
 import { ChatMessagesGateway } from "./chat-messages.gateway";
 import { ToolsModule } from "../tools/tools.module";
@@ -93,6 +94,7 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
     ChatSessionsGateway,
     ChatMessagesGateway,
     ChatSessionEventsService,
+    ChatSessionsGatewayEventsHandler,
     ChatSessionsEngineListener,
     ...chatSessionCommandHandlers,
     ...chatSessionQueryHandlers,

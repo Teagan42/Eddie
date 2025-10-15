@@ -13,39 +13,27 @@ import {
   type UpdateChatSessionMetadataInput,
 } from "./chat-sessions.repository";
 import { ChatMessageCreatedEvent } from "@eddie/types";
+import {
+  AgentActivity,
+  ChatMessageSent,
+  ChatSessionCreated,
+  ChatSessionDeleted,
+  ChatSessionUpdated,
+} from "./events";
+import type { AgentActivityState } from "./chat-session.types";
 
 export type { AgentInvocationSnapshot } from "./chat-sessions.repository";
 
-export type AgentActivityState = "idle" | "thinking" | "tool" | "error";
-
-export interface AgentActivityEvent {
-  sessionId: string;
-  state: AgentActivityState;
-  timestamp: string;
-}
-
-export interface ChatSessionsListener {
-  onSessionCreated(session: ChatSessionDto): void;
-  onSessionUpdated(session: ChatSessionDto): void;
-  onSessionDeleted(id: string): void;
-  onMessageCreated(message: ChatMessageDto): void;
-  onMessageUpdated(message: ChatMessageDto): void;
-  onAgentActivity?(event: AgentActivityEvent): void;
-}
-
 @Injectable()
 export class ChatSessionsService {
-  private readonly listeners = new Set<ChatSessionsListener>();
-
   constructor(
     @Inject(CHAT_SESSIONS_REPOSITORY)
     private readonly repository: ChatSessionsRepository,
     @Optional() private readonly eventBus?: EventBus
   ) {}
 
-  registerListener(listener: ChatSessionsListener): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+  private publish(event: unknown): void {
+    this.eventBus?.publish(event);
   }
 
   private toDto(entity: ChatSessionRecord): ChatSessionDto {
@@ -85,24 +73,6 @@ export class ChatSessionsService {
     return this.repository.listAgentInvocations(sessionId);
   }
 
-  private notifySessionCreated(session: ChatSessionDto): void {
-    for (const listener of this.listeners) {
-      listener.onSessionCreated(session);
-    }
-  }
-
-  private notifySessionUpdated(session: ChatSessionDto): void {
-    for (const listener of this.listeners) {
-      listener.onSessionUpdated(session);
-    }
-  }
-
-  private notifySessionDeleted(id: string): void {
-    for (const listener of this.listeners) {
-      listener.onSessionDeleted(id);
-    }
-  }
-
   private buildUpdatePatch(
     dto: UpdateChatSessionDto
   ): UpdateChatSessionMetadataInput {
@@ -114,28 +84,6 @@ export class ChatSessionsService {
       patch.description = dto.description ?? null;
     }
     return patch;
-  }
-
-  private notifyMessageCreated(message: ChatMessageDto): void {
-    for (const listener of this.listeners) {
-      listener.onMessageCreated(message);
-    }
-  }
-
-  private notifyMessageUpdated(message: ChatMessageDto): void {
-    for (const listener of this.listeners) {
-      if (typeof listener.onMessageUpdated === "function") {
-        listener.onMessageUpdated(message);
-      }
-    }
-  }
-
-  private notifyAgentActivity(event: AgentActivityEvent): void {
-    for (const listener of this.listeners) {
-      if (typeof listener.onAgentActivity === "function") {
-        listener.onAgentActivity(event);
-      }
-    }
   }
 
   async listSessions(): Promise<ChatSessionDto[]> {
@@ -154,7 +102,7 @@ export class ChatSessionsService {
       description: dto.description,
     });
     const sessionDto = this.toDto(entity);
-    this.notifySessionCreated(sessionDto);
+    this.publish(new ChatSessionCreated(sessionDto));
     return sessionDto;
   }
 
@@ -170,7 +118,7 @@ export class ChatSessionsService {
       throw new NotFoundException(`Chat session ${id} not found`);
     }
     const sessionDto = this.toDto(session);
-    this.notifySessionUpdated(sessionDto);
+    this.publish(new ChatSessionUpdated(sessionDto));
     return sessionDto;
   }
 
@@ -180,7 +128,7 @@ export class ChatSessionsService {
       throw new NotFoundException(`Chat session ${id} not found`);
     }
     const dto = this.toDto(session);
-    this.notifySessionUpdated(dto);
+    this.publish(new ChatSessionUpdated(dto));
     return dto;
   }
 
@@ -206,8 +154,10 @@ export class ChatSessionsService {
     }
     const messageDto = this.messageToDto(result.message);
     const sessionDto = this.toDto(result.session);
-    this.notifyMessageCreated(messageDto);
-    this.notifySessionUpdated(sessionDto);
+    this.publish(
+      new ChatMessageSent(sessionDto.id, messageDto, "created", sessionDto)
+    );
+    this.publish(new ChatSessionUpdated(sessionDto));
     this.eventBus?.publish(
       new ChatMessageCreatedEvent(messageDto.sessionId, messageDto.id)
     );
@@ -231,7 +181,7 @@ export class ChatSessionsService {
       );
     }
     const dto = this.messageToDto(entity);
-    this.notifyMessageUpdated(dto);
+    this.publish(new ChatMessageSent(sessionId, dto, "updated"));
     return dto;
   }
 
@@ -240,11 +190,9 @@ export class ChatSessionsService {
     state: AgentActivityState
   ): Promise<void> {
     await this.ensureSessionExists(sessionId);
-    this.notifyAgentActivity({
-      sessionId,
-      state,
-      timestamp: new Date().toISOString(),
-    });
+    this.publish(
+      new AgentActivity(sessionId, state, new Date().toISOString())
+    );
   }
 
   async deleteSession(id: string): Promise<void> {
@@ -255,8 +203,8 @@ export class ChatSessionsService {
     }
     await this.repository.saveAgentInvocations(id, []);
     const sessionDto = this.toDto(existing);
-    this.notifySessionUpdated(sessionDto);
-    this.notifySessionDeleted(existing.id);
+    this.publish(new ChatSessionUpdated(sessionDto));
+    this.publish(new ChatSessionDeleted(existing.id));
   }
 
   private async ensureSessionExists(id: string): Promise<ChatSessionRecord> {
