@@ -42,6 +42,23 @@ export interface ConfigFileSnapshot {
   error?: string;
 }
 
+export interface ConfigValidationIssue {
+  path: string;
+  message: string;
+}
+
+export class ConfigValidationError extends Error {
+  readonly summary: string;
+  readonly issues: ConfigValidationIssue[];
+
+  constructor(summary: string, issues: ConfigValidationIssue[]) {
+    super(summary);
+    this.name = "ConfigValidationError";
+    this.summary = summary;
+    this.issues = issues;
+  }
+}
+
 const SQL_DRIVERS = ["postgres", "mysql", "mariadb"] as const;
 const SQL_DRIVER_SET = new Set<string>(SQL_DRIVERS);
 type SqlDriver = (typeof SQL_DRIVERS)[number];
@@ -1064,24 +1081,30 @@ export class ConfigService {
 
   private validateContextResources(
     resources: ContextResourceConfig[] | undefined,
-    path: string
+    path: string,
+    issues: ConfigValidationIssue[]
   ): void {
     if (typeof resources === "undefined") {
       return;
     }
 
     if (!Array.isArray(resources)) {
-      throw new Error(`${path} must be an array.`);
+      this.pushValidationIssue(issues, path, `${path} must be an array.`);
+      return;
     }
 
     resources.forEach((resource, index) => {
+      const basePath = `${path}[${index}]`;
       if (!resource || typeof resource !== "object") {
-        throw new Error(`${path}[${index}] must be an object.`);
+        this.pushValidationIssue(issues, basePath, `${basePath} must be an object.`);
+        return;
       }
 
       if (typeof resource.id !== "string" || resource.id.trim() === "") {
-        throw new Error(
-          `${path}[${index}].id must be a non-empty string.`
+        this.pushValidationIssue(
+          issues,
+          `${basePath}.id`,
+          `${basePath}.id must be a non-empty string.`
         );
       }
 
@@ -1089,8 +1112,10 @@ export class ConfigService {
         typeof resource.name !== "undefined" &&
         typeof resource.name !== "string"
       ) {
-        throw new Error(
-          `${path}[${index}].name must be a string when provided.`
+        this.pushValidationIssue(
+          issues,
+          `${basePath}.name`,
+          `${basePath}.name must be a string when provided.`
         );
       }
 
@@ -1098,8 +1123,10 @@ export class ConfigService {
         typeof resource.description !== "undefined" &&
         typeof resource.description !== "string"
       ) {
-        throw new Error(
-          `${path}[${index}].description must be a string when provided.`
+        this.pushValidationIssue(
+          issues,
+          `${basePath}.description`,
+          `${basePath}.description must be a string when provided.`
         );
       }
 
@@ -1108,8 +1135,10 @@ export class ConfigService {
           !Array.isArray(resource.include) ||
           resource.include.some((pattern) => typeof pattern !== "string")
         ) {
-          throw new Error(
-            `${path}[${index}].include must be an array of strings.`
+          this.pushValidationIssue(
+            issues,
+            `${basePath}.include`,
+            `${basePath}.include must be an array of strings.`
           );
         }
 
@@ -1118,8 +1147,10 @@ export class ConfigService {
           (!Array.isArray(resource.exclude) ||
             resource.exclude.some((pattern) => typeof pattern !== "string"))
         ) {
-          throw new Error(
-            `${path}[${index}].exclude must be an array of strings when provided.`
+          this.pushValidationIssue(
+            issues,
+            `${basePath}.exclude`,
+            `${basePath}.exclude must be an array of strings when provided.`
           );
         }
 
@@ -1127,8 +1158,10 @@ export class ConfigService {
           typeof resource.baseDir !== "undefined" &&
           typeof resource.baseDir !== "string"
         ) {
-          throw new Error(
-            `${path}[${index}].baseDir must be a string when provided.`
+          this.pushValidationIssue(
+            issues,
+            `${basePath}.baseDir`,
+            `${basePath}.baseDir must be a string when provided.`
           );
         }
 
@@ -1136,59 +1169,83 @@ export class ConfigService {
           typeof resource.virtualPath !== "undefined" &&
           typeof resource.virtualPath !== "string"
         ) {
-          throw new Error(
-            `${path}[${index}].virtualPath must be a string when provided.`
+          this.pushValidationIssue(
+            issues,
+            `${basePath}.virtualPath`,
+            `${basePath}.virtualPath must be a string when provided.`
           );
         }
       } else if (resource.type === "template") {
         this.validateTemplateDescriptor(
           resource.template,
-          `${path}[${index}].template`
+          `${basePath}.template`,
+          issues
         );
 
         if (
           typeof resource.variables !== "undefined" &&
           !this.isPlainObject(resource.variables)
         ) {
-          throw new Error(
-            `${path}[${index}].variables must be an object when provided.`
+          this.pushValidationIssue(
+            issues,
+            `${basePath}.variables`,
+            `${basePath}.variables must be an object when provided.`
           );
         }
       } else {
-        throw new Error(
-          `${path}[${index}].type must be either "bundle" or "template".`
+        this.pushValidationIssue(
+          issues,
+          `${basePath}.type`,
+          `${basePath}.type must be either "bundle" or "template".`
         );
       }
     });
   }
 
   private validateProviderProfiles(
-    profiles: Record<string, ProviderProfileConfig> | undefined
+    profiles: Record<string, ProviderProfileConfig> | undefined,
+    issues: ConfigValidationIssue[]
   ): void {
     if (typeof profiles === "undefined") {
       return;
     }
 
     if (!this.isPlainObject(profiles)) {
-      throw new Error("providers must be an object with named profiles.");
+      this.pushValidationIssue(
+        issues,
+        "providers",
+        "providers must be an object with named profiles."
+      );
+      return;
     }
 
     for (const [key, profile] of Object.entries(profiles)) {
+      const basePath = `providers.${key}`;
       if (!this.isPlainObject(profile)) {
-        throw new Error(`providers.${key} must be an object.`);
+        this.pushValidationIssue(
+          issues,
+          basePath,
+          `${basePath} must be an object.`
+        );
+        continue;
       }
 
       const providerDescriptor = (profile as ProviderProfileConfig).provider;
       if (!this.isPlainObject(providerDescriptor)) {
-        throw new Error(
-          `providers.${key}.provider must be an object with provider settings.`
+        this.pushValidationIssue(
+          issues,
+          `${basePath}.provider`,
+          `${basePath}.provider must be an object with provider settings.`
         );
+        continue;
       }
 
       const providerName = (providerDescriptor as ProviderConfig).name;
       if (typeof providerName !== "string" || providerName.trim() === "") {
-        throw new Error(
-          `providers.${key}.provider.name must be a non-empty string.`
+        this.pushValidationIssue(
+          issues,
+          `${basePath}.provider.name`,
+          `${basePath}.provider.name must be a non-empty string.`
         );
       }
 
@@ -1197,8 +1254,10 @@ export class ConfigService {
         typeof profileModel !== "undefined" &&
         (typeof profileModel !== "string" || profileModel.trim() === "")
       ) {
-        throw new Error(
-          `providers.${key}.model must be a non-empty string when provided.`
+        this.pushValidationIssue(
+          issues,
+          `${basePath}.model`,
+          `${basePath}.model must be a non-empty string when provided.`
         );
       }
     }
@@ -1207,7 +1266,8 @@ export class ConfigService {
   private validateAgentProviderConfig(
     value: AgentProviderConfig | undefined,
     path: string,
-    profiles: Record<string, ProviderProfileConfig> | undefined
+    profiles: Record<string, ProviderProfileConfig> | undefined,
+    issues: ConfigValidationIssue[]
   ): void {
     if (typeof value === "undefined") {
       return;
@@ -1215,7 +1275,11 @@ export class ConfigService {
 
     if (typeof value === "string") {
       if (value.trim() === "") {
-        throw new Error(`${path} must be a non-empty string when provided.`);
+        this.pushValidationIssue(
+          issues,
+          path,
+          `${path} must be a non-empty string when provided.`
+        );
       }
 
       if (profiles && value in profiles) {
@@ -1226,20 +1290,38 @@ export class ConfigService {
     }
 
     if (!this.isPlainObject(value)) {
-      throw new Error(`${path} must be a string or object when provided.`);
+      this.pushValidationIssue(
+        issues,
+        path,
+        `${path} must be a string or object when provided.`
+      );
+      return;
     }
 
     if (
       typeof value.name !== "undefined" &&
       (typeof value.name !== "string" || value.name.trim() === "")
     ) {
-      throw new Error(`${path}.name must be a non-empty string when provided.`);
+      this.pushValidationIssue(
+        issues,
+        `${path}.name`,
+        `${path}.name must be a non-empty string when provided.`
+      );
     }
   }
 
-  private validateTemplateDescriptor(descriptor: unknown, path: string): void {
+  private validateTemplateDescriptor(
+    descriptor: unknown,
+    path: string,
+    issues: ConfigValidationIssue[]
+  ): void {
     if (!this.isPlainObject(descriptor)) {
-      throw new Error(`${path} must be an object.`);
+      this.pushValidationIssue(
+        issues,
+        path,
+        `${path} must be an object.`
+      );
+      return;
     }
 
     const template = descriptor as {
@@ -1250,28 +1332,44 @@ export class ConfigService {
     };
 
     if (typeof template.file !== "string" || template.file.trim() === "") {
-      throw new Error(`${path}.file must be a non-empty string.`);
+      this.pushValidationIssue(
+        issues,
+        `${path}.file`,
+        `${path}.file must be a non-empty string.`
+      );
     }
 
     if (
       typeof template.baseDir !== "undefined" &&
       typeof template.baseDir !== "string"
     ) {
-      throw new Error(`${path}.baseDir must be a string when provided.`);
+      this.pushValidationIssue(
+        issues,
+        `${path}.baseDir`,
+        `${path}.baseDir must be a string when provided.`
+      );
     }
 
     if (
       typeof template.encoding !== "undefined" &&
       typeof template.encoding !== "string"
     ) {
-      throw new Error(`${path}.encoding must be a string when provided.`);
+      this.pushValidationIssue(
+        issues,
+        `${path}.encoding`,
+        `${path}.encoding must be a string when provided.`
+      );
     }
 
     if (
       typeof template.variables !== "undefined" &&
       !this.isPlainObject(template.variables)
     ) {
-      throw new Error(`${path}.variables must be an object when provided.`);
+      this.pushValidationIssue(
+        issues,
+        `${path}.variables`,
+        `${path}.variables must be an object when provided.`
+      );
     }
   }
 
@@ -1384,8 +1482,55 @@ export class ConfigService {
     return value as string | boolean;
   }
 
+  private pushValidationIssue(
+    issues: ConfigValidationIssue[],
+    path: string,
+    message: string
+  ): void {
+    issues.push({ path, message });
+  }
+
+  private createValidationSummary(issueCount: number): string {
+    return issueCount === 1
+      ? "Configuration validation failed with 1 issue."
+      : `Configuration validation failed with ${issueCount} issues.`;
+  }
+
+  private pushIssueFromError(
+    issues: ConfigValidationIssue[],
+    fallbackPath: string,
+    cause: unknown
+  ): void {
+    if (
+      cause &&
+      typeof cause === "object" &&
+      "path" in cause &&
+      typeof (cause as { path: unknown }).path === "string" &&
+      "message" in cause &&
+      typeof (cause as { message: unknown }).message === "string"
+    ) {
+      this.pushValidationIssue(
+        issues,
+        (cause as { path: string }).path,
+        (cause as { message: string }).message
+      );
+      return;
+    }
+
+    const message =
+      cause instanceof Error
+        ? cause.message
+        : typeof cause === "string"
+          ? cause
+          : "Invalid configuration.";
+    const match = message.match(/^(?<path>[^\s]+)\s/);
+    const path = match?.groups?.path ?? fallbackPath;
+    this.pushValidationIssue(issues, path, message);
+  }
+
   private validateApiPersistence(
-    persistence: ApiPersistenceConfig | undefined
+    persistence: ApiPersistenceConfig | undefined,
+    issues: ConfigValidationIssue[]
   ): void {
     if (!persistence) {
       return;
@@ -1400,7 +1545,9 @@ export class ConfigService {
         typeof persistence.sqlite !== "undefined" &&
         !this.isPlainObject(persistence.sqlite)
       ) {
-        throw new Error(
+        this.pushValidationIssue(
+          issues,
+          "api.persistence.sqlite",
           "api.persistence.sqlite must be an object when provided."
         );
       }
@@ -1410,7 +1557,9 @@ export class ConfigService {
         typeof persistence.sqlite.filename !== "undefined" &&
         typeof persistence.sqlite.filename !== "string"
       ) {
-        throw new Error(
+        this.pushValidationIssue(
+          issues,
+          "api.persistence.sqlite.filename",
           "api.persistence.sqlite.filename must be a string when provided."
         );
       }
@@ -1422,260 +1571,361 @@ export class ConfigService {
       const driver = persistence.driver as SqlDriver;
       const driverConfig = (persistence as Record<string, unknown>)[driver];
       if (typeof driverConfig === "undefined") {
-        throw new Error(
+        this.pushValidationIssue(
+          issues,
+          `api.persistence.${driver}`,
           `api.persistence.${driver} must be provided when using the ${driver} driver.`
         );
+        return;
       }
 
-      const validated = this.ensureSqlPersistenceConfig(driver, driverConfig);
-      (persistence as Record<string, unknown>)[driver] = validated;
+      try {
+        const validated = this.ensureSqlPersistenceConfig(driver, driverConfig);
+        (persistence as Record<string, unknown>)[driver] = validated;
+      } catch (sqlError) {
+        this.pushIssueFromError(
+          issues,
+          `api.persistence.${driver}`,
+          sqlError
+        );
+      }
       return;
     }
 
-    throw new Error(
+    this.pushValidationIssue(
+      issues,
+      "api.persistence.driver",
       "api.persistence.driver must be one of 'memory', 'sqlite', 'postgres', 'mysql', or 'mariadb'."
     );
   }
 
   private validateConfig(config: EddieConfig): void {
+    const issues: ConfigValidationIssue[] = [];
+
     if (
       typeof config.projectDir !== "string" ||
       config.projectDir.trim() === ""
     ) {
-      throw new Error("projectDir must be a non-empty string.");
+      this.pushValidationIssue(
+        issues,
+        "projectDir",
+        "projectDir must be a non-empty string."
+      );
     }
 
-    this.validateToolsConfig(config.tools);
+    this.validateToolsConfig(config.tools, issues);
 
     if (
       typeof config.context?.variables !== "undefined" &&
       !this.isPlainObject(config.context.variables)
     ) {
-      throw new Error("context.variables must be an object when provided.");
+      this.pushValidationIssue(
+        issues,
+        "context.variables",
+        "context.variables must be an object when provided."
+      );
     }
 
-    this.validateContextResources(config.context?.resources, "context.resources");
-    this.validateProviderProfiles(config.providers);
-    this.validateApiPersistence(config.api?.persistence);
+    this.validateContextResources(
+      config.context?.resources,
+      "context.resources",
+      issues
+    );
+    this.validateProviderProfiles(config.providers, issues);
+    this.validateApiPersistence(config.api?.persistence, issues);
 
     const { agents } = config;
 
-    if (!agents) {
-      return;
-    }
-
-    if (typeof agents.mode !== "string" || agents.mode.trim() === "") {
-      throw new Error("agents.mode must be a non-empty string.");
-    }
-
-    if (
-      !agents.manager ||
-      typeof agents.manager.prompt !== "string" ||
-      agents.manager.prompt.trim() === ""
-    ) {
-      throw new Error(
-        "agents.manager.prompt must be provided as a non-empty string."
-      );
-    }
-
-    if (
-      typeof agents.manager.promptTemplate !== "undefined"
-    ) {
-      this.validateTemplateDescriptor(
-        agents.manager.promptTemplate,
-        "agents.manager.promptTemplate"
-      );
-    }
-
-    if (
-      typeof agents.manager.defaultUserPromptTemplate !== "undefined"
-    ) {
-      this.validateTemplateDescriptor(
-        agents.manager.defaultUserPromptTemplate,
-        "agents.manager.defaultUserPromptTemplate"
-      );
-    }
-
-    if (
-      typeof agents.manager.variables !== "undefined" &&
-      !this.isPlainObject(agents.manager.variables)
-    ) {
-      throw new Error(
-        "agents.manager.variables must be an object when provided."
-      );
-    }
-
-    this.validateAgentProviderConfig(
-      agents.manager.provider,
-      "agents.manager.provider",
-      config.providers
-    );
-
-    this.validateContextResources(
-      agents.manager.resources,
-      "agents.manager.resources"
-    );
-
-    if (typeof agents.enableSubagents !== "boolean") {
-      throw new Error("agents.enableSubagents must be a boolean.");
-    }
-
-    if (!Array.isArray(agents.subagents)) {
-      throw new Error("agents.subagents must be an array.");
-    }
-
-    agents.subagents.forEach((subagent, index) => {
-      if (!subagent || typeof subagent !== "object") {
-        throw new Error(`agents.subagents[${index}] must be an object.`);
+    if (agents) {
+      if (typeof agents.mode !== "string" || agents.mode.trim() === "") {
+        this.pushValidationIssue(
+          issues,
+          "agents.mode",
+          "agents.mode must be a non-empty string."
+        );
       }
 
-      if (typeof subagent.id !== "string" || subagent.id.trim() === "") {
-        throw new Error(
-          `agents.subagents[${index}].id must be a non-empty string.`
+      const manager = agents.manager;
+
+      if (
+        !manager ||
+        typeof manager.prompt !== "string" ||
+        manager.prompt.trim() === ""
+      ) {
+        this.pushValidationIssue(
+          issues,
+          "agents.manager.prompt",
+          "agents.manager.prompt must be provided as a non-empty string."
         );
+      } else {
+        if (typeof manager.promptTemplate !== "undefined") {
+          this.validateTemplateDescriptor(
+            manager.promptTemplate,
+            "agents.manager.promptTemplate",
+            issues
+          );
+        }
+
+        if (typeof manager.defaultUserPromptTemplate !== "undefined") {
+          this.validateTemplateDescriptor(
+            manager.defaultUserPromptTemplate,
+            "agents.manager.defaultUserPromptTemplate",
+            issues
+          );
+        }
       }
 
       if (
-        typeof subagent.prompt !== "undefined" &&
-        typeof subagent.prompt !== "string"
+        typeof manager?.variables !== "undefined" &&
+        !this.isPlainObject(manager.variables)
       ) {
-        throw new Error(
-          `agents.subagents[${index}].prompt must be a string when provided.`
-        );
-      }
-
-      if (typeof subagent.promptTemplate !== "undefined") {
-        this.validateTemplateDescriptor(
-          subagent.promptTemplate,
-          `agents.subagents[${index}].promptTemplate`
-        );
-      }
-
-      if (typeof subagent.defaultUserPromptTemplate !== "undefined") {
-        this.validateTemplateDescriptor(
-          subagent.defaultUserPromptTemplate,
-          `agents.subagents[${index}].defaultUserPromptTemplate`
-        );
-      }
-
-      if (
-        typeof subagent.variables !== "undefined" &&
-        !this.isPlainObject(subagent.variables)
-      ) {
-        throw new Error(
-          `agents.subagents[${index}].variables must be an object when provided.`
-        );
-      }
-
-      this.validateContextResources(
-        subagent.resources,
-        `agents.subagents[${index}].resources`
-      );
-
-      if (
-        typeof subagent.name !== "undefined" &&
-        typeof subagent.name !== "string"
-      ) {
-        throw new Error(
-          `agents.subagents[${index}].name must be a string when provided.`
-        );
-      }
-
-      if (
-        typeof subagent.description !== "undefined" &&
-        typeof subagent.description !== "string"
-      ) {
-        throw new Error(
-          `agents.subagents[${index}].description must be a string when provided.`
-        );
-      }
-
-      if (
-        typeof subagent.tools !== "undefined" &&
-        (!Array.isArray(subagent.tools) ||
-          subagent.tools.some((tool) => typeof tool !== "string"))
-      ) {
-        throw new Error(
-          `agents.subagents[${index}].tools must be an array of strings when provided.`
-        );
-      }
-
-      if (
-        typeof subagent.routingThreshold !== "undefined" &&
-        typeof subagent.routingThreshold !== "number"
-      ) {
-        throw new Error(
-          `agents.subagents[${index}].routingThreshold must be a number when provided.`
+        this.pushValidationIssue(
+          issues,
+          "agents.manager.variables",
+          "agents.manager.variables must be an object when provided."
         );
       }
 
       this.validateAgentProviderConfig(
-        subagent.provider,
-        `agents.subagents[${index}].provider`,
-        config.providers
+        manager?.provider,
+        "agents.manager.provider",
+        config.providers,
+        issues
       );
-    });
 
-    if (agents.routing) {
-      const { confidenceThreshold, maxDepth } = agents.routing;
+      this.validateContextResources(
+        manager?.resources,
+        "agents.manager.resources",
+        issues
+      );
 
-      if (typeof confidenceThreshold !== "undefined") {
-        if (
-          typeof confidenceThreshold !== "number" ||
-          Number.isNaN(confidenceThreshold) ||
-          confidenceThreshold < 0 ||
-          confidenceThreshold > 1
-        ) {
-          throw new Error(
-            "agents.routing.confidenceThreshold must be a number between 0 and 1."
-          );
-        }
+      if (typeof agents.enableSubagents !== "boolean") {
+        this.pushValidationIssue(
+          issues,
+          "agents.enableSubagents",
+          "agents.enableSubagents must be a boolean."
+        );
       }
 
-      if (typeof maxDepth !== "undefined") {
-        if (
-          typeof maxDepth !== "number" ||
-          Number.isNaN(maxDepth) ||
-          !Number.isInteger(maxDepth) ||
-          maxDepth < 0
-        ) {
-          throw new Error(
-            "agents.routing.maxDepth must be a non-negative integer when provided."
+      const subagents = agents.subagents;
+      if (!Array.isArray(subagents)) {
+        this.pushValidationIssue(
+          issues,
+          "agents.subagents",
+          "agents.subagents must be an array."
+        );
+      } else {
+        subagents.forEach((subagent, index) => {
+          const basePath = `agents.subagents[${index}]`;
+
+          if (!subagent || typeof subagent !== "object") {
+            this.pushValidationIssue(
+              issues,
+              basePath,
+              `${basePath} must be an object.`
+            );
+            return;
+          }
+
+          if (typeof subagent.id !== "string" || subagent.id.trim() === "") {
+            this.pushValidationIssue(
+              issues,
+              `${basePath}.id`,
+              `${basePath}.id must be a non-empty string.`
+            );
+          }
+
+          if (
+            typeof subagent.prompt !== "undefined" &&
+            typeof subagent.prompt !== "string"
+          ) {
+            this.pushValidationIssue(
+              issues,
+              `${basePath}.prompt`,
+              `${basePath}.prompt must be a string when provided.`
+            );
+          }
+
+          if (typeof subagent.promptTemplate !== "undefined") {
+            this.validateTemplateDescriptor(
+              subagent.promptTemplate,
+              `${basePath}.promptTemplate`,
+              issues
+            );
+          }
+
+          if (typeof subagent.defaultUserPromptTemplate !== "undefined") {
+            this.validateTemplateDescriptor(
+              subagent.defaultUserPromptTemplate,
+              `${basePath}.defaultUserPromptTemplate`,
+              issues
+            );
+          }
+
+          if (
+            typeof subagent.variables !== "undefined" &&
+            !this.isPlainObject(subagent.variables)
+          ) {
+            this.pushValidationIssue(
+              issues,
+              `${basePath}.variables`,
+              `${basePath}.variables must be an object when provided.`
+            );
+          }
+
+          this.validateContextResources(
+            subagent.resources,
+            `${basePath}.resources`,
+            issues
           );
+
+          if (
+            typeof subagent.name !== "undefined" &&
+            typeof subagent.name !== "string"
+          ) {
+            this.pushValidationIssue(
+              issues,
+              `${basePath}.name`,
+              `${basePath}.name must be a string when provided.`
+            );
+          }
+
+          if (
+            typeof subagent.description !== "undefined" &&
+            typeof subagent.description !== "string"
+          ) {
+            this.pushValidationIssue(
+              issues,
+              `${basePath}.description`,
+              `${basePath}.description must be a string when provided.`
+            );
+          }
+
+          if (
+            typeof subagent.tools !== "undefined" &&
+            (!Array.isArray(subagent.tools) ||
+              subagent.tools.some((tool) => typeof tool !== "string"))
+          ) {
+            this.pushValidationIssue(
+              issues,
+              `${basePath}.tools`,
+              `${basePath}.tools must be an array of strings when provided.`
+            );
+          }
+
+          if (
+            typeof subagent.routingThreshold !== "undefined" &&
+            typeof subagent.routingThreshold !== "number"
+          ) {
+            this.pushValidationIssue(
+              issues,
+              `${basePath}.routingThreshold`,
+              `${basePath}.routingThreshold must be a number when provided.`
+            );
+          }
+
+          this.validateAgentProviderConfig(
+            subagent.provider,
+            `${basePath}.provider`,
+            config.providers,
+            issues
+          );
+        });
+      }
+
+      if (agents.routing) {
+        const { confidenceThreshold, maxDepth } = agents.routing;
+
+        if (typeof confidenceThreshold !== "undefined") {
+          if (
+            typeof confidenceThreshold !== "number" ||
+            Number.isNaN(confidenceThreshold) ||
+            confidenceThreshold < 0 ||
+            confidenceThreshold > 1
+          ) {
+            this.pushValidationIssue(
+              issues,
+              "agents.routing.confidenceThreshold",
+              "agents.routing.confidenceThreshold must be a number between 0 and 1."
+            );
+          }
+        }
+
+        if (typeof maxDepth !== "undefined") {
+          if (
+            typeof maxDepth !== "number" ||
+            Number.isNaN(maxDepth) ||
+            !Number.isInteger(maxDepth) ||
+            maxDepth < 0
+          ) {
+            this.pushValidationIssue(
+              issues,
+              "agents.routing.maxDepth",
+              "agents.routing.maxDepth must be a non-negative integer when provided."
+            );
+          }
         }
       }
     }
+
+    if (issues.length > 0) {
+      throw new ConfigValidationError(
+        this.createValidationSummary(issues.length),
+        issues
+      );
+    }
   }
 
-  private validateToolsConfig(tools: ToolsConfig | undefined): void {
+  private validateToolsConfig(
+    tools: ToolsConfig | undefined,
+    issues: ConfigValidationIssue[]
+  ): void {
     if (!tools?.sources) {
       return;
     }
 
     if (!Array.isArray(tools.sources)) {
-      throw new Error("tools.sources must be an array when provided.");
+      this.pushValidationIssue(
+        issues,
+        "tools.sources",
+        "tools.sources must be an array when provided."
+      );
+      return;
     }
 
     tools.sources.forEach((source, index) => {
+      const basePath = `tools.sources[${index}]`;
+
       if (!source || typeof source !== "object") {
-        throw new Error(`tools.sources[${index}] must be an object.`);
+        this.pushValidationIssue(
+          issues,
+          basePath,
+          `${basePath} must be an object.`
+        );
+        return;
       }
 
       if (source.type !== "mcp") {
-        throw new Error(
-          `tools.sources[${index}].type must be the literal string "mcp".`
+        this.pushValidationIssue(
+          issues,
+          `${basePath}.type`,
+          `${basePath}.type must be the literal string "mcp".`
         );
       }
 
       if (typeof source.id !== "string" || source.id.trim() === "") {
-        throw new Error(
-          `tools.sources[${index}].id must be provided as a non-empty string.`
+        this.pushValidationIssue(
+          issues,
+          `${basePath}.id`,
+          `${basePath}.id must be provided as a non-empty string.`
         );
       }
 
       if (typeof source.url !== "string" || source.url.trim() === "") {
-        throw new Error(
-          `tools.sources[${index}].url must be provided as a non-empty string.`
+        this.pushValidationIssue(
+          issues,
+          `${basePath}.url`,
+          `${basePath}.url must be provided as a non-empty string.`
         );
       }
 
@@ -1683,8 +1933,10 @@ export class ConfigService {
         typeof source.name !== "undefined" &&
         (typeof source.name !== "string" || source.name.trim() === "")
       ) {
-        throw new Error(
-          `tools.sources[${index}].name must be a non-empty string when provided.`
+        this.pushValidationIssue(
+          issues,
+          `${basePath}.name`,
+          `${basePath}.name must be a non-empty string when provided.`
         );
       }
 
@@ -1694,16 +1946,20 @@ export class ConfigService {
           typeof source.headers !== "object" ||
           Array.isArray(source.headers)
         ) {
-          throw new Error(
-            `tools.sources[${index}].headers must be an object with string values when provided.`
+          this.pushValidationIssue(
+            issues,
+            `${basePath}.headers`,
+            `${basePath}.headers must be an object with string values when provided.`
           );
-        }
-
-        for (const [key, value] of Object.entries(source.headers)) {
-          if (typeof value !== "string") {
-            throw new Error(
-              `tools.sources[${index}].headers.${key} must be a string.`
-            );
+        } else {
+          for (const [key, value] of Object.entries(source.headers)) {
+            if (typeof value !== "string") {
+              this.pushValidationIssue(
+                issues,
+                `${basePath}.headers.${key}`,
+                `${basePath}.headers.${key} must be a string.`
+              );
+            }
           }
         }
       }
@@ -1711,32 +1967,38 @@ export class ConfigService {
       if (typeof source.auth !== "undefined") {
         const auth = source.auth;
         if (!auth || typeof auth !== "object") {
-          throw new Error(
-            `tools.sources[${index}].auth must be an object when provided.`
+          this.pushValidationIssue(
+            issues,
+            `${basePath}.auth`,
+            `${basePath}.auth must be an object when provided.`
           );
-        }
-
-        if (auth.type === "basic") {
+        } else if (auth.type === "basic") {
           if (
             typeof auth.username !== "string" ||
             auth.username.trim() === "" ||
             typeof auth.password !== "string"
           ) {
-            throw new Error(
-              `tools.sources[${index}].auth must include non-empty username and password for basic auth.`
+            this.pushValidationIssue(
+              issues,
+              `${basePath}.auth`,
+              `${basePath}.auth must include non-empty username and password for basic auth.`
             );
           }
         } else if (auth.type === "bearer") {
           if (typeof auth.token !== "string" || auth.token.trim() === "") {
-            throw new Error(
-              `tools.sources[${index}].auth.token must be a non-empty string for bearer auth.`
+            this.pushValidationIssue(
+              issues,
+              `${basePath}.auth.token`,
+              `${basePath}.auth.token must be a non-empty string for bearer auth.`
             );
           }
         } else if (auth.type === "none") {
           // nothing additional
         } else {
-          throw new Error(
-            `tools.sources[${index}].auth.type must be one of "basic", "bearer", or "none".`
+          this.pushValidationIssue(
+            issues,
+            `${basePath}.auth.type`,
+            `${basePath}.auth.type must be one of "basic", "bearer", or "none".`
           );
         }
       }
@@ -1747,8 +2009,10 @@ export class ConfigService {
           source.capabilities === null ||
           Array.isArray(source.capabilities))
       ) {
-        throw new Error(
-          `tools.sources[${index}].capabilities must be an object when provided.`
+        this.pushValidationIssue(
+          issues,
+          `${basePath}.capabilities`,
+          `${basePath}.capabilities must be an object when provided.`
         );
       }
     });
