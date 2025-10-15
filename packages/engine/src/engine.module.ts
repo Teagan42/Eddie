@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { CqrsModule } from "@nestjs/cqrs";
 import { ConfigModule } from "@eddie/config";
 import { ContextModule } from "@eddie/context";
 import { IoModule } from "@eddie/io";
@@ -17,6 +18,7 @@ import { MCPModule } from "@eddie/mcp";
     ConfigModule,
     ContextModule,
     IoModule,
+    CqrsModule,
     HooksModule,
     ProvidersModule,
     TokenizersModule,

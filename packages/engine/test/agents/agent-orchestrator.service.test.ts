@@ -88,9 +88,11 @@ describe("AgentOrchestratorService", () => {
       write: vi.fn(),
     };
 
+    const eventBus = { publish: vi.fn() };
     const orchestrator = new AgentOrchestratorService(
       invocationFactory as any,
       streamRenderer as any,
+      eventBus as any,
       traceWriter as any,
     );
 
@@ -116,6 +118,7 @@ describe("AgentOrchestratorService", () => {
     const orchestrator = new AgentOrchestratorService(
       { create: vi.fn() } as any,
       { render: vi.fn(), flush: vi.fn() } as any,
+      { publish: vi.fn() } as any,
       { write: vi.fn() } as any,
     );
 
@@ -126,6 +129,7 @@ describe("AgentOrchestratorService", () => {
     const orchestrator = new AgentOrchestratorService(
       { create: vi.fn() } as any,
       { render: vi.fn(), flush: vi.fn() } as any,
+      { publish: vi.fn() } as any,
       { write: vi.fn() } as any,
     );
 
@@ -350,6 +354,7 @@ describe("AgentOrchestratorService", () => {
     const orchestrator = new AgentOrchestratorService(
       invocationFactory as any,
       streamRenderer as any,
+      { publish: vi.fn() } as any,
       traceWriter as any,
     );
 
@@ -452,6 +457,7 @@ describe("AgentOrchestratorService", () => {
     const orchestrator = new AgentOrchestratorService(
       invocationFactory as any,
       streamRenderer as any,
+      { publish: vi.fn() } as any,
       traceWriter as any,
     );
 
@@ -529,6 +535,7 @@ describe("AgentOrchestratorService", () => {
     const orchestrator = new AgentOrchestratorService(
       { create: vi.fn() } as any,
       { render: vi.fn(), flush: vi.fn() } as any,
+      { publish: vi.fn() } as any,
       { write: vi.fn() } as any,
     );
 

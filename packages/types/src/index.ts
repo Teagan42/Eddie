@@ -90,6 +90,10 @@ export type StreamEvent =
         responseId?: string;
       } & AgentScopedEvent);
 
+export class AgentStreamEvent {
+  constructor(public readonly event: StreamEvent) {}
+}
+
 export interface StreamOptions {
   model: string;
   messages: ChatMessage[];

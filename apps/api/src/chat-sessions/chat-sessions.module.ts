@@ -3,7 +3,7 @@ import type { Knex } from "knex";
 import { ModuleRef } from "@nestjs/core";
 import { CqrsModule } from "@nestjs/cqrs";
 import { EngineModule } from "@eddie/engine";
-import { IoModule, StreamRendererService } from "@eddie/io";
+import { IoModule } from "@eddie/io";
 import { ConfigModule, ConfigStore } from "@eddie/config";
 import { TracesModule } from "../traces/traces.module";
 import { LogsModule } from "../logs/logs.module";
@@ -17,6 +17,7 @@ import { ChatSessionsEngineListener } from "./chat-sessions-engine.listener";
 import { ChatMessagesGateway } from "./chat-messages.gateway";
 import { ToolsModule } from "../tools/tools.module";
 import { ChatSessionStreamRendererService } from "./chat-session-stream-renderer.service";
+import { AgentStreamEventHandler } from "./agent-stream-event.handler";
 import { ChatSessionEventsService } from "./chat-session-events.service";
 import { chatSessionCommandHandlers } from "./commands";
 import { chatSessionQueryHandlers } from "./queries";
@@ -82,9 +83,7 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
 @Module({
   imports: [
     EngineModule,
-    IoModule.register({
-      streamRendererClass: ChatSessionStreamRendererService,
-    }),
+    IoModule.register(),
     TracesModule,
     LogsModule,
     ConfigModule,
@@ -102,10 +101,8 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
     ...chatSessionCommandHandlers,
     ...chatSessionQueryHandlers,
     CHAT_SESSIONS_REPOSITORY_PROVIDER,
-    {
-      provide: ChatSessionStreamRendererService,
-      useExisting: StreamRendererService,
-    },
+    ChatSessionStreamRendererService,
+    AgentStreamEventHandler,
   ],
   controllers: [ ChatSessionsController ],
   exports: [ ChatSessionsService ],
