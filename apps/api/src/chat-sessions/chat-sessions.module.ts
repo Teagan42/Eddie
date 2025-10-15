@@ -17,6 +17,8 @@ import { ChatMessagesGateway } from "./chat-messages.gateway";
 import { ToolsModule } from "../tools/tools.module";
 import { ChatSessionStreamRendererService } from "./chat-session-stream-renderer.service";
 import { ChatSessionEventsService } from "./chat-session-events.service";
+import { chatSessionCommandHandlers } from "./commands";
+import { chatSessionQueryHandlers } from "./queries";
 import {
   CHAT_SESSIONS_REPOSITORY,
   InMemoryChatSessionsRepository,
@@ -92,6 +94,8 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
     ChatMessagesGateway,
     ChatSessionEventsService,
     ChatSessionsEngineListener,
+    ...chatSessionCommandHandlers,
+    ...chatSessionQueryHandlers,
     CHAT_SESSIONS_REPOSITORY_PROVIDER,
     {
       provide: StreamRendererService,

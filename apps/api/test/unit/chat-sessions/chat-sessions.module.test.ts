@@ -7,6 +7,8 @@ import { ModuleRef } from '@nestjs/core';
 import { ConfigStore } from '@eddie/config';
 
 import { ChatSessionsModule } from '../../../src/chat-sessions/chat-sessions.module';
+import { chatSessionCommandHandlers } from '../../../src/chat-sessions/commands';
+import { chatSessionQueryHandlers } from '../../../src/chat-sessions/queries';
 import { DatabaseModule } from '../../../src/persistence/database.module';
 import { KNEX_INSTANCE } from '../../../src/persistence/knex.provider';
 import {
@@ -67,6 +69,16 @@ describe('ChatSessionsModule', () => {
         'ChatMessageCreatedEvent',
       ]),
     );
+  });
+
+  it('registers CQRS command and query handlers as providers', () => {
+    const providerClassNames = getProviders()
+      .filter((provider: unknown): provider is Function => typeof provider === 'function')
+      .map((provider) => provider.name);
+
+    for (const handler of [...chatSessionCommandHandlers, ...chatSessionQueryHandlers]) {
+      expect(providerClassNames).toContain(handler.name);
+    }
   });
 
   it('imports the DatabaseModule to expose shared persistence providers', () => {
