@@ -122,6 +122,40 @@ describe("ConfigService compose precedence", () => {
   });
 });
 
+describe("ConfigService config version handling", () => {
+  it("throws when the config version is newer than supported", async () => {
+    const { service } = createService();
+
+    await expect(
+      service.compose({ version: 99 } as EddieConfigInput),
+    ).rejects.toThrow(
+      "Config version 99 is newer than supported. Please update Eddie.",
+    );
+  });
+
+  it("warns when migrating a config without a version", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { service } = createService();
+
+    const config = await service.compose({});
+
+    expect(config.version).toBe(1);
+    expect(warn).toHaveBeenCalledWith(
+      "Config version 0 was automatically migrated to version 1.",
+    );
+  });
+
+  it("throws when no automatic migration path exists", async () => {
+    const { service } = createService();
+
+    await expect(
+      service.compose({ version: -1 } as EddieConfigInput),
+    ).rejects.toThrow(
+      "Config version -1 cannot be automatically migrated to version 1.",
+    );
+  });
+});
+
 describe("ConfigService load lifecycle", () => {
   it("updates the config store when loading configuration", async () => {
     const { service, configStore } = createService();

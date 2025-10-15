@@ -247,7 +247,10 @@ export interface TranscriptConfig {
   compactor?: TranscriptCompactorConfig;
 }
 
+export type ConfigVersion = number;
+
 export interface EddieConfig {
+  version: ConfigVersion;
   model: string;
   provider: ProviderConfig;
   projectDir: string;
@@ -266,6 +269,7 @@ export interface EddieConfig {
 }
 
 export interface EddieConfigInput {
+  version?: ConfigVersion;
   model?: string;
   provider?: Partial<ProviderConfig>;
   projectDir?: string;

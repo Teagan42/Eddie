@@ -57,6 +57,7 @@ export interface EddieAgentsConfigDto {
 }
 
 export interface EddieConfigDto {
+    version?: number;
     model?: string;
     provider?: EddieProviderConfigDto;
     context?: EddieContextConfigDto;

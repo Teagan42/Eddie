@@ -587,6 +587,7 @@ export const EDDIE_CONFIG_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
   required: [
+    "version",
     "model",
     "provider",
     "context",
@@ -595,6 +596,7 @@ export const EDDIE_CONFIG_SCHEMA: JSONSchema7 = {
     "agents",
   ],
   properties: {
+    version: { type: "integer", minimum: 1 },
     model: { type: "string", minLength: 1 },
     provider: PROVIDER_CONFIG_SCHEMA,
     projectDir: { type: "string" },
@@ -622,6 +624,7 @@ export const EDDIE_CONFIG_INPUT_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
   properties: {
+    version: { type: "integer", minimum: 0 },
     model: { type: "string", minLength: 1 },
     provider: PROVIDER_CONFIG_INPUT_SCHEMA,
     projectDir: { type: "string" },

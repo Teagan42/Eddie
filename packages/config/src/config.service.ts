@@ -30,6 +30,7 @@ import type {
   ToolsConfig,
   TranscriptConfig,
 } from "./types";
+import { LATEST_CONFIG_VERSION, runConfigMigrations } from "./migrations";
 
 export type ConfigFileFormat = "yaml" | "json";
 
@@ -105,19 +106,27 @@ export class ConfigService {
     input: EddieConfigInput,
     options: CliRuntimeOptions = {}
   ): Promise<EddieConfig> {
+    const { input: migratedInput, warnings } = runConfigMigrations(input);
+    this.emitWarnings(warnings);
+
     const mergedOverrides = {
       ...this.moduleOptions,
       ...options,
     };
     const finalConfig = this.composeLayers(
       this.resolveDefaultConfig(),
-      input,
+      migratedInput,
       mergedOverrides,
     );
 
-    this.validateConfig(finalConfig);
+    const withVersion = {
+      ...finalConfig,
+      version: LATEST_CONFIG_VERSION,
+    } satisfies EddieConfig;
 
-    return finalConfig;
+    this.validateConfig(withVersion);
+
+    return withVersion;
   }
 
   private composeLayers(
@@ -1438,6 +1447,12 @@ export class ConfigService {
   }
 
   private validateConfig(config: EddieConfig): void {
+    if (config.version !== LATEST_CONFIG_VERSION) {
+      throw new Error(
+        `config.version must be ${LATEST_CONFIG_VERSION}. Received ${config.version}.`,
+      );
+    }
+
     if (
       typeof config.projectDir !== "string" ||
       config.projectDir.trim() === ""
@@ -1644,6 +1659,12 @@ export class ConfigService {
           );
         }
       }
+    }
+  }
+
+  private emitWarnings(messages: string[]): void {
+    for (const message of messages) {
+      console.warn(message);
     }
   }
 

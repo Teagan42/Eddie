@@ -1,5 +1,6 @@
 import { builtinTools } from "@eddie/tools";
 import type { EddieConfig } from "./types";
+import { LATEST_CONFIG_VERSION } from "./migrations";
 
 const BUILTIN_TOOL_NAMES = Object.freeze(
   builtinTools.map((tool) => tool.name),
@@ -13,6 +14,7 @@ Use the builtin tools to explore the filesystem safely:
 - Favor \`rg\` over recursive \`ls\` or \`grep -R\` when searching.`;
 
 export const DEFAULT_CONFIG: EddieConfig = {
+  version: LATEST_CONFIG_VERSION,
   projectDir: process.cwd(),
   model: "gpt-4o-mini",
   provider: {
