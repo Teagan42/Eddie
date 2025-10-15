@@ -1,0 +1,152 @@
+{
+  "id": "heavy-tool-loop",
+  "label": "Heavy tool-call loop",
+  "description": "Multiple streamed tool calls that stress accumulator handling.",
+  "options": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Plan actions and call the search and summarize tools."
+      }
+    ]
+  },
+  "provider": {
+    "events": [
+      {
+        "type": "response.created",
+        "response": {
+          "id": "resp_tool_loop"
+        }
+      },
+      {
+        "type": "response.output_item.added",
+        "item": {
+          "type": "function_call",
+          "call_id": "call_search",
+          "name": "search"
+        },
+        "output_index": 0
+      },
+      {
+        "type": "response.function_call_arguments.delta",
+        "delta": "{\"query\":",
+        "output_index": 0,
+        "call_id": "call_search",
+        "name": "search"
+      },
+      {
+        "type": "response.function_call_arguments.delta",
+        "delta": " \"latest status\"}",
+        "output_index": 0,
+        "call_id": "call_search",
+        "name": "search"
+      },
+      {
+        "type": "response.function_call_arguments.done",
+        "arguments": "{\"query\": \"latest status\"}",
+        "output_index": 0,
+        "call_id": "call_search",
+        "name": "search"
+      },
+      {
+        "type": "response.output_item.added",
+        "item": {
+          "type": "function_call",
+          "call_id": "call_summarize",
+          "name": "summarize"
+        },
+        "output_index": 1
+      },
+      {
+        "type": "response.function_call_arguments.delta",
+        "delta": "{\"documentId\":",
+        "output_index": 1,
+        "call_id": "call_summarize",
+        "name": "summarize"
+      },
+      {
+        "type": "response.function_call_arguments.delta",
+        "delta": " \"doc-18\", \"length\": 3}",
+        "output_index": 1,
+        "call_id": "call_summarize",
+        "name": "summarize"
+      },
+      {
+        "type": "response.function_call_arguments.done",
+        "arguments": "{\"documentId\": \"doc-18\", \"length\": 3}",
+        "output_index": 1,
+        "call_id": "call_summarize",
+        "name": "summarize"
+      },
+      {
+        "type": "response.completed",
+        "response": {
+          "id": "resp_tool_loop",
+          "status": "completed",
+          "usage": {
+            "input_tokens": 200,
+            "output_tokens": 80,
+            "total_tokens": 280
+          }
+        }
+      }
+    ],
+    "finalResponse": {
+      "id": "resp_tool_loop",
+      "status": "completed",
+      "usage": {
+        "input_tokens": 200,
+        "output_tokens": 80,
+        "total_tokens": 280
+      },
+      "output": [
+        {
+          "type": "function_call",
+          "call_id": "call_search",
+          "name": "search",
+          "arguments": "{\"query\": \"latest status\"}"
+        },
+        {
+          "type": "function_call",
+          "call_id": "call_summarize",
+          "name": "summarize",
+          "arguments": "{\"documentId\": \"doc-18\", \"length\": 3}"
+        }
+      ]
+    }
+  },
+  "expectations": {
+    "streamEvents": [
+      {
+        "type": "tool_call",
+        "id": "call_search",
+        "name": "search",
+        "arguments": {
+          "query": "latest status"
+        },
+        "raw": "{\"query\": \"latest status\"}"
+      },
+      {
+        "type": "tool_call",
+        "id": "call_summarize",
+        "name": "summarize",
+        "arguments": {
+          "documentId": "doc-18",
+          "length": 3
+        },
+        "raw": "{\"documentId\": \"doc-18\", \"length\": 3}"
+      },
+      {
+        "type": "end",
+        "reason": "completed",
+        "usage": {
+          "input_tokens": 200,
+          "output_tokens": 80,
+          "total_tokens": 280
+        },
+        "responseId": "resp_tool_loop"
+      }
+    ]
+  }
+}
