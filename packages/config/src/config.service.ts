@@ -118,7 +118,7 @@ export class ConfigService {
 
     const mergedOverrides = {
       ...this.moduleOptions,
-      ...options,
+      ...this.removeUndefinedCliOverrides(options),
     };
     const defaultsWithPreset = this.applyPreset(
       this.resolveDefaultConfig(),
@@ -171,6 +171,17 @@ export class ConfigService {
     }
 
     return this.applyConfigFileOverrides(defaults, preset);
+  }
+
+  private removeUndefinedCliOverrides(
+    options: CliRuntimeOptions,
+  ): CliRuntimeOptions {
+    if (!Object.values(options).some((value) => value === undefined)) {
+      return options;
+    }
+
+    const entries = Object.entries(options).filter(([, value]) => value !== undefined);
+    return Object.fromEntries(entries) as CliRuntimeOptions;
   }
 
   private resolveProjectDir(
