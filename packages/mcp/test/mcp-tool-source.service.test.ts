@@ -261,6 +261,51 @@ describe("McpToolSourceService", () => {
     });
   });
 
+  it("omits output schemas that do not declare an identifier", async () => {
+    const logger = createLogger();
+    const loggerService = createLoggerService(logger);
+    const service = new McpToolSourceService(loggerService);
+    const source: MCPToolSourceConfig = {
+      id: "missing-schema-id",
+      type: "mcp",
+      url: "https://example.com/mcp",
+    };
+
+    mockServerCapabilities.mockReturnValue({ tools: { list: true } });
+    mockClientConnect.mockImplementation(async () => {
+      const instance = mockClientInstances.at(-1);
+      if (!instance) {
+        return;
+      }
+
+      if (mockClientInstances.length === 1) {
+        instance.listTools.mockResolvedValue({
+          tools: [
+            {
+              name: "query-media",
+              description: "Queries media library",
+              inputSchema: { type: "object", properties: {} },
+              outputSchema: {
+                type: "object",
+                properties: {
+                  items: {
+                    type: "array",
+                    items: { type: "string" },
+                  },
+                },
+              },
+            },
+          ],
+        });
+      }
+    });
+
+    const discoveries = await service.discoverSources([source]);
+    const tool = discoveries[0]?.tools[0];
+
+    expect(tool?.outputSchema).toBeUndefined();
+  });
+
   it("unwraps tool listings returned under a result property", async () => {
     const { service } = createService();
     const source: MCPToolSourceConfig = {
