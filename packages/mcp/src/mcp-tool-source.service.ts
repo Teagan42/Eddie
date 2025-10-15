@@ -64,6 +64,12 @@ type TransportName =
   | typeof SSE_TRANSPORT_NAME;
 
 type ResultEnvelope<T> = { result?: T };
+type ToolResultPayload = {
+  schema: string;
+  content: string;
+  data?: unknown;
+  metadata?: Record<string, unknown>;
+};
 
 @Injectable()
 export class McpToolSourceService {
@@ -289,25 +295,17 @@ export class McpToolSourceService {
     }
 
     const structured = result.structuredContent;
-    if (
-      structured &&
-      typeof structured === "object" &&
-      "schema" in structured &&
-      typeof (structured as { schema?: unknown }).schema === "string" &&
-      "content" in structured &&
-      typeof (structured as { content?: unknown }).content === "string"
-    ) {
-      const toolResult = structured as ToolResult;
+    if (this.isToolResultPayload(structured)) {
       return {
-        schema: toolResult.schema,
-        content: toolResult.content,
+        schema: structured.schema,
+        content: structured.content,
         data:
-          toolResult.data !== undefined
-            ? structuredClone(toolResult.data)
+          structured.data !== undefined
+            ? structuredClone(structured.data)
             : undefined,
         metadata:
-          toolResult.metadata !== undefined
-            ? structuredClone(toolResult.metadata)
+          structured.metadata !== undefined
+            ? structuredClone(structured.metadata)
             : undefined,
       };
     }
@@ -345,6 +343,32 @@ export class McpToolSourceService {
     }
 
     return parts.join("\n");
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  private isToolResultPayload(value: unknown): value is ToolResultPayload {
+    if (!value || typeof value !== "object") {
+      return false;
+    }
+
+    const candidate = value as {
+      schema?: unknown;
+      content?: unknown;
+      metadata?: unknown;
+    };
+
+    if (typeof candidate.schema !== "string" || typeof candidate.content !== "string") {
+      return false;
+    }
+
+    if (candidate.metadata !== undefined && !this.isRecord(candidate.metadata)) {
+      return false;
+    }
+
+    return true;
   }
 
 

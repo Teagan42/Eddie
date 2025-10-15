@@ -198,6 +198,69 @@ describe("McpToolSourceService", () => {
     });
   });
 
+  it("returns structured tool results when provided", async () => {
+    const logger = createLogger();
+    const loggerService = createLoggerService(logger);
+    const service = new McpToolSourceService(loggerService);
+    const source: MCPToolSourceConfig = {
+      id: "structured-result",
+      type: "mcp",
+      url: "https://example.com/mcp",
+    };
+
+    mockServerCapabilities.mockReturnValue({ tools: { list: true, call: true } });
+    mockClientConnect.mockImplementation(async () => {
+      const instance = mockClientInstances.at(-1);
+      if (!instance) {
+        return;
+      }
+
+      if (mockClientInstances.length === 1) {
+        instance.listTools.mockResolvedValue({
+          tools: [
+            {
+              name: "echo",
+              description: "Echo",
+              inputSchema: { type: "object", properties: {} },
+            },
+          ],
+        });
+      }
+
+      if (mockClientInstances.length === 2) {
+        instance.callTool.mockResolvedValue({
+          result: {
+            content: [
+              {
+                type: "text",
+                text: "ignored",
+              },
+            ],
+            structuredContent: {
+              schema: "custom/result",
+              content: "summary",
+              data: { foo: "bar" },
+              metadata: { correlationId: "abc" },
+            },
+          },
+        });
+      }
+    });
+
+    const discoveries = await service.discoverSources([source]);
+    const handler = discoveries[0]?.tools[0]?.handler;
+    expect(handler).toBeTypeOf("function");
+
+    const result = await handler?.({});
+
+    expect(result).toEqual({
+      schema: "custom/result",
+      content: "summary",
+      data: { foo: "bar" },
+      metadata: { correlationId: "abc" },
+    });
+  });
+
   it("unwraps tool listings returned under a result property", async () => {
     const { service } = createService();
     const source: MCPToolSourceConfig = {
