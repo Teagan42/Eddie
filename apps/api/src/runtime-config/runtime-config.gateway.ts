@@ -22,7 +22,7 @@ export class RuntimeConfigGateway implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit(): void {
     this.subscription = this.config.changes$.subscribe((config) => {
-      this.onConfigChanged(config);
+      this.emitConfigUpdated(config);
     });
   }
 
@@ -31,7 +31,7 @@ export class RuntimeConfigGateway implements OnModuleInit, OnModuleDestroy {
     this.subscription = null;
   }
 
-  onConfigChanged(config: RuntimeConfigDto): void {
+  emitConfigUpdated(config: RuntimeConfigDto): void {
     emitEvent(this.server, "config.updated", config);
   }
 }
