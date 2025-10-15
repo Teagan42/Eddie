@@ -502,15 +502,26 @@ export async function defineChatSessionsPersistenceBenchmarks({
     });
 
     for (const driver of drivers) {
-      registerGroup(`${driver.label} (${driver.id})`, () => {
-        registerBench(`${driver.id} throughput`, async () => {
-          const instance = await driver.setup();
+      const groupName = `${driver.label} (${driver.id})`;
+      const benchName = `${driver.id} throughput`;
+      registerGroup(groupName, () => {
+        registerBench(benchName, async () => {
+          let instance: ChatSessionsPersistenceDriverInstance | undefined;
+          try {
+            instance = await driver.setup();
+          } catch (error) {
+            console.warn(
+              `Skipping chat session persistence driver "${driver.id}" after setup failure.`,
+              error,
+            );
+            return;
+          }
           try {
             await instance.reset();
             const measurement = await measureScenarioFn(instance, scenarioOptions);
             recordMeasurement(measurement);
           } finally {
-            await instance.dispose();
+            await instance?.dispose();
           }
         });
       });
