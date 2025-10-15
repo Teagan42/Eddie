@@ -27,4 +27,8 @@ describe('README documentation', () => {
   it('mentions chat session rename and delete capabilities across surfaces', () => {
     expect(readme).toMatch(renameDeletePattern);
   });
+
+  it('notes that the project was authored by AI collaborators', () => {
+    expect(readme).toContain('This project was authored entirely by AI collaborators.');
+  });
 });
