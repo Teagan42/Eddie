@@ -3,7 +3,7 @@ import type { Knex } from "knex";
 import { ModuleRef } from "@nestjs/core";
 import { CqrsModule } from "@nestjs/cqrs";
 import { EngineModule } from "@eddie/engine";
-import { StreamRendererService } from "@eddie/io";
+import { IoModule, StreamRendererService } from "@eddie/io";
 import { ConfigModule, ConfigStore } from "@eddie/config";
 import { TracesModule } from "../traces/traces.module";
 import { LogsModule } from "../logs/logs.module";
@@ -82,6 +82,9 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
 @Module({
   imports: [
     EngineModule,
+    IoModule.register({
+      streamRendererClass: ChatSessionStreamRendererService,
+    }),
     TracesModule,
     LogsModule,
     ConfigModule,
@@ -99,10 +102,6 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
     ...chatSessionCommandHandlers,
     ...chatSessionQueryHandlers,
     CHAT_SESSIONS_REPOSITORY_PROVIDER,
-    {
-      provide: StreamRendererService,
-      useClass: ChatSessionStreamRendererService,
-    },
     {
       provide: ChatSessionStreamRendererService,
       useExisting: StreamRendererService,

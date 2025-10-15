@@ -30,7 +30,6 @@ describe("ChatSessionsEngineListener", () => {
   const updateMessageContent = vi.fn();
   const saveAgentInvocations = vi.fn();
   const capture = vi.fn();
-  let engineSetStreamRenderer: ReturnType<typeof vi.fn>;
   let engineRun: ReturnType<typeof vi.fn>;
   let commandExecute: ReturnType<typeof vi.fn>;
   let logsAppend: ReturnType<typeof vi.fn>;
@@ -54,10 +53,8 @@ describe("ChatSessionsEngineListener", () => {
     } as unknown as ChatSessionsService;
 
     engineRun = vi.fn();
-    engineSetStreamRenderer = vi.fn();
     const engine = {
       run: engineRun,
-      setStreamRenderer: engineSetStreamRenderer,
     } as unknown as EngineService;
 
     commandExecute = vi.fn();

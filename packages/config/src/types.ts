@@ -295,6 +295,7 @@ export interface CliRuntimeOptions {
   context?: string[];
   disableContext?: boolean;
   config?: string;
+  preset?: string;
   model?: string;
   provider?: string;
   jsonlTrace?: string;
