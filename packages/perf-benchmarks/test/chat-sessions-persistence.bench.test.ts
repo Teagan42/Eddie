@@ -188,4 +188,83 @@ describe('chat-sessions persistence benchmarks', () => {
     expect(measureScenario).toHaveBeenCalledWith(instance, expect.any(Object));
     expect(dispose).toHaveBeenCalledTimes(1);
   });
+
+  it('skips drivers whose setup fails by logging a warning', async () => {
+    const error = new Error('failed to connect');
+    const setup = vi.fn(async () => {
+      throw error;
+    });
+
+    const drivers = [
+      {
+        id: 'stub',
+        label: 'Stub driver',
+        description: 'Used for failure flow assertions',
+        setup,
+      },
+    ];
+
+    const measureScenario = vi.fn();
+
+    const suiteCallbacks: Array<() => unknown> = [];
+    const groupCallbacks: Array<() => unknown> = [];
+    const benchCallbacks: Array<() => unknown> = [];
+
+    const registerSuite = vi.fn((name: string, factory: () => unknown) => {
+      suiteCallbacks.push(factory);
+      expect(name).toContain('Chat session persistence');
+    });
+    const registerGroup = vi.fn((name: string, factory: () => unknown) => {
+      groupCallbacks.push(factory);
+      expect(name).toContain('Stub driver');
+    });
+    const registerBench = vi.fn((name: string, handler: () => unknown) => {
+      benchCallbacks.push(handler);
+      expect(name).toContain('stub');
+    });
+
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    await defineChatSessionsPersistenceBenchmarks({
+      suite: registerSuite,
+      group: registerGroup,
+      bench: registerBench,
+      loadDrivers: async () => drivers,
+      measureScenario,
+    });
+
+    expect(registerSuite).toHaveBeenCalledTimes(1);
+    expect(suiteCallbacks).toHaveLength(1);
+
+    const [suiteFactory] = suiteCallbacks;
+    if (!suiteFactory) {
+      throw new Error('expected suite factory to be registered');
+    }
+
+    await suiteFactory();
+
+    expect(groupCallbacks).toHaveLength(1);
+
+    for (const factory of groupCallbacks) {
+      await factory?.();
+    }
+
+    expect(benchCallbacks).toHaveLength(1);
+
+    const [benchHandler] = benchCallbacks;
+    if (!benchHandler) {
+      throw new Error('expected bench handler to be registered');
+    }
+
+    await expect(benchHandler()).resolves.toBeUndefined();
+
+    expect(setup).toHaveBeenCalledTimes(1);
+    expect(measureScenario).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      'Skipping chat session persistence driver "stub" after setup failure.',
+      error,
+    );
+
+    warn.mockRestore();
+  });
 });
