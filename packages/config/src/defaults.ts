@@ -1,9 +1,11 @@
 import { builtinTools } from "@eddie/tools";
+import { CURRENT_CONFIG_VERSION } from "./migrations";
 import type { EddieConfig } from "./types";
 
 const BUILTIN_TOOL_NAMES = Object.freeze(
   builtinTools.map((tool) => tool.name),
 );
+const CWD = process.cwd();
 
 export const DEFAULT_SYSTEM_PROMPT = `You are Eddie, a CLI coding assistant.
 
@@ -13,14 +15,15 @@ Use the builtin tools to explore the filesystem safely:
 - Favor \`rg\` over recursive \`ls\` or \`grep -R\` when searching.`;
 
 export const DEFAULT_CONFIG: EddieConfig = {
-  projectDir: process.cwd(),
+  version: CURRENT_CONFIG_VERSION,
+  projectDir: CWD,
   model: "gpt-4o-mini",
   provider: {
     name: "openai",
   },
   context: {
     include: ["src/**/*"],
-    baseDir: process.cwd(),
+    baseDir: CWD,
   },
   api: {
     host: "0.0.0.0",

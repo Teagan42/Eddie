@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { DEFAULT_CONFIG } from "../src/defaults";
+import { CURRENT_CONFIG_VERSION } from "../src/migrations";
 import { ConfigValidator, ConfigValidationError } from "../src/validation/config-validator";
 import type { EddieConfig } from "../src/types";
 
@@ -70,5 +71,17 @@ describe("ConfigValidator", () => {
     }
 
     throw new Error("Expected ConfigValidator to throw ConfigValidationError");
+  });
+
+  it("requires the config version to match the supported version", () => {
+    const validator = new ConfigValidator();
+    const invalidConfig: EddieConfig = {
+      ...DEFAULT_CONFIG,
+      version: CURRENT_CONFIG_VERSION + 1,
+    };
+
+    expect(() => validator.validate(invalidConfig)).toThrowError(
+      ConfigValidationError,
+    );
   });
 });

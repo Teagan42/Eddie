@@ -1,4 +1,4 @@
-import { forwardRef, Inject, Injectable, Optional } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger, Optional } from "@nestjs/common";
 import {
   ConfigType,
 } from "@nestjs/config";
@@ -7,6 +7,7 @@ import path from "path";
 import { Subject } from "rxjs";
 import yaml from "yaml";
 import { ConfigValidator } from "./validation/config-validator";
+import { CURRENT_CONFIG_VERSION, runConfigMigrations } from "./migrations";
 import { CONFIG_FILE_PATH_TOKEN, MODULE_OPTIONS_TOKEN } from './config.const';
 import { eddieConfig } from "./config.namespace";
 import { ConfigStore } from './config.store';
@@ -45,6 +46,7 @@ export interface ConfigFileSnapshot {
  */
 @Injectable()
 export class ConfigService {
+  private readonly logger = new Logger(ConfigService.name);
   private readonly writeSubject = new Subject<ConfigFileSnapshot>();
 
   readonly writes$ = this.writeSubject.asObservable();
@@ -89,6 +91,31 @@ export class ConfigService {
     input: EddieConfigInput,
     options: CliRuntimeOptions = {}
   ): Promise<EddieConfig> {
+    const currentVersion = CURRENT_CONFIG_VERSION;
+    const candidateVersion = input.version;
+    if (
+      typeof candidateVersion === "number" &&
+      candidateVersion > currentVersion
+    ) {
+      throw new Error(
+        `This config declares newer config version ${candidateVersion} than supported version ${currentVersion}.`,
+      );
+    }
+
+    const { migrated, finalVersion, initialVersion, warnings } =
+      runConfigMigrations(input);
+    if (finalVersion !== currentVersion) {
+      throw new Error(
+        `Unable to automatically migrate config version ${initialVersion} to ${currentVersion}.`,
+      );
+    }
+
+    warnings.forEach((warning) => {
+      this.logger.warn(`[Config migration] ${warning}`);
+    });
+
+    const migratedInput = migrated;
+
     const mergedOverrides = {
       ...this.moduleOptions,
       ...options,
@@ -100,13 +127,16 @@ export class ConfigService {
 
     const finalConfig = this.composeLayers(
       defaultsWithPreset,
-      input,
+      migratedInput,
       mergedOverrides,
     );
 
     this.validator.validate(finalConfig);
 
-    return finalConfig;
+    return {
+      ...finalConfig,
+      version: currentVersion,
+    };
   }
 
   private composeLayers(

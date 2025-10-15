@@ -39,6 +39,17 @@ describe("EDDIE_CONFIG_SCHEMA_BUNDLE", () => {
     expect(schemaProperties).toHaveProperty("agents");
   });
 
+  it("describes the configuration version field", () => {
+    const schemaProperties =
+      EDDIE_CONFIG_SCHEMA_BUNDLE.schema.properties ?? {};
+    const inputProperties =
+      EDDIE_CONFIG_SCHEMA_BUNDLE.inputSchema.properties ?? {};
+
+    expect(schemaProperties).toHaveProperty("version");
+    expect(schemaProperties.version).toMatchObject({ type: "integer" });
+    expect(inputProperties).toHaveProperty("version");
+  });
+
   it("disables additional properties at the top level", () => {
     expect(EDDIE_CONFIG_SCHEMA_BUNDLE.schema.additionalProperties).toBe(false);
     expect(EDDIE_CONFIG_SCHEMA_BUNDLE.inputSchema.additionalProperties).toBe(false);

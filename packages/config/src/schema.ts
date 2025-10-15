@@ -1,9 +1,20 @@
 import type { JSONSchema7 } from "json-schema";
+import { CURRENT_CONFIG_VERSION } from "./migrations";
 
 export const EDDIE_CONFIG_SCHEMA_ID =
   "https://eddie.sh/schemas/eddie-config.schema.json";
 export const EDDIE_CONFIG_INPUT_SCHEMA_ID =
   "https://eddie.sh/schemas/eddie-config-input.schema.json";
+
+const CONFIG_VERSION_SCHEMA: JSONSchema7 = {
+  type: "integer",
+  const: CURRENT_CONFIG_VERSION,
+};
+
+const CONFIG_VERSION_INPUT_SCHEMA: JSONSchema7 = {
+  type: "integer",
+  minimum: 0,
+};
 
 const LOG_LEVEL_SCHEMA: JSONSchema7 = {
   type: "string",
@@ -587,6 +598,7 @@ export const EDDIE_CONFIG_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
   required: [
+    "version",
     "model",
     "provider",
     "context",
@@ -595,6 +607,7 @@ export const EDDIE_CONFIG_SCHEMA: JSONSchema7 = {
     "agents",
   ],
   properties: {
+    version: CONFIG_VERSION_SCHEMA,
     model: { type: "string", minLength: 1 },
     provider: PROVIDER_CONFIG_SCHEMA,
     projectDir: { type: "string" },
@@ -622,6 +635,7 @@ export const EDDIE_CONFIG_INPUT_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
   properties: {
+    version: CONFIG_VERSION_INPUT_SCHEMA,
     model: { type: "string", minLength: 1 },
     provider: PROVIDER_CONFIG_INPUT_SCHEMA,
     projectDir: { type: "string" },

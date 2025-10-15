@@ -248,6 +248,7 @@ export interface TranscriptConfig {
 }
 
 export interface EddieConfig {
+  version: number;
   model: string;
   provider: ProviderConfig;
   projectDir: string;
@@ -266,6 +267,7 @@ export interface EddieConfig {
 }
 
 export interface EddieConfigInput {
+  version?: number;
   model?: string;
   provider?: Partial<ProviderConfig>;
   projectDir?: string;
