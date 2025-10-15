@@ -3,7 +3,10 @@
 The Eddie API wraps the engine in a NestJS HTTP server that exposes health
 checks today and leaves room for future automation endpoints. The module now
 ships with a set of global providers to ensure consistent behaviour across
-routes.
+routes. Review the
+[Dependency Injection Best Practices](./di-best-practices.md) guide for a
+deeper look at how constructor injection, tokens, and module boundaries work
+across shared packages before extending these modules.
 
 ## Global Providers
 
