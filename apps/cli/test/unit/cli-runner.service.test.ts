@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import { describe, it, expect, vi, afterEach } from "vitest";
+import { CONFIG_PRESET_NAMES } from "@eddie/config";
 import { CliRunnerService } from "../../src/cli/cli-runner.service";
 import { CliParserService, CliParseError } from "../../src/cli/cli-parser.service";
 import type { CliArguments } from "../../src/cli/cli-arguments";
@@ -93,6 +94,18 @@ describe("CliRunnerService", () => {
     expect(context.execute).not.toHaveBeenCalled();
     expect(chat.execute).not.toHaveBeenCalled();
     expect(trace.execute).not.toHaveBeenCalled();
+  });
+
+  it("lists available configuration presets in help output", async () => {
+    const { runner } = createRunner();
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    await runner.run(["help"]);
+
+    expect(logSpy).toHaveBeenCalledWith("Configuration presets:");
+    for (const preset of CONFIG_PRESET_NAMES) {
+      expect(logSpy).toHaveBeenCalledWith(`- ${preset}`);
+    }
   });
 
   it("wraps parser errors in user-friendly exceptions", async () => {

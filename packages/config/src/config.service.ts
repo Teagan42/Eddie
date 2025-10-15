@@ -12,6 +12,7 @@ import { eddieConfig } from "./config.namespace";
 import { ConfigStore } from './config.store';
 import { DEFAULT_CONFIG } from "./defaults";
 import { getConfigRoot, resolveConfigFilePath } from "./config-path";
+import { CONFIG_PRESET_NAMES, getConfigPreset } from "./presets";
 import type {
   AgentProviderConfig,
   AgentsConfig,
@@ -109,8 +110,13 @@ export class ConfigService {
       ...this.moduleOptions,
       ...options,
     };
-    const finalConfig = this.composeLayers(
+    const defaultsWithPreset = this.applyPreset(
       this.resolveDefaultConfig(),
+      mergedOverrides.preset,
+    );
+
+    const finalConfig = this.composeLayers(
+      defaultsWithPreset,
       input,
       mergedOverrides,
     );
@@ -130,6 +136,28 @@ export class ConfigService {
     const normalisedFileLayer = this.normalizeConfig(withFileLayer);
     const withCliLayer = this.applyCliOverrides(normalisedFileLayer, cliOverrides);
     return this.normalizeConfig(withCliLayer);
+  }
+
+  private applyPreset(
+    defaults: EddieConfig,
+    presetName: string | undefined,
+  ): EddieConfig {
+    if (!presetName) {
+      return defaults;
+    }
+
+    const preset = getConfigPreset(presetName);
+    if (!preset) {
+      const available = CONFIG_PRESET_NAMES.join(", ");
+      const parts = [`Unknown configuration preset: ${presetName}.`];
+      if (available) {
+        parts.push(`Available presets: ${available}.`);
+      }
+      parts.push("Use --preset <name> to apply a preset.");
+      throw new Error(parts.join(" "));
+    }
+
+    return this.applyConfigFileOverrides(defaults, preset);
   }
 
   private resolveProjectDir(
