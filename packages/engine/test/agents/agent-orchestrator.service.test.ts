@@ -112,6 +112,16 @@ describe("AgentOrchestratorService", () => {
     runSpy.mockRestore();
   });
 
+  it("does not expose a stream renderer mutator", () => {
+    const orchestrator = new AgentOrchestratorService(
+      { create: vi.fn() } as any,
+      { render: vi.fn(), flush: vi.fn() } as any,
+      { write: vi.fn() } as any,
+    );
+
+    expect("setStreamRenderer" in orchestrator).toBe(false);
+  });
+
   it("annotates spawn_subagent schema with structured output contract", () => {
     const orchestrator = new AgentOrchestratorService(
       { create: vi.fn() } as any,
