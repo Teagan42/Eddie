@@ -410,6 +410,40 @@ function normalizeOrchestratorMetadata(
   return { ...input, toolInvocations };
 }
 
+function cloneContextBundles(
+  bundles: OrchestratorMetadataDto['contextBundles'] | null | undefined,
+): OrchestratorMetadataDto['contextBundles'] {
+  const source = bundles ?? [];
+  return source.map((bundle) => ({
+    ...bundle,
+    files: bundle.files ? bundle.files.map((file) => ({ ...file })) : undefined,
+  }));
+}
+
+function cloneAgentHierarchy(
+  nodes: OrchestratorMetadataDto['agentHierarchy'] | null | undefined,
+): OrchestratorMetadataDto['agentHierarchy'] {
+  const source = nodes ?? [];
+  return source.map((node) => ({
+    ...node,
+    metadata: node.metadata ? { ...node.metadata } : undefined,
+    children: cloneAgentHierarchy(node.children ?? []),
+  }));
+}
+
+function removeSessionKey<T extends Record<string, unknown>>(
+  record: T,
+  sessionId: string,
+): T {
+  if (!(sessionId in record)) {
+    return record;
+  }
+
+  const next = { ...record } as T;
+  delete next[sessionId];
+  return next;
+}
+
 export function ChatPage(): JSX.Element {
   const api = useApi();
   const { apiKey } = useAuth();
@@ -450,9 +484,40 @@ export function ChatPage(): JSX.Element {
     setAutoSessionAttemptState({ status: 'idle', lastAttemptAt: null, lastFailureAt: null });
   }, [setAutoSessionAttemptState]);
   const agentActivitySessionRef = useRef<string | null>(null);
-  const [orchestratorMetadataBySession, setOrchestratorMetadataBySession] = useState<
-    Record<string, OrchestratorMetadataDto>
+  const [contextBundlesBySession, setContextBundlesBySession] = useState<
+    Record<string, OrchestratorMetadataDto['contextBundles']>
   >({});
+  const [toolInvocationsBySession, setToolInvocationsBySession] = useState<
+    Record<string, ToolInvocationNode[]>
+  >({});
+  const [agentHierarchyBySession, setAgentHierarchyBySession] = useState<
+    Record<string, OrchestratorMetadataDto['agentHierarchy']>
+  >({});
+  const [capturedAtBySession, setCapturedAtBySession] = useState<Record<string, string | undefined>>({});
+  const [metadataPresenceBySession, setMetadataPresenceBySession] = useState<Record<string, true>>({});
+
+  const composeOrchestratorMetadata = useCallback(
+    (sessionId: string): OrchestratorMetadataDto | null => {
+      if (!metadataPresenceBySession[sessionId]) {
+        return null;
+      }
+
+      return {
+        sessionId,
+        contextBundles: contextBundlesBySession[sessionId] ?? [],
+        toolInvocations: toolInvocationsBySession[sessionId] ?? [],
+        agentHierarchy: agentHierarchyBySession[sessionId] ?? [],
+        capturedAt: capturedAtBySession[sessionId],
+      };
+    },
+    [
+      agentHierarchyBySession,
+      capturedAtBySession,
+      contextBundlesBySession,
+      metadataPresenceBySession,
+      toolInvocationsBySession,
+    ],
+  );
 
   const syncOrchestratorMetadataCache = useCallback(
     (sessionId: string, value: OrchestratorMetadataDto | null) => {
@@ -469,37 +534,98 @@ export function ChatPage(): JSX.Element {
       options?: { syncQueryCache?: boolean },
     ): OrchestratorMetadataDto | null | undefined => {
       const { syncQueryCache = true } = options ?? {};
-      let nextValue: OrchestratorMetadataDto | null | undefined;
+      const current = composeOrchestratorMetadata(sessionId);
+      const next = updater(current);
 
-      setOrchestratorMetadataBySession((previous) => {
-        const current = previous[sessionId] ?? null;
-        const next = updater(current);
+      if (Object.is(next, current)) {
+        return current;
+      }
 
-        if (Object.is(next, current)) {
-          nextValue = undefined;
+      if (!next) {
+        setContextBundlesBySession((previous) => removeSessionKey(previous, sessionId));
+        setToolInvocationsBySession((previous) => removeSessionKey(previous, sessionId));
+        setAgentHierarchyBySession((previous) => removeSessionKey(previous, sessionId));
+        setCapturedAtBySession((previous) => removeSessionKey(previous, sessionId));
+        setMetadataPresenceBySession((previous) => removeSessionKey(previous, sessionId));
+
+        if (syncQueryCache) {
+          syncOrchestratorMetadataCache(sessionId, null);
+        }
+
+        return null;
+      }
+
+      const normalized = normalizeOrchestratorMetadata(next);
+      if (!normalized) {
+        return current;
+      }
+
+      const normalizedSessionId = normalized.sessionId ?? sessionId;
+      const normalizedContextBundles = cloneContextBundles(normalized.contextBundles);
+      const normalizedToolInvocations = normalized.toolInvocations ?? [];
+      const normalizedAgentHierarchy = cloneAgentHierarchy(normalized.agentHierarchy);
+      const normalizedCapturedAt = normalized.capturedAt;
+
+      const normalizedCurrent = current
+        ? { ...current, sessionId: normalizedSessionId }
+        : null;
+
+      const nextMetadata: OrchestratorMetadataDto = {
+        sessionId: normalizedSessionId,
+        contextBundles: normalizedContextBundles,
+        toolInvocations: normalizedToolInvocations,
+        agentHierarchy: normalizedAgentHierarchy,
+        capturedAt: normalizedCapturedAt,
+      };
+
+      if (normalizedCurrent && orchestratorMetadataEquals(nextMetadata, normalizedCurrent)) {
+        if (syncQueryCache) {
+          syncOrchestratorMetadataCache(sessionId, normalizedCurrent);
+        }
+        return normalizedCurrent;
+      }
+
+      setContextBundlesBySession((previous) => ({
+        ...previous,
+        [sessionId]: normalizedContextBundles,
+      }));
+      setToolInvocationsBySession((previous) => ({
+        ...previous,
+        [sessionId]: normalizedToolInvocations,
+      }));
+      setAgentHierarchyBySession((previous) => ({
+        ...previous,
+        [sessionId]: normalizedAgentHierarchy,
+      }));
+      setCapturedAtBySession((previous) => {
+        const hasKey = sessionId in previous;
+        const currentValue = previous[sessionId];
+        if ((hasKey && currentValue === normalizedCapturedAt) || (!hasKey && normalizedCapturedAt === undefined)) {
           return previous;
         }
 
-        const nextState = { ...previous } as Record<string, OrchestratorMetadataDto>;
-
-        if (!next) {
+        const nextState = { ...previous } as Record<string, string | undefined>;
+        if (normalizedCapturedAt === undefined) {
           delete nextState[sessionId];
         } else {
-          nextState[sessionId] = next;
+          nextState[sessionId] = normalizedCapturedAt;
         }
-
-        nextValue = next;
         return nextState;
       });
+      setMetadataPresenceBySession((previous) => {
+        if (previous[sessionId]) {
+          return previous;
+        }
+        return { ...previous, [sessionId]: true };
+      });
 
-      if (nextValue === undefined || !syncQueryCache) {
-        return nextValue;
+      if (syncQueryCache) {
+        syncOrchestratorMetadataCache(sessionId, nextMetadata);
       }
 
-      syncOrchestratorMetadataCache(sessionId, nextValue ?? null);
-      return nextValue;
+      return nextMetadata;
     },
-    [syncOrchestratorMetadataCache],
+    [composeOrchestratorMetadata, syncOrchestratorMetadataCache],
   );
 
   const invalidateOrchestratorMetadata = useCallback(
@@ -991,12 +1117,15 @@ export function ChatPage(): JSX.Element {
   const selectedModel = activeSettings.model ?? modelOptions[0] ?? '';
 
   const messages = messagesQuery.data ?? [];
-  const orchestratorMetadata: OrchestratorMetadataDto | null = useMemo(() => {
-    if (!selectedSessionId) {
-      return null;
-    }
-    return orchestratorMetadataBySession[selectedSessionId] ?? null;
-  }, [orchestratorMetadataBySession, selectedSessionId]);
+  const selectedContextBundles = selectedSessionId
+    ? contextBundlesBySession[selectedSessionId] ?? []
+    : [];
+  const selectedToolInvocations = selectedSessionId
+    ? toolInvocationsBySession[selectedSessionId] ?? []
+    : [];
+  const selectedAgentHierarchy = selectedSessionId
+    ? agentHierarchyBySession[selectedSessionId] ?? []
+    : [];
   const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
   const lastMessage = messages[messages.length - 1] ?? null;
   const agentActivityState = useMemo<AgentActivityState>(() => {
@@ -1476,7 +1605,7 @@ export function ChatPage(): JSX.Element {
           <div className="flex w-full flex-col gap-4 lg:w-[22rem] xl:w-[26rem] 2xl:w-[30rem]">
             <ContextBundlesPanel
               id={PANEL_IDS.context}
-              bundles={orchestratorMetadata?.contextBundles}
+              bundles={selectedContextBundles}
               collapsed={Boolean(collapsedPanels[PANEL_IDS.context])}
               onToggle={handleTogglePanel}
             />
@@ -1489,8 +1618,8 @@ export function ChatPage(): JSX.Element {
               onToggle={handleTogglePanel}
             >
               <ToolTree
-                nodes={orchestratorMetadata?.toolInvocations ?? []}
-                agentHierarchy={orchestratorMetadata?.agentHierarchy ?? []}
+                nodes={selectedToolInvocations}
+                agentHierarchy={selectedAgentHierarchy}
               />
             </CollapsiblePanel>
 
@@ -1501,7 +1630,7 @@ export function ChatPage(): JSX.Element {
               collapsed={Boolean(collapsedPanels[PANEL_IDS.agents])}
               onToggle={handleTogglePanel}
             >
-              <AgentTree nodes={orchestratorMetadata?.agentHierarchy ?? []} />
+              <AgentTree nodes={selectedAgentHierarchy} />
             </CollapsiblePanel>
           </div>
         </div>

@@ -11,6 +11,7 @@ const listMessagesMock = vi.fn();
 const getMetadataMock = vi.fn();
 const catalogMock = vi.fn();
 
+let toolCallHandler: ((payload: unknown) => void) | null = null;
 let toolResultHandler: ((payload: unknown) => void) | null = null;
 
 class ResizeObserverMock {
@@ -67,7 +68,10 @@ vi.mock("@/api/api-provider", () => ({
         onAgentActivity: vi.fn().mockReturnValue(() => {}),
       },
       tools: {
-        onToolCall: vi.fn().mockReturnValue(() => {}),
+        onToolCall: vi.fn((handler: (payload: unknown) => void) => {
+          toolCallHandler = handler;
+          return () => {};
+        }),
         onToolResult: vi.fn((handler: (payload: unknown) => void) => {
           toolResultHandler = handler;
           return () => {};
@@ -91,6 +95,7 @@ const renderChatPage = createChatPageRenderer(
 describe("ChatPage orchestrator metadata realtime cache updates", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    toolCallHandler = null;
     toolResultHandler = null;
 
     const timestamp = new Date().toISOString();
@@ -268,5 +273,119 @@ describe("ChatPage orchestrator metadata realtime cache updates", () => {
       const updatedMetadata = client.getQueryData<OrchestratorMetadataDto | null>(queryKey);
       expect(updatedMetadata?.toolInvocations ?? []).not.toHaveLength(0);
     });
+  });
+
+  it("updates tool invocation status when a result event completes", async () => {
+    renderChatPage();
+
+    await waitFor(() => expect(toolCallHandler).toBeTypeOf("function"));
+    await waitFor(() => expect(toolResultHandler).toBeTypeOf("function"));
+
+    await act(async () => {
+      toolCallHandler?.({
+        sessionId: "session-1",
+        id: "call-status-1",
+        name: "filesystem.read",
+        status: "pending",
+      });
+    });
+
+    await waitFor(() => expect(screen.getByText("PENDING")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("filesystem.read").length).toBe(1));
+
+    await act(async () => {
+      toolResultHandler?.({
+        sessionId: "session-1",
+        id: "call-status-1",
+        name: "filesystem.read",
+        status: "completed",
+      });
+    });
+
+    await waitFor(() => expect(screen.getByText("COMPLETED")).toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("PENDING")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("filesystem.read").length).toBe(1));
+  });
+
+  it("refreshes context bundles when consecutive tool results replace them", async () => {
+    renderChatPage();
+
+    await waitFor(() => expect(toolResultHandler).toBeTypeOf("function"));
+
+    await act(async () => {
+      toolResultHandler?.({
+        sessionId: "session-1",
+        id: "call-ctx-1",
+        name: "context-loader",
+        status: "completed",
+        result: {
+          contextBundles: [
+            {
+              id: "bundle-a",
+              label: "Dataset A",
+              summary: "First dataset",
+              fileCount: 1,
+              sizeBytes: 100,
+            },
+          ],
+        },
+      });
+    });
+
+    await waitFor(() => expect(screen.getByText("Dataset A")).toBeInTheDocument());
+
+    await act(async () => {
+      toolResultHandler?.({
+        sessionId: "session-1",
+        id: "call-ctx-1",
+        name: "context-loader",
+        status: "completed",
+        result: {
+          contextBundles: [
+            {
+              id: "bundle-b",
+              label: "Dataset B",
+              summary: "Second dataset",
+              fileCount: 2,
+              sizeBytes: 200,
+            },
+          ],
+        },
+      });
+    });
+
+    await waitFor(() => expect(screen.getByText("Dataset B")).toBeInTheDocument());
+    expect(screen.queryByText("Dataset A")).not.toBeInTheDocument();
+  });
+
+  it("updates tool result previews when new output arrives", async () => {
+    renderChatPage();
+
+    await waitFor(() => expect(toolResultHandler).toBeTypeOf("function"));
+
+    await act(async () => {
+      toolResultHandler?.({
+        sessionId: "session-1",
+        id: "call-preview-1",
+        name: "preview-tool",
+        status: "completed",
+        result: "First preview",
+      });
+    });
+
+    await waitFor(() => expect(screen.getByText("Result: First preview")).toBeInTheDocument());
+
+    await act(async () => {
+      toolResultHandler?.({
+        sessionId: "session-1",
+        id: "call-preview-1",
+        name: "preview-tool",
+        status: "completed",
+        result: "Second preview",
+      });
+    });
+
+    await waitFor(() => expect(screen.getByText("Result: Second preview")).toBeInTheDocument());
+    expect(screen.queryByText("Result: First preview")).not.toBeInTheDocument();
   });
 });
