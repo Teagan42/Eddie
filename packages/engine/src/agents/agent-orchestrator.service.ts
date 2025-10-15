@@ -207,6 +207,11 @@ export class AgentOrchestratorService {
       );
     }
 
+    invocation.setRuntime({
+      provider: descriptor.provider.name,
+      model: descriptor.model,
+      metadata: descriptor.metadata,
+    });
     this.descriptorMap.set(invocation, descriptor);
     return descriptor;
   }

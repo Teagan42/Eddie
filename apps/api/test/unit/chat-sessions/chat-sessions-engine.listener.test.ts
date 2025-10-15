@@ -237,6 +237,51 @@ describe("ChatSessionsEngineListener", () => {
     expect(saveAgentInvocations).toHaveBeenCalledWith("session-1", []);
   });
 
+  it("captures agent runtime metadata in invocation snapshots", async () => {
+    const message = createChatMessage();
+    listMessages.mockReturnValue([message]);
+
+    const managerInvocation = {
+      id: "manager",
+      parent: undefined,
+      messages: [],
+      children: [],
+      runtime: {
+        provider: "openai",
+        model: "gpt-4o-mini",
+      },
+    } as unknown as EngineResult["agents"][number];
+
+    const engineResult: EngineResult = {
+      messages: [],
+      context: { files: [], totalBytes: 0, text: "" },
+      agents: [managerInvocation],
+    };
+
+    engineRun.mockResolvedValue(engineResult);
+
+    capture.mockImplementation(async (_sessionId: string, handler: () => Promise<EngineResult>) => ({
+      result: await handler(),
+      error: undefined,
+      state: { sessionId: "session-1", messageId: undefined, buffer: "" },
+    }));
+
+    await listener.handle(new ChatMessageCreatedEvent(message.sessionId, message.id));
+
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(saveAgentInvocations).toHaveBeenCalledWith(
+      "session-1",
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "manager",
+          provider: "openai",
+          model: "gpt-4o-mini",
+        }),
+      ])
+    );
+  });
+
   it("appends a failure message when the engine rejects", async () => {
     const message = createChatMessage();
     listMessages.mockReturnValue([message]);

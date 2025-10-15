@@ -361,8 +361,8 @@ export class OrchestratorMetadataService {
     const node = new AgentHierarchyNodeDto();
     node.id = invocation.id;
     node.name = spawnDetails?.name ?? invocation.id;
-    node.provider = spawnDetails?.provider;
-    node.model = spawnDetails?.model;
+    node.provider = spawnDetails?.provider ?? invocation.provider;
+    node.model = spawnDetails?.model ?? invocation.model;
     node.depth = depth;
     const metadata: Record<string, unknown> = {
       ...(spawnDetails?.metadata ?? {}),

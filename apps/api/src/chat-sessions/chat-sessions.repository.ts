@@ -39,6 +39,8 @@ export interface AgentInvocationSnapshot {
   id: string;
   messages: AgentInvocationMessageSnapshot[];
   children: AgentInvocationSnapshot[];
+  provider?: string;
+  model?: string;
 }
 
 export interface CreateChatSessionInput {
@@ -98,11 +100,22 @@ export interface ChatSessionsRepository {
 
 const cloneInvocation = (
   invocation: AgentInvocationSnapshot
-): AgentInvocationSnapshot => ({
-  id: invocation.id,
-  messages: invocation.messages.map((message) => ({ ...message })),
-  children: invocation.children.map((child) => cloneInvocation(child)),
-});
+): AgentInvocationSnapshot => {
+  const snapshot: AgentInvocationSnapshot = {
+    id: invocation.id,
+    messages: invocation.messages.map((message) => ({ ...message })),
+    children: invocation.children.map((child) => cloneInvocation(child)),
+  };
+
+  if (invocation.provider) {
+    snapshot.provider = invocation.provider;
+  }
+  if (invocation.model) {
+    snapshot.model = invocation.model;
+  }
+
+  return snapshot;
+};
 
 const cloneSession = (session: ChatSessionRecord): ChatSessionRecord => ({
   ...session,

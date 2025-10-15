@@ -303,7 +303,8 @@ implements IEventHandler<ChatMessageCreatedEvent> {
   private snapshotInvocation(
     agent: AgentInvocation
   ): AgentInvocationSnapshot {
-    return {
+    const runtime = agent.runtime;
+    const snapshot: AgentInvocationSnapshot = {
       id: agent.id,
       messages: agent.messages.map((message) => ({
         role: this.toChatMessageRole(message.role),
@@ -315,6 +316,15 @@ implements IEventHandler<ChatMessageCreatedEvent> {
       })),
       children: agent.children.map((child) => this.snapshotInvocation(child)),
     };
+
+    if (runtime?.provider) {
+      snapshot.provider = runtime.provider;
+    }
+    if (runtime?.model) {
+      snapshot.model = runtime.model;
+    }
+
+    return snapshot;
   }
 
   private toChatMessageRole(role: ChatMessage[ "role" ]): ChatMessageRole {

@@ -14,6 +14,12 @@ export interface AgentInvocationOptions {
   variables?: TemplateVariables;
 }
 
+export interface AgentInvocationRuntimeDetails {
+  provider: string;
+  model: string;
+  metadata?: Record<string, unknown>;
+}
+
 export type AgentSpawnHandler = (
   definition: AgentDefinition,
   options: AgentInvocationOptions
@@ -27,6 +33,7 @@ export class AgentInvocation {
   readonly prompt: string;
   readonly toolRegistry: ToolRegistry;
   private spawnHandler?: AgentSpawnHandler;
+  private runtimeDetails?: AgentInvocationRuntimeDetails;
 
   constructor(
     readonly definition: AgentDefinition,
@@ -59,6 +66,14 @@ export class AgentInvocation {
 
   setSpawnHandler(handler: AgentSpawnHandler): void {
     this.spawnHandler = handler;
+  }
+
+  setRuntime(details: AgentInvocationRuntimeDetails): void {
+    this.runtimeDetails = details;
+  }
+
+  get runtime(): AgentInvocationRuntimeDetails | undefined {
+    return this.runtimeDetails;
   }
 
   async spawn(

@@ -164,6 +164,71 @@ describe("ChatPage orchestrator metadata realtime cache updates", () => {
     await waitFor(() => expect(screen.getAllByText("Primary Agent").length).toBeGreaterThan(0));
   });
 
+  it("preserves agent runtime labels when realtime hierarchy omits provider", async () => {
+    getMetadataMock.mockResolvedValueOnce({
+      sessionId: "session-1",
+      contextBundles: [],
+      toolInvocations: [],
+      agentHierarchy: [
+        {
+          id: "session-1",
+          name: "Session 1",
+          provider: "orchestrator",
+          model: "delegator",
+          depth: 0,
+          metadata: {},
+          children: [
+            {
+              id: "manager",
+              name: "Manager",
+              provider: "anthropic",
+              model: "claude-3-5-sonnet",
+              depth: 1,
+              metadata: {},
+              children: [],
+            },
+          ],
+        },
+      ],
+    } satisfies OrchestratorMetadataDto);
+
+    renderChatPage();
+
+    await waitFor(() => expect(getMetadataMock).toHaveBeenCalledTimes(1));
+
+    expect(await screen.findByText("anthropic")).toBeInTheDocument();
+
+    await act(async () => {
+      toolResultHandler?.({
+        sessionId: "session-1",
+        id: "call-1",
+        name: "delegate",
+        status: "completed",
+        result: {
+          agentHierarchy: [
+            {
+              id: "session-1",
+              name: "Session 1",
+              metadata: {},
+              children: [
+                {
+                  id: "manager",
+                  name: "Manager",
+                  metadata: {},
+                  children: [],
+                },
+              ],
+            },
+          ],
+        },
+      });
+    });
+
+    await waitFor(() => expect(screen.getByText("anthropic")).toBeInTheDocument());
+    expect(screen.queryByText("Unknown provider")).not.toBeInTheDocument();
+    expect(screen.queryByText("Unknown model")).not.toBeInTheDocument();
+  });
+
   it("refreshes metadata panels when the orchestrator request resolves with new data", async () => {
     const { client } = renderChatPage();
 
