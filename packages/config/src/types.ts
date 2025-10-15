@@ -208,6 +208,22 @@ export interface SimpleTranscriptCompactorConfig
   keepLast?: number;
 }
 
+export interface SummarizerTranscriptCompactorConfig
+  extends TranscriptCompactorConfig {
+  strategy: "summarizer";
+  maxMessages?: number;
+  windowSize?: number;
+  label?: string;
+  http?: SummarizerHttpTranscriptCompactorConfig;
+}
+
+export interface SummarizerHttpTranscriptCompactorConfig {
+  url: string;
+  method?: "POST" | "PUT" | "PATCH";
+  headers?: Record<string, string>;
+  timeoutMs?: number;
+}
+
 export interface IntelligentTranscriptCompactorConfig
   extends TranscriptCompactorConfig {
   strategy: "intelligent";

@@ -6,6 +6,7 @@ import {
   resetTranscriptCompactorRegistry,
 } from "../../src/transcript-compactors/registry";
 import type { TranscriptCompactor } from "../../src/transcript-compactors/types";
+import { SummarizingTranscriptCompactor } from "../../src/transcript-compactors/summarizing-transcript-compactor";
 import type {
   AgentInvocation,
   AgentRuntimeDescriptor,
@@ -150,6 +151,114 @@ describe("Transcript compactor registry", () => {
 
     const result = compactor.compact(invocation);
     expect(result.definition?.name).toBe("Manager-alpha");
+  });
+
+  it("attaches a summarizer transcript compactor from global config", async () => {
+    const { service, config } = createService({
+      transcript: {
+        compactor: {
+          strategy: "summarizer",
+          maxMessages: 4,
+          windowSize: 2,
+          label: "Conversation Summary",
+        },
+      },
+    });
+
+    const compactor = (service as any).resolveTranscriptCompactor(config);
+
+    expect(compactor).toBeInstanceOf(SummarizingTranscriptCompactor);
+
+    const invocation = {
+      messages: [
+        { role: "system", content: "system" },
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+        { role: "user", content: "How are you?" },
+        { role: "assistant", content: "Great" },
+      ],
+    } as unknown as AgentInvocation;
+
+    const plan = (compactor as SummarizingTranscriptCompactor).plan(
+      invocation,
+      0,
+    );
+
+    expect(plan).not.toBeNull();
+
+    await plan!.apply();
+
+    expect(invocation.messages[1]?.role).toBe("assistant");
+    expect(invocation.messages[1]?.content).toContain("Conversation Summary");
+  });
+
+  it("summarizes via the configured HTTP endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({ summary: "HTTP summary" }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
+
+    const { service, config } = createService({
+      transcript: {
+        compactor: {
+          strategy: "summarizer",
+          maxMessages: 4,
+          windowSize: 2,
+          label: "Conversation Summary",
+          http: {
+            url: "https://example.com/summarize",
+            headers: { Authorization: "Bearer token" },
+          },
+        },
+      },
+    });
+
+    const compactor = (service as any).resolveTranscriptCompactor(config);
+
+    expect(compactor).toBeInstanceOf(SummarizingTranscriptCompactor);
+
+    const invocation = {
+      definition: { id: "global" },
+      messages: [
+        { role: "system", content: "system" },
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+        { role: "user", content: "How are you?" },
+        { role: "assistant", content: "Great" },
+      ],
+    } as unknown as AgentInvocation;
+
+    const plan = (compactor as SummarizingTranscriptCompactor).plan(
+      invocation,
+      0,
+    );
+
+    expect(plan).not.toBeNull();
+
+    await plan!.apply();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://example.com/summarize");
+    expect(init?.method).toBe("POST");
+    expect(init?.headers).toMatchObject({
+      "content-type": "application/json",
+      Authorization: "Bearer token",
+    });
+    expect(init?.body && JSON.parse(init.body as string)).toMatchObject({
+      messages: [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+      ],
+      agentId: "global",
+    });
+
+    expect(invocation.messages[1]?.role).toBe("assistant");
+    expect(invocation.messages[1]?.content).toContain("Conversation Summary");
+    expect(invocation.messages[1]?.content).toContain("HTTP summary");
   });
 
   it("reuses the same transcript compactors across turns", () => {
