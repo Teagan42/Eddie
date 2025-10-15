@@ -16,7 +16,26 @@ const resolveJsonDialect = (client?: Knex.Config["client"]): JsonStorageDialect 
   return "text";
 };
 
+const addJsonColumn = (
+  table: Knex.CreateTableBuilder,
+  name: string,
+  dialect: JsonStorageDialect,
+  nullable: boolean
+): Knex.ColumnBuilder => {
+  let column: Knex.ColumnBuilder;
+  if (dialect === "jsonb") {
+    column = table.jsonb(name);
+  } else if (dialect === "json") {
+    column = table.json(name);
+  } else {
+    column = table.text(name);
+  }
+  return nullable ? column.nullable() : column.notNullable();
+};
+
 export const initialChatSessionsMigration = async (db: Knex): Promise<void> => {
+  const dialect = resolveJsonDialect(db.client.config?.client);
+
   if (!(await db.schema.hasTable("chat_sessions"))) {
     await db.schema.createTable("chat_sessions", (table) => {
       table.uuid("id").primary();
@@ -61,8 +80,6 @@ export const initialChatSessionsMigration = async (db: Knex): Promise<void> => {
   }
 
   if (!(await db.schema.hasTable("agent_invocations"))) {
-    const dialect = resolveJsonDialect(db.client.config?.client);
-
     await db.schema.createTable("agent_invocations", (table) => {
       table
         .uuid("session_id")
@@ -71,13 +88,64 @@ export const initialChatSessionsMigration = async (db: Knex): Promise<void> => {
         .inTable("chat_sessions")
         .onDelete("CASCADE");
 
-      if (dialect === "jsonb") {
-        table.jsonb("payload").notNullable();
-      } else if (dialect === "json") {
-        table.json("payload").notNullable();
-      } else {
-        table.text("payload").notNullable();
-      }
+      addJsonColumn(table, "payload", dialect, false);
+    });
+  }
+
+  if (!(await db.schema.hasTable("tool_calls"))) {
+    await db.schema.createTable("tool_calls", (table) => {
+      table.uuid("id").primary();
+      table
+        .uuid("session_id")
+        .notNullable()
+        .references("id")
+        .inTable("chat_sessions")
+        .onDelete("CASCADE");
+      table
+        .uuid("message_id")
+        .nullable()
+        .references("id")
+        .inTable("chat_messages")
+        .onDelete("CASCADE");
+      table.string("tool_call_id", 255).nullable();
+      table.string("name", 255).nullable();
+      table.string("status", 32).notNullable();
+      addJsonColumn(table, "arguments", dialect, true);
+      table.timestamp("created_at", { useTz: true }).notNullable();
+      table.timestamp("updated_at", { useTz: true }).notNullable();
+      table.unique(
+        ["session_id", "tool_call_id"],
+        "tool_calls_session_tool_call_id_uq"
+      );
+      table.index(["session_id"], "tool_calls_session_idx");
+    });
+  }
+
+  if (!(await db.schema.hasTable("tool_results"))) {
+    await db.schema.createTable("tool_results", (table) => {
+      table.uuid("id").primary();
+      table
+        .uuid("session_id")
+        .notNullable()
+        .references("id")
+        .inTable("chat_sessions")
+        .onDelete("CASCADE");
+      table
+        .uuid("message_id")
+        .nullable()
+        .references("id")
+        .inTable("chat_messages")
+        .onDelete("CASCADE");
+      table.string("tool_call_id", 255).nullable();
+      table.string("name", 255).nullable();
+      addJsonColumn(table, "result", dialect, true);
+      table.timestamp("created_at", { useTz: true }).notNullable();
+      table.timestamp("updated_at", { useTz: true }).notNullable();
+      table.unique(
+        ["session_id", "tool_call_id"],
+        "tool_results_session_tool_call_id_uq"
+      );
+      table.index(["session_id"], "tool_results_session_idx");
     });
   }
 };
