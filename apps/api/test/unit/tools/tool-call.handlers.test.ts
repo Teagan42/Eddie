@@ -94,7 +94,6 @@ describe("Tool call CQRS", () => {
       result: { items: ["a", "b"] },
       startedAt: "2024-01-01T00:00:00.000Z",
       updatedAt: "2024-01-01T00:00:20.000Z",
-      agentId: "agent-007",
     });
 
     expect(events[0]).toBeInstanceOf(ToolCallStarted);
