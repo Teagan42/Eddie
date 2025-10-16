@@ -1,6 +1,8 @@
 import { Logger } from "@nestjs/common";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import fs from "fs/promises";
+import os from "os";
+import path from "path";
 import * as runtimeEnv from "../src/runtime-env";
 import * as migrations from "../src/migrations";
 
@@ -435,5 +437,37 @@ describe("ConfigService transcript compactor configuration", () => {
     expect(
       composed.agents.subagents[0]?.transcript?.compactor?.keepLast,
     ).toBe(5);
+  });
+});
+
+describe("ConfigService writeSource", () => {
+  it("writes to the injected config file path when available", async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), "config-service-write-")
+    );
+    const destination = path.join(tmpDir, "custom.config.yaml");
+    const configStore = {
+      setSnapshot: vi.fn(),
+      getSnapshot: vi.fn(),
+    } as unknown as ConfigStore;
+    const service = new ConfigService(
+      configStore,
+      {} as CliRuntimeOptions,
+      undefined,
+      destination
+    );
+
+    try {
+      const snapshot = await service.writeSource("logLevel: warn\n", "yaml");
+
+      expect(snapshot.path).toBe(destination);
+      const written = await fs.readFile(destination, "utf-8");
+      expect(written).toBe("logLevel: warn\n");
+      expect(configStore.setSnapshot).toHaveBeenCalledWith(
+        expect.objectContaining({ logLevel: "warn" })
+      );
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
   });
 });
