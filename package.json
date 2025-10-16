@@ -24,7 +24,7 @@
     "preTest": "npm run build",
     "pretest": "npm run preTest",
     "test": "tsx scripts/workspace-tests.ts",
-    "agent:check": "WORKSPACE_TEST_CONCURRENCY=2 npm run lint && npm run test",
+    "agent:check": "WORKSPACE_TEST_CONCURRENCY=2 npm run lint && WORKSPACE_TEST_CONCURRENCY=2 npm run test",
     "bench:perf-benchmarks": "npm run bench --workspace @eddie/perf-benchmarks --if-present",
     "test:coverage": "npm run test -- --coverage",
     "test:integration": "npm run test:integration --workspaces --if-present",
