@@ -40,7 +40,7 @@ agents:
 
 The `mode` flag selects the orchestration strategy (for example `single` for a
 stand-alone agent or `router` for multi-agent fan-out) and can also be provided
-via `--agent-mode` at the CLI.【F:apps/cli/src/config/config.service.ts†L336-L360】【F:apps/cli/src/cli/cli-parser.service.ts†L20-L44】
+via `--agent-mode` at the CLI.【F:platform/core/config/src/config.service.ts†L623-L638】【F:apps/cli/src/cli/cli-parser.service.ts†L20-L44】
 
 ### Provider profiles
 
@@ -48,7 +48,7 @@ Agents may bind to different model providers by declaring a `providers` catalog
 at the top level of the Eddie config. Each profile bundles a provider adapter
 configuration (name, base URL, API key, etc.) with an optional default model
 string. The manager and each subagent can then reference a profile by ID or
-inline override their provider settings.【F:apps/cli/src/config/types.ts†L5-L102】
+inline override their provider settings.【F:platform/core/types/src/config.ts†L105-L139】
 
 ```yaml
 provider:
@@ -72,7 +72,7 @@ When resolving runtime settings the engine clones the base provider, merges in
 CLI overrides (for example `--provider anthropic-us` or `--provider
 custom-name`), and applies any per-agent selections. Referencing a known profile
 copies its adapter options and default model, while custom strings fall back to
-the base provider name so ad-hoc endpoints remain reachable.【F:apps/cli/src/config/config.service.ts†L173-L238】【F:apps/cli/src/core/engine/engine.service.ts†L355-L460】
+the base provider name so ad-hoc endpoints remain reachable.【F:platform/core/config/src/config.service.ts†L437-L449】【F:platform/core/config/src/config.service.ts†L533-L547】【F:apps/cli/src/core/engine/engine.service.ts†L355-L460】
 
 Subagents may set `provider: <profile>` or supply an inline object:
 
@@ -101,13 +101,13 @@ Managers and subagents share the same shape: they support inline prompts or Jinj
 templates, default user prompt templates, template variables, and resource
 attachments. These are validated through the configuration service, ensuring
 each agent receives clean copies of prompt descriptors, variables, and context
-resource definitions.【F:apps/cli/src/config/types.ts†L61-L100】【F:apps/cli/src/config/config.service.ts†L312-L387】
+resource definitions.【F:platform/core/types/src/config.ts†L168-L195】【F:platform/core/config/src/config.service.ts†L641-L703】
 
 Subagents extend this with optional `tools` (a whitelist applied before
 invocation) and a `routingThreshold` that downstream router implementations can
-use to gate automatic delegation.【F:apps/cli/src/config/types.ts†L77-L100】 The list of
+use to gate automatic delegation.【F:platform/core/types/src/config.ts†L181-L195】 The list of
 subagents is cloned during config resolution so each invocation starts with a
-fresh definition.【F:apps/cli/src/config/config.service.ts†L338-L387】
+fresh definition.【F:platform/core/config/src/config.service.ts†L729-L827】
 
 ### Prompt template examples
 
@@ -227,12 +227,12 @@ _Target audience: {{ audience }}_
 Global routing metadata lives under `agents.routing` and supports a
 `confidenceThreshold` (0–1) and `maxDepth` (nested levels allowed). Both fields
 are validated during config merge to guard against invalid values, ensuring the
-orchestrator does not recurse unexpectedly.【F:apps/cli/src/config/config.service.ts†L420-L475】【F:apps/cli/src/config/config.service.ts†L756-L783】
+orchestrator does not recurse unexpectedly.【F:platform/core/config/src/validation/config-validator.ts†L334-L352】【F:platform/core/config/src/config.service.ts†L729-L827】
 
 Individual subagents may also supply `routingThreshold` hints so a router can
 pick the most relevant candidate when confidence scores are available (for
 example when using semantic routing or classification). This is optional but can
-help prevent low-signal branches.【F:apps/cli/src/config/types.ts†L77-L82】
+help prevent low-signal branches.【F:platform/core/types/src/config.ts†L181-L195】
 
 ### Runtime controls
 
@@ -242,7 +242,7 @@ At execution time the CLI exposes several toggles:
   files.【F:apps/cli/src/cli/cli-parser.service.ts†L20-L44】
 - `--disable-subagents` flips `agents.enableSubagents` to `false` for the
   current run, forcing the manager to operate alone even if definitions are
-  present.【F:apps/cli/src/cli/cli-parser.service.ts†L27-L44】【F:apps/cli/src/config/config.service.ts†L288-L307】
+  present.【F:apps/cli/src/cli/cli-parser.service.ts†L27-L44】【F:platform/core/config/src/config.service.ts†L632-L638】
 
 ### Delegating with `spawn_subagent`
 

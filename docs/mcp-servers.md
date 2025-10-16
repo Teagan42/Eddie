@@ -12,7 +12,7 @@ MCP servers are configured in the `tools.sources` array inside
 `eddie.config.(json|yaml)`. Each entry must provide a unique `id`, the literal
 `type: "mcp"`, and the JSON-RPC endpoint `url`. Optional fields let you set a
 human readable `name`, inject HTTP `headers`, and advertise protocol
-`capabilities` to the server during the handshake.【F:apps/cli/src/config/types.ts†L194-L210】【F:apps/cli/src/config/config.service.ts†L948-L1016】
+`capabilities` to the server during the handshake.【F:platform/core/types/src/config.ts†L367-L380】【F:platform/core/config/src/validation/config-validator.ts†L385-L514】
 
 ```yaml
 model: gpt-4o-mini
@@ -46,7 +46,7 @@ If your MCP server requires authentication, declare the scheme under the
 `auth` block. Basic credentials are converted to `Authorization: Basic` headers
 and bearer tokens map to `Authorization: Bearer` automatically. You can also set
 `type: "none"` to force Eddie to skip header injection when the server relies on
-other mechanisms (for example IP allow lists).【F:apps/cli/src/config/types.ts†L200-L210】【F:apps/cli/src/config/config.service.ts†L1018-L1052】【F:apps/cli/src/integrations/mcp/mcp-tool-source.service.ts†L204-L268】
+other mechanisms (for example IP allow lists).【F:platform/core/types/src/config.ts†L347-L365】【F:platform/core/config/src/validation/config-validator.ts†L465-L500】【F:apps/cli/src/integrations/mcp/mcp-tool-source.service.ts†L204-L268】
 
 ```yaml
 tools:

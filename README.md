@@ -122,7 +122,7 @@ binary that is also published as the `eddie` executable.
 ## Configuration
 
 Eddie loads configuration from `eddie.config.(json|yaml)` in your project root
-and merges it with the defaults defined in `apps/cli/src/config/defaults.ts`. CLI flags
+and merges it with the defaults defined in `platform/core/config/src/defaults.ts`. CLI flags
 still win for per-run overrides (for example `--model`, `--provider`,
 `--context`, `--auto-approve`, `--jsonl-trace`).
 
@@ -158,7 +158,7 @@ Every top-level key in `EddieConfig` serves a specific subsystem:
 - The configuration wizard walkthrough lives in
   [docs/configuration-wizard.md](docs/configuration-wizard.md).
 
-Whenever you add a new configuration key in `apps/cli/src/config/types.ts`, update this
+Whenever you add a new configuration key in `platform/core/config/src/types.ts`, update this
 section, `DEFAULT_CONFIG`, and any impacted guides so the documentation stays in
 sync with the runtime expectations.
 

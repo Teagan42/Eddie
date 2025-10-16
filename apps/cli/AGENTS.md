@@ -8,13 +8,13 @@ The CLI orchestrates Eddie's agent workflows and wires runtime services together
 CLI (CliRunnerService → CliParserService)
   ├─ ask/run/chat/context/trace commands
   └─ CliOptionsService.parse → Engine
-Engine (src/core/engine)
-  ├─ loadConfig → config/config.service.ts (merges defaults + file + CLI flags)
-  ├─ ContextService → core/context/context.service.ts (glob, ignore, budgets)
-  ├─ makeProvider → core/providers/* (adapter pattern)
-  ├─ ToolRegistry → core/tools/* (AJV validated tool calls)
+Engine (platform/runtime/engine/src)
+  ├─ loadConfig → platform/core/config/src/config.service.ts (merges defaults + file + CLI flags)
+  ├─ ContextService → platform/runtime/context/src/context.service.ts (glob, ignore, budgets)
+  ├─ makeProvider → platform/integrations/providers/src/* (adapter pattern)
+  ├─ ToolRegistry → platform/runtime/tools/src/* (AJV validated tool calls)
   ├─ stream loop → handles deltas, tool calls, traces, hooks
-  └─ LoggerService.configure → io/logger.service.ts (per-run structured logging)
+  └─ LoggerService.configure → platform/runtime/io/src/logger.service.ts (per-run structured logging)
 ```
 
 ### Key Flows
