@@ -1,8 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import type { AgentRuntimeDescriptor } from "@eddie/types";
+import { HOOK_EVENTS, type AgentLifecyclePayload, type AgentRuntimeDescriptor } from "@eddie/types";
 import type { AgentInvocation } from "../agents/agent-invocation";
-import type { AgentLifecyclePayload } from "@eddie/hooks";
-import { HOOK_EVENTS } from "@eddie/hooks";
 import type { HookBus } from "@eddie/hooks";
 import type { EddieConfig, TranscriptCompactorConfig } from "@eddie/types";
 import type { Logger } from "pino";

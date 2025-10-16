@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import fs from "fs/promises";
 import path from "path";
 import nunjucks from "nunjucks";
-import type { TemplateDescriptor, TemplateVariables } from "./template.types";
+import type { TemplateDescriptor, TemplateVariables } from "@eddie/types";
 
 const DEFAULT_ENCODING: BufferEncoding = "utf-8";
 const INLINE_KEY = "<inline>";

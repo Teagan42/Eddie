@@ -7,7 +7,7 @@ import {
   isHookEventName,
   type HookEventName,
   type HookListener,
-} from "./types";
+} from "@eddie/types";
 import {
   importESM,
   isESM,
@@ -15,7 +15,6 @@ import {
   resolveEntry,
 } from "./utils";
 
-export type { HookEventHandlers } from "./types";
 
 export type HookInstaller = (
   bus: HookBus,

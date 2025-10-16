@@ -5,11 +5,11 @@ import type {
   ChatMessage,
   ContextResourceTemplateConfig,
   PackedContext,
+  TemplateVariables,
 } from "@eddie/types";
 import type { Logger } from "pino";
 import { LoggerService } from "@eddie/io";
 import { TemplateRendererService } from "./template-renderer.service";
-import type { TemplateVariables } from "./template.types";
 
 export const TEMPLATE_RUNTIME_LOGGER = Symbol("TEMPLATE_RUNTIME_LOGGER");
 

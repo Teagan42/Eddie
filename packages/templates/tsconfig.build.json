@@ -14,5 +14,13 @@
     "dist",
     "test",
     "**/*.spec.ts"
+  ],
+  "references": [
+    {
+      "path": "../io"
+    },
+    {
+      "path": "../types"
+    }
   ]
 }

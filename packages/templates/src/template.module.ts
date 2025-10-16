@@ -1,5 +1,4 @@
 import { Module } from "@nestjs/common";
-import { LoggerService } from "@eddie/io";
 import { TemplateRendererService } from "./template-renderer.service";
 import {
   TemplateRuntimeService,
@@ -8,7 +7,6 @@ import {
 
 const templateModuleProviders = [
   TemplateRendererService,
-  LoggerService,
   ...templateRuntimeProviders,
 ];
 

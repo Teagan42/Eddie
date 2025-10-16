@@ -10,23 +10,23 @@ import type {
   CliRuntimeOptions,
   ContextConfig,
   EddieConfig,
+  HookDispatchResult,
+  HookEventName,
   ProviderConfig,
+  SessionMetadata,
+  SessionStatus,
 } from "@eddie/types";
 import { ConfigStore } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { ProviderFactoryService } from "@eddie/providers";
 import { builtinTools } from "@eddie/tools";
 import { ConfirmService, LoggerService } from "@eddie/io";
-import { HooksService, HOOK_EVENTS } from "@eddie/hooks";
+import { HooksService } from "@eddie/hooks";
 import type { HookBus } from "@eddie/hooks";
-import type {
-  HookDispatchResult,
-  HookEventName,
-  SessionMetadata,
-  SessionStatus,
-} from "@eddie/hooks";
+
 import {
   composeResourceText,
+  HOOK_EVENTS,
   type ChatMessage,
   type PackedContext,
   type PackedResource,

@@ -8,8 +8,15 @@
     "declarationMap": true,
     "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo"
   },
-  "include": ["src/**/*.ts"],
+  "include": [
+    "src/**/*.ts"
+  ],
   "references": [
-    { "path": "../types" }
+    {
+      "path": "../io"
+    },
+    {
+      "path": "../types"
+    }
   ]
 }

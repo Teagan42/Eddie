@@ -16,7 +16,6 @@
     "test": "vitest --run --config vitest.config.ts"
   },
   "dependencies": {
-    "@eddie/config": "^0.0.0",
     "@eddie/types": "^0.0.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/cqrs": "^11.0.0",

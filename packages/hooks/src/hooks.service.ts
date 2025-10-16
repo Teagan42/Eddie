@@ -1,12 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
-import type { HooksConfig } from "@eddie/config";
+import type { HooksConfig } from "@eddie/types";
 import { HookBus } from "./hook-bus.service";
 import { HookBusFactory } from "./hook-bus.factory";
 import {
   HooksLoaderService,
-  type HookEventHandlers,
   type HookModule,
 } from "./hooks-loader.service";
+import { HookEventHandlers } from '@eddie/types';
 
 /**
  * HooksService resolves configured hook modules and wires them into the shared

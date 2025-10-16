@@ -18,7 +18,7 @@ import {
 } from "@eddie/types";
 import { LoggerService } from "@eddie/io";
 import { TemplateRuntimeService } from "@eddie/templates";
-import type { TemplateVariables } from "@eddie/templates";
+import type { TemplateVariables } from "@eddie/types";
 
 const DEFAULT_MAX_BYTES = 250_000;
 const DEFAULT_MAX_FILES = 64;
