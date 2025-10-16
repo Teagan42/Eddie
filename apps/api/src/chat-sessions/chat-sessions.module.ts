@@ -83,7 +83,7 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
 @Module({
   imports: [
     EngineModule,
-    IoModule.register(),
+    IoModule,
     TracesModule,
     LogsModule,
     ConfigModule,
