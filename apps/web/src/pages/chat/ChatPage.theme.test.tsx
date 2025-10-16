@@ -171,5 +171,14 @@ describe("ChatPage message surfaces", () => {
     const reissueButton = await screen.findByRole("button", { name: "Re-issue command" });
 
     expect(reissueButton).toHaveAttribute("data-accent-color", "amber");
+    expect(reissueButton).toHaveClass("bg-amber-500");
+
+    const icon = reissueButton.querySelector("svg");
+
+    if (!icon) {
+      throw new Error("Expected reload icon to be rendered");
+    }
+
+    expect(icon).toHaveClass("text-white/90");
   });
 });
