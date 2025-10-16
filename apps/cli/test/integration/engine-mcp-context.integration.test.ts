@@ -17,6 +17,7 @@ import {
 import type { TokenizerService } from "@eddie/tokenizers";
 import type { McpToolSourceService } from "@eddie/mcp";
 import { TemplateRendererService } from "@eddie/templates";
+import { TemplateRuntimeService } from "@eddie/engine/templating";
 import { ToolRegistryFactory } from "@eddie/tools";
 import type { AgentOrchestratorService } from "@eddie/engine";
 import type { PackedContext } from "@eddie/types";
@@ -97,9 +98,10 @@ describe("EngineService MCP resource integration", () => {
 
     const templateRenderer = new TemplateRendererService();
     const renderSpy = vi.spyOn(templateRenderer, "renderString");
+    const templateRuntime = new TemplateRuntimeService(templateRenderer, logger);
     const agentInvocationFactory = new AgentInvocationFactory(
       new ToolRegistryFactory(),
-      templateRenderer
+      templateRuntime
     );
 
     const orchestrator = {

@@ -1,35 +1,24 @@
 import "reflect-metadata";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { Test, type TestingModule } from "@nestjs/testing";
 import fs from "fs/promises";
 import path from "path";
 import { ContextService } from "@eddie/context";
 import { LoggerService } from "@eddie/io";
 import { TemplateRendererService } from "@eddie/templates";
+import { TemplateRuntimeService } from "@eddie/engine/templating";
 
 const tmpDir = path.join(process.cwd(), "test-temp");
-let moduleRef: TestingModule;
 let loggerService: LoggerService;
 let contextService: ContextService;
 
 beforeAll(async () => {
-  moduleRef = await Test.createTestingModule({
-    providers: [
-      LoggerService,
-      TemplateRendererService,
-      {
-        provide: ContextService,
-        useFactory: (
-          logger: LoggerService,
-          renderer: TemplateRendererService
-        ) => new ContextService(logger, renderer),
-        inject: [LoggerService, TemplateRendererService],
-      },
-    ],
-  }).compile();
-
-  loggerService = moduleRef.get(LoggerService);
-  contextService = moduleRef.get(ContextService);
+  loggerService = new LoggerService();
+  const templateRenderer = new TemplateRendererService();
+  const templateRuntime = new TemplateRuntimeService(
+    templateRenderer,
+    loggerService.getLogger("engine:templates")
+  );
+  contextService = new ContextService(loggerService, templateRuntime);
 
   await fs.mkdir(tmpDir, { recursive: true });
   await fs.writeFile(path.join(tmpDir, "a.txt"), "hello world", "utf-8");
@@ -74,7 +63,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await fs.rm(tmpDir, { recursive: true, force: true });
   loggerService.reset();
-  await moduleRef.close();
 });
 
 describe("packContext", () => {

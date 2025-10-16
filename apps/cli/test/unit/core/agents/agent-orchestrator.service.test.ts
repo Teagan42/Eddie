@@ -23,6 +23,8 @@ import {
 } from "@eddie/io";
 import { HookBus, HOOK_EVENTS, blockHook } from "@eddie/hooks";
 import { TemplateRendererService } from "@eddie/templates";
+import { TemplateRuntimeService } from "@eddie/engine/templating";
+import type { Logger } from "pino";
 
 class RecordingStreamRendererService extends StreamRendererService {
   readonly events: StreamEvent[] = [];
@@ -94,9 +96,14 @@ describe("AgentOrchestratorService", () => {
   beforeEach(() => {
     const toolRegistryFactory = new ToolRegistryFactory();
     const templateRenderer = new TemplateRendererService();
+    const templateLogger = { debug: () => {} } as unknown as Logger;
+    const templateRuntime = new TemplateRuntimeService(
+      templateRenderer,
+      templateLogger
+    );
     agentInvocationFactory = new AgentInvocationFactory(
       toolRegistryFactory,
-      templateRenderer
+      templateRuntime
     );
     renderer = new RecordingStreamRendererService();
     eventBus = new RecordingEventBus();

@@ -9,6 +9,7 @@ import type { ContextConfig, ContextResourceBundleConfig } from '@eddie/config';
 import { ContextService } from '@eddie/context';
 import { LoggerService } from '@eddie/io';
 import { TemplateRendererService } from '@eddie/templates';
+import { TemplateRuntimeService } from '@eddie/engine/templating';
 
 import type { ContextPackDataset } from './context-pack.fixtures';
 import { prepareContextPackDatasets } from './context-pack.fixtures';
@@ -62,7 +63,11 @@ suite('ContextService.pack benchmarks', () => {
     const loggerService = new LoggerService();
     loggerService.configure({ level: 'silent' });
     const templateRenderer = new TemplateRendererService();
-    contextService = new ContextService(loggerService, templateRenderer);
+    const templateRuntime = new TemplateRuntimeService(
+      templateRenderer,
+      loggerService.getLogger('engine:templates')
+    );
+    contextService = new ContextService(loggerService, templateRuntime);
 
     for (const dataset of datasets) {
       datasetContexts.set(dataset.name, {
