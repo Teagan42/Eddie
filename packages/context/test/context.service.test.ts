@@ -4,7 +4,7 @@ import { Readable } from "node:stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Test } from "@nestjs/testing";
 import { LoggerService } from "@eddie/io";
-import { TemplateRuntimeService } from "@eddie/engine";
+import { TemplateRuntimeService } from "@eddie/engine/templating";
 import { ContextService } from "../src/context.service";
 
 const fsMocks = vi.hoisted(() => ({

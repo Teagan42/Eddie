@@ -6,7 +6,42 @@
     "outDir": "dist",
     "declaration": true,
     "declarationMap": true,
-    "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo"
+    "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo",
+    "paths": {
+      "@eddie/config": ["packages/config/src"],
+      "@eddie/config/*": ["packages/config/src/*"],
+      "@eddie/context": ["packages/context/src"],
+      "@eddie/context/*": ["packages/context/src/*"],
+      "@eddie/engine": ["packages/engine/src"],
+      "@eddie/engine/*": ["packages/engine/src/*"],
+      "@eddie/hooks": ["packages/hooks/src"],
+      "@eddie/hooks/*": ["packages/hooks/src/*"],
+      "@eddie/perf-benchmarks": ["packages/perf-benchmarks/src"],
+      "@eddie/perf-benchmarks/*": ["packages/perf-benchmarks/src/*"],
+      "@eddie/io": ["packages/io/src"],
+      "@eddie/io/*": ["packages/io/src/*"],
+      "@eddie/mcp": ["packages/mcp/src"],
+      "@eddie/mcp/*": ["packages/mcp/src/*"],
+      "@eddie/providers": ["packages/providers/src"],
+      "@eddie/providers/*": ["packages/providers/src/*"],
+      "@eddie/templates": ["packages/templates/src"],
+      "@eddie/templates/*": ["packages/templates/src/*"],
+      "@eddie/tokenizers": ["packages/tokenizers/src"],
+      "@eddie/tokenizers/*": ["packages/tokenizers/src/*"],
+      "@eddie/tools": ["packages/tools/src"],
+      "@eddie/tools/*": ["packages/tools/src/*"],
+      "@eddie/types": [
+        "packages/types/dist/index.d.ts",
+        "packages/types/src"
+      ],
+      "@eddie/types/*": [
+        "packages/types/dist/*",
+        "packages/types/src/*"
+      ],
+      "@eddie/engine/templating": [
+        "packages/context/src/@types/engine-templating"
+      ]
+    }
   },
   "include": ["src/**/*.ts"],
   "references": [
