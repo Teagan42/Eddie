@@ -20,10 +20,10 @@
       "path": "../io"
     },
     {
-      "path": "../templates"
+      "path": "../../core/templates"
     },
     {
-      "path": "../types"
+      "path": "../../core/types"
     }
   ]
 }

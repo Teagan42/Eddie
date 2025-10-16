@@ -18,13 +18,13 @@
   ],
   "references": [
     {
-      "path": "../config"
+      "path": "../../core/config"
     },
     {
-      "path": "../types"
+      "path": "../../core/types"
     },
     {
-      "path": "../io"
+      "path": "../../runtime/io"
     }
   ]
 }

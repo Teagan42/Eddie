@@ -17,7 +17,7 @@
   ],
   "references": [
     {
-      "path": "../config"
+      "path": "../../core/config"
     },
     {
       "path": "../context"
@@ -29,22 +29,22 @@
       "path": "../io"
     },
     {
-      "path": "../mcp"
+      "path": "../../integrations/mcp"
     },
     {
-      "path": "../providers"
+      "path": "../../integrations/providers"
     },
     {
-      "path": "../templates"
+      "path": "../../core/templates"
     },
     {
-      "path": "../tokenizers"
+      "path": "../../core/tokenizers"
     },
     {
       "path": "../tools"
     },
     {
-      "path": "../types"
+      "path": "../../core/types"
     }
   ]
 }

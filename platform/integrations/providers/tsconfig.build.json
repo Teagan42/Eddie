@@ -17,10 +17,10 @@
   ],
   "references": [
     {
-      "path": "../config"
+      "path": "../../core/config"
     },
     {
-      "path": "../types"
+      "path": "../../core/types"
     }
   ]
 }

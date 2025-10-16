@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createPackageVitestConfig } from "../../.vitest.workspace.config";
+import { createPackageVitestConfig } from "../../../.vitest.workspace.config";
 
 const createConfig = () => createPackageVitestConfig("engine");
 

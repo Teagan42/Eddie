@@ -17,7 +17,7 @@
   ],
   "references": [
     {
-      "path": "../types"
+      "path": "../../core/types"
     }
   ]
 }

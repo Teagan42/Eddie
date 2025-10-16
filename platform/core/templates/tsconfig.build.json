@@ -17,7 +17,7 @@
   ],
   "references": [
     {
-      "path": "../io"
+      "path": "../../runtime/io"
     },
     {
       "path": "../types"
