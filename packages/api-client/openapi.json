@@ -987,11 +987,6 @@
               "yaml",
               "json"
             ]
-          },
-          "path": {
-            "type": "object",
-            "description": "Optional explicit path override when persisting the configuration.",
-            "nullable": true
           }
         },
         "required": [

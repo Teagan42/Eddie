@@ -69,5 +69,14 @@ describe("@eddie/types shared contracts", () => {
     }>();
 
     expectTypeOf<ConfigSourceRequestPayload>().toHaveProperty("content").toMatchTypeOf<string>();
+    expectTypeOf<ConfigSourceRequestPayload>().toHaveProperty("format").toMatchTypeOf<ConfigSourceRequestPayload["format"]>();
+
+    // @ts-expect-error path overrides are no longer accepted on request payloads
+    const invalidPayload: ConfigSourceRequestPayload = {
+      content: "model: gpt-4",
+      format: "yaml",
+      path: "./eddie.config.yaml",
+    };
+    void invalidPayload;
   });
 });

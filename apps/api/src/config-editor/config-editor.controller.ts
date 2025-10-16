@@ -63,11 +63,7 @@ export class ConfigEditorController {
   @ApiBody({ type: ConfigSourcePayloadDto })
   @Put("editor")
   async save(@Body() payload: ConfigSourcePayloadDto): Promise<ConfigSourceDto> {
-    const snapshot = await this.editor.save(
-      payload.content,
-      payload.format,
-      payload.path
-    );
+    const snapshot = await this.editor.save(payload.content, payload.format);
     return {
       path: snapshot.path,
       format: snapshot.format,
