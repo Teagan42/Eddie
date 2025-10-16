@@ -137,10 +137,6 @@ jobs:
           push: true
           skip_empty: true
 
-      - name: Push updates
-        if: steps.config-schema-diff.outputs.changed == 'true' && steps.commit.outputs.committed == 'true'
-        run: git push
-
   build-test:
     name: Build & Test (${{ matrix.workspace.name }} @ Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
@@ -225,7 +221,20 @@ jobs:
       - name: Regenerate third-party notices
         run: npm run licenses:write
 
+      - name: Detect third-party notice changes
+        id: third-party-diff
+        run: |
+          set -euo pipefail
+          file_path="THIRD_PARTY_NOTICES.md"
+
+          if git diff --quiet -- "$file_path"; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Commit updated notices
+        if: steps.third-party-diff.outputs.changed == 'true'
         id: commit
         uses: EndBug/add-and-commit@v9
         with:
@@ -233,10 +242,6 @@ jobs:
           message: "chore: update third-party notices"
           push: true
           skip_empty: true
-
-      - name: Push updates
-        if: steps.commit.outputs.committed == 'true'
-        run: git push
 
   summary:
     name: CI summary
