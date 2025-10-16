@@ -10,6 +10,7 @@ import { ConfigSchemaDto } from "./dto/config-schema.dto";
 import { ConfigSourceDto } from "./dto/config-source.dto";
 import { ConfigPreviewDto } from "./dto/config-preview.dto";
 import { ConfigSourcePayloadDto } from "./dto/config-source-payload.dto";
+import type { ConfigFileSnapshot } from "@eddie/types";
 
 @ApiTags("config")
 @Controller("config")
@@ -34,14 +35,7 @@ export class ConfigEditorController {
   @Get("editor")
   async getSource(): Promise<ConfigSourceDto> {
     const snapshot = await this.editor.getSnapshot();
-    return {
-      path: snapshot.path,
-      format: snapshot.format,
-      content: snapshot.content,
-      input: snapshot.input,
-      config: snapshot.config ?? null,
-      error: snapshot.error ?? null,
-    };
+    return this.mapSnapshotToDto(snapshot);
   }
 
   @ApiOperation({ summary: "Preview an Eddie configuration payload." })
@@ -63,7 +57,12 @@ export class ConfigEditorController {
   @ApiBody({ type: ConfigSourcePayloadDto })
   @Put("editor")
   async save(@Body() payload: ConfigSourcePayloadDto): Promise<ConfigSourceDto> {
-    const snapshot = await this.editor.save(payload.content, payload.format);
+    const { content, format } = payload;
+    const snapshot = await this.editor.save(content, format);
+    return this.mapSnapshotToDto(snapshot);
+  }
+
+  private mapSnapshotToDto(snapshot: ConfigFileSnapshot): ConfigSourceDto {
     return {
       path: snapshot.path,
       format: snapshot.format,

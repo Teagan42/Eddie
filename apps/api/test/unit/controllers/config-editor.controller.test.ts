@@ -97,4 +97,27 @@ describe("ConfigEditorController", () => {
 
     expect(service.save).toHaveBeenCalledWith(payload.content, payload.format);
   });
+
+  it("does not read an optional payload path when saving", async () => {
+    service.save.mockResolvedValue(snapshot);
+
+    const payload = new Proxy(
+      {
+        content: "model: gpt-4",
+        format: "yaml",
+      },
+      {
+        get(target, property, receiver) {
+          if (property === "path") {
+            throw new Error("path should not be accessed");
+          }
+          return Reflect.get(target, property, receiver);
+        },
+      }
+    ) as ConfigSourcePayloadDto;
+
+    await controller.save(payload);
+
+    expect(service.save).toHaveBeenCalledWith("model: gpt-4", "yaml");
+  });
 });
