@@ -1,7 +1,11 @@
 import "reflect-metadata";
 import { Buffer } from "buffer";
 import { describe, it, expect, vi } from "vitest";
-import { EngineService, AgentInvocationFactory } from "@eddie/engine";
+import {
+  EngineService,
+  AgentInvocationFactory,
+  TranscriptCompactionService,
+} from "@eddie/engine";
 import {
   ConfigStore,
   type EddieConfig,
@@ -17,6 +21,7 @@ import {
 import type { TokenizerService } from "@eddie/tokenizers";
 import type { McpToolSourceService } from "@eddie/mcp";
 import { TemplateRendererService } from "@eddie/templates";
+import { TemplateRuntimeService } from "@eddie/engine";
 import { ToolRegistryFactory } from "@eddie/tools";
 import type { AgentOrchestratorService } from "@eddie/engine";
 import type { PackedContext } from "@eddie/types";
@@ -96,10 +101,14 @@ describe("EngineService MCP resource integration", () => {
     };
 
     const templateRenderer = new TemplateRendererService();
+    const templateRuntime = new TemplateRuntimeService(
+      templateRenderer,
+      logger,
+    );
     const renderSpy = vi.spyOn(templateRenderer, "renderString");
     const agentInvocationFactory = new AgentInvocationFactory(
       new ToolRegistryFactory(),
-      templateRenderer
+      templateRuntime
     );
 
     const orchestrator = {
@@ -134,6 +143,11 @@ describe("EngineService MCP resource integration", () => {
       })),
     } as unknown as McpToolSourceService;
 
+    const transcriptCompactionService = {
+      selectFor: vi.fn(),
+      planAndApply: vi.fn(),
+    } as unknown as TranscriptCompactionService;
+
     const engine = new EngineService(
       store,
       contextService,
@@ -143,7 +157,8 @@ describe("EngineService MCP resource integration", () => {
       tokenizerService,
       loggerService as LoggerServiceType,
       orchestrator,
-      mcpToolSourceService
+      mcpToolSourceService,
+      transcriptCompactionService,
     );
 
     const result = await engine.run("Summarize docs");

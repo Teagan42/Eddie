@@ -7,7 +7,6 @@ import type { HookBus } from "@eddie/hooks";
 import type {
   AgentLifecyclePayload,
   AgentMetadata,
-  AgentTranscriptCompactionPayload,
   HookDispatchResult,
   HookEventMap,
   HookEventName,
@@ -37,6 +36,7 @@ import type {
 import { AgentRunner, type AgentTraceEvent } from "./agent-runner";
 import type { TemplateVariables } from "@eddie/templates";
 import type { TranscriptCompactorSelector } from "../transcript-compactors/types";
+import { TranscriptCompactionService } from "../transcript/transcript-compaction.service";
 export type {
   TranscriptCompactionPlan,
   TranscriptCompactionResult,
@@ -80,7 +80,8 @@ export class AgentOrchestratorService {
         private readonly agentInvocationFactory: AgentInvocationFactory,
         private readonly streamRenderer: StreamRendererService,
         private readonly eventBus: EventBus,
-        private readonly traceWriter: JsonlWriterService
+        private readonly traceWriter: JsonlWriterService,
+        private readonly transcriptCompactionService: TranscriptCompactionService,
   ) { }
 
   async runAgent(
@@ -604,7 +605,6 @@ export class AgentOrchestratorService {
     }
 
     const descriptor = this.getInvocationDescriptor(invocation);
-
     const lifecycle = this.createLifecyclePayload(invocation);
     const runner = new AgentRunner({
       invocation,
@@ -624,6 +624,7 @@ export class AgentOrchestratorService {
         await this.applyTranscriptCompactionIfNeeded(
           runtime,
           invocation,
+          descriptor,
           iteration,
           lifecycle
         );
@@ -757,47 +758,19 @@ export class AgentOrchestratorService {
   private async applyTranscriptCompactionIfNeeded(
     runtime: AgentRuntimeOptions,
     invocation: AgentInvocation,
+    descriptor: AgentRuntimeDescriptor,
     iteration: number,
     lifecycle: AgentLifecyclePayload
   ): Promise<void> {
-    const selector = runtime.transcriptCompactor;
-    if (!selector) {
-      return;
-    }
-
-    const descriptor = this.getInvocationDescriptor(invocation);
-    const compactor =
-            typeof selector === "function"
-              ? selector(invocation, descriptor) ?? undefined
-              : selector;
-    if (!compactor) {
-      return;
-    }
-
-    const plan = await compactor.plan(invocation, iteration);
-    if (!plan) {
-      return;
-    }
-
-    const payload: AgentTranscriptCompactionPayload = {
-      ...lifecycle,
+    await this.transcriptCompactionService.planAndApply({
+      selector: runtime.transcriptCompactor,
+      invocation,
+      descriptor,
       iteration,
-      messages: invocation.messages,
-      reason: plan.reason,
-    };
-
-    await runtime.hooks.emitAsync(HOOK_EVENTS.preCompact, payload);
-    const result = await plan.apply();
-    if (result && typeof result === "object") {
-      runtime.logger.debug(
-        {
-          agent: invocation.id,
-          removedMessages: result.removedMessages,
-          reason: plan.reason,
-        },
-        "Transcript compacted"
-      );
-    }
+      lifecycle,
+      hooks: runtime.hooks,
+      logger: runtime.logger,
+    });
   }
 }
 const SPAWN_SUBAGENT_SCHEMA_REQUIRED_FIELDS = [

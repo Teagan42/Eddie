@@ -89,11 +89,16 @@ describe("AgentOrchestratorService", () => {
     };
 
     const eventBus = { publish: vi.fn() };
+    const compactionService = {
+      planAndApply: vi.fn(),
+    };
+
     const orchestrator = new AgentOrchestratorService(
       invocationFactory as any,
       streamRenderer as any,
       eventBus as any,
       traceWriter as any,
+      compactionService as any,
     );
 
     const runSpy = vi
@@ -114,12 +119,123 @@ describe("AgentOrchestratorService", () => {
     runSpy.mockRestore();
   });
 
+  it("delegates transcript compaction to the TranscriptCompactionService", async () => {
+    const agentDefinition = {
+      id: "agent-1",
+      systemPrompt: "You are helpful.",
+      tools: [],
+    };
+
+    const invocation = {
+      definition: agentDefinition,
+      prompt: "List files",
+      context: { files: [], totalBytes: 0, text: "" },
+      history: [],
+      messages: [],
+      children: [],
+      parent: undefined,
+      toolRegistry: { schemas: () => [], execute: vi.fn() },
+      setSpawnHandler: vi.fn(),
+      setRuntime: vi.fn(),
+      addChild: vi.fn(),
+      spawn: vi.fn(),
+      id: agentDefinition.id,
+      isRoot: true,
+    } as unknown as AgentInvocation;
+
+    const descriptor: AgentRuntimeDescriptor = {
+      id: agentDefinition.id,
+      definition: agentDefinition,
+      model: "gpt-test",
+      provider: {
+        name: "openai",
+        stream: vi.fn().mockReturnValue(createStream([{ type: "end" }])),
+      },
+    };
+
+    const catalog: AgentRuntimeCatalog = {
+      enableSubagents: false,
+      getManager: () => descriptor,
+      getAgent: () => descriptor,
+      getSubagent: () => undefined,
+      listSubagents: () => [],
+    };
+
+    const runtime = {
+      catalog,
+      hooks: { emitAsync: vi.fn().mockResolvedValue({}) },
+      confirm: vi.fn().mockResolvedValue(true),
+      cwd: process.cwd(),
+      logger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      traceAppend: true,
+      tracePath: undefined,
+      transcriptCompactor: vi.fn(),
+    };
+
+    const invocationFactory = {
+      create: vi.fn().mockResolvedValue(invocation),
+    };
+
+    const streamRenderer = {
+      render: vi.fn(),
+      flush: vi.fn(),
+    };
+
+    const traceWriter = {
+      write: vi.fn(),
+    };
+
+    const eventBus = { publish: vi.fn() };
+    const compactionService = {
+      planAndApply: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const orchestrator = new AgentOrchestratorService(
+      invocationFactory as any,
+      streamRenderer as any,
+      eventBus as any,
+      traceWriter as any,
+      compactionService as any,
+    );
+
+    const runSpy = vi
+      .spyOn(AgentRunner.prototype as Record<string, unknown>, "run")
+      .mockImplementation(async function (this: AgentRunner) {
+        const options = (this as unknown as { options: Record<string, unknown>; }).options;
+        const apply = options.applyTranscriptCompactionIfNeeded as (
+          iteration: number,
+          payload: Record<string, unknown>,
+        ) => Promise<void>;
+        await apply(1, {
+          iteration: 1,
+          messages: invocation.messages,
+        });
+      });
+
+    await orchestrator.runAgent(
+      { definition: agentDefinition, prompt: "List files" },
+      runtime as any,
+    );
+
+    expect(compactionService.planAndApply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        invocation,
+        descriptor,
+        iteration: 1,
+        selector: runtime.transcriptCompactor,
+      }),
+    );
+
+    runSpy.mockRestore();
+  });
+
   it("does not expose a stream renderer mutator", () => {
     const orchestrator = new AgentOrchestratorService(
       { create: vi.fn() } as any,
       { render: vi.fn(), flush: vi.fn() } as any,
       { publish: vi.fn() } as any,
       { write: vi.fn() } as any,
+      { planAndApply: vi.fn() } as any,
     );
 
     expect("setStreamRenderer" in orchestrator).toBe(false);
@@ -131,6 +247,7 @@ describe("AgentOrchestratorService", () => {
       { render: vi.fn(), flush: vi.fn() } as any,
       { publish: vi.fn() } as any,
       { write: vi.fn() } as any,
+      { planAndApply: vi.fn() } as any,
     );
 
     const runtime = {

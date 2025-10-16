@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { EngineService } from "../src/engine.service";
+import type { TranscriptCompactorSelector } from "../src/transcript-compactors";
 import type { EddieConfig } from "@eddie/types";
 import type { PackedContext } from "@eddie/types";
 import type { DiscoveredMcpResource } from "@eddie/mcp";
@@ -66,6 +67,10 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     })),
     collectInvocations: vi.fn(() => []),
   };
+  const transcriptCompactionService = {
+    selectFor: vi.fn(() => undefined as TranscriptCompactorSelector | undefined),
+    planAndApply: vi.fn(),
+  };
   const mcpToolSourceService = {
     collectTools: vi.fn(async () => ({
       tools: [],
@@ -84,6 +89,7 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     loggerService as any,
     agentOrchestrator as any,
     mcpToolSourceService as any,
+    transcriptCompactionService as any,
   );
 
   return {
@@ -92,6 +98,8 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     contextService,
     mcpToolSourceService,
     logger,
+    agentOrchestrator,
+    transcriptCompactionService,
   };
 }
 
@@ -107,7 +115,7 @@ afterEach(() => {
 
 describe("EngineService", () => {
   it("does not declare a ConfigService dependency", () => {
-    expect(EngineService.length).toBe(9);
+    expect(EngineService.length).toBe(10);
   });
 
   it("does not reload configuration when runtime overrides are provided", async () => {
@@ -177,5 +185,19 @@ describe("EngineService", () => {
       }),
       "Skipping MCP resource exceeding maxBytes",
     );
+  });
+
+  it("provides transcript compactor selection via the compaction service", async () => {
+    const {
+      service,
+      transcriptCompactionService,
+      agentOrchestrator,
+    } = createService();
+
+    await service.run("prompt");
+
+    expect(agentOrchestrator.runAgent).toHaveBeenCalledTimes(1);
+    const runtime = agentOrchestrator.runAgent.mock.calls[0]?.[1];
+    expect(runtime?.transcriptCompactor).toBe(transcriptCompactionService.selectFor);
   });
 });

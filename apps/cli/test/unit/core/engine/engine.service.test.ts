@@ -7,6 +7,9 @@ import {
   EngineService,
   SimpleTranscriptCompactor,
   TokenBudgetCompactor,
+  TranscriptCompactionService,
+  createTranscriptCompactor,
+  extractTranscriptCompactionSettings,
   type AgentOrchestratorService,
   type AgentRunRequest,
   type AgentRuntimeCatalog,
@@ -157,6 +160,11 @@ function createEngineHarness(
     fakeOrchestrator.shouldFail = true;
   }
 
+  const transcriptCompactionService = new TranscriptCompactionService(
+    () => extractTranscriptCompactionSettings(store.getSnapshot()),
+    createTranscriptCompactor,
+  );
+
   const engine = new EngineService(
     store,
     contextService,
@@ -166,7 +174,8 @@ function createEngineHarness(
     tokenizerService,
     loggerService,
     fakeOrchestrator as unknown as AgentOrchestratorService,
-    mcpToolSourceService
+    mcpToolSourceService,
+    transcriptCompactionService,
   );
 
   return {
@@ -436,15 +445,20 @@ describe("EngineService transcript compactor configuration", () => {
     const result = await harness.engine.run("Global compactor");
 
     const runtime = harness.fakeOrchestrator.lastRuntime;
-    expect(runtime?.transcriptCompactor).toBeInstanceOf(SimpleTranscriptCompactor);
+    expect(typeof runtime?.transcriptCompactor).toBe("function");
 
-    const compactor = runtime?.transcriptCompactor as SimpleTranscriptCompactor;
+    const compactor = runtime?.transcriptCompactor?.(
+      result.agents[0],
+      runtime?.catalog.getManager(),
+    );
+    expect(compactor).toBeInstanceOf(SimpleTranscriptCompactor);
+
     const invocation = result.agents[0];
     invocation.messages.push({ role: "assistant", content: "first" });
     invocation.messages.push({ role: "user", content: "second" });
     invocation.messages.push({ role: "assistant", content: "third" });
 
-    const plan = compactor.plan(invocation, 2);
+    const plan = compactor?.plan(invocation, 2);
     expect(plan?.reason).toContain("limit 3");
   });
 
@@ -582,6 +596,11 @@ describe("EngineService hot configuration", () => {
 
     const orchestrator = new FakeAgentOrchestrator();
 
+    const transcriptCompactionService = new TranscriptCompactionService(
+      () => extractTranscriptCompactionSettings(store.getSnapshot()),
+      createTranscriptCompactor,
+    );
+
     const engine = new EngineService(
       store,
       contextService,
@@ -591,7 +610,8 @@ describe("EngineService hot configuration", () => {
       tokenizerService,
       loggerService,
       orchestrator as unknown as AgentOrchestratorService,
-      mcpToolSourceService
+      mcpToolSourceService,
+      transcriptCompactionService,
     );
 
     await engine.run("initial run");

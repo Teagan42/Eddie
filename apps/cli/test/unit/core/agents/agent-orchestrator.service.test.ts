@@ -14,6 +14,7 @@ import {
   type AgentRuntimeDescriptor,
   type AgentRuntimeOptions,
   type TranscriptCompactor,
+  TranscriptCompactionService,
 } from "@eddie/engine";
 import { ToolRegistryFactory } from "@eddie/tools";
 import {
@@ -23,6 +24,7 @@ import {
 } from "@eddie/io";
 import { HookBus, HOOK_EVENTS, blockHook } from "@eddie/hooks";
 import { TemplateRendererService } from "@eddie/templates";
+import { TemplateRuntimeService } from "@eddie/engine";
 
 class RecordingStreamRendererService extends StreamRendererService {
   readonly events: StreamEvent[] = [];
@@ -90,24 +92,57 @@ describe("AgentOrchestratorService", () => {
   let loggerService: LoggerService;
   let agentInvocationFactory: AgentInvocationFactory;
   let eventBus: RecordingEventBus;
+  let transcriptCompactionService: { planAndApply: ReturnType<typeof vi.fn>; };
 
   beforeEach(() => {
+    loggerService = new LoggerService();
     const toolRegistryFactory = new ToolRegistryFactory();
     const templateRenderer = new TemplateRendererService();
+    const templateRuntime = new TemplateRuntimeService(
+      templateRenderer,
+      loggerService.getLogger("template-runtime"),
+    );
     agentInvocationFactory = new AgentInvocationFactory(
       toolRegistryFactory,
-      templateRenderer
+      templateRuntime
     );
     renderer = new RecordingStreamRendererService();
     eventBus = new RecordingEventBus();
     const traceWriter = new JsonlWriterService();
+    transcriptCompactionService = {
+      planAndApply: vi.fn(async (options) => {
+        const selector = options.selector;
+        const compactor =
+          typeof selector === "function"
+            ? selector(options.invocation, options.descriptor)
+            : selector;
+
+        if (!compactor) {
+          return;
+        }
+
+        const plan = await compactor.plan(options.invocation, options.iteration);
+        if (!plan) {
+          return;
+        }
+
+        await options.hooks.emitAsync(HOOK_EVENTS.preCompact, {
+          ...options.lifecycle,
+          iteration: options.iteration,
+          messages: options.invocation.messages,
+          reason: plan.reason,
+        });
+
+        await plan.apply();
+      }),
+    };
     orchestrator = new AgentOrchestratorService(
       agentInvocationFactory,
       renderer,
       eventBus as unknown as { publish: (event: AgentStreamEvent) => void },
-      traceWriter
+      traceWriter,
+      transcriptCompactionService as unknown as TranscriptCompactionService
     );
-    loggerService = new LoggerService();
   });
 
   afterEach(() => {
@@ -508,11 +543,13 @@ describe("AgentOrchestratorService", () => {
   it("writes trace records for agent phases with metadata", async () => {
     const traceWriter = new RecordingJsonlWriterService();
     eventBus = new RecordingEventBus();
+    transcriptCompactionService = { planAndApply: vi.fn() };
     orchestrator = new AgentOrchestratorService(
       agentInvocationFactory,
       renderer,
       eventBus as unknown as { publish: (event: AgentStreamEvent) => void },
-      traceWriter
+      traceWriter,
+      transcriptCompactionService as unknown as TranscriptCompactionService
     );
 
     const provider = new MockProvider([
@@ -1084,6 +1121,13 @@ describe("AgentOrchestratorService", () => {
     expect(preCompactEvents[0]?.beforeLength).toBeGreaterThan(3);
     expect(preCompactEvents[0]?.reason).toBe("token_budget");
     expect(removedCount).toBe(1);
+    expect(transcriptCompactionService.planAndApply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selector: compactor,
+        hooks: hookBus,
+        invocation,
+      })
+    );
   });
 
   it("selects agent-specific transcript compactors from runtime selector", async () => {
@@ -1139,6 +1183,7 @@ describe("AgentOrchestratorService", () => {
     );
 
     expect(selector).toHaveBeenCalled();
+    expect(transcriptCompactionService.planAndApply).toHaveBeenCalled();
     expect(managerCompactor.plan).toHaveBeenCalledWith(
       expect.objectContaining({ definition: expect.objectContaining({ id: "manager" }) }),
       expect.any(Number),

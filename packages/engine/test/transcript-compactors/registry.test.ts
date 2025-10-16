@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { EngineService } from "../../src/engine.service";
 import type { EddieConfig, TranscriptCompactorConfig } from "@eddie/types";
 import {
   registerTranscriptCompactor,
@@ -11,6 +10,9 @@ import type {
   AgentInvocation,
   AgentRuntimeDescriptor,
 } from "../../src/agents/agent-runtime.types";
+import { TranscriptCompactionService } from "../../src/transcript/transcript-compaction.service";
+import { createTranscriptCompactor } from "../../src/transcript-compactors";
+import { extractTranscriptCompactionSettings } from "../../src/transcript/transcript-compaction.tokens";
 
 class FakeCompactor implements TranscriptCompactor {
   constructor(readonly tag: string) {}
@@ -51,62 +53,22 @@ const baseConfig: EddieConfig = {
 };
 
 function createService(overrides: Partial<EddieConfig> = {}) {
-  const config: EddieConfig = { ...baseConfig, ...overrides };
-  const configStore = { getSnapshot: vi.fn(() => config) };
-  const contextService = {
-    pack: vi.fn(async () => ({
-      files: [],
-      totalBytes: 0,
-      text: "",
-      resources: [],
-    })),
-  };
-  const providerFactory = {
-    create: vi.fn(() => ({ name: "adapter" })),
-  };
-  const hooks = {
-    emitAsync: vi.fn(async () => ({})),
-  };
-  const hooksService = { load: vi.fn(async () => hooks) };
-  const confirmService = { create: vi.fn(() => ({ confirm: vi.fn() })) };
-  const tokenizerService = {
-    create: vi.fn(() => ({ countTokens: vi.fn(() => 0) })),
-  };
-  const logger = {
-    debug: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
-  };
-  const loggerService = {
-    configure: vi.fn(),
-    getLogger: vi.fn(() => logger),
-  };
-  const agentOrchestrator = {
-    runAgent: vi.fn(async () => ({
-      messages: [],
-      definition: { id: "manager" },
-    })),
-    collectInvocations: vi.fn(() => []),
-  };
-  const mcpToolSourceService = {
-    collectTools: vi.fn(async () => ({
-      tools: [],
-      resources: [],
-      prompts: [],
-    })),
+  const config: EddieConfig = {
+    ...structuredClone(baseConfig),
+    ...overrides,
+    agents: {
+      ...structuredClone(baseConfig.agents),
+      ...overrides.agents,
+    },
+    transcript: {
+      ...structuredClone(baseConfig.transcript),
+      ...overrides.transcript,
+    },
   };
 
-  const service = new EngineService(
-    configStore as any,
-    contextService as any,
-    providerFactory as any,
-    hooksService as any,
-    confirmService as any,
-    tokenizerService as any,
-    loggerService as any,
-    agentOrchestrator as any,
-    mcpToolSourceService as any,
-  );
+  const loader = () => extractTranscriptCompactionSettings(config);
+
+  const service = new TranscriptCompactionService(loader, createTranscriptCompactor);
 
   return { service, config };
 }
@@ -124,7 +86,7 @@ describe("Transcript compactor registry", () => {
     registerTranscriptCompactor({
       strategy: "fake",
       create(config, context) {
-        expect(context.agentId).toBe("global");
+        expect(context.agentId).toBe("__global__");
         expect(config).toMatchObject({ strategy: "fake", tag: "alpha" });
         return new FakeCompactor(`${config.tag}`);
       },
@@ -135,25 +97,31 @@ describe("Transcript compactor registry", () => {
       tag: "alpha",
     };
 
-    const { service, config } = createService({
+    const { service } = createService({
       transcript: { compactor: transcriptConfig },
     });
 
-    const selector = (service as any).resolveTranscriptCompactor(config);
-
-    expect(typeof selector).toBe("object");
-    const compactor = selector as TranscriptCompactor;
     const invocation: AgentInvocation = {
       definition: { id: "manager", name: "Manager" },
       messages: [],
     } as AgentInvocation;
+    const descriptor: AgentRuntimeDescriptor = {
+      id: "manager",
+      definition: invocation.definition,
+      model: "test",
+      provider: { name: "provider", stream: vi.fn() },
+    } as AgentRuntimeDescriptor;
 
-    const result = compactor.compact(invocation);
+    const compactor = service.selectFor(invocation, descriptor) as TranscriptCompactor;
+
+    expect(compactor).toBeInstanceOf(FakeCompactor);
+
+    const result = compactor.compact(invocation, descriptor);
     expect(result.definition?.name).toBe("Manager-alpha");
   });
 
   it("attaches a summarizer transcript compactor from global config", async () => {
-    const { service, config } = createService({
+    const { service } = createService({
       transcript: {
         compactor: {
           strategy: "summarizer",
@@ -164,11 +132,8 @@ describe("Transcript compactor registry", () => {
       },
     });
 
-    const compactor = (service as any).resolveTranscriptCompactor(config);
-
-    expect(compactor).toBeInstanceOf(SummarizingTranscriptCompactor);
-
     const invocation = {
+      definition: { id: "global" },
       messages: [
         { role: "system", content: "system" },
         { role: "user", content: "Hello" },
@@ -177,6 +142,16 @@ describe("Transcript compactor registry", () => {
         { role: "assistant", content: "Great" },
       ],
     } as unknown as AgentInvocation;
+    const descriptor = {
+      id: "global",
+      definition: invocation.definition,
+      model: "test",
+      provider: { name: "provider", stream: vi.fn() },
+    } as AgentRuntimeDescriptor;
+
+    const compactor = service.selectFor(invocation, descriptor);
+
+    expect(compactor).toBeInstanceOf(SummarizingTranscriptCompactor);
 
     const plan = (compactor as SummarizingTranscriptCompactor).plan(
       invocation,
@@ -200,7 +175,7 @@ describe("Transcript compactor registry", () => {
 
     vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
 
-    const { service, config } = createService({
+    const { service } = createService({
       transcript: {
         compactor: {
           strategy: "summarizer",
@@ -215,10 +190,6 @@ describe("Transcript compactor registry", () => {
       },
     });
 
-    const compactor = (service as any).resolveTranscriptCompactor(config);
-
-    expect(compactor).toBeInstanceOf(SummarizingTranscriptCompactor);
-
     const invocation = {
       definition: { id: "global" },
       messages: [
@@ -229,6 +200,16 @@ describe("Transcript compactor registry", () => {
         { role: "assistant", content: "Great" },
       ],
     } as unknown as AgentInvocation;
+    const descriptor = {
+      id: "global",
+      definition: invocation.definition,
+      model: "test",
+      provider: { name: "provider", stream: vi.fn() },
+    } as AgentRuntimeDescriptor;
+
+    const compactor = service.selectFor(invocation, descriptor);
+
+    expect(compactor).toBeInstanceOf(SummarizingTranscriptCompactor);
 
     const plan = (compactor as SummarizingTranscriptCompactor).plan(
       invocation,
@@ -252,7 +233,7 @@ describe("Transcript compactor registry", () => {
         { role: "user", content: "Hello" },
         { role: "assistant", content: "Hi there" },
       ],
-      agentId: "global",
+      agentId: "__global__",
     });
 
     expect(invocation.messages[1]?.role).toBe("assistant");
@@ -286,7 +267,7 @@ describe("Transcript compactor registry", () => {
       tag: "global",
     };
 
-    const { service, config } = createService({
+    const { service } = createService({
       transcript: { compactor: globalCompactor },
       agents: {
         ...baseConfig.agents,
@@ -304,14 +285,6 @@ describe("Transcript compactor registry", () => {
       },
     });
 
-    const selectorA = (service as any).resolveTranscriptCompactor(config);
-    const selectorB = (service as any).resolveTranscriptCompactor(config);
-
-    expect(create).toHaveBeenCalledTimes(3);
-
-    expect(typeof selectorA).toBe("function");
-    expect(typeof selectorB).toBe("function");
-
     const workerInvocation = {
       definition: { id: "worker", name: "Worker" },
       messages: [],
@@ -319,12 +292,35 @@ describe("Transcript compactor registry", () => {
 
     const workerDescriptor = {
       id: "worker",
-      name: "Worker",
+      definition: workerInvocation.definition,
+      model: "test",
+      provider: { name: "provider", stream: vi.fn() },
     } as AgentRuntimeDescriptor;
 
-    const compactorA = (selectorA as any)(workerInvocation, workerDescriptor);
-    const compactorB = (selectorB as any)(workerInvocation, workerDescriptor);
+    const managerInvocation = {
+      definition: { id: "manager", name: "Manager" },
+      messages: [],
+    } as AgentInvocation;
+    const managerDescriptor = {
+      id: "manager",
+      definition: managerInvocation.definition,
+      model: "test",
+      provider: { name: "provider", stream: vi.fn() },
+    } as AgentRuntimeDescriptor;
 
-    expect(compactorA).toBe(compactorB);
+    const otherInvocation = {
+      definition: { id: "other", name: "Other" },
+      messages: [],
+    } as AgentInvocation;
+
+    const compactorGlobal = service.selectFor(otherInvocation);
+    const compactorManager = service.selectFor(managerInvocation, managerDescriptor);
+    const compactorWorkerA = service.selectFor(workerInvocation, workerDescriptor);
+    const compactorWorkerB = service.selectFor(workerInvocation, workerDescriptor);
+
+    expect(create).toHaveBeenCalledTimes(3);
+    expect(compactorGlobal).toBeDefined();
+    expect(compactorManager).toBeDefined();
+    expect(compactorWorkerA).toBe(compactorWorkerB);
   });
 });

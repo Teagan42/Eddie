@@ -5,6 +5,7 @@ import fs from "fs/promises";
 import path from "path";
 import { ContextService } from "@eddie/context";
 import { LoggerService } from "@eddie/io";
+import { TemplateRuntimeService } from "@eddie/engine";
 import { TemplateRendererService } from "@eddie/templates";
 
 const tmpDir = path.join(process.cwd(), "test-temp");
@@ -18,12 +19,23 @@ beforeAll(async () => {
       LoggerService,
       TemplateRendererService,
       {
+        provide: TemplateRuntimeService,
+        useFactory: (
+          renderer: TemplateRendererService,
+          logger: LoggerService,
+        ) => new TemplateRuntimeService(
+          renderer,
+          logger.getLogger("templates"),
+        ),
+        inject: [TemplateRendererService, LoggerService],
+      },
+      {
         provide: ContextService,
         useFactory: (
           logger: LoggerService,
-          renderer: TemplateRendererService
-        ) => new ContextService(logger, renderer),
-        inject: [LoggerService, TemplateRendererService],
+          runtime: TemplateRuntimeService,
+        ) => new ContextService(logger, runtime),
+        inject: [LoggerService, TemplateRuntimeService],
       },
     ],
   }).compile();

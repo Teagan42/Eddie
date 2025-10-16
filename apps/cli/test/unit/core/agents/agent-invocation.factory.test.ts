@@ -9,9 +9,12 @@ import {
 import { ToolRegistryFactory } from "@eddie/tools";
 import type { PackedContext } from "@eddie/types";
 import { TemplateRendererService } from "@eddie/templates";
+import { TemplateRuntimeService } from "@eddie/engine";
+import { LoggerService } from "@eddie/io";
 
 const tmpDir = path.join(process.cwd(), "test-temp", "agent-factory");
 let factory: AgentInvocationFactory;
+let loggerService: LoggerService;
 
 beforeAll(async () => {
   await fs.mkdir(tmpDir, { recursive: true });
@@ -27,12 +30,18 @@ beforeAll(async () => {
   );
 
   const templateRenderer = new TemplateRendererService();
+  loggerService = new LoggerService();
+  const templateRuntime = new TemplateRuntimeService(
+    templateRenderer,
+    loggerService.getLogger("template-runtime"),
+  );
   const toolRegistryFactory = new ToolRegistryFactory();
-  factory = new AgentInvocationFactory(toolRegistryFactory, templateRenderer);
+  factory = new AgentInvocationFactory(toolRegistryFactory, templateRuntime);
 });
 
 afterAll(async () => {
   await fs.rm(tmpDir, { recursive: true, force: true });
+  loggerService.reset();
 });
 
 describe("AgentInvocationFactory", () => {

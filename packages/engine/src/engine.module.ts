@@ -1,6 +1,7 @@
-import { Module } from "@nestjs/common";
+import { Module, type Provider } from "@nestjs/common";
 import { CqrsModule } from "@nestjs/cqrs";
 import { ConfigModule } from "@eddie/config";
+import { ConfigStore } from "@eddie/config";
 import { ContextModule } from "@eddie/context";
 import { IoModule } from "@eddie/io";
 import { HooksModule } from "@eddie/hooks";
@@ -16,6 +17,27 @@ import {
   TemplateRuntimeService,
   templateRuntimeProviders,
 } from "./templating/template-runtime.service";
+import { TranscriptCompactionService } from "./transcript/transcript-compaction.service";
+import {
+  TRANSCRIPT_COMPACTION_SETTINGS,
+  TRANSCRIPT_COMPACTOR_FACTORY,
+  extractTranscriptCompactionSettings,
+} from "./transcript/transcript-compaction.tokens";
+import { createTranscriptCompactor } from "./transcript-compactors";
+
+const transcriptCompactionProviders: Provider[] = [
+  {
+    provide: TRANSCRIPT_COMPACTION_SETTINGS,
+    useFactory: (configStore: ConfigStore) => () =>
+      extractTranscriptCompactionSettings(configStore.getSnapshot()),
+    inject: [ ConfigStore ],
+  },
+  {
+    provide: TRANSCRIPT_COMPACTOR_FACTORY,
+    useValue: createTranscriptCompactor,
+  },
+  TranscriptCompactionService,
+];
 
 @Module({
   imports: [
@@ -32,6 +54,7 @@ import {
   ],
   providers: [
     ...templateRuntimeProviders,
+    ...transcriptCompactionProviders,
     EngineService,
     AgentInvocationFactory,
     AgentOrchestratorService,
@@ -45,6 +68,7 @@ import {
     ProvidersModule,
     TokenizersModule,
     ToolsModule,
+    TranscriptCompactionService,
   ],
 })
 export class EngineModule {}
