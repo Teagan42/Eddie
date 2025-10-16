@@ -8,5 +8,19 @@
     "declarationMap": true,
     "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo"
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../../runtime/context"
+    },
+    {
+      "path": "../../core/templates"
+    },
+    {
+      "path": "../../integrations/providers"
+    },
+    {
+      "path": "../../../apps/api"
+    }
+  ]
 }
