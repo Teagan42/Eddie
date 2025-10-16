@@ -43,6 +43,19 @@ function expectDiffDetectionStep(
   expect(jobSection).toContain('git diff --quiet -- "$file_path"');
 }
 
+function extractJobNeeds(jobSection: string): string[] {
+  const match = jobSection.match(/\n {4}needs:\n((?: {6}- [^\n]+\n)+)/);
+
+  if (!match) {
+    return [];
+  }
+
+  return match[1]
+    .trim()
+    .split('\n')
+    .map((line) => line.trim().replace(/^- /, ''));
+}
+
 describe('ci workflow configuration', () => {
   it('defines a combined build-test job', () => {
     expect(workflow).toContain('build-test:');
@@ -104,11 +117,11 @@ describe('ci workflow configuration', () => {
     expect(jobSection).not.toMatch(/git push/);
   });
 
-  it('runs diagram and license sync without gating dependencies', () => {
+  it('runs license sync after docs diagram to avoid push conflicts', () => {
     const docsJob = extractJobSection('docs-config-schema:');
     const licensesJob = extractJobSection('sync-third-party-licenses:');
 
-    expect(docsJob).not.toMatch(/\n {4}needs:/);
-    expect(licensesJob).not.toMatch(/\n {4}needs:/);
+    expect(extractJobNeeds(docsJob)).toEqual([]);
+    expect(extractJobNeeds(licensesJob)).toEqual(['docs-config-schema']);
   });
 });
