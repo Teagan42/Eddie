@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Test } from "@nestjs/testing";
 import type { ChatMessage, PackedContext } from "@eddie/types";
 import { AgentInvocationFactory } from "../../src/agents/agent-invocation.factory";
-import type { AgentDefinition } from "../../src/agents/agent-definition";
+import type { AgentDefinition } from "@eddie/types";
 import { ToolRegistryFactory } from "@eddie/tools";
 import { TemplateRuntimeService } from "../../src/templating/template-runtime.service";
 

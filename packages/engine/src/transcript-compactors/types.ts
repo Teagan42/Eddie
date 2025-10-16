@@ -1,5 +1,5 @@
+import type { AgentRuntimeDescriptor } from "@eddie/types";
 import type { AgentInvocation } from "../agents/agent-invocation";
-import type { AgentRuntimeDescriptor } from "../agents/agent-runtime.types";
 import type {
   AgentContextRequirements as ConfigAgentContextRequirements,
   IntelligentTranscriptCompactorConfig as ConfigIntelligentTranscriptCompactorConfig,

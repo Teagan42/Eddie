@@ -4,7 +4,7 @@ import { AgentStreamEvent } from "@eddie/types";
 import type { StreamEvent, ToolResult } from "@eddie/types";
 import { AgentRunner } from "../../src/agents/agent-runner";
 import type { AgentInvocation } from "../../src/agents/agent-invocation";
-import type { AgentRuntimeDescriptor } from "../../src/agents/agent-runtime.types";
+import type { AgentRuntimeDescriptor } from "@eddie/types";
 
 type InvocationOverrides = Partial<AgentInvocation>;
 

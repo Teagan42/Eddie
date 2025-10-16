@@ -1,29 +1,23 @@
-import type { TemplateDescriptor, TemplateVariables } from "@eddie/templates";
-import type { ChatMessage, PackedContext } from "@eddie/types";
+import type {
+  AgentDefinition,
+  AgentInvocationOptions,
+  AgentInvocationRuntimeDetails,
+  AgentSpawnHandler,
+  ChatMessage,
+  PackedContext,
+} from "@eddie/types";
 import type { ToolRegistry } from "@eddie/tools";
 import type { ToolRegistryFactory } from "@eddie/tools";
-import type { AgentDefinition } from "./agent-definition";
 
 const EMPTY_CONTEXT: PackedContext = { files: [], totalBytes: 0, text: "" };
 
-export interface AgentInvocationOptions {
-  prompt: string;
-  context?: PackedContext;
-  history?: ChatMessage[];
-  promptTemplate?: TemplateDescriptor;
-  variables?: TemplateVariables;
-}
+export type {
+  AgentInvocationOptions,
+  AgentInvocationRuntimeDetails,
+  AgentSpawnHandler,
+} from "@eddie/types";
 
-export interface AgentInvocationRuntimeDetails {
-  provider: string;
-  model: string;
-  metadata?: Record<string, unknown>;
-}
-
-export type AgentSpawnHandler = (
-  definition: AgentDefinition,
-  options: AgentInvocationOptions
-) => Promise<AgentInvocation>;
+type AgentInvocationSpawnHandler = AgentSpawnHandler<AgentInvocation>;
 
 export class AgentInvocation {
   readonly messages: ChatMessage[];
@@ -32,7 +26,7 @@ export class AgentInvocation {
   readonly history: ChatMessage[];
   readonly prompt: string;
   readonly toolRegistry: ToolRegistry;
-  private spawnHandler?: AgentSpawnHandler;
+  private spawnHandler?: AgentInvocationSpawnHandler;
   private runtimeDetails?: AgentInvocationRuntimeDetails;
 
   constructor(
@@ -64,7 +58,7 @@ export class AgentInvocation {
     this.children.push(child);
   }
 
-  setSpawnHandler(handler: AgentSpawnHandler): void {
+  setSpawnHandler(handler: AgentInvocationSpawnHandler): void {
     this.spawnHandler = handler;
   }
 

@@ -1,5 +1,15 @@
 import type { PackedResource } from "./providers";
 
+export type {
+  AgentDefinition,
+  AgentInvocationOptions,
+  AgentInvocationRuntimeDetails,
+  AgentRuntimeCatalog,
+  AgentRuntimeDescriptor,
+  AgentRuntimeMetadata,
+  AgentSpawnHandler,
+} from "./agents";
+
 export * from "./providers";
 export * from "./config";
 export * from "./hooks";

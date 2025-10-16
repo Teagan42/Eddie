@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TemplateDescriptor, TemplateVariables } from "@eddie/templates";
 import type { PackedContext, ChatMessage, ContextResourceTemplateConfig } from "@eddie/types";
-import type { AgentDefinition } from "../../src/agents/agent-definition";
+import type { AgentDefinition } from "@eddie/types";
 import { TemplateRuntimeService } from "../../src/templating/template-runtime.service";
 import type { TemplateRendererService } from "@eddie/templates";
 import type { Logger } from "pino";

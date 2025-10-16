@@ -3,7 +3,10 @@ import { Buffer } from "buffer";
 import { randomUUID } from "crypto";
 import path from "path";
 import type {
+  AgentDefinition,
   AgentProviderConfig,
+  AgentRuntimeCatalog,
+  AgentRuntimeDescriptor,
   CliRuntimeOptions,
   ContextConfig,
   EddieConfig,
@@ -35,9 +38,7 @@ import {
   AgentOrchestratorService,
   type AgentRuntimeOptions,
 } from "./agents/agent-orchestrator.service";
-import type { AgentDefinition } from "./agents/agent-definition";
 import type { AgentInvocation } from "./agents/agent-invocation";
-import type { AgentRuntimeCatalog, AgentRuntimeDescriptor } from "./agents/agent-runtime.types";
 import type { Logger } from "pino";
 import { McpToolSourceService } from "@eddie/mcp";
 import type { DiscoveredMcpResource } from "@eddie/mcp";

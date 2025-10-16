@@ -10,6 +10,7 @@ import type {
 import type { StreamRendererService } from "@eddie/io";
 import type { EventBus } from "@nestjs/cqrs";
 import type {
+  AgentRuntimeDescriptor,
   ChatMessage,
   PackedContext,
   StreamEvent,
@@ -19,7 +20,6 @@ import type {
 import { AgentStreamEvent } from "@eddie/types";
 import type { TemplateVariables } from "@eddie/templates";
 import type { AgentInvocation } from "./agent-invocation";
-import type { AgentRuntimeDescriptor } from "./agent-runtime.types";
 import type { MetricsService } from "../telemetry/metrics.service";
 
 export interface AgentTraceEvent {

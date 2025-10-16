@@ -1,8 +1,12 @@
 import { Injectable } from "@nestjs/common";
-import type { ChatMessage, PackedContext } from "@eddie/types";
+import type {
+  AgentDefinition,
+  AgentInvocationOptions,
+  ChatMessage,
+  PackedContext,
+} from "@eddie/types";
 import { ToolRegistryFactory } from "@eddie/tools";
-import type { AgentDefinition } from "./agent-definition";
-import { AgentInvocation, type AgentInvocationOptions } from "./agent-invocation";
+import { AgentInvocation } from "./agent-invocation";
 import {
   TemplateRuntimeService,
   type ParentAgentContext,
