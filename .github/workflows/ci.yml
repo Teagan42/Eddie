@@ -91,6 +91,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
 
       - name: Configure git user
@@ -115,21 +117,27 @@ jobs:
       - name: Regenerate configuration schema diagram
         run: npm run docs:config-schema
 
-      - name: Commit updated diagram
-        id: commit
+      - name: Detect configuration schema changes
+        id: config-schema-diff
         run: |
           set -euo pipefail
-          if git status --porcelain=./docs/generated/config-schema-diagram.md | grep .; then
-            git add ./docs/generated/config-schema-diagram.md
-            git commit --all --message "chore: update config schema diagram"
-            echo "committed=true" >> "$GITHUB_OUTPUT"
+          file_path="docs/generated/config-schema-diagram.md"
+
+          if git diff --quiet -- "$file_path"; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           else
-            echo "committed=false" >> "$GITHUB_OUTPUT"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Push updates
-        if: steps.commit.outputs.committed == 'true'
-        run: git push
+      - name: Commit updated diagram
+        if: steps.config-schema-diff.outputs.changed == 'true'
+        id: commit
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: ./docs/generated/config-schema-diagram.md
+          message: "chore: update config schema diagram"
+          push: true
+          skip_empty: true
 
   build-test:
     name: Build & Test (${{ matrix.workspace.name }} @ Node ${{ matrix.node-version }})
@@ -184,6 +192,8 @@ jobs:
   sync-third-party-licenses:
     name: Sync third-party notices
     runs-on: ubuntu-latest
+    needs:
+      - docs-config-schema
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       contents: write
@@ -191,6 +201,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
 
       - name: Configure git user
@@ -215,21 +227,27 @@ jobs:
       - name: Regenerate third-party notices
         run: npm run licenses:write
 
-      - name: Commit updated notices
-        id: commit
+      - name: Detect third-party notice changes
+        id: third-party-diff
         run: |
           set -euo pipefail
-          if git status --porcelain=./THIRD_PARTY_NOTICES.md | grep .; then
-            git add THIRD_PARTY_NOTICES.md
-            git commit --all --message "chore: update third-party notices"
-            echo "committed=true" >> "$GITHUB_OUTPUT"
+          file_path="THIRD_PARTY_NOTICES.md"
+
+          if git diff --quiet -- "$file_path"; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           else
-            echo "committed=false" >> "$GITHUB_OUTPUT"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Push updates
-        if: steps.commit.outputs.committed == 'true'
-        run: git push
+      - name: Commit updated notices
+        if: steps.third-party-diff.outputs.changed == 'true'
+        id: commit
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: THIRD_PARTY_NOTICES.md
+          message: "chore: update third-party notices"
+          push: true
+          skip_empty: true
 
   summary:
     name: CI summary

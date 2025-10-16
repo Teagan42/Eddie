@@ -19,6 +19,43 @@ function extractJobSection(jobId: string): string {
   return rest.slice(0, jobId.length + nextJobOffset);
 }
 
+function expectAddAndCommitStep(
+  jobSection: string,
+  addPath: string,
+  commitMessage: string,
+): void {
+  expect(jobSection).toContain('uses: EndBug/add-and-commit@v9');
+  expect(jobSection).toContain(`add: ${addPath}`);
+  expect(jobSection).toContain(`message: "${commitMessage}"`);
+  expect(jobSection).toMatch(/push: true/);
+  expect(jobSection).toMatch(/skip_empty: true/);
+}
+
+function expectDiffDetectionStep(
+  jobSection: string,
+  stepName: string,
+  stepId: string,
+  filePath: string,
+): void {
+  expect(jobSection).toContain(stepName);
+  expect(jobSection).toContain(`id: ${stepId}`);
+  expect(jobSection).toContain(`file_path="${filePath}"`);
+  expect(jobSection).toContain('git diff --quiet -- "$file_path"');
+}
+
+function extractJobNeeds(jobSection: string): string[] {
+  const match = jobSection.match(/\n {4}needs:\n((?: {6}- [^\n]+\n)+)/);
+
+  if (!match) {
+    return [];
+  }
+
+  return match[1]
+    .trim()
+    .split('\n')
+    .map((line) => line.trim().replace(/^- /, ''));
+}
+
 describe('ci workflow configuration', () => {
   it('defines a combined build-test job', () => {
     expect(workflow).toContain('build-test:');
@@ -38,34 +75,53 @@ describe('ci workflow configuration', () => {
     expect(workflow).toMatch(/results\["\$job"\]/);
   });
 
-  it('regenerates and pushes third-party notices', () => {
+  it('regenerates and commits the config schema diagram when it changes', () => {
+    const jobSection = extractJobSection('docs-config-schema:');
+
+    expect(jobSection).toMatch(/npm run docs:config-schema(\n|\s)/);
+    expectDiffDetectionStep(
+      jobSection,
+      'Detect configuration schema changes',
+      'config-schema-diff',
+      'docs/generated/config-schema-diagram.md',
+    );
+    expectAddAndCommitStep(
+      jobSection,
+      './docs/generated/config-schema-diagram.md',
+      'chore: update config schema diagram',
+    );
+    expect(jobSection).toMatch(
+      /if: steps\.config-schema-diff\.outputs\.changed == 'true'/,
+    );
+    expect(jobSection).not.toMatch(/git push/);
+  });
+
+  it('regenerates and commits third-party notices only when they change', () => {
     const jobSection = extractJobSection('sync-third-party-licenses:');
 
     expect(jobSection).toMatch(/npm run licenses:write/);
-    expect(jobSection).toMatch(
-      /git commit --all --message "chore: update third-party notices"/
+    expectDiffDetectionStep(
+      jobSection,
+      'Detect third-party notice changes',
+      'third-party-diff',
+      'THIRD_PARTY_NOTICES.md',
     );
-    expect(jobSection).toMatch(/git push/);
+    expectAddAndCommitStep(
+      jobSection,
+      'THIRD_PARTY_NOTICES.md',
+      'chore: update third-party notices',
+    );
+    expect(jobSection).toMatch(
+      /if: steps\.third-party-diff\.outputs\.changed == 'true'/,
+    );
+    expect(jobSection).not.toMatch(/git push/);
   });
 
-  it('regenerates and pushes the config schema diagram', () => {
-    const jobSection = extractJobSection('docs-config-schema:');
-    const expectedStatusCheck =
-      'git status --porcelain=./docs/generated/config-schema-diagram.md';
-
-    expect(jobSection).toMatch(/npm run docs:config-schema(\n|\s)/);
-    expect(jobSection).toContain(expectedStatusCheck);
-    expect(jobSection).toMatch(
-      /git commit --all --message "chore: update config schema diagram"/
-    );
-    expect(jobSection).toMatch(/git push/);
-  });
-
-  it('runs diagram and license sync without gating dependencies', () => {
+  it('runs license sync after docs diagram to avoid push conflicts', () => {
     const docsJob = extractJobSection('docs-config-schema:');
     const licensesJob = extractJobSection('sync-third-party-licenses:');
 
-    expect(docsJob).not.toMatch(/\n {4}needs:/);
-    expect(licensesJob).not.toMatch(/\n {4}needs:/);
+    expect(extractJobNeeds(docsJob)).toEqual([]);
+    expect(extractJobNeeds(licensesJob)).toEqual(['docs-config-schema']);
   });
 });
