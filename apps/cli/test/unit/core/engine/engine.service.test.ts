@@ -8,6 +8,7 @@ import {
   SimpleTranscriptCompactor,
   TokenBudgetCompactor,
   TranscriptCompactionService,
+  type MetricsService,
   type AgentOrchestratorService,
   type AgentRunRequest,
   type AgentRuntimeCatalog,
@@ -86,6 +87,7 @@ interface EngineHarness {
   store: ConfigStore;
   confirmService: { create: ReturnType<typeof vi.fn> };
   getSnapshotSpy: SpyInstance<[], EddieConfig>;
+  metrics: MetricsService;
 }
 
 function createEngineHarness(
@@ -158,6 +160,12 @@ function createEngineHarness(
   const mcpToolSourceService = {
     collectTools: vi.fn(async () => ({ tools: [], resources: [], prompts: [] })),
   } as unknown as McpToolSourceService;
+  const metrics = {
+    countMessage: vi.fn(),
+    observeToolCall: vi.fn(),
+    countError: vi.fn(),
+    timeOperation: vi.fn(async (_metric: string, fn: () => Promise<unknown>) => fn()),
+  } as unknown as MetricsService;
 
   const fakeOrchestrator = new FakeAgentOrchestrator();
   if (overrides?.orchestratorShouldFail) {
@@ -174,7 +182,8 @@ function createEngineHarness(
     loggerService,
     transcriptCompactionService,
     fakeOrchestrator as unknown as AgentOrchestratorService,
-    mcpToolSourceService
+    mcpToolSourceService,
+    metrics
   );
 
   return {
@@ -187,6 +196,7 @@ function createEngineHarness(
     store,
     confirmService,
     getSnapshotSpy,
+    metrics,
   };
 }
 
@@ -600,6 +610,12 @@ describe("EngineService hot configuration", () => {
     const mcpToolSourceService = {
       collectTools: vi.fn(async () => ({ tools: [], resources: [], prompts: [] })),
     } as unknown as McpToolSourceService;
+    const metrics = {
+      countMessage: vi.fn(),
+      observeToolCall: vi.fn(),
+      countError: vi.fn(),
+      timeOperation: vi.fn(async (_metric: string, fn: () => Promise<unknown>) => fn()),
+    } as unknown as MetricsService;
 
     const orchestrator = new FakeAgentOrchestrator();
 
@@ -613,7 +629,8 @@ describe("EngineService hot configuration", () => {
       loggerService,
       transcriptCompactionService,
       orchestrator as unknown as AgentOrchestratorService,
-      mcpToolSourceService
+      mcpToolSourceService,
+      metrics
     );
 
     await engine.run("initial run");

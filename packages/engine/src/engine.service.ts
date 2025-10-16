@@ -259,12 +259,6 @@ export class EngineService {
           )
       );
 
-      for (const message of rootInvocation.messages) {
-        if (message.role === "assistant") {
-          this.metrics.countMessage("assistant");
-        }
-      }
-
       const agents = this.agentOrchestrator.collectInvocations(rootInvocation);
 
       result = {

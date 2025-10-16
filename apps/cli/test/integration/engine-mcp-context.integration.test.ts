@@ -4,6 +4,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
   EngineService,
   AgentInvocationFactory,
+  type MetricsService,
   type TranscriptCompactionService,
   type TranscriptCompactionWorkflow,
 } from "@eddie/engine";
@@ -157,6 +158,12 @@ describe("EngineService MCP resource integration", () => {
         prompts: [],
       })),
     } as unknown as McpToolSourceService;
+    const metrics = {
+      countMessage: vi.fn(),
+      observeToolCall: vi.fn(),
+      countError: vi.fn(),
+      timeOperation: vi.fn(async (_metric: string, fn: () => Promise<unknown>) => fn()),
+    } as unknown as MetricsService;
 
     const engine = new EngineService(
       store,
@@ -168,7 +175,8 @@ describe("EngineService MCP resource integration", () => {
       loggerService as LoggerServiceType,
       transcriptCompactionService,
       orchestrator,
-      mcpToolSourceService
+      mcpToolSourceService,
+      metrics
     );
 
     const result = await engine.run("Summarize docs");

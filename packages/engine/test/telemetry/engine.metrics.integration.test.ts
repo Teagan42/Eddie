@@ -78,13 +78,16 @@ describe("EngineService metrics", () => {
         {
           provide: AgentOrchestratorService,
           useValue: {
-            runAgent: vi.fn(async () => ({
-              messages: [
-                { role: "system", content: "context" },
-                { role: "assistant", content: "response" },
-              ],
-              context: { files: [], totalBytes: 0, text: "" },
-            })),
+            runAgent: vi.fn(async (_request, runtime) => {
+              runtime.metrics.countMessage("assistant");
+              return {
+                messages: [
+                  { role: "system", content: "context" },
+                  { role: "assistant", content: "response" },
+                ],
+                context: { files: [], totalBytes: 0, text: "" },
+              };
+            }),
             collectInvocations: vi.fn(() => []),
           },
         },
