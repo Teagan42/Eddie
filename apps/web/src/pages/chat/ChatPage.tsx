@@ -1356,17 +1356,30 @@ export function ChatPage(): JSX.Element {
   const composerInputDisabled = composerUnavailable || sendMessageMutation.isPending;
 
   const handleSendMessage = useCallback(() => {
-    if (!apiKey || !selectedSessionId || !composerValue.trim()) {
+    const trimmed = composerValue.trim();
+    if (!apiKey || !selectedSessionId || !trimmed) {
       return;
     }
     sendMessageMutation.mutate({
       sessionId: selectedSessionId,
       message: {
         role: composerRole,
-        content: composerValue.trim(),
+        content: trimmed,
       },
     });
   }, [apiKey, composerRole, composerValue, selectedSessionId, sendMessageMutation]);
+
+  const handleComposerKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (!event.altKey || event.key !== 'Enter') {
+        return;
+      }
+
+      event.preventDefault();
+      handleSendMessage();
+    },
+    [handleSendMessage],
+  );
 
   const handleProviderChange = useCallback(
     (value: string) => {
@@ -1775,6 +1788,7 @@ export function ChatPage(): JSX.Element {
               <TextArea
                 value={composerValue}
                 onChange={(event) => setComposerValue(event.target.value)}
+                onKeyDown={handleComposerKeyDown}
                 placeholder="Send a message to the orchestrator"
                 rows={4}
                 disabled={composerInputDisabled}
