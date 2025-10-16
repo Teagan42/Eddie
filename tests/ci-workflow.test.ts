@@ -54,10 +54,16 @@ describe('ci workflow configuration', () => {
     const jobSection = extractJobSection('docs-config-schema:');
 
     expect(jobSection).toMatch(/npm run docs:config-schema(\n|\s)/);
+    expect(jobSection).toMatch(/Detect configuration schema changes/);
+    expect(jobSection).toContain('file_path="docs/generated/config-schema-diagram.md"');
+    expect(jobSection).toContain('git diff --quiet -- "$file_path"');
     expectAddAndCommitStep(
       jobSection,
       './docs/generated/config-schema-diagram.md',
       'chore: update config schema diagram',
+    );
+    expect(jobSection).toMatch(
+      /if: steps\.config-schema-diff\.outputs\.changed == 'true'/,
     );
     expect(jobSection).toMatch(/git push/);
   });
