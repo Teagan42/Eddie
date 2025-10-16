@@ -117,16 +117,12 @@ jobs:
 
       - name: Commit updated diagram
         id: commit
-        run: |
-          set -euo pipefail
-          fileName=./docs/generated/config-schema-diagram.md
-          if git diff --name-only --diff-filter=ACMR | grep -q "$fileName"; then
-            git add "$fileName"
-            git commit --all --message "chore: update config schema diagram"
-            echo "committed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "committed=false" >> "$GITHUB_OUTPUT"
-          fi
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: ./docs/generated/config-schema-diagram.md
+          message: "chore: update config schema diagram"
+          push: true
+          skip_empty: true
 
       - name: Push updates
         if: steps.commit.outputs.committed == 'true'
@@ -218,16 +214,12 @@ jobs:
 
       - name: Commit updated notices
         id: commit
-        run: |
-          set -euo pipefail
-          fileName=THIRD_PARTY_NOTICES.md
-          if git diff --name-only --diff-filter=ACMR | grep -q "$fileName"; then
-            git add "$fileName"
-            git commit --all --message "chore: update third-party notices"
-            echo "committed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "committed=false" >> "$GITHUB_OUTPUT"
-          fi
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: THIRD_PARTY_NOTICES.md
+          message: "chore: update third-party notices"
+          push: true
+          skip_empty: true
 
       - name: Push updates
         if: steps.commit.outputs.committed == 'true'

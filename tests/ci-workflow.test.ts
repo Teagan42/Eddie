@@ -19,13 +19,16 @@ function extractJobSection(jobId: string): string {
   return rest.slice(0, jobId.length + nextJobOffset);
 }
 
-function expectDiffProtectedCommit(jobSection: string, fileName: string): void {
-  const expectedFileNameDeclaration = `fileName=${fileName}`;
-  const expectedStatusCheck =
-    'git diff --name-only --diff-filter=ACMR | grep -q "$fileName"';
-
-  expect(jobSection).toContain(expectedFileNameDeclaration);
-  expect(jobSection).toContain(expectedStatusCheck);
+function expectAddAndCommitStep(
+  jobSection: string,
+  addPath: string,
+  commitMessage: string,
+): void {
+  expect(jobSection).toContain('uses: EndBug/add-and-commit@v9');
+  expect(jobSection).toContain(`add: ${addPath}`);
+  expect(jobSection).toContain(`message: "${commitMessage}"`);
+  expect(jobSection).toMatch(/push: true/);
+  expect(jobSection).toMatch(/skip_empty: true/);
 }
 
 describe('ci workflow configuration', () => {
@@ -51,12 +54,10 @@ describe('ci workflow configuration', () => {
     const jobSection = extractJobSection('docs-config-schema:');
 
     expect(jobSection).toMatch(/npm run docs:config-schema(\n|\s)/);
-    expectDiffProtectedCommit(
+    expectAddAndCommitStep(
       jobSection,
       './docs/generated/config-schema-diagram.md',
-    );
-    expect(jobSection).toMatch(
-      /git commit --all --message "chore: update config schema diagram"/
+      'chore: update config schema diagram',
     );
     expect(jobSection).toMatch(/git push/);
   });
@@ -65,9 +66,10 @@ describe('ci workflow configuration', () => {
     const jobSection = extractJobSection('sync-third-party-licenses:');
 
     expect(jobSection).toMatch(/npm run licenses:write/);
-    expectDiffProtectedCommit(jobSection, 'THIRD_PARTY_NOTICES.md');
-    expect(jobSection).toMatch(
-      /git commit --all --message "chore: update third-party notices"/
+    expectAddAndCommitStep(
+      jobSection,
+      'THIRD_PARTY_NOTICES.md',
+      'chore: update third-party notices',
     );
     expect(jobSection).toMatch(/git push/);
   });
