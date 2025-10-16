@@ -1,10 +1,8 @@
+import type { AgentRuntimeDescriptor, StreamEvent, ToolResult } from "@eddie/types";
+import { AgentStreamEvent, HOOK_EVENTS } from "@eddie/types";
 import { describe, expect, it, vi } from "vitest";
-import { HOOK_EVENTS } from "@eddie/hooks";
-import { AgentStreamEvent } from "@eddie/types";
-import type { StreamEvent, ToolResult } from "@eddie/types";
-import { AgentRunner } from "../../src/agents/agent-runner";
 import type { AgentInvocation } from "../../src/agents/agent-invocation";
-import type { AgentRuntimeDescriptor } from "@eddie/types";
+import { AgentRunner } from "../../src/agents/agent-runner";
 
 type InvocationOverrides = Partial<AgentInvocation>;
 
@@ -108,7 +106,7 @@ const createRunner = (overrides: RunnerOverrides = {}) => {
       render: vi.fn(),
       flush: vi.fn(),
     },
-      eventBus,
+    eventBus,
     hooks: overrides.hooks ?? {
       emitAsync: vi.fn().mockResolvedValue({}),
     },
