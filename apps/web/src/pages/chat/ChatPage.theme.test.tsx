@@ -162,4 +162,14 @@ describe("ChatPage message surfaces", () => {
     expect(assistantCard).toHaveClass("via-sky-500/5");
     expect(assistantCard).toHaveClass("to-slate-950/70");
   });
+
+  it("renders the re-issue command button with an amber accent", async () => {
+    renderChatPage();
+
+    await waitFor(() => expect(listMessagesMock).toHaveBeenCalledTimes(1));
+
+    const reissueButton = await screen.findByRole("button", { name: "Re-issue command" });
+
+    expect(reissueButton).toHaveAttribute("data-accent-color", "amber");
+  });
 });
