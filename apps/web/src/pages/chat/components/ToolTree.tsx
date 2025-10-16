@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import type { ComponentProps } from 'react';
 import { Badge, Box, Flex, Text } from '@radix-ui/themes';
+import { ArrowUpRight } from 'lucide-react';
 import type { OrchestratorMetadataDto, ToolCallStatusDto } from '@eddie/api-client';
 
 import { JsonExplorer } from '@/components/common/JsonExplorer';
@@ -30,10 +31,11 @@ type AgentHierarchyNode = OrchestratorMetadataDto['agentHierarchy'][number];
 const TOOL_SECTION_PREFIX = 'tool:';
 const AGENT_TOOLS_PREFIX = 'agent-tools:';
 const AGENT_CHILDREN_PREFIX = 'agent-children:';
+export const TOOL_DIALOG_CTA_ICON_TEST_ID = 'tool-dialog-cta-icon';
 const TOGGLE_BUTTON_CLASS =
   'inline-flex h-6 w-6 items-center justify-center rounded-md border border-muted/50 bg-background text-xs font-medium text-foreground/80 transition-colors hover:bg-muted/40';
 const TOOL_DIALOG_TRIGGER_CLASS =
-  'inline-flex items-center gap-2 rounded-md px-1 py-1 text-left transition-colors hover:bg-muted/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
+  'inline-flex items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-muted/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
 
 function createToolSectionId(id: string): string {
   return `${TOOL_SECTION_PREFIX}${id}`;
@@ -378,6 +380,11 @@ function ToolTreeList({
                       <Text weight="medium" className="font-mono text-sm">
                         {node.name}
                       </Text>
+                      <ArrowUpRight
+                        aria-hidden="true"
+                        data-testid={TOOL_DIALOG_CTA_ICON_TEST_ID}
+                        className="h-4 w-4"
+                      />
                     </button>
                   </DialogTrigger>
                 </Flex>

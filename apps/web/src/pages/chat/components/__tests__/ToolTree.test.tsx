@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { ToolTree } from '../ToolTree';
+import { ToolTree, TOOL_DIALOG_CTA_ICON_TEST_ID } from '../ToolTree';
 import { summarizeObject } from '../../chat-utils';
 
 describe('ToolTree', () => {
@@ -321,6 +321,10 @@ describe('ToolTree', () => {
     const detailsTrigger = screen.getByRole('button', {
       name: 'View process tool call details',
     });
+
+    expect(
+      within(detailsTrigger).getByTestId(TOOL_DIALOG_CTA_ICON_TEST_ID),
+    ).toBeInTheDocument();
 
     await user.click(detailsTrigger);
 
