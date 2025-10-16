@@ -28,6 +28,7 @@ export class ToolCallsGatewayEventsHandler implements IEventHandler<ToolCallLife
       arguments: state.arguments,
       result: state.result,
       timestamp: state.updatedAt ?? state.startedAt,
+      agentId: state.agentId ?? null,
     };
   }
 }

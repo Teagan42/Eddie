@@ -192,14 +192,16 @@ describe("ChatSessionsController HTTP", () => {
         "call-1",
         "tool",
         { foo: "bar" },
-        new Date().toISOString()
+        new Date().toISOString(),
+        "agent-123"
       ),
       new ChatSessionToolResultEvent(
         session.id,
         "call-1",
         "tool",
         { ok: true },
-        new Date().toISOString()
+        new Date().toISOString(),
+        "agent-123"
       ),
     ]);
 
@@ -223,15 +225,20 @@ describe("ChatSessionsController HTTP", () => {
     await vi.waitFor(() => expect(emitSpy).toHaveBeenCalled());
     await vi.waitFor(() =>
       expect(
-        executeSpy.mock.calls.some(
-          ([command]) => command instanceof StartToolCallCommand
-        )
+        executeSpy.mock.calls.some(([command]) => {
+          if (!(command instanceof StartToolCallCommand)) {
+            return false;
+          }
+          return command.input.agentId === "agent-123";
+        })
       ).toBe(true)
     );
     await vi.waitFor(() =>
       expect(
         executeSpy.mock.calls.some(
-          ([command]) => command instanceof CompleteToolCallCommand
+          ([command]) =>
+            command instanceof CompleteToolCallCommand &&
+            command.input.agentId === "agent-123"
         )
       ).toBe(true)
     );

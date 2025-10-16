@@ -175,6 +175,7 @@ export class ChatSessionStreamRendererService {
         event.name,
         event.arguments ?? null,
         new Date().toISOString(),
+        event.agentId ?? null,
       )
     );
   }
@@ -190,6 +191,7 @@ export class ChatSessionStreamRendererService {
         event.name,
         event.result ?? null,
         new Date().toISOString(),
+        event.agentId ?? null,
       )
     );
   }

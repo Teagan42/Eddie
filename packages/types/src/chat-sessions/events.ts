@@ -31,6 +31,7 @@ export class ChatSessionToolCallEvent {
     public readonly name: string | undefined,
     args: unknown,
     public readonly timestamp: string | undefined,
+    public readonly agentId: string | null | undefined,
   ) {
     this.payload = args;
   }
@@ -47,6 +48,7 @@ export class ChatSessionToolResultEvent {
     public readonly name: string | undefined,
     public readonly result: unknown,
     public readonly timestamp: string | undefined,
+    public readonly agentId: string | null | undefined,
   ) {}
 }
 

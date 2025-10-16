@@ -188,6 +188,7 @@ type ToolRealtimePayload = {
   arguments?: string | Record<string, unknown>;
   result?: string | Record<string, unknown>;
   timestamp?: string | null;
+  agentId?: string | null;
 };
 
 type ToolRealtimeMetadataResult = Partial<
@@ -207,6 +208,14 @@ function coerceToolInvocationId(value: unknown, fallbackPrefix = 'tool'): string
   }
 
   return String(value);
+}
+
+function sanitizeRealtimeAgentId(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 function normalizeToolInvocationNode(node: ToolInvocationNode): ToolInvocationNode {
@@ -959,6 +968,7 @@ export function ChatPage(): JSX.Element {
               const name = String(p.name ?? 'unknown');
               const status = (p.status ?? ('pending' as ToolCallStatusDto)) as ToolCallStatusDto;
               const createdAt = p.timestamp ?? new Date().toISOString();
+              const agentId = sanitizeRealtimeAgentId(p.agentId);
               const argMeta =
                 typeof p.arguments === 'string'
                   ? { arguments: p.arguments, command: p.arguments, preview: p.arguments }
@@ -977,6 +987,7 @@ export function ChatPage(): JSX.Element {
                 metadata: {
                   ...argMeta,
                   createdAt,
+                  ...(agentId ? { agentId } : {}),
                 },
                 children: [],
               });
@@ -1013,6 +1024,7 @@ export function ChatPage(): JSX.Element {
               const status = (p.status ??
                 ('completed' as ToolCallStatusDto)) as ToolCallStatusDto;
               const createdAt = p.timestamp ?? new Date().toISOString();
+              const agentId = sanitizeRealtimeAgentId(p.agentId);
               const resultMeta =
                 typeof p.result === 'string'
                   ? { result: p.result }
@@ -1035,6 +1047,7 @@ export function ChatPage(): JSX.Element {
                       ? p.arguments
                       : (summarizeObject(p.arguments) ?? undefined),
                   createdAt,
+                  ...(agentId ? { agentId } : {}),
                 },
                 children: [],
               });

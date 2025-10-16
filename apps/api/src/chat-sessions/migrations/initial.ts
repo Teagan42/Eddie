@@ -111,6 +111,7 @@ export const initialChatSessionsMigration = async (db: Knex): Promise<void> => {
       table.string("name", 255).nullable();
       table.string("status", 32).notNullable();
       addJsonColumn(table, "arguments", dialect, true);
+      table.string("agent_id", 255).nullable();
       table.timestamp("created_at", { useTz: true }).notNullable();
       table.timestamp("updated_at", { useTz: true }).notNullable();
       table.unique(
@@ -139,6 +140,7 @@ export const initialChatSessionsMigration = async (db: Knex): Promise<void> => {
       table.string("tool_call_id", 255).nullable();
       table.string("name", 255).nullable();
       addJsonColumn(table, "result", dialect, true);
+      table.string("agent_id", 255).nullable();
       table.timestamp("created_at", { useTz: true }).notNullable();
       table.timestamp("updated_at", { useTz: true }).notNullable();
       table.unique(

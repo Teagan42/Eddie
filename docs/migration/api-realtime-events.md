@@ -21,8 +21,8 @@ designing new read models. Pair this table with the baseline note in `api-realti
 | Source | Event | Payload | Dispatch Path | Consumers |
 | --- | --- | --- | --- | --- |
 | ChatSessionStreamRendererService | ChatMessagePartialEvent | `ChatMessageDto` with incremental assistant content | `emitPartial` → `eventBus.publish` → `ChatSessionEventsService.handle` → `ChatMessagesGateway.emitPartial("message.partial")` | WebSocket clients on `/chat-messages`; ChatSessionEventsService; ChatMessagesGateway |
-| ChatSessionStreamRendererService | ChatSessionToolCallEvent | `{ sessionId, id?, name?, arguments?, timestamp }` | `emitToolCallEvent` → `eventBus.publish` → `ChatSessionEventsService.emitToolCall` → `ToolsGateway.emitToolCall("tool.call")` | WebSocket clients on `/tools`; ChatSessionEventsService; ToolsGateway |
-| ChatSessionStreamRendererService | ChatSessionToolResultEvent | `{ sessionId, id?, name?, result?, timestamp }` | `emitToolResultEvent` → `eventBus.publish` → `ChatSessionEventsService.emitToolResult` → `ToolsGateway.emitToolResult("tool.result")` | WebSocket clients on `/tools`; ChatSessionEventsService; ToolsGateway |
+| ChatSessionStreamRendererService | ChatSessionToolCallEvent | `{ sessionId, id?, name?, arguments?, timestamp, agentId? }` | `emitToolCallEvent` → `eventBus.publish` → `ChatSessionEventsService.emitToolCall` → `ToolsGateway.emitToolCall("tool.call")` | WebSocket clients on `/tools`; ChatSessionEventsService; ToolsGateway |
+| ChatSessionStreamRendererService | ChatSessionToolResultEvent | `{ sessionId, id?, name?, result?, timestamp, agentId? }` | `emitToolResultEvent` → `eventBus.publish` → `ChatSessionEventsService.emitToolResult` → `ToolsGateway.emitToolResult("tool.result")` | WebSocket clients on `/tools`; ChatSessionEventsService; ToolsGateway |
 | StreamRendererService | stream console output | Raw `StreamEvent` payload rendered to stdout/stderr | `StreamRendererService.render` writes formatted output directly | CLI users; process stdout/stderr |
 
 ## Traces CQRS Handlers
@@ -43,8 +43,8 @@ designing new read models. Pair this table with the baseline note in `api-realti
 | Source | Event | Payload | Dispatch Path | Consumers |
 | --- | --- | --- | --- | --- |
 | LogsForwarderService | logs.created | `LogEntryDto` | `handleLoggerEvent`/`handleJsonlEvent` → `LogsService.append` → `LogsGateway.onLogCreated` → buffered `emitEvent("logs.created")` | WebSocket clients on `/logs`; LogsGateway |
-| LogsForwarderService | tool.call | Normalised tool invocation (sessionId, id?, name?, arguments?, timestamp) | `handleJsonlEvent` with phase `tool_call` → `ToolsGateway.emitToolCall("tool.call")` | WebSocket clients on `/tools`; ToolsGateway |
-| LogsForwarderService | tool.result | Normalised tool result (sessionId, id?, name?, result?, timestamp) | `handleJsonlEvent` with phase `tool_result` → `ToolsGateway.emitToolResult("tool.result")` | WebSocket clients on `/tools`; ToolsGateway |
+| LogsForwarderService | tool.call | Normalised tool invocation (sessionId, id?, name?, arguments?, timestamp, agentId?) | `handleJsonlEvent` with phase `tool_call` → `ToolsGateway.emitToolCall("tool.call")` | WebSocket clients on `/tools`; ToolsGateway |
+| LogsForwarderService | tool.result | Normalised tool result (sessionId, id?, name?, result?, timestamp, agentId?) | `handleJsonlEvent` with phase `tool_result` → `ToolsGateway.emitToolResult("tool.result")` | WebSocket clients on `/tools`; ToolsGateway |
 
 ## Stakeholder Validation Checklist
 
