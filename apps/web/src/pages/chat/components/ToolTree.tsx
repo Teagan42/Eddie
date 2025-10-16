@@ -134,7 +134,7 @@ export function ToolTree({
 
       return changed ? next : previous;
     });
-  }, [nodes, resolvedAgentHierarchy]);
+  });
 
   const toggleSection = useCallback((id: string) => {
     setExpandedSectionIds((previous) => {
