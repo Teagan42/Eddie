@@ -4,6 +4,7 @@ export type ToolCallStatus = "running" | "completed" | "failed";
 
 export interface ToolCallState {
   sessionId: string;
+  agentId?: string;
   toolCallId?: string;
   name?: string;
   arguments?: unknown;
@@ -16,6 +17,7 @@ export interface ToolCallState {
 
 export interface ToolCallCommandInput {
   sessionId: string;
+  agentId?: string;
   toolCallId?: string;
   name?: string;
   arguments?: unknown;
@@ -36,6 +38,7 @@ export class ToolCallStore {
     if (!existing) {
       const next: ToolCallState = {
         sessionId: input.sessionId,
+        agentId: input.agentId,
         toolCallId: input.toolCallId,
         name: input.name,
         arguments: input.arguments,
@@ -61,6 +64,7 @@ export class ToolCallStore {
     if (!existing) {
       const created: ToolCallState = {
         sessionId: input.sessionId,
+        agentId: input.agentId,
         toolCallId: input.toolCallId,
         name: input.name,
         arguments: input.arguments,
@@ -89,6 +93,7 @@ export class ToolCallStore {
     if (!existing) {
       const created: ToolCallState = {
         sessionId: input.sessionId,
+        agentId: input.agentId,
         toolCallId: input.toolCallId,
         name: input.name,
         arguments: input.arguments,
@@ -145,6 +150,9 @@ export class ToolCallStore {
   ): ToolCallState {
     if (input.name !== undefined) {
       target.name = input.name;
+    }
+    if (input.agentId !== undefined) {
+      target.agentId = input.agentId;
     }
     if (input.arguments !== undefined) {
       target.arguments = input.arguments;
