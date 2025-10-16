@@ -13,5 +13,11 @@
     "build": "echo \"Perf benchmarks have no build step\"",
     "bench": "vitest bench",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@eddie/context": "^0.0.0",
+    "@eddie/templates": "^0.0.0",
+    "@eddie/providers": "^0.0.0",
+    "@eddie/api": "^0.0.0"
   }
 }

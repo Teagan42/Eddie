@@ -5,9 +5,12 @@ const workflowPath = new URL('../.github/workflows/benchmarks.yml', import.meta.
 const readmePath = new URL('../README.md', import.meta.url);
 const docsPath = new URL('../docs/performance-benchmarks.md', import.meta.url);
 const mysqlLikeServices = [
-  { name: 'mysql', rootEnv: 'MYSQL' },
-  { name: 'mariadb', rootEnv: 'MARIADB' },
+  { name: 'mysql', rootEnv: 'MYSQL', adminCmd: 'mysqladmin' },
+  { name: 'mariadb', rootEnv: 'MARIADB', adminCmd: 'mariadb-admin' },
 ] as const;
+
+const mysqlLikeHealthCheck = (adminCmd: string, rootEnv: string) =>
+  `--health-cmd="${adminCmd} ping --protocol=TCP -h 127.0.0.1 -uroot -p$${rootEnv}_ROOT_PASSWORD --silent || exit 1"`;
 
 describe('benchmarks workflow', () => {
   it('provisions database-backed performance reporting with regression alerts', () => {
@@ -52,9 +55,8 @@ describe('benchmarks workflow', () => {
   it('checks mysql-compatible services using admin credentials over TCP', () => {
     const workflow = readFileSync(workflowPath, 'utf8');
 
-    for (const { rootEnv } of mysqlLikeServices) {
-      const expectedCmd = `--health-cmd="mysqladmin ping --protocol=TCP -h 127.0.0.1 -uroot -p$${rootEnv}_ROOT_PASSWORD --silent || exit 1"`;
-      expect(workflow).toContain(expectedCmd);
+    for (const { rootEnv, adminCmd } of mysqlLikeServices) {
+      expect(workflow).toContain(mysqlLikeHealthCheck(adminCmd, rootEnv));
     }
   });
 

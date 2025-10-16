@@ -22,5 +22,19 @@
     "bench",
     "**/*.test.ts",
     "**/*.bench.ts"
+  ],
+  "references": [
+    {
+      "path": "../../runtime/context"
+    },
+    {
+      "path": "../../core/templates"
+    },
+    {
+      "path": "../../integrations/providers"
+    },
+    {
+      "path": "../../../apps/api"
+    }
   ]
 }
