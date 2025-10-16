@@ -51,6 +51,7 @@ describe('ToolTree', () => {
     expect(getAllByText(/completed/i)[0]).toBeInTheDocument();
     expect(getByText('ls')).toBeInTheDocument();
     expect(getAllByText(/args:/i)[0]).toHaveTextContent('Args: --all');
+    expect(within(rootNode!).getByText('write')).toBeInTheDocument();
 
     await user.click(
       within(rootNode!).getByRole('button', {
@@ -58,7 +59,7 @@ describe('ToolTree', () => {
       }),
     );
 
-    expect(within(rootNode!).getByText('write')).toBeInTheDocument();
+    expect(within(rootNode!).queryByText('write')).not.toBeInTheDocument();
   });
 
   it('renders JSON arguments using the explorer for nested data', async () => {
@@ -148,15 +149,131 @@ describe('ToolTree', () => {
       name: 'Toggle shell children',
     });
 
-    expect(screen.queryByText('write')).not.toBeInTheDocument();
-
-    await user.click(toggleButton);
-
     expect(screen.getByText('write')).toBeInTheDocument();
 
     await user.click(toggleButton);
 
     expect(screen.queryByText('write')).not.toBeInTheDocument();
+
+    await user.click(toggleButton);
+
+    expect(screen.getByText('write')).toBeInTheDocument();
+  });
+
+  it('auto expands the latest tool call when new nodes arrive', () => {
+    const initialNodes = [
+      {
+        id: 'root',
+        name: 'shell',
+        status: 'completed' as const,
+        metadata: { createdAt: '2024-01-01T00:00:00.000Z' },
+        children: [],
+      },
+    ];
+    const { rerender } = render(<ToolTree nodes={initialNodes as any} />);
+
+    expect(screen.queryByText('write')).not.toBeInTheDocument();
+
+    const nextNodes = [
+      {
+        id: 'root',
+        name: 'shell',
+        status: 'completed' as const,
+        metadata: { createdAt: '2024-01-01T00:00:00.000Z' },
+        children: [
+          {
+            id: 'child',
+            name: 'write',
+            status: 'completed' as const,
+            metadata: { createdAt: '2024-01-01T00:05:00.000Z' },
+            children: [],
+          },
+        ],
+      },
+    ];
+
+    rerender(<ToolTree nodes={nextNodes as any} />);
+
+    expect(screen.getByText('write')).toBeInTheDocument();
+
+    const toggleButton = screen.getByRole('button', {
+      name: 'Toggle shell children',
+    });
+    expect(toggleButton).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('auto expands agent sections that contain the latest tool call', async () => {
+    const nodes = [
+      {
+        id: 'manager-tool',
+        name: 'fetch_documents',
+        status: 'completed' as const,
+        metadata: {
+          createdAt: '2024-02-01T00:05:00.000Z',
+          agentId: 'manager',
+        },
+        children: [],
+      },
+    ];
+    const agentHierarchy = [
+      {
+        id: 'session-1',
+        name: 'Orchestrator session',
+        provider: 'orchestrator',
+        model: 'delegator',
+        depth: 0,
+        metadata: { messageCount: 2 },
+        children: [
+          {
+            id: 'manager',
+            name: 'Manager',
+            provider: 'openai',
+            model: 'gpt-4o-mini',
+            depth: 1,
+            metadata: { messageCount: 3 },
+            children: [
+              {
+                id: 'writer',
+                name: 'Writer',
+                provider: 'anthropic',
+                model: 'claude-3-5-sonnet',
+                depth: 2,
+                metadata: { messageCount: 1 },
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const { rerender } = render(
+      <ToolTree nodes={nodes as any} agentHierarchy={agentHierarchy as any} />,
+    );
+
+    expect(screen.queryByText('Writer')).not.toBeInTheDocument();
+
+    nodes.push({
+      id: 'writer-tool',
+      name: 'write_report',
+      status: 'running' as const,
+      metadata: {
+        createdAt: '2024-02-01T00:10:00.000Z',
+        agentId: 'writer',
+      },
+      children: [],
+    });
+
+    rerender(<ToolTree nodes={nodes as any} agentHierarchy={agentHierarchy as any} />);
+
+    const writerLabel = await screen.findByText('Writer');
+    expect(writerLabel).toBeInTheDocument();
+    expect(screen.getByText('write_report')).toBeInTheDocument();
+
+    const writerToggle = await screen.findByRole('button', {
+      name: 'Toggle Writer tools',
+    });
+    expect(writerToggle).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('groups tool invocations beneath collapsable agent levels', async () => {
@@ -233,44 +350,43 @@ describe('ToolTree', () => {
 
     render(<ToolTree {...(props as any)} />);
 
-    expect(
-      screen.getByRole('button', { name: 'Toggle Orchestrator session agents' }),
-    ).toBeInTheDocument();
-
-    expect(screen.queryByText('Manager')).not.toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole('button', {
-        name: 'Toggle Orchestrator session agents',
-      }),
-    );
+    const rootToggle = screen.getByRole('button', {
+      name: 'Toggle Orchestrator session agents',
+    });
+    expect(rootToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Manager')).toBeInTheDocument();
 
     const managerAgent = screen.getByText('Manager').closest('li');
     expect(managerAgent).not.toBeNull();
 
-    await user.click(
-      within(managerAgent!).getByRole('button', {
-        name: 'Toggle Manager agents',
-      }),
-    );
-
+    const managerAgentsToggle = within(managerAgent!).getByRole('button', {
+      name: 'Toggle Manager agents',
+    });
+    expect(managerAgentsToggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('Writer')).toBeInTheDocument();
 
-    await user.click(
-      within(managerAgent!).getByRole('button', {
-        name: 'Toggle Manager tools',
-      }),
-    );
+    const managerToolsToggle = within(managerAgent!).getByRole('button', {
+      name: 'Toggle Manager tools',
+    });
+    expect(managerToolsToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('fetch_documents')).not.toBeInTheDocument();
 
+    await user.click(managerToolsToggle);
+
+    expect(managerToolsToggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('fetch_documents')).toBeInTheDocument();
 
-    await user.click(
-      screen.getByRole('button', {
-        name: 'Toggle Writer tools',
-      }),
-    );
-
+    const writerToolsToggle = screen.getByRole('button', {
+      name: 'Toggle Writer tools',
+    });
+    expect(writerToolsToggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('write_report')).toBeInTheDocument();
+
+    await user.click(rootToggle);
+    expect(screen.queryByText('Manager')).not.toBeInTheDocument();
+
+    await user.click(rootToggle);
+    expect(screen.getByText('Manager')).toBeInTheDocument();
   });
 
   it('truncates long tool results in the tree view', () => {
@@ -375,10 +491,10 @@ describe('ToolTree', () => {
       <ToolTree nodes={nodes as any} agentHierarchy={agentHierarchy as any} />,
     );
 
-    await user.click(
-      screen.getByRole('button', { name: 'Toggle Planner tools' }),
-    );
-
+    const initialToggle = screen.getByRole('button', {
+      name: 'Toggle Planner tools',
+    });
+    expect(initialToggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('draft')).toBeInTheDocument();
 
     nodes.push({
@@ -392,18 +508,20 @@ describe('ToolTree', () => {
       children: [],
     });
 
-    await user.click(
-      screen.getByRole('button', { name: 'Toggle Planner tools' }),
-    );
-
     rerender(
       <ToolTree nodes={nodes as any} agentHierarchy={agentHierarchy as any} />,
     );
 
-    await user.click(
-      screen.getByRole('button', { name: 'Toggle Planner tools' }),
-    );
+    const refreshedToggle = screen.getByRole('button', {
+      name: 'Toggle Planner tools',
+    });
+    expect(refreshedToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('write_report')).toBeInTheDocument();
 
+    await user.click(refreshedToggle);
+    expect(screen.queryByText('write_report')).not.toBeInTheDocument();
+
+    await user.click(refreshedToggle);
     expect(screen.getByText('write_report')).toBeInTheDocument();
   });
 });

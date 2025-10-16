@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ComponentProps } from 'react';
 import { Badge, Box, Flex, Text } from '@radix-ui/themes';
 import { ArrowUpRight } from 'lucide-react';
@@ -77,6 +77,63 @@ export function ToolTree({
   const [expandedSectionIds, setExpandedSectionIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const nodesSignature = JSON.stringify(nodes);
+  const agentSignature = JSON.stringify(agentHierarchy);
+  const seenToolIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const toolEntries = collectToolEntries(nodes);
+    if (toolEntries.length === 0) {
+      seenToolIdsRef.current = new Set();
+      return;
+    }
+
+    const seenIds = seenToolIdsRef.current;
+    const currentIds = new Set(toolEntries.map((entry) => entry.node.id));
+    const newEntries = toolEntries.filter(
+      (entry) => !seenIds.has(entry.node.id),
+    );
+    seenToolIdsRef.current = currentIds;
+
+    if (newEntries.length === 0) {
+      return;
+    }
+
+    const latestEntry = pickLatestToolEntry(newEntries);
+    if (!latestEntry) {
+      return;
+    }
+
+    const idsToExpand = new Set<string>();
+    getToolToggleIds(latestEntry).forEach((id) => idsToExpand.add(id));
+
+    const agentId =
+      typeof latestEntry.node.metadata?.agentId === 'string'
+        ? latestEntry.node.metadata.agentId
+        : null;
+
+    getAgentToggleIds(agentHierarchy, agentId).forEach((id) =>
+      idsToExpand.add(id),
+    );
+
+    if (idsToExpand.size === 0) {
+      return;
+    }
+
+    setExpandedSectionIds((previous) => {
+      let changed = false;
+      const next = new Set(previous);
+
+      idsToExpand.forEach((id) => {
+        if (!next.has(id)) {
+          next.add(id);
+          changed = true;
+        }
+      });
+
+      return changed ? next : previous;
+    });
+  }, [agentSignature, nodesSignature]);
 
   const toggleSection = useCallback((id: string) => {
     setExpandedSectionIds((previous) => {
@@ -475,4 +532,130 @@ function parseJsonValue(value: unknown): unknown | null {
   }
 
   return null;
+}
+
+interface ToolEntry {
+  node: ToolInvocationNode;
+  path: string[];
+}
+
+function getToolToggleIds(entry: ToolEntry): string[] {
+  const ids: string[] = [];
+
+  for (const ancestorId of entry.path.slice(0, -1)) {
+    ids.push(createToolSectionId(ancestorId));
+  }
+
+  if (entry.node.children.length > 0) {
+    ids.push(createToolSectionId(entry.node.id));
+  }
+
+  return ids;
+}
+
+function collectToolEntries(
+  nodes: ToolInvocationNode[],
+  parentPath: string[] = [],
+): ToolEntry[] {
+  const entries: ToolEntry[] = [];
+
+  for (const node of nodes) {
+    const path = [...parentPath, node.id];
+    entries.push({ node, path });
+    const children = node.children ?? [];
+    entries.push(...collectToolEntries(children, path));
+  }
+
+  return entries;
+}
+
+function pickLatestToolEntry(entries: ToolEntry[]): ToolEntry | null {
+  if (entries.length === 0) {
+    return null;
+  }
+
+  let latestEntry = entries[0];
+  let latestTimestamp = getToolTimestamp(entries[0].node);
+  let latestIndex = 0;
+
+  entries.forEach((entry, index) => {
+    const timestamp = getToolTimestamp(entry.node);
+    if (
+      timestamp > latestTimestamp ||
+      (timestamp === latestTimestamp && index > latestIndex)
+    ) {
+      latestEntry = entry;
+      latestTimestamp = timestamp;
+      latestIndex = index;
+    }
+  });
+
+  return latestEntry;
+}
+
+function getToolTimestamp(node: ToolInvocationNode): number {
+  return parseTimestamp(node.metadata?.createdAt);
+}
+
+function parseTimestamp(value: unknown): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const time = Date.parse(value);
+    if (!Number.isNaN(time)) {
+      return time;
+    }
+  }
+
+  return Number.NEGATIVE_INFINITY;
+}
+
+function buildAgentPaths(
+  agentHierarchy: AgentHierarchyNode[],
+): Map<string, AgentHierarchyNode[]> {
+  const map = new Map<string, AgentHierarchyNode[]>();
+
+  const visit = (
+    agent: AgentHierarchyNode,
+    parentPath: AgentHierarchyNode[],
+  ): void => {
+    const path = [...parentPath, agent];
+    map.set(agent.id, path);
+    for (const child of agent.children) {
+      visit(child, path);
+    }
+  };
+
+  for (const agent of agentHierarchy) {
+    visit(agent, []);
+  }
+
+  return map;
+}
+
+function getAgentToggleIds(
+  agentHierarchy: AgentHierarchyNode[],
+  agentId: string | null,
+): string[] {
+  if (!agentId) {
+    return [];
+  }
+
+  const agentPathsById = buildAgentPaths(agentHierarchy);
+  const agentPath = agentPathsById.get(agentId);
+  if (!agentPath) {
+    return [];
+  }
+
+  const ids: string[] = [];
+  for (let index = 0; index < agentPath.length - 1; index += 1) {
+    ids.push(createAgentChildrenSectionId(agentPath[index].id));
+  }
+
+  const leafAgent = agentPath[agentPath.length - 1];
+  ids.push(createAgentToolsSectionId(leafAgent.id));
+
+  return ids;
 }

@@ -133,11 +133,13 @@ export function ChatMessageContent({
 }: ChatMessageContentProps): JSX.Element {
   const { success: hasJsonContent, value: jsonValue } = parseJsonContent(content);
   const containerClassName = cn("whitespace-pre-wrap break-words", className);
+  const jsonRootLabel = `${formatRoleLabel(messageRole)} message JSON`;
   const renderedContent = hasJsonContent ? (
     <JsonTreeView
       value={jsonValue}
       collapsedByDefault
       className="mt-4 text-left"
+      rootLabel={jsonRootLabel}
     />
   ) : (
     <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
@@ -173,4 +175,16 @@ function parseJsonContent(content: string): JsonParseResult {
   } catch {
     return { success: false, value: null };
   }
+}
+
+function formatRoleLabel(role: MessageRole): string {
+  if (!role) {
+    return "";
+  }
+
+  return role
+    .split(/[_-]/)
+    .filter(Boolean)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
 }
