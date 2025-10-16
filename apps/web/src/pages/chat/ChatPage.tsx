@@ -577,21 +577,27 @@ function filterToolInvocationsByAgentIds(
       .map((child) => filterNode(child))
       .filter((child): child is ToolInvocationNode => child != null);
 
-    const agentId = typeof node.metadata?.agentId === 'string' ? node.metadata.agentId : null;
-    if (agentId && allowedAgentIds.has(agentId)) {
-      return {
-        ...node,
-        metadata: node.metadata ? { ...node.metadata } : undefined,
-        children: filteredChildren,
-      } satisfies ToolInvocationNode;
+    const cloneNode = (children: ToolInvocationNode[]): ToolInvocationNode => ({
+      ...node,
+      metadata: node.metadata ? { ...node.metadata } : undefined,
+      children,
+    });
+
+    const nodeAgentId =
+      typeof node.metadata?.agentId === 'string' && node.metadata.agentId.trim().length > 0
+        ? node.metadata.agentId
+        : null;
+
+    if (nodeAgentId && allowedAgentIds.has(nodeAgentId)) {
+      return cloneNode(filteredChildren);
     }
 
     if (filteredChildren.length > 0) {
-      return {
-        ...node,
-        metadata: node.metadata ? { ...node.metadata } : undefined,
-        children: filteredChildren,
-      } satisfies ToolInvocationNode;
+      return cloneNode(filteredChildren);
+    }
+
+    if (!nodeAgentId) {
+      return cloneNode([]);
     }
 
     return null;
