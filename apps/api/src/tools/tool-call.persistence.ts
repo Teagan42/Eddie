@@ -91,7 +91,6 @@ export class ToolCallPersistenceService {
       message_id: null as string | null,
       created_at: this.toDate(state.startedAt),
       updated_at: this.toDate(state.updatedAt),
-      agent_id: state.agentId ?? null,
     };
 
     await db("tool_calls")
@@ -111,7 +110,6 @@ export class ToolCallPersistenceService {
       message_id: null as string | null,
       created_at: this.toDate(state.updatedAt),
       updated_at: this.toDate(state.updatedAt),
-      agent_id: state.agentId ?? null,
     };
 
     const updates: Record<string, unknown> = {
