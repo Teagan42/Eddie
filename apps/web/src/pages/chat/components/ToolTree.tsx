@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/vendor/components/ui/dialog';
-import { JsonTreeView } from '@/components/common';
+import { TreeViewer } from '@/components/common';
 
 import { summarizeObject } from '../chat-utils';
 
@@ -351,6 +351,8 @@ function ToolTreeList({
         const toggleLabel = `Toggle ${node.name} children`;
         const uppercaseStatus = node.status.toUpperCase();
         const dialogTitle = `Tool call: ${node.name}`;
+        const argsViewerLabel = `${node.name} tool call arguments`;
+        const dialogViewerLabel = `${dialogTitle} payload`;
 
         return (
           <Dialog key={node.id}>
@@ -410,10 +412,10 @@ function ToolTreeList({
                 </Flex>
 
                 {hasExplorer ? (
-                  <JsonTreeView
-                    value={parsedArgs as unknown}
-                    collapsedByDefault
-                    className="text-left"
+                  <TreeViewer
+                    data={parsedArgs as unknown}
+                    defaultCollapsed
+                    label={argsViewerLabel}
                   />
                 ) : null}
 
@@ -442,10 +444,10 @@ function ToolTreeList({
                   </DialogDescription>
                 </DialogHeader>
                 <Box className="space-y-3 text-left">
-                  <JsonTreeView
-                    value={node as unknown}
-                    collapsedByDefault
-                    className="text-left"
+                  <TreeViewer
+                    data={node as unknown}
+                    defaultCollapsed
+                    label={dialogViewerLabel}
                   />
                 </Box>
               </DialogContent>

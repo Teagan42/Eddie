@@ -61,7 +61,7 @@ describe('ToolTree', () => {
     expect(within(rootNode!).getByText('write')).toBeInTheDocument();
   });
 
-  it('renders JSON arguments using the explorer for nested data', async () => {
+  it('renders JSON arguments using the tree viewer for nested data', async () => {
     const user = userEvent.setup();
 
     render(
@@ -91,7 +91,8 @@ describe('ToolTree', () => {
     const rootNode = screen.getByText('orchestrate').closest('li');
     expect(rootNode).not.toBeNull();
 
-    expect(within(rootNode!).getByTestId('json-tree-view')).toBeInTheDocument();
+    const treeViewer = within(rootNode!).getByTestId('tree-viewer');
+    expect(treeViewer).toBeInTheDocument();
     expect(
       within(rootNode!).queryByTestId('json-entry-request.body'),
     ).not.toBeInTheDocument();
@@ -100,11 +101,11 @@ describe('ToolTree', () => {
       within(rootNode!).getByRole('button', { name: 'Toggle request' }),
     );
 
-    const expandedRequestEntry = within(rootNode!)
+    const expandedRequestEntry = within(treeViewer)
       .getAllByTestId('json-entry-request')
       .find((node) => node.tagName === 'LI');
     expect(expandedRequestEntry).toHaveAttribute('data-state', 'expanded');
-    const bodyEntry = within(rootNode!).getByTestId('json-entry-request.body');
+    const bodyEntry = within(treeViewer).getByTestId('json-entry-request.body');
     expect(bodyEntry).toHaveTextContent('"body"');
     expect(bodyEntry).toHaveTextContent('Object');
 
@@ -112,7 +113,7 @@ describe('ToolTree', () => {
       within(rootNode!).getByRole('button', { name: 'Toggle body' }),
     );
 
-    const subjectEntry = within(rootNode!).getByTestId(
+    const subjectEntry = within(treeViewer).getByTestId(
       'json-entry-request.body.subject',
     );
     expect(subjectEntry).toHaveTextContent('"subject"');
@@ -337,11 +338,21 @@ describe('ToolTree', () => {
       name: 'Tool call: process',
     });
 
+    const dialogViewer = within(dialog).getByTestId('tree-viewer');
+    expect(dialogViewer).toBeInTheDocument();
+
     await user.click(
       within(dialog).getByRole('button', { name: 'Toggle metadata' }),
     );
 
-    const resultEntry = within(dialog).getByTestId('json-entry-metadata.result');
+    const metadataEntry = within(dialogViewer)
+      .getAllByTestId('json-entry-metadata')
+      .find((node) => node.tagName === 'LI');
+    expect(metadataEntry).toHaveAttribute('data-state', 'expanded');
+
+    const resultEntry = within(dialogViewer).getByTestId(
+      'json-entry-metadata.result',
+    );
     expect(resultEntry).toHaveTextContent(longResult);
   });
 
