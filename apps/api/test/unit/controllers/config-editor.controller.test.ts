@@ -85,7 +85,6 @@ describe("ConfigEditorController", () => {
     const payload = new ConfigSourcePayloadDto();
     payload.content = "model: gpt-4";
     payload.format = "yaml";
-    payload.path = "./eddie.yaml";
 
     await expect(controller.save(payload)).resolves.toEqual({
       path: snapshot.path,
@@ -96,10 +95,6 @@ describe("ConfigEditorController", () => {
       error: snapshot.error,
     });
 
-    expect(service.save).toHaveBeenCalledWith(
-      payload.content,
-      payload.format,
-      payload.path,
-    );
+    expect(service.save).toHaveBeenCalledWith(payload.content, payload.format);
   });
 });

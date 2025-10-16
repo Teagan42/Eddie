@@ -146,14 +146,9 @@ describe("ConfigEditorService", () => {
     const snapshot = createSnapshot();
     hotReloadService.persist.mockResolvedValue(snapshot);
 
-    await expect(service.save("contents", "yaml", "./config.yaml"))
-      .resolves.toBe(snapshot);
+    await expect(service.save("contents", "yaml")).resolves.toBe(snapshot);
 
-    expect(hotReloadService.persist).toHaveBeenCalledWith(
-      "contents",
-      "yaml",
-      "./config.yaml"
-    );
+    expect(hotReloadService.persist).toHaveBeenCalledWith("contents", "yaml");
   });
 
   it("falls back to a friendly message when saving fails", async () => {

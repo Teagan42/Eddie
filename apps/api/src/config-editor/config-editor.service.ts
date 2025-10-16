@@ -43,13 +43,9 @@ export class ConfigEditorService {
     }
   }
 
-  async save(
-    source: string,
-    format: ConfigFileFormat,
-    path?: string | null
-  ): Promise<ConfigFileSnapshot> {
+  async save(source: string, format: ConfigFileFormat): Promise<ConfigFileSnapshot> {
     try {
-      return await this.hotReloadService.persist(source, format, path);
+      return await this.hotReloadService.persist(source, format);
     } catch (error) {
       throw new BadRequestException(this.normaliseError(error));
     }

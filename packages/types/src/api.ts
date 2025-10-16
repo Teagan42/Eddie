@@ -30,7 +30,6 @@ export interface ConfigPreviewPayload {
 export interface ConfigSourceRequestPayload {
   content: string;
   format: ConfigFileFormat;
-  path?: string | null;
 }
 
 export interface AgentInvocationMessageSnapshot {

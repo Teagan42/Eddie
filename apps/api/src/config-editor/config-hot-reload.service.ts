@@ -9,18 +9,13 @@ export class ConfigHotReloadService {
     private readonly configStore: ConfigStore
   ) {}
 
-  async persist(
-    source: string,
-    format: ConfigFileFormat,
-    path?: string | null
-  ): Promise<ConfigFileSnapshot> {
+  async persist(source: string, format: ConfigFileFormat): Promise<ConfigFileSnapshot> {
     const input = this.configService.parseSource(source, format);
     const composed = await this.configService.compose(input, {});
     const snapshot = await this.configService.writeSource(
       source,
       format,
-      {},
-      path ?? undefined
+      {}
     );
     this.configStore.setSnapshot(composed);
     return { ...snapshot, config: composed } satisfies ConfigFileSnapshot;
