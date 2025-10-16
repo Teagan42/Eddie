@@ -119,11 +119,10 @@ export interface EddieConfigSourceDto {
     error?: string | null;
 }
 
-export interface UpdateEddieConfigPayload {
-    content: string;
-    format: ConfigFileFormat;
-    path?: string | null;
-}
+export type UpdateEddieConfigPayload = Pick<
+    EddieConfigSourceDto,
+    "content" | "format"
+>;
 
 export interface ChatSessionTemplateDto {
     id: string;

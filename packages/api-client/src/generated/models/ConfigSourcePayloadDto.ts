@@ -11,10 +11,6 @@ export type ConfigSourcePayloadDto = {
      * Format of the configuration payload.
      */
     format: ConfigSourcePayloadDto.format;
-    /**
-     * Optional explicit path override when persisting the configuration.
-     */
-    path?: Record<string, any> | null;
 };
 export namespace ConfigSourcePayloadDto {
     /**

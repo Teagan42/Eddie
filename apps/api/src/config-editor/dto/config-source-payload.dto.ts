@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsIn, IsOptional, IsString } from "class-validator";
+import { IsIn, IsString } from "class-validator";
 import type { ConfigSourceRequestPayload } from "@eddie/types";
 
 const CONFIG_FORMATS: ConfigSourceRequestPayload["format"][] = ["yaml", "json"];
@@ -14,12 +14,4 @@ export class ConfigSourcePayloadDto implements ConfigSourceRequestPayload {
   @IsIn(CONFIG_FORMATS)
     format!: ConfigSourceRequestPayload["format"];
 
-  @ApiProperty({
-    description: "Optional explicit path override when persisting the configuration.",
-    required: false,
-    nullable: true,
-  })
-  @IsOptional()
-  @IsString()
-    path?: string | null;
 }
