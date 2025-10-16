@@ -90,6 +90,15 @@ const renderChatPage = createChatPageRenderer(
 );
 
 describe("ChatPage session creation", () => {
+  const buildSessionDto = (id: string, title: string, timestamp: string) => ({
+    id,
+    title,
+    description: "",
+    status: "active" as const,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     sessionCreatedHandlers.length = 0;
@@ -117,14 +126,7 @@ describe("ChatPage session creation", () => {
 
   it("retains existing sessions when adding a new one", async () => {
     const now = new Date().toISOString();
-    const createdSessionDto = {
-      id: "session-2",
-      title: "Session 2",
-      description: "",
-      status: "active" as const,
-      createdAt: now,
-      updatedAt: now,
-    };
+    const createdSessionDto = buildSessionDto("session-2", "Session 2", now);
     let resolveCreate: ((value: typeof createdSessionDto) => void) | undefined;
     createSessionMock.mockImplementation(() =>
       new Promise<typeof createdSessionDto>((resolve) => {
@@ -151,6 +153,48 @@ describe("ChatPage session creation", () => {
 
       const createdSession = await screen.findByRole("button", { name: "Session 2" });
 
+      await waitFor(() => expect(createdSession).toBeInTheDocument());
+
+      expect(screen.getByRole("button", { name: "Session 1" })).toBeInTheDocument();
+
+      const sessions = client.getQueryData([
+        "chat-sessions",
+      ]) as Array<{ id: string; title: string }>;
+      expect(sessions?.map((session) => session.id)).toEqual([
+        "session-2",
+        "session-1",
+      ]);
+    } finally {
+      promptSpy.mockRestore();
+    }
+  });
+
+  it("keeps prior sessions visible when create resolves without socket broadcast", async () => {
+    const now = new Date().toISOString();
+    const createdSessionDto = buildSessionDto("session-2", "Session 2", now);
+    let resolveCreate: ((value: typeof createdSessionDto) => void) | undefined;
+    createSessionMock.mockImplementation(() =>
+      new Promise<typeof createdSessionDto>((resolve) => {
+        resolveCreate = resolve;
+      }),
+    );
+
+    const promptSpy = vi.spyOn(window, "prompt").mockReturnValue("Session 2");
+
+    try {
+      const user = userEvent.setup();
+      const { client } = renderChatPage();
+
+      await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
+
+      const addButton = await screen.findByRole("button", { name: "New session" });
+      await user.click(addButton);
+
+      await waitFor(() => expect(createSessionMock).toHaveBeenCalledTimes(1));
+
+      resolveCreate?.(createdSessionDto);
+
+      const createdSession = await screen.findByRole("button", { name: "Session 2" });
       await waitFor(() => expect(createdSession).toBeInTheDocument());
 
       expect(screen.getByRole("button", { name: "Session 1" })).toBeInTheDocument();
