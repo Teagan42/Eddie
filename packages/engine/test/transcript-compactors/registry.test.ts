@@ -7,10 +7,8 @@ import {
 import type { TranscriptCompactor } from "../../src/transcript-compactors/types";
 import { SummarizingTranscriptCompactor } from "../../src/transcript-compactors/summarizing-transcript-compactor";
 import { TranscriptCompactionService } from "../../src/transcript/transcript-compaction.service";
-import type {
-  AgentInvocation,
-  AgentRuntimeDescriptor,
-} from "../../src/agents/agent-runtime.types";
+import type { AgentInvocation } from "../../src/agents/agent-invocation";
+import type { AgentRuntimeDescriptor } from "@eddie/types";
 
 class FakeCompactor implements TranscriptCompactor {
   constructor(readonly tag: string) {}

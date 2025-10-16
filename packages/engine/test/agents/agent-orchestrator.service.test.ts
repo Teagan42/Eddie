@@ -6,7 +6,7 @@ import type { AgentInvocation } from "../../src/agents/agent-invocation";
 import type {
   AgentRuntimeCatalog,
   AgentRuntimeDescriptor,
-} from "../../src/agents/agent-runtime.types";
+} from "@eddie/types";
 
 const createStream = (events: StreamEvent[]): AsyncIterable<StreamEvent> => ({
   [Symbol.asyncIterator]: async function* () {

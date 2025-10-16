@@ -1,12 +1,12 @@
 import { Inject, Injectable, type Provider } from "@nestjs/common";
 import { TemplateRendererService, type TemplateVariables } from "@eddie/templates";
 import type {
+  AgentDefinition,
+  AgentInvocationOptions,
   ChatMessage,
   ContextResourceTemplateConfig,
   PackedContext,
 } from "@eddie/types";
-import type { AgentDefinition } from "../agents/agent-definition";
-import type { AgentInvocationOptions } from "../agents/agent-invocation";
 import type { Logger } from "pino";
 import { LoggerService } from "@eddie/io";
 

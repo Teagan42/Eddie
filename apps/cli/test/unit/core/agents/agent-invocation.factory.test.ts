@@ -2,12 +2,9 @@ import "reflect-metadata";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import fs from "fs/promises";
 import path from "path";
-import {
-  AgentInvocationFactory,
-  type AgentDefinition,
-} from "@eddie/engine";
+import { AgentInvocationFactory } from "@eddie/engine";
 import { ToolRegistryFactory } from "@eddie/tools";
-import type { PackedContext } from "@eddie/types";
+import type { AgentDefinition, PackedContext } from "@eddie/types";
 import { TemplateRendererService } from "@eddie/templates";
 import { TemplateRuntimeService } from "@eddie/engine/templating";
 import type { Logger } from "pino";

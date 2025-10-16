@@ -16,23 +16,20 @@ import type {
   SpawnSubagentTargetSummary,
 } from "@eddie/hooks";
 import type {
+  AgentDefinition,
+  AgentInvocationOptions,
+  AgentRuntimeCatalog,
+  AgentRuntimeDescriptor,
+  AgentRuntimeMetadata,
+  AgentSpawnHandler,
   PackedContext,
   StreamEvent,
   ToolResult,
   ToolSchema,
 } from "@eddie/types";
-import type { AgentDefinition } from "./agent-definition";
-import {
-  AgentInvocation,
-  type AgentInvocationOptions,
-  type AgentSpawnHandler,
-} from "./agent-invocation";
+import { AgentInvocation } from "./agent-invocation";
 import { AgentInvocationFactory } from "./agent-invocation.factory";
-import type {
-  AgentRuntimeCatalog,
-  AgentRuntimeDescriptor,
-  AgentRuntimeMetadata,
-} from "./agent-runtime.types";
+type InvocationSpawnHandler = AgentSpawnHandler<AgentInvocation>;
 import { AgentRunner, type AgentTraceEvent } from "./agent-runner";
 import type { TemplateVariables } from "@eddie/templates";
 import type { TranscriptCompactionWorkflow } from "../transcript/transcript-compaction.service";
@@ -99,7 +96,10 @@ export class AgentOrchestratorService {
       request.parent
     );
 
-    const spawnHandler: AgentSpawnHandler = async (definition, options) =>
+    const spawnHandler: InvocationSpawnHandler = async (
+      definition,
+      options
+    ) =>
       this.spawnSubAgent(invocation, definition, options);
     invocation.setSpawnHandler(spawnHandler);
 
@@ -131,8 +131,10 @@ export class AgentOrchestratorService {
       parent
     );
 
-    const spawnHandler: AgentSpawnHandler = async (childDefinition, childOptions) =>
-      this.spawnSubAgent(invocation, childDefinition, childOptions);
+    const spawnHandler: InvocationSpawnHandler = async (
+      childDefinition,
+      childOptions
+    ) => this.spawnSubAgent(invocation, childDefinition, childOptions);
     invocation.setSpawnHandler(spawnHandler);
 
     parent.addChild(invocation);

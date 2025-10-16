@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentInvocation } from "../../src/agents/agent-invocation";
-import type { AgentRuntimeDescriptor } from "../../src/agents/agent-runtime.types";
+import type { AgentRuntimeDescriptor } from "@eddie/types";
 import type { AgentLifecyclePayload } from "@eddie/hooks";
 import type { EddieConfig, TranscriptCompactorConfig } from "@eddie/types";
 import {
