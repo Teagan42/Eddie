@@ -10,7 +10,7 @@ module.exports = [
       "apps/**/dist/**",
       "node_modules/**",
       "tailwind.config.ts",
-      "packages/api-client/src/generated/**",
+      "platform/integrations/api-client/src/generated/**",
     ],
   },
   {

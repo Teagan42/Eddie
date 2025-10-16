@@ -16,7 +16,7 @@ We standardised on a persistence abstraction centred on `ChatSessionsRepository`
 
 - Operators can toggle `api.persistence.driver` between memory, sqlite, postgres, mysql, and mariadb without recompiling the API, trading some operational overhead for portability.
 - Repository tests exercise both the in-memory fake and the SQL-backed implementation, catching differences in JSON column handling before they reach production.
-- Configuration validation in `packages/config` now enforces connection metadata for each SQL driver, surfacing misconfigurations at startup instead of during traffic spikes.
+- Configuration validation in `platform/core/config` now enforces connection metadata for each SQL driver, surfacing misconfigurations at startup instead of during traffic spikes.
 
 ## Alternatives Considered
 

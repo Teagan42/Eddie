@@ -69,7 +69,7 @@ describe('workspace test runner concurrency', () => {
 describe('workspace discovery', () => {
   it('returns workspaces that define the requested script', async () => {
     const repoRoot = process.cwd();
-    const packageDir = join(repoRoot, 'packages');
+    const packageDir = join(repoRoot, 'platform', 'runtime');
     const rootPackagePath = join(repoRoot, 'package.json');
     const packageAPath = join(packageDir, 'pkg-a', 'package.json');
     const packageBPath = join(packageDir, 'pkg-b', 'package.json');
@@ -77,7 +77,7 @@ describe('workspace discovery', () => {
     const readFileSpy = vi.spyOn(fs, 'readFile').mockImplementation(async (path) => {
       switch (path) {
         case rootPackagePath:
-          return JSON.stringify({ workspaces: ['packages/*'] });
+          return JSON.stringify({ workspaces: ['platform/runtime/*'] });
         case packageAPath:
           return JSON.stringify({ name: 'pkg-a', scripts: { lint: 'eslint .' } });
         case packageBPath:
@@ -104,7 +104,7 @@ describe('workspace discovery', () => {
       const workspaces = await discoverWorkspacesWithScript('lint');
 
       expect(workspaces).toEqual([
-        { name: 'pkg-a', dir: 'packages/pkg-a' },
+        { name: 'pkg-a', dir: 'platform/runtime/pkg-a' },
       ]);
     } finally {
       readFileSpy.mockRestore();

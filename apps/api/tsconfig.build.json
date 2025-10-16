@@ -16,37 +16,37 @@
   ],
   "references": [
     {
-      "path": "../../packages/types"
+      "path": "../../platform/core/types"
     },
     {
-      "path": "../../packages/templates"
+      "path": "../../platform/core/templates"
     },
     {
-      "path": "../../packages/config"
+      "path": "../../platform/core/config"
     },
     {
-      "path": "../../packages/io"
+      "path": "../../platform/runtime/io"
     },
     {
-      "path": "../../packages/context"
+      "path": "../../platform/runtime/context"
     },
     {
-      "path": "../../packages/providers"
+      "path": "../../platform/integrations/providers"
     },
     {
-      "path": "../../packages/hooks"
+      "path": "../../platform/runtime/hooks"
     },
     {
-      "path": "../../packages/tools"
+      "path": "../../platform/runtime/tools"
     },
     {
-      "path": "../../packages/tokenizers"
+      "path": "../../platform/core/tokenizers"
     },
     {
-      "path": "../../packages/mcp"
+      "path": "../../platform/integrations/mcp"
     },
     {
-      "path": "../../packages/engine"
+      "path": "../../platform/runtime/engine"
     }
   ]
 }

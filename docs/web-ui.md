@@ -14,7 +14,7 @@ Session controls allow operators to rename or delete chat sessions directly from
 
 ### Base configuration
 
-The API reads its settings from the `api` block in the Eddie config. By default it binds to `0.0.0.0:3000`, enables caching, and disables authentication, but you can override any of those fields in your config file.【F:packages/config/src/defaults.ts†L13-L47】 The server also respects the `HOST` and `PORT` environment variables when launching, so make sure the final host/port pair matches the values you expose to the Web UI.【F:apps/api/src/main.ts†L22-L47】
+The API reads its settings from the `api` block in the Eddie config. By default it binds to `0.0.0.0:3000`, enables caching, and disables authentication, but you can override any of those fields in your config file.【F:platform/core/config/src/defaults.ts†L13-L47】 The server also respects the `HOST` and `PORT` environment variables when launching, so make sure the final host/port pair matches the values you expose to the Web UI.【F:apps/api/src/main.ts†L22-L47】
 
 ### Authentication keys
 
@@ -64,5 +64,5 @@ To create an optimized production build, run `npm run web:build`. Vite will emit
 
 ## What the UI expects from the API
 
-The generated API client calls REST endpoints for chat sessions, traces, logs, runtime configuration, user preferences, and orchestrator metadata, and opens WebSocket connections to the `/chat-sessions`, `/traces`, `/logs`, and `/config` endpoints for realtime updates.【F:packages/api-client/src/index.ts†L242-L443】 Ensure those modules stay enabled in the API module graph so that UI interactions succeed without 404s or connection failures.【F:apps/api/src/api.module.ts†L1-L61】
+The generated API client calls REST endpoints for chat sessions, traces, logs, runtime configuration, user preferences, and orchestrator metadata, and opens WebSocket connections to the `/chat-sessions`, `/traces`, `/logs`, and `/config` endpoints for realtime updates.【F:platform/integrations/api-client/src/index.ts†L242-L443】 Ensure those modules stay enabled in the API module graph so that UI interactions succeed without 404s or connection failures.【F:apps/api/src/api.module.ts†L1-L61】
 The chat workspace expects the API to respond with `200 OK` for rename operations and `204 No Content` for deletions. When a session is removed, the UI listens for the corresponding `session.deleted` broadcast before removing the thread from local lists.

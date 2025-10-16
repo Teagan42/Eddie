@@ -12,4 +12,4 @@ The configuration schema diagram is generated automatically from the
 to regenerate it after making schema changes.
 
 - [View the Mermaid diagram](./generated/config-schema-diagram.md)
-- [`packages/config/scripts/render-config-schema-diagram.ts`](../packages/config/scripts/render-config-schema-diagram.ts)
+- [`platform/core/config/scripts/render-config-schema-diagram.ts`](../platform/core/config/scripts/render-config-schema-diagram.ts)

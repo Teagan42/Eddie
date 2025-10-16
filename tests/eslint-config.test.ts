@@ -67,7 +67,7 @@ describe('eslint config', () => {
 
   it('ignores generated api client sources', () => {
     const ignoreEntry = config.find((entry: { ignores?: string[] }) => Array.isArray(entry.ignores));
-    expect(ignoreEntry?.ignores).toContain('packages/api-client/src/generated/**');
+    expect(ignoreEntry?.ignores).toContain('platform/integrations/api-client/src/generated/**');
   });
 
   it('enforces two-space indentation in TypeScript sources', () => {
