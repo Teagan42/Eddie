@@ -1,7 +1,9 @@
 import { QueryClient } from "@tanstack/react-query";
-import { screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatPageRenderer } from "./test-utils";
+import { CollapsiblePanel } from "./components/CollapsiblePanel";
+import { TooltipProvider } from "@radix-ui/react-tooltip";
 
 type ChatMessageDto = {
   id: string;
@@ -163,13 +165,39 @@ describe("ChatPage message surfaces", () => {
     expect(assistantCard).toHaveClass("to-slate-950/70");
   });
 
-  it("renders the re-issue command button with an amber accent", async () => {
+  it("styles the re-issue command button like the collapsible panel toggle", async () => {
     renderChatPage();
 
     await waitFor(() => expect(listMessagesMock).toHaveBeenCalledTimes(1));
 
     const reissueButton = await screen.findByRole("button", { name: "Re-issue command" });
 
-    expect(reissueButton).toHaveAttribute("data-accent-color", "amber");
+    const { container } = render(
+      <TooltipProvider>
+        <CollapsiblePanel
+          id="panel"
+          title="Panel"
+          description=""
+          collapsed={false}
+          onToggle={vi.fn()}
+        >
+          Content
+        </CollapsiblePanel>
+      </TooltipProvider>,
+    );
+
+    const collapsibleToggle = within(container).getAllByRole("button", {
+      name: "Collapse panel",
+    })[0];
+
+    expect(reissueButton.getAttribute("data-accent-color")).toBe(
+      collapsibleToggle.getAttribute("data-accent-color"),
+    );
+    expect(reissueButton.getAttribute("data-variant")).toBe(
+      collapsibleToggle.getAttribute("data-variant"),
+    );
+    expect(reissueButton).toHaveClass("rt-r-size-1");
+    expect(reissueButton).not.toHaveClass("rt-r-size-2");
+    expect(collapsibleToggle).toHaveClass("rt-r-size-2");
   });
 });
