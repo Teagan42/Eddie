@@ -8,7 +8,6 @@ import type {
   ContextConfig,
   EddieConfig,
   ProviderConfig,
-  TranscriptCompactorConfig,
 } from "@eddie/types";
 import { ConfigStore } from "@eddie/config";
 import { ContextService } from "@eddie/context";
@@ -35,8 +34,6 @@ import { TokenizerService } from "@eddie/tokenizers";
 import {
   AgentOrchestratorService,
   type AgentRuntimeOptions,
-  type TranscriptCompactor,
-  type TranscriptCompactorSelector,
 } from "./agents/agent-orchestrator.service";
 import type { AgentDefinition } from "./agents/agent-definition";
 import type { AgentInvocation } from "./agents/agent-invocation";
@@ -44,7 +41,7 @@ import type { AgentRuntimeCatalog, AgentRuntimeDescriptor } from "./agents/agent
 import type { Logger } from "pino";
 import { McpToolSourceService } from "@eddie/mcp";
 import type { DiscoveredMcpResource } from "@eddie/mcp";
-import { createTranscriptCompactor as instantiateTranscriptCompactor } from "./transcript-compactors";
+import { TranscriptCompactionService } from "./transcript/transcript-compaction.service";
 
 export interface EngineOptions extends CliRuntimeOptions {
     history?: ChatMessage[];
@@ -66,11 +63,6 @@ export interface EngineResult {
  */
 @Injectable()
 export class EngineService {
-  private readonly transcriptCompactorCache = new Map<
-    string,
-    { signature: string; compactor: TranscriptCompactor }
-  >();
-
   constructor(
         private readonly configStore: ConfigStore,
         private readonly contextService: ContextService,
@@ -79,6 +71,7 @@ export class EngineService {
         private readonly confirmService: ConfirmService,
         private readonly tokenizerService: TokenizerService,
         private readonly loggerService: LoggerService,
+        private readonly transcriptCompactionService: TranscriptCompactionService,
         private readonly agentOrchestrator: AgentOrchestratorService,
         private readonly mcpToolSourceService: McpToolSourceService
   ) {}
@@ -210,7 +203,9 @@ export class EngineService {
         autoApprove: options.autoApprove ?? cfg.tools?.autoApprove,
         nonInteractive: options.nonInteractive ?? false,
       });
-      const transcriptCompactor = this.resolveTranscriptCompactor(cfg);
+      const transcriptCompaction = this.transcriptCompactionService.createSelector(
+        cfg,
+      );
 
       const runtimeCwd = cfg.context.baseDir ?? projectDir;
 
@@ -222,7 +217,7 @@ export class EngineService {
         logger,
         tracePath,
         traceAppend: cfg.output?.jsonlAppend ?? true,
-        transcriptCompactor,
+        transcriptCompaction,
       };
       // Attach sessionId so trace writes include it
       (runtime as any).sessionId = sessionId;
@@ -557,95 +552,6 @@ export class EngineService {
     const model = modelOverride ?? profileModel ?? cfg.model;
 
     return { providerConfig, model, profileId };
-  }
-
-  private resolveTranscriptCompactor(
-    cfg: EddieConfig,
-  ): TranscriptCompactorSelector | undefined {
-    const globalConfig = cfg.transcript?.compactor;
-    const perAgent = new Map<string, TranscriptCompactor>();
-    const register = (id: string, config?: TranscriptCompactorConfig): void => {
-      const compactor = this.resolveTranscriptCompactorConfig(id, config);
-      if (!compactor) {
-        return;
-      }
-      perAgent.set(id, compactor);
-    };
-
-    register("manager", cfg.agents.manager.transcript?.compactor);
-
-    for (const subagent of cfg.agents.subagents) {
-      register(subagent.id, subagent.transcript?.compactor);
-    }
-
-    const globalCompactor = this.resolveTranscriptCompactorConfig(
-      "global",
-      globalConfig,
-    );
-
-    if (perAgent.size === 0) {
-      return globalCompactor;
-    }
-
-    return (invocation, descriptor) => {
-      const agentId = descriptor?.id ?? invocation.definition.id;
-      return perAgent.get(agentId) ?? globalCompactor ?? null;
-    };
-  }
-
-  private createTranscriptCompactor(
-    config: TranscriptCompactorConfig,
-    agentId: string,
-  ): TranscriptCompactor {
-    return instantiateTranscriptCompactor(config, { agentId });
-  }
-
-  private getOrCreateTranscriptCompactor(
-    agentId: string,
-    config: TranscriptCompactorConfig,
-  ): TranscriptCompactor {
-    const signature = EngineService.stableStringify(config);
-    const cached = this.transcriptCompactorCache.get(agentId);
-    if (cached && cached.signature === signature) {
-      return cached.compactor;
-    }
-
-    const compactor = this.createTranscriptCompactor(config, agentId);
-    this.transcriptCompactorCache.set(agentId, { signature, compactor });
-    return compactor;
-  }
-
-  private resolveTranscriptCompactorConfig(
-    agentId: string,
-    config?: TranscriptCompactorConfig,
-  ): TranscriptCompactor | undefined {
-    if (!config) {
-      return undefined;
-    }
-    return this.getOrCreateTranscriptCompactor(agentId, config);
-  }
-
-  private static stableStringify(value: unknown): string {
-    if (value === null) {
-      return "null";
-    }
-    if (typeof value !== "object") {
-      return `${typeof value}:${String(value)}`;
-    }
-    if (Array.isArray(value)) {
-      return `[${value.map((entry) => EngineService.stableStringify(entry)).join(",")}]`;
-    }
-
-    const entries = Object.keys(value as Record<string, unknown>)
-      .sort()
-      .map(
-        (key) =>
-          `${key}:${EngineService.stableStringify(
-            (value as Record<string, unknown>)[key],
-          )}`,
-      );
-
-    return `{${entries.join(",")}}`;
   }
 
   private cloneProviderConfig(config: ProviderConfig): ProviderConfig {

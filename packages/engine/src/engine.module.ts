@@ -16,6 +16,7 @@ import {
   TemplateRuntimeService,
   templateRuntimeProviders,
 } from "./templating/template-runtime.service";
+import { TranscriptCompactionService } from "./transcript/transcript-compaction.service";
 
 @Module({
   imports: [
@@ -35,11 +36,13 @@ import {
     EngineService,
     AgentInvocationFactory,
     AgentOrchestratorService,
+    TranscriptCompactionService,
   ],
   exports: [
     EngineService,
     AgentOrchestratorService,
     TemplateRuntimeService,
+    TranscriptCompactionService,
     ConfigModule,
     HooksModule,
     ProvidersModule,

@@ -7,7 +7,6 @@ import type { HookBus } from "@eddie/hooks";
 import type {
   AgentLifecyclePayload,
   AgentMetadata,
-  AgentTranscriptCompactionPayload,
   HookDispatchResult,
   HookEventMap,
   HookEventName,
@@ -36,12 +35,11 @@ import type {
 } from "./agent-runtime.types";
 import { AgentRunner, type AgentTraceEvent } from "./agent-runner";
 import type { TemplateVariables } from "@eddie/templates";
-import type { TranscriptCompactorSelector } from "../transcript-compactors/types";
+import type { TranscriptCompactionWorkflow } from "../transcript/transcript-compaction.service";
 export type {
   TranscriptCompactionPlan,
   TranscriptCompactionResult,
   TranscriptCompactor,
-  TranscriptCompactorSelector,
 } from "../transcript-compactors/types";
 
 interface SpawnToolArguments {
@@ -60,7 +58,7 @@ export interface AgentRuntimeOptions {
     tracePath?: string;
     sessionId?: string;
     traceAppend?: boolean;
-    transcriptCompactor?: TranscriptCompactorSelector;
+    transcriptCompaction?: TranscriptCompactionWorkflow;
 }
 
 export interface AgentRunRequest extends AgentInvocationOptions {
@@ -760,44 +758,24 @@ export class AgentOrchestratorService {
     iteration: number,
     lifecycle: AgentLifecyclePayload
   ): Promise<void> {
-    const selector = runtime.transcriptCompactor;
-    if (!selector) {
+    const workflow = runtime.transcriptCompaction;
+    if (!workflow) {
       return;
     }
 
     const descriptor = this.getInvocationDescriptor(invocation);
-    const compactor =
-            typeof selector === "function"
-              ? selector(invocation, descriptor) ?? undefined
-              : selector;
+    const compactor = workflow.selectFor(invocation, descriptor);
     if (!compactor) {
       return;
     }
 
-    const plan = await compactor.plan(invocation, iteration);
-    if (!plan) {
-      return;
-    }
-
-    const payload: AgentTranscriptCompactionPayload = {
-      ...lifecycle,
+    await workflow.planAndApply(
+      compactor,
+      invocation,
       iteration,
-      messages: invocation.messages,
-      reason: plan.reason,
-    };
-
-    await runtime.hooks.emitAsync(HOOK_EVENTS.preCompact, payload);
-    const result = await plan.apply();
-    if (result && typeof result === "object") {
-      runtime.logger.debug(
-        {
-          agent: invocation.id,
-          removedMessages: result.removedMessages,
-          reason: plan.reason,
-        },
-        "Transcript compacted"
-      );
-    }
+      runtime,
+      lifecycle,
+    );
   }
 }
 const SPAWN_SUBAGENT_SCHEMA_REQUIRED_FIELDS = [

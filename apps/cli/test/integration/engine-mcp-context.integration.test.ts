@@ -1,7 +1,12 @@
 import "reflect-metadata";
 import { Buffer } from "buffer";
 import { describe, it, expect, vi } from "vitest";
-import { EngineService, AgentInvocationFactory } from "@eddie/engine";
+import {
+  EngineService,
+  AgentInvocationFactory,
+  type TranscriptCompactionService,
+  type TranscriptCompactionWorkflow,
+} from "@eddie/engine";
 import {
   ConfigStore,
   type EddieConfig,
@@ -24,6 +29,20 @@ import type { PackedContext } from "@eddie/types";
 import type { Logger } from "pino";
 
 describe("EngineService MCP resource integration", () => {
+  const createCompactionStub = () => {
+    const workflow: TranscriptCompactionWorkflow = {
+      selectFor: () => null,
+      planAndApply: vi.fn(),
+    };
+
+    return {
+      workflow,
+      service: {
+        createSelector: vi.fn(() => workflow),
+      } as unknown as TranscriptCompactionService,
+    };
+  };
+
   it("injects discovered MCP resources into context and template rendering", async () => {
     const sourceConfig: MCPToolSourceConfig = {
       id: "docs",
@@ -119,6 +138,9 @@ describe("EngineService MCP resource integration", () => {
       collectInvocations: vi.fn((invocation) => [invocation]),
     } as unknown as AgentOrchestratorService;
 
+    const { service: transcriptCompactionService, workflow: transcriptCompactionWorkflow } =
+      createCompactionStub();
+
     const discoveredResource = {
       sourceId: sourceConfig.id,
       name: "api docs",
@@ -144,6 +166,7 @@ describe("EngineService MCP resource integration", () => {
       confirmService,
       tokenizerService,
       loggerService as LoggerServiceType,
+      transcriptCompactionService,
       orchestrator,
       mcpToolSourceService
     );
@@ -152,6 +175,7 @@ describe("EngineService MCP resource integration", () => {
 
     expect(contextService.pack).toHaveBeenCalledWith(config.context);
     expect(mcpToolSourceService.collectTools).toHaveBeenCalledWith(config.tools?.sources);
+    expect(transcriptCompactionService.createSelector).toHaveBeenCalledWith(config);
 
     const resources = result.context.resources ?? [];
     expect(resources).toHaveLength(1);

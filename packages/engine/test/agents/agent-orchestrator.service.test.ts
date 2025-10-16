@@ -73,6 +73,7 @@ describe("AgentOrchestratorService", () => {
       logger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
       traceAppend: true,
       tracePath: undefined,
+      transcriptCompactor: undefined,
     };
 
     const invocationFactory = {
@@ -156,6 +157,7 @@ describe("AgentOrchestratorService", () => {
       confirm: vi.fn(),
       cwd: process.cwd(),
       logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      transcriptCompactor: undefined,
     };
 
     const spawnSchema = (
@@ -588,5 +590,81 @@ describe("AgentOrchestratorService", () => {
     } finally {
       Array.prototype.shift = originalShift;
     }
+  });
+
+  it("delegates transcript compaction to the runtime workflow", async () => {
+    const orchestrator = new AgentOrchestratorService(
+      { create: vi.fn() } as any,
+      { render: vi.fn(), flush: vi.fn() } as any,
+      { publish: vi.fn() } as any,
+      { write: vi.fn() } as any,
+    );
+
+    const invocation = {
+      id: "manager",
+      definition: { id: "manager", systemPrompt: "", tools: [] },
+      messages: [],
+      isRoot: true,
+      parent: undefined,
+    } as unknown as AgentInvocation;
+
+    const descriptor: AgentRuntimeDescriptor = {
+      id: "manager",
+      definition: invocation.definition,
+      model: "test",
+      provider: { name: "provider", stream: vi.fn() },
+    };
+
+    (orchestrator as any).descriptorMap.set(invocation, descriptor);
+
+    const compactor = { plan: vi.fn() } as unknown;
+    const workflow = {
+      selectFor: vi.fn(() => compactor),
+      planAndApply: vi.fn(async () => undefined),
+    };
+
+    const runtime = {
+      catalog: {
+        enableSubagents: false,
+        getManager: vi.fn(),
+        getAgent: vi.fn(),
+        getSubagent: vi.fn(),
+        listSubagents: () => [],
+      },
+      hooks: { emitAsync: vi.fn().mockResolvedValue({}) },
+      confirm: vi.fn(),
+      cwd: process.cwd(),
+      logger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      transcriptCompaction: workflow,
+    } as unknown;
+
+    const lifecycle = {
+      metadata: {
+        id: "manager",
+        isRoot: true,
+        depth: 0,
+        systemPrompt: "",
+        tools: [],
+      },
+      prompt: "Prompt",
+      context: { totalBytes: 0, fileCount: 0 },
+      historyLength: 0,
+    };
+
+    await (orchestrator as any).applyTranscriptCompactionIfNeeded(
+      runtime,
+      invocation,
+      1,
+      lifecycle,
+    );
+
+    expect(workflow.selectFor).toHaveBeenCalledWith(invocation, descriptor);
+    expect(workflow.planAndApply).toHaveBeenCalledWith(
+      compactor,
+      invocation,
+      1,
+      runtime,
+      lifecycle,
+    );
   });
 });
