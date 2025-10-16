@@ -21,14 +21,14 @@ export class ConfigHotReloadService {
     format: ConfigFileFormat
   ): Promise<ConfigFileSnapshot> {
     const input = this.configService.parseSource(source, format);
-    const composed = await this.configService.compose(input, {});
-    const targetPath = this.configFilePath;
+    const runtimeOptions =
+      this.configFilePath !== undefined ? { config: this.configFilePath } : {};
+    const composed = await this.configService.compose(input, runtimeOptions);
 
     const snapshot = await this.configService.writeSource(
       source,
       format,
-      {},
-      targetPath
+      runtimeOptions
     );
     this.configStore.setSnapshot(composed);
     return { ...snapshot, config: composed } satisfies ConfigFileSnapshot;
