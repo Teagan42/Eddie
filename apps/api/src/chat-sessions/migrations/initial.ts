@@ -92,7 +92,8 @@ export const initialChatSessionsMigration = async (db: Knex): Promise<void> => {
     });
   }
 
-  if (!(await db.schema.hasTable("tool_calls"))) {
+  const toolCallsTableExists = await db.schema.hasTable("tool_calls");
+  if (!toolCallsTableExists) {
     await db.schema.createTable("tool_calls", (table) => {
       table.uuid("id").primary();
       table
@@ -121,9 +122,14 @@ export const initialChatSessionsMigration = async (db: Knex): Promise<void> => {
       );
       table.index(["session_id"], "tool_calls_session_idx");
     });
+  } else if (!(await db.schema.hasColumn("tool_calls", "agent_id"))) {
+    await db.schema.alterTable("tool_calls", (table) => {
+      table.string("agent_id", 255).nullable();
+    });
   }
 
-  if (!(await db.schema.hasTable("tool_results"))) {
+  const toolResultsTableExists = await db.schema.hasTable("tool_results");
+  if (!toolResultsTableExists) {
     await db.schema.createTable("tool_results", (table) => {
       table.uuid("id").primary();
       table
@@ -150,6 +156,10 @@ export const initialChatSessionsMigration = async (db: Knex): Promise<void> => {
         "tool_results_session_tool_call_id_uq"
       );
       table.index(["session_id"], "tool_results_session_idx");
+    });
+  } else if (!(await db.schema.hasColumn("tool_results", "agent_id"))) {
+    await db.schema.alterTable("tool_results", (table) => {
+      table.string("agent_id", 255).nullable();
     });
   }
 };
