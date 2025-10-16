@@ -70,15 +70,16 @@ export interface ToolTreeProps {
   agentHierarchy?: OrchestratorMetadataDto['agentHierarchy'];
 }
 
+const EMPTY_AGENT_HIERARCHY: OrchestratorMetadataDto['agentHierarchy'] = [];
+
 export function ToolTree({
   nodes,
-  agentHierarchy = [],
+  agentHierarchy,
 }: ToolTreeProps): JSX.Element {
+  const resolvedAgentHierarchy = agentHierarchy ?? EMPTY_AGENT_HIERARCHY;
   const [expandedSectionIds, setExpandedSectionIds] = useState<Set<string>>(
     () => new Set(),
   );
-  const nodesSignature = JSON.stringify(nodes);
-  const agentSignature = JSON.stringify(agentHierarchy);
   const seenToolIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -112,7 +113,7 @@ export function ToolTree({
         ? latestEntry.node.metadata.agentId
         : null;
 
-    getAgentToggleIds(agentHierarchy, agentId).forEach((id) =>
+    getAgentToggleIds(resolvedAgentHierarchy, agentId).forEach((id) =>
       idsToExpand.add(id),
     );
 
@@ -133,7 +134,7 @@ export function ToolTree({
 
       return changed ? next : previous;
     });
-  }, [agentSignature, nodesSignature]);
+  }, [nodes, resolvedAgentHierarchy]);
 
   const toggleSection = useCallback((id: string) => {
     setExpandedSectionIds((previous) => {
@@ -153,7 +154,7 @@ export function ToolTree({
   const getAgentTools = (agentId: string): ToolInvocationNode[] =>
     nodesByAgent.get(agentId) ?? [];
 
-  const hasAgentHierarchy = agentHierarchy.length > 0;
+  const hasAgentHierarchy = resolvedAgentHierarchy.length > 0;
   const hasToolInvocations = nodes.length > 0;
 
   if (!hasToolInvocations && !hasAgentHierarchy) {
@@ -176,7 +177,7 @@ export function ToolTree({
 
   return (
     <ul className="space-y-3">
-      {agentHierarchy.map((agent) => (
+      {resolvedAgentHierarchy.map((agent) => (
         <AgentToolTreeNode
           key={agent.id}
           agent={agent}
