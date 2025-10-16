@@ -64,9 +64,6 @@ type BadgeColor = ComponentProps<typeof Badge>['color'];
 const MESSAGE_CONTAINER_CLASS =
   'space-y-3 rounded-2xl border border-white/10 bg-slate-950/70 p-5 backdrop-blur-xl';
 
-const REISSUE_COMMAND_BUTTON_COLOR = 'amber';
-const REISSUE_COMMAND_BUTTON_CLASSNAME = 'bg-amber-500 text-white/90 hover:bg-amber-400';
-const REISSUE_COMMAND_ICON_CLASSNAME = 'h-4 w-4 text-white/90';
 
 const ORCHESTRATOR_METADATA_QUERY_KEY = 'orchestrator-metadata' as const;
 
@@ -1743,13 +1740,11 @@ export function ChatPage(): JSX.Element {
                               <Tooltip content="Re-issue command">
                                 <IconButton
                                   size="2"
-                                  variant="soft"
-                                  color={REISSUE_COMMAND_BUTTON_COLOR}
-                                  className={REISSUE_COMMAND_BUTTON_CLASSNAME}
+                                  variant="solid"
                                   onClick={() => handleReissueCommand(message)}
                                   aria-label="Re-issue command"
                                 >
-                                  <ReloadIcon className={REISSUE_COMMAND_ICON_CLASSNAME} />
+                                  <ReloadIcon className="h-4 w-4" />
                                 </IconButton>
                               </Tooltip>
                             ) : null}
