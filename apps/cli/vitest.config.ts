@@ -8,20 +8,22 @@ const workspaceRoot = path.resolve(
   ".."
 );
 
-const packageAliases = [
-  "config",
-  "context",
-  "engine",
-  "hooks",
-  "io",
-  "mcp",
-  "providers",
-  "templates",
-  "tokenizers",
-  "tools",
-  "types",
-].flatMap((name) => {
-  const basePath = path.resolve(workspaceRoot, "packages", name, "src");
+const packageDirectoryMap = {
+  config: path.join("core", "config"),
+  context: path.join("runtime", "context"),
+  engine: path.join("runtime", "engine"),
+  hooks: path.join("runtime", "hooks"),
+  io: path.join("runtime", "io"),
+  mcp: path.join("integrations", "mcp"),
+  providers: path.join("integrations", "providers"),
+  templates: path.join("core", "templates"),
+  tokenizers: path.join("core", "tokenizers"),
+  tools: path.join("runtime", "tools"),
+  types: path.join("core", "types"),
+} as const;
+
+const packageAliases = Object.entries(packageDirectoryMap).flatMap(([name, relativeDir]) => {
+  const basePath = path.resolve(workspaceRoot, "platform", relativeDir, "src");
   return [
     { find: `@eddie/${name}`, replacement: basePath },
     { find: `@eddie/${name}/`, replacement: `${basePath}/` },

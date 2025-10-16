@@ -1,3 +1,3 @@
-import { createPackageVitestConfig } from "../.vitest.workspace.config";
+import { createPackageVitestConfig } from "../../.vitest.workspace.config";
 
 export default createPackageVitestConfig("perf-benchmarks");

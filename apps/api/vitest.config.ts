@@ -1,4 +1,3 @@
-import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { defineConfig } from "vitest/config";
@@ -9,17 +8,27 @@ const workspaceRoot = path.resolve(
   ".."
 );
 
-const packagesDir = path.resolve(workspaceRoot, "packages");
-const packageAliases = fs
-  .readdirSync(packagesDir, { withFileTypes: true })
-  .filter((entry) => entry.isDirectory())
-  .flatMap((entry) => {
-    const basePath = path.resolve(packagesDir, entry.name, "src");
-    return [
-      { find: `@eddie/${entry.name}`, replacement: basePath },
-      { find: `@eddie/${entry.name}/`, replacement: `${basePath}/` },
-    ];
-  });
+const packageDirectoryMap = {
+  config: path.join("core", "config"),
+  context: path.join("runtime", "context"),
+  engine: path.join("runtime", "engine"),
+  hooks: path.join("runtime", "hooks"),
+  io: path.join("runtime", "io"),
+  mcp: path.join("integrations", "mcp"),
+  providers: path.join("integrations", "providers"),
+  templates: path.join("core", "templates"),
+  tokenizers: path.join("core", "tokenizers"),
+  tools: path.join("runtime", "tools"),
+  types: path.join("core", "types"),
+} as const;
+
+const packageAliases = Object.entries(packageDirectoryMap).flatMap(([name, relativeDir]) => {
+  const basePath = path.resolve(workspaceRoot, "platform", relativeDir, "src");
+  return [
+    { find: `@eddie/${name}`, replacement: basePath },
+    { find: `@eddie/${name}/`, replacement: `${basePath}/` },
+  ];
+});
 
 const mcpSdkBasePath = path.resolve(
   workspaceRoot,

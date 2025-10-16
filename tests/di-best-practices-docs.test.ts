@@ -24,9 +24,9 @@ describe("dependency injection best practices guide", () => {
     expect(diGuideContent).toMatch(/@eddie\/providers/i);
   });
 
-  it("is linked from the packages contribution guide", () => {
-    const packagesAgentsContent = readRepoFile("packages", "AGENTS.md");
-    expect(packagesAgentsContent).toMatch(/di-best-practices\.md/);
+  it("is linked from the platform contribution guide", () => {
+    const platformAgentsContent = readRepoFile("platform", "AGENTS.md");
+    expect(platformAgentsContent).toMatch(/di-best-practices\.md/);
   });
 
   it("is discoverable from the API documentation", () => {
