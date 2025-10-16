@@ -59,6 +59,12 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     configure: vi.fn(),
     getLogger: vi.fn(() => logger),
   };
+  const transcriptCompactionService = {
+    createSelector: vi.fn(() => ({
+      selectFor: vi.fn(),
+      planAndApply: vi.fn(),
+    })),
+  };
   const agentOrchestrator = {
     runAgent: vi.fn(async () => ({
       messages: [],
@@ -82,6 +88,7 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     confirmService as any,
     tokenizerService as any,
     loggerService as any,
+    transcriptCompactionService as any,
     agentOrchestrator as any,
     mcpToolSourceService as any,
   );
@@ -92,6 +99,7 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     contextService,
     mcpToolSourceService,
     logger,
+    transcriptCompactionService,
   };
 }
 
@@ -107,7 +115,7 @@ afterEach(() => {
 
 describe("EngineService", () => {
   it("does not declare a ConfigService dependency", () => {
-    expect(EngineService.length).toBe(9);
+    expect(EngineService.length).toBe(10);
   });
 
   it("does not reload configuration when runtime overrides are provided", async () => {
@@ -116,6 +124,14 @@ describe("EngineService", () => {
     await service.run("prompt", { provider: "override" });
 
     expect(configStore.getSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it("requests a transcript compaction selector for each run", async () => {
+    const { service, transcriptCompactionService } = createService();
+
+    await service.run("prompt");
+
+    expect(transcriptCompactionService.createSelector).toHaveBeenCalledTimes(1);
   });
 
   it("skips MCP resources that exceed context byte budget", async () => {
