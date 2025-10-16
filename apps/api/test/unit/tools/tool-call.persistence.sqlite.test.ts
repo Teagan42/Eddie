@@ -70,10 +70,10 @@ describe("Tool call persistence (sqlite)", () => {
       new StartToolCallCommand({
         sessionId: session.id,
         toolCallId: "call-1",
+        agentId: "agent-1",
         name: "search",
         arguments: { query: "docs" },
         timestamp: "2024-01-01T00:00:00.000Z",
-        agentId: "agent-1",
       })
     );
 
@@ -98,6 +98,7 @@ describe("Tool call persistence (sqlite)", () => {
       status: "running",
       agent_id: "agent-1",
     });
+    expect(callRow.agent_id).toBe("agent-1");
     expect(JSON.parse(callRow.arguments)).toEqual({ query: "docs", page: 2 });
 
     const callMessage = (await repository.appendMessage({
@@ -134,6 +135,7 @@ describe("Tool call persistence (sqlite)", () => {
       name: "search",
       agent_id: "agent-1",
     });
+    expect(resultRow.agent_id).toBe("agent-1");
     expect(JSON.parse(resultRow.result)).toEqual({ items: ["a"] });
 
     const resultMessage = (await repository.appendMessage({

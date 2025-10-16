@@ -146,6 +146,9 @@ export class ToolCallStore {
     if (input.name !== undefined) {
       target.name = input.name;
     }
+    if (input.agentId !== undefined) {
+      target.agentId = input.agentId;
+    }
     if (input.arguments !== undefined) {
       target.arguments = input.arguments;
     }

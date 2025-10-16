@@ -85,12 +85,12 @@ export class ToolCallPersistenceService {
       session_id: state.sessionId,
       tool_call_id: state.toolCallId ?? null,
       name: state.name ?? null,
+      agent_id: state.agentId ?? null,
       status: state.status,
       arguments: this.prepareJson(state.arguments),
       message_id: null as string | null,
       created_at: this.toDate(state.startedAt),
       updated_at: this.toDate(state.updatedAt),
-      agent_id: state.agentId ?? null,
     };
 
     await db("tool_calls")
@@ -105,11 +105,11 @@ export class ToolCallPersistenceService {
       session_id: state.sessionId,
       tool_call_id: state.toolCallId ?? null,
       name: state.name ?? null,
+      agent_id: state.agentId ?? null,
       result: this.prepareJson(state.result),
       message_id: null as string | null,
       created_at: this.toDate(state.updatedAt),
       updated_at: this.toDate(state.updatedAt),
-      agent_id: state.agentId ?? null,
     };
 
     const updates: Record<string, unknown> = {
@@ -118,6 +118,9 @@ export class ToolCallPersistenceService {
 
     if (state.name !== undefined) {
       updates.name = state.name ?? null;
+    }
+    if (state.agentId !== undefined) {
+      updates.agent_id = state.agentId ?? null;
     }
     if (state.result !== undefined) {
       updates.result = this.prepareJson(state.result);
@@ -157,6 +160,9 @@ export class ToolCallPersistenceService {
 
     if (state.name !== undefined) {
       updates.name = state.name ?? null;
+    }
+    if (state.agentId !== undefined) {
+      updates.agent_id = state.agentId ?? null;
     }
     if (state.arguments !== undefined) {
       updates.arguments = this.prepareJson(state.arguments);

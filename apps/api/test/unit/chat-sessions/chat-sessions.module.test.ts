@@ -40,6 +40,7 @@ describe('ChatSessionsModule', () => {
       schema: {
         hasTable: vi.fn().mockResolvedValue(true),
         createTable: vi.fn(),
+        hasColumn: vi.fn().mockResolvedValue(true),
       },
       client: { config: { client } },
       destroy: vi.fn(),

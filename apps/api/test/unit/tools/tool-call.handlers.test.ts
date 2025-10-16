@@ -51,10 +51,10 @@ describe("Tool call CQRS", () => {
       new StartToolCallCommand({
         sessionId: "s1",
         toolCallId: "t1",
+        agentId: "agent-1",
         name: "search",
         arguments: { query: "docs" },
         timestamp: "2024-01-01T00:00:00.000Z",
-        agentId: "agent-007",
       })
     );
 
@@ -86,13 +86,13 @@ describe("Tool call CQRS", () => {
     expect(toolCall).toMatchObject({
       sessionId: "s1",
       toolCallId: "t1",
+      agentId: "agent-007",
       name: "search",
       status: "completed",
       arguments: { query: "docs", page: 2 },
       result: { items: ["a", "b"] },
       startedAt: "2024-01-01T00:00:00.000Z",
       updatedAt: "2024-01-01T00:00:20.000Z",
-      agentId: "agent-007",
     });
 
     expect(events[0]).toBeInstanceOf(ToolCallStarted);
@@ -104,9 +104,18 @@ describe("Tool call CQRS", () => {
     const completed = events[2] as ToolCallCompleted;
 
     expect(started.state.status).toBe("running");
-    expect(started.state.agentId).toBe("agent-007");
+    expect(started.state.agentId).toBe("agent-1");
     expect(updated.state.arguments).toEqual({ query: "docs", page: 2 });
     expect(completed.state.result).toEqual({ items: ["a", "b"] });
-    expect(completed.state.agentId).toBe("agent-007");
+
+    expect(persistence.recordStart).toHaveBeenCalledWith(
+      expect.objectContaining({ agentId: "agent-1" })
+    );
+    expect(persistence.recordUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ agentId: "agent-007" })
+    );
+    expect(persistence.recordComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ agentId: "agent-007" })
+    );
   });
 });
