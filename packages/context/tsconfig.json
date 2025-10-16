@@ -37,9 +37,6 @@
       "@eddie/types/*": [
         "packages/types/dist/*",
         "packages/types/src/*"
-      ],
-      "@eddie/engine/templating": [
-        "packages/context/src/@types/engine-templating"
       ]
     }
   },

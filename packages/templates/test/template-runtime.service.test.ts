@@ -1,19 +1,34 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { TemplateDescriptor, TemplateVariables } from "@eddie/templates";
-import type { PackedContext, ChatMessage, ContextResourceTemplateConfig } from "@eddie/types";
-import type { AgentDefinition } from "@eddie/types";
-import { TemplateRuntimeService } from "../../src/templating/template-runtime.service";
-import type { TemplateRendererService } from "@eddie/templates";
+import type {
+  TemplateDescriptor,
+  TemplateVariables,
+} from "../src/template.types";
+import type {
+  AgentDefinition,
+  AgentInvocationOptions,
+  ChatMessage,
+  ContextResourceTemplateConfig,
+  PackedContext,
+} from "@eddie/types";
+import { TemplateRuntimeService } from "../src/template-runtime.service";
+import { TemplateRendererService } from "../src/template-renderer.service";
 import type { Logger } from "pino";
 
 class TemplateRendererStub {
-  renderTemplate = vi.fn(async (_descriptor: TemplateDescriptor, variables: TemplateVariables = {}) => {
-    return `template:${variables.prompt ?? ""}`;
-  });
+  renderTemplate = vi.fn(
+    async (
+      _descriptor: TemplateDescriptor,
+      variables: TemplateVariables = {}
+    ) => {
+      return `template:${variables.prompt ?? ""}`;
+    }
+  );
 
-  renderString = vi.fn(async (template: string, variables: TemplateVariables = {}) => {
-    return `${template}:${variables.agent?.id ?? "unknown"}`;
-  });
+  renderString = vi.fn(
+    async (template: string, variables: TemplateVariables = {}) => {
+      return `${template}:${variables.agent?.id ?? "unknown"}`;
+    }
+  );
 }
 
 describe("TemplateRuntimeService", () => {
@@ -50,7 +65,7 @@ describe("TemplateRuntimeService", () => {
         agent: { id: "definition" },
       },
     };
-    const options = {
+    const options: AgentInvocationOptions = {
       prompt: "runtime prompt",
       variables: {
         agent: { id: "runtime" },
@@ -120,7 +135,7 @@ describe("TemplateRuntimeService", () => {
       },
     };
 
-    const options = {
+    const options: AgentInvocationOptions = {
       prompt: "Run",
       variables: {
         agent: {
@@ -188,7 +203,7 @@ describe("TemplateRuntimeService", () => {
       systemPromptTemplate: { file: "./system.njk" } as TemplateDescriptor,
       userPromptTemplate: { file: "./user.njk" } as TemplateDescriptor,
     };
-    const options = {
+    const options: AgentInvocationOptions = {
       prompt: "Do work",
       promptTemplate: { file: "./override.njk" } as TemplateDescriptor,
     };

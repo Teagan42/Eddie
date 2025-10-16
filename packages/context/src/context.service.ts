@@ -17,7 +17,7 @@ import {
   type PackedResource,
 } from "@eddie/types";
 import { LoggerService } from "@eddie/io";
-import { TemplateRuntimeService } from "@eddie/engine/templating";
+import { TemplateRuntimeService } from "@eddie/templates";
 import type { TemplateVariables } from "@eddie/templates";
 
 const DEFAULT_MAX_BYTES = 250_000;

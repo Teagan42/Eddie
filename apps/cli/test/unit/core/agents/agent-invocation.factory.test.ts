@@ -6,7 +6,7 @@ import { AgentInvocationFactory } from "@eddie/engine";
 import { ToolRegistryFactory } from "@eddie/tools";
 import type { AgentDefinition, PackedContext } from "@eddie/types";
 import { TemplateRendererService } from "@eddie/templates";
-import { TemplateRuntimeService } from "@eddie/engine/templating";
+import { TemplateRuntimeService } from "@eddie/templates";
 import type { Logger } from "pino";
 
 const tmpDir = path.join(process.cwd(), "test-temp", "agent-factory");

@@ -10,7 +10,7 @@ import { AgentInvocation } from "./agent-invocation";
 import {
   TemplateRuntimeService,
   type ParentAgentContext,
-} from "../templating/template-runtime.service";
+} from "@eddie/templates";
 
 const EMPTY_CONTEXT: PackedContext = { files: [], totalBytes: 0, text: "" };
 

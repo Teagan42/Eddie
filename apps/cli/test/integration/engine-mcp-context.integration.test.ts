@@ -23,7 +23,7 @@ import {
 import type { TokenizerService } from "@eddie/tokenizers";
 import type { McpToolSourceService } from "@eddie/mcp";
 import { TemplateRendererService } from "@eddie/templates";
-import { TemplateRuntimeService } from "@eddie/engine/templating";
+import { TemplateRuntimeService } from "@eddie/templates";
 import { ToolRegistryFactory } from "@eddie/tools";
 import type { AgentOrchestratorService } from "@eddie/engine";
 import type { PackedContext } from "@eddie/types";

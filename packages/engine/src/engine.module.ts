@@ -6,16 +6,16 @@ import { IoModule } from "@eddie/io";
 import { HooksModule } from "@eddie/hooks";
 import { ProvidersModule } from "@eddie/providers";
 import { TokenizersModule } from "@eddie/tokenizers";
-import { TemplateModule } from "@eddie/templates";
+import {
+  TemplateModule,
+  TemplateRuntimeService,
+  templateRuntimeProviders,
+} from "@eddie/templates";
 import { EngineService } from "./engine.service";
 import { ToolsModule } from "@eddie/tools";
 import { AgentInvocationFactory } from "./agents/agent-invocation.factory";
 import { AgentOrchestratorService } from "./agents/agent-orchestrator.service";
 import { MCPModule } from "@eddie/mcp";
-import {
-  TemplateRuntimeService,
-  templateRuntimeProviders,
-} from "./templating/template-runtime.service";
 import { TranscriptCompactionService } from "./transcript/transcript-compaction.service";
 import { metricsProviders, MetricsService } from "./telemetry/metrics.service";
 

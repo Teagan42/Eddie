@@ -1,7 +1,6 @@
 import { Module } from "@nestjs/common";
 import { IoModule } from "@eddie/io";
-import { TemplateModule } from "@eddie/templates";
-import { templateRuntimeProviders } from "@eddie/engine/templating";
+import { TemplateModule, templateRuntimeProviders } from "@eddie/templates";
 import { ContextService } from "./context.service";
 
 @Module({

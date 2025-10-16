@@ -25,7 +25,7 @@ import {
 } from "@eddie/io";
 import { HookBus, HOOK_EVENTS, blockHook } from "@eddie/hooks";
 import { TemplateRendererService } from "@eddie/templates";
-import { TemplateRuntimeService } from "@eddie/engine/templating";
+import { TemplateRuntimeService } from "@eddie/templates";
 import type { Logger } from "pino";
 
 class RecordingStreamRendererService extends StreamRendererService {

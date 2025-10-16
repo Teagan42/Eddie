@@ -20,7 +20,7 @@ npm install @eddie/context
 import { ContextService } from "@eddie/context";
 import { LoggerService } from "@eddie/io";
 import { TemplateRendererService } from "@eddie/templates";
-import { TemplateRuntimeService } from "@eddie/engine/templating";
+import { TemplateRuntimeService } from "@eddie/templates";
 
 const logger = new LoggerService();
 const templateRenderer = new TemplateRendererService();

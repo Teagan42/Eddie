@@ -5,7 +5,7 @@ import path from "path";
 import { ContextService } from "@eddie/context";
 import { LoggerService } from "@eddie/io";
 import { TemplateRendererService } from "@eddie/templates";
-import { TemplateRuntimeService } from "@eddie/engine/templating";
+import { TemplateRuntimeService } from "@eddie/templates";
 
 const tmpDir = path.join(process.cwd(), "test-temp");
 let loggerService: LoggerService;
