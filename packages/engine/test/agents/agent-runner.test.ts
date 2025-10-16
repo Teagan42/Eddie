@@ -86,6 +86,14 @@ const createRunner = (overrides: RunnerOverrides = {}) => {
   const invocation = overrides.invocation ?? createInvocation();
   const descriptor = overrides.descriptor ?? createDescriptor();
   const publish = vi.fn();
+  const metrics =
+    overrides.metrics ??
+    ({
+      countMessage: vi.fn(),
+      observeToolCall: vi.fn(),
+      countError: vi.fn(),
+      timeOperation: vi.fn(async (_metric: string, fn: () => Promise<unknown>) => fn()),
+    } as unknown as RunnerOverrides["metrics"]);
   const overrideEventBus = (overrides as {
     eventBus?: { publish: (event: unknown) => void };
   }).eventBus;
@@ -129,6 +137,7 @@ const createRunner = (overrides: RunnerOverrides = {}) => {
       overrides.dispatchHookOrThrow ??
       (vi.fn().mockResolvedValue({}) as RunnerOverrides["dispatchHookOrThrow"]),
     writeTrace: overrides.writeTrace ?? vi.fn(),
+    metrics,
   } as unknown as ConstructorParameters<typeof AgentRunner>[0]);
 };
 

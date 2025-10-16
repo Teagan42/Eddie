@@ -17,6 +17,7 @@ import {
   templateRuntimeProviders,
 } from "./templating/template-runtime.service";
 import { TranscriptCompactionService } from "./transcript/transcript-compaction.service";
+import { metricsProviders, MetricsService } from "./telemetry/metrics.service";
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { TranscriptCompactionService } from "./transcript/transcript-compaction.
   ],
   providers: [
     ...templateRuntimeProviders,
+    ...metricsProviders,
     EngineService,
     AgentInvocationFactory,
     AgentOrchestratorService,
@@ -43,6 +45,7 @@ import { TranscriptCompactionService } from "./transcript/transcript-compaction.
     AgentOrchestratorService,
     TemplateRuntimeService,
     TranscriptCompactionService,
+    MetricsService,
     ConfigModule,
     HooksModule,
     ProvidersModule,
