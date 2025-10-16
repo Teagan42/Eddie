@@ -1,0 +1,50 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "dist/",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "dist",
+    "test",
+    "**/*.spec.ts"
+  ],
+  "references": [
+    {
+      "path": "../../core/config"
+    },
+    {
+      "path": "../context"
+    },
+    {
+      "path": "../hooks"
+    },
+    {
+      "path": "../io"
+    },
+    {
+      "path": "../../integrations/mcp"
+    },
+    {
+      "path": "../../integrations/providers"
+    },
+    {
+      "path": "../../core/templates"
+    },
+    {
+      "path": "../../core/tokenizers"
+    },
+    {
+      "path": "../tools"
+    },
+    {
+      "path": "../../core/types"
+    }
+  ]
+}

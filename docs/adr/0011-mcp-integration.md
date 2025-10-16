@@ -10,7 +10,7 @@ Customers increasingly publish tools through the Model Context Protocol (MCP) so
 
 ## Decision
 
-We introduced `@eddie/mcp`, a Nest-compatible package that wraps the official Model Context Protocol SDK. The module lives in `packages/mcp` and exposes `McpToolSourceService`, which accepts configuration from `@eddie/config`, dynamically loads the streamable HTTP and SSE transports, and caches session capabilities per source. During boot the service calls `collectTools` to aggregate tool definitions, discovered resources, and prompts so hosts (CLI, API, or web workers) can register them with the existing tool registry. Authentication headers and client metadata are normalised inside the service, ensuring consistent logging through the shared `LoggerService`.
+We introduced `@eddie/mcp`, a Nest-compatible package that wraps the official Model Context Protocol SDK. The module lives in `platform/integrations/mcp` and exposes `McpToolSourceService`, which accepts configuration from `@eddie/config`, dynamically loads the streamable HTTP and SSE transports, and caches session capabilities per source. During boot the service calls `collectTools` to aggregate tool definitions, discovered resources, and prompts so hosts (CLI, API, or web workers) can register them with the existing tool registry. Authentication headers and client metadata are normalised inside the service, ensuring consistent logging through the shared `LoggerService`.
 
 ## Consequences
 

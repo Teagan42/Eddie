@@ -6,7 +6,7 @@ Eddie is a multi-surface agent platform comprising a Node.js CLI, a NestJS API, 
 
 - **CLI** – Launches agent workflows and streams tool interactions. See [`apps/cli/AGENTS.md`](apps/cli/AGENTS.md) for detailed architecture and testing notes.
 - **API** – Provides hosted agent capabilities using NestJS modules, providers, and guards. Start with [`docs/api.md`](docs/api.md) for module layout, DI strategy, and testing guidelines.
-- **Web & Companion Tools** – Front-end and supporting packages live under `apps/web`, `packages/`, and `examples/`. Check local `AGENTS.md` files or package READMEs when present.
+- **Web & Companion Tools** – Front-end and supporting packages live under `apps/web`, `platform/`, and `examples/`. Check local `AGENTS.md` files or package READMEs when present.
 
 ## Shared Practices
 

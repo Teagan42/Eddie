@@ -7,7 +7,7 @@ value so future loads know which migrations to run.
 
 ## Version numbers
 
-- The current version is exported from `packages/config/src/migrations` as
+- The current version is exported from `platform/core/config/src/migrations` as
   `CURRENT_CONFIG_VERSION`.
 - Persisted config files should include a `version` field. When the field is
   omitted the migration runner treats the file as version `0`.
@@ -16,7 +16,7 @@ value so future loads know which migrations to run.
 
 ## Migration runner
 
-`packages/config/src/migrations/index.ts` defines the migration framework:
+`platform/core/config/src/migrations/index.ts` defines the migration framework:
 
 ```ts
 export interface ConfigMigration {
@@ -54,7 +54,7 @@ const CONFIG_MIGRATIONS: ConfigMigration[] = [
 
 ## Adding a new migration
 
-1. Bump `CURRENT_CONFIG_VERSION` in `packages/config/src/migrations/index.ts`.
+1. Bump `CURRENT_CONFIG_VERSION` in `platform/core/config/src/migrations/index.ts`.
 2. Append a new migration object that describes how to transform configs from
    the previous version to the new one. Use the pattern above to return the
    migrated config and any warnings.

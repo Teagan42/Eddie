@@ -24,109 +24,109 @@
     },
     "config": {
       "type": "library",
-      "root": "packages/config",
-      "sourceRoot": "packages/config/src",
+      "root": "platform/core/config",
+      "sourceRoot": "platform/core/config/src",
       "compilerOptions": {
-        "tsConfigPath": "packages/config/tsconfig.build.json",
+        "tsConfigPath": "platform/core/config/tsconfig.build.json",
         "deleteOutDir": true
       }
     },
     "context": {
       "type": "library",
-      "root": "packages/context",
-      "sourceRoot": "packages/context/src",
+      "root": "platform/runtime/context",
+      "sourceRoot": "platform/runtime/context/src",
       "compilerOptions": {
-        "tsConfigPath": "packages/context/tsconfig.build.json",
+        "tsConfigPath": "platform/runtime/context/tsconfig.build.json",
         "deleteOutDir": true
       }
     },
     "engine": {
       "type": "library",
-      "root": "packages/engine",
-      "sourceRoot": "packages/engine/src",
+      "root": "platform/runtime/engine",
+      "sourceRoot": "platform/runtime/engine/src",
       "compilerOptions": {
-        "tsConfigPath": "packages/engine/tsconfig.build.json",
+        "tsConfigPath": "platform/runtime/engine/tsconfig.build.json",
         "deleteOutDir": true
       }
     },
     "io": {
       "type": "library",
-      "root": "packages/io",
-      "sourceRoot": "packages/io/src",
+      "root": "platform/runtime/io",
+      "sourceRoot": "platform/runtime/io/src",
       "compilerOptions": {
-        "tsConfigPath": "packages/io/tsconfig.build.json",
+        "tsConfigPath": "platform/runtime/io/tsconfig.build.json",
         "deleteOutDir": true
       }
     },
     "hooks": {
       "type": "library",
-      "root": "packages/hooks",
-      "sourceRoot": "packages/hooks/src",
+      "root": "platform/runtime/hooks",
+      "sourceRoot": "platform/runtime/hooks/src",
       "compilerOptions": {
-        "tsConfigPath": "packages/hooks/tsconfig.build.json",
+        "tsConfigPath": "platform/runtime/hooks/tsconfig.build.json",
         "deleteOutDir": true
       }
     },
     "perf-benchmarks": {
       "type": "library",
-      "root": "packages/perf-benchmarks",
-      "sourceRoot": "packages/perf-benchmarks/src",
+      "root": "platform/testing/perf-benchmarks",
+      "sourceRoot": "platform/testing/perf-benchmarks/src",
       "compilerOptions": {
-        "tsConfigPath": "packages/perf-benchmarks/tsconfig.build.json",
+        "tsConfigPath": "platform/testing/perf-benchmarks/tsconfig.build.json",
         "deleteOutDir": true
       }
     },
     "templates": {
       "type": "library",
-      "root": "packages/templates",
-      "sourceRoot": "packages/templates/src",
+      "root": "platform/core/templates",
+      "sourceRoot": "platform/core/templates/src",
       "compilerOptions": {
-        "tsConfigPath": "packages/templates/tsconfig.build.json",
+        "tsConfigPath": "platform/core/templates/tsconfig.build.json",
         "deleteOutDir": true
       }
     },
     "providers": {
       "type": "library",
-      "root": "packages/providers",
-      "sourceRoot": "packages/providers/src",
+      "root": "platform/integrations/providers",
+      "sourceRoot": "platform/integrations/providers/src",
       "compilerOptions": {
-        "tsConfigPath": "packages/providers/tsconfig.build.json",
+        "tsConfigPath": "platform/integrations/providers/tsconfig.build.json",
         "deleteOutDir": true
       }
     },
     "tokenizers": {
       "type": "library",
-      "root": "packages/tokenizers",
-      "sourceRoot": "packages/tokenizers/src",
+      "root": "platform/core/tokenizers",
+      "sourceRoot": "platform/core/tokenizers/src",
       "compilerOptions": {
-        "tsConfigPath": "packages/tokenizers/tsconfig.build.json",
+        "tsConfigPath": "platform/core/tokenizers/tsconfig.build.json",
         "deleteOutDir": true
       }
     },
     "tools": {
       "type": "library",
-      "root": "packages/tools",
-      "sourceRoot": "packages/tools/src",
+      "root": "platform/runtime/tools",
+      "sourceRoot": "platform/runtime/tools/src",
       "compilerOptions": {
-        "tsConfigPath": "packages/tools/tsconfig.build.json",
+        "tsConfigPath": "platform/runtime/tools/tsconfig.build.json",
         "deleteOutDir": true
       }
     },
     "mcp": {
       "type": "library",
-      "root": "packages/mcp",
-      "sourceRoot": "packages/mcp/src",
+      "root": "platform/integrations/mcp",
+      "sourceRoot": "platform/integrations/mcp/src",
       "compilerOptions": {
-        "tsConfigPath": "packages/mcp/tsconfig.build.json",
+        "tsConfigPath": "platform/integrations/mcp/tsconfig.build.json",
         "deleteOutDir": true
       }
     },
     "types": {
       "type": "library",
-      "root": "packages/types",
-      "sourceRoot": "packages/types/src",
+      "root": "platform/core/types",
+      "sourceRoot": "platform/core/types/src",
       "compilerOptions": {
-        "tsConfigPath": "packages/types/tsconfig.build.json",
+        "tsConfigPath": "platform/core/types/tsconfig.build.json",
         "deleteOutDir": true
       }
     }

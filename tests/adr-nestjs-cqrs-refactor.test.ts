@@ -11,7 +11,7 @@ const readAdr = () => readFileSync(adrPath, "utf8");
 const requiredPatterns = [
   /^# ADR 0008: NestJS CQRS Realtime Migration$/m,
   /## Context[\s\S]*CQRS/m,
-  /## Decision[\s\S]*(apps\/api\/src\/realtime|packages\/realtime)[\s\S]*/m,
+  /## Decision[\s\S]*(apps\/api\/src\/realtime|platform\/integrations\/api-client)[\s\S]*/m,
   /## Consequences[\s\S]*migration considerations for downstream consumers/m,
 ];
 

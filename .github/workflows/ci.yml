@@ -45,14 +45,14 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          CHANGED=$(node packages/ci-support/scripts/detect-changed-workspaces.cjs "${BASE_SHA:-}" "${HEAD_SHA:-}")
+          CHANGED=$(node platform/testing/ci-support/scripts/detect-changed-workspaces.cjs "${BASE_SHA:-}" "${HEAD_SHA:-}")
           echo "names=${CHANGED}" >> "$GITHUB_OUTPUT"
 
       - name: Export workspace matrices
         id: export
         env:
           CHANGED_WORKSPACES: ${{ steps.changed.outputs.names }}
-        run: node packages/ci-support/scripts/export-matrix.cjs
+        run: node platform/testing/ci-support/scripts/export-matrix.cjs
 
   lint:
     name: Lint (${{ matrix.workspace.name }})

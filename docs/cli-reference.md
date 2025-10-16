@@ -16,7 +16,7 @@ Eddie's CLI collects flags in `CliParserService` and adapts them into engine run
 | `--context` | `-C` | string[] | Overrides the glob patterns packed into the request context. Accepts repeated flags or comma-separated lists. Ignored when `--no-context` is present.【F:apps/cli/src/cli/cli-parser.service.ts†L8-L90】【F:apps/cli/src/config/config.service.ts†L236-L248】 | `src/**/*` from the default config.【F:apps/cli/src/config/defaults.ts†L15-L18】 |
 | `--no-context` | – | boolean | Disables context collection entirely by clearing include patterns and budgets.【F:apps/cli/src/cli/cli-options.service.ts†L44-L45】【F:apps/cli/src/config/config.service.ts†L236-L244】 | Context enabled with defaults unless flag supplied.【F:apps/cli/src/config/defaults.ts†L15-L18】 |
 | `--config` | `-c` | string | Points to a specific `eddie.config.(json|yaml)` file to load before applying overrides.【F:apps/cli/src/cli/cli-parser.service.ts†L11-L74】【F:apps/cli/src/cli/cli-options.service.ts†L26】 | Automatic discovery in project root if flag omitted (see `README`). |
-| `--preset` | – | string | Applies a named configuration preset before loading config files and runtime overrides. Run `eddie help` to see available names.【F:packages/config/src/runtime-cli-options.ts†L12-L69】【F:packages/config/src/config.service.ts†L108-L155】【F:apps/cli/src/cli/cli-runner.service.ts†L66-L92】 | None. |
+| `--preset` | – | string | Applies a named configuration preset before loading config files and runtime overrides. Run `eddie help` to see available names.【F:platform/core/config/src/runtime-cli-options.ts†L12-L69】【F:platform/core/config/src/config.service.ts†L108-L155】【F:apps/cli/src/cli/cli-runner.service.ts†L66-L92】 | None. |
 | `--model` | `-m` | string | Overrides the model identifier used for the run.【F:apps/cli/src/cli/cli-parser.service.ts†L13-L74】【F:apps/cli/src/cli/cli-options.service.ts†L27】 | `gpt-4o-mini`.【F:apps/cli/src/config/defaults.ts†L10-L18】 |
 | `--provider` | `-p` | string | Selects a provider profile by name; if the profile exists it also hydrates the associated model. Otherwise sets the provider name directly.【F:apps/cli/src/cli/cli-parser.service.ts†L15-L74】【F:apps/cli/src/config/config.service.ts†L220-L234】 | `openai`.【F:apps/cli/src/config/defaults.ts†L12-L14】 |
 | `--tools` | `-t` | string[] | Restricts the enabled tool list to the provided identifiers.【F:apps/cli/src/cli/cli-parser.service.ts†L17-L90】【F:apps/cli/src/config/config.service.ts†L251-L255】 | `bash`, `file_read`, `file_write`.【F:apps/cli/src/config/defaults.ts†L35-L38】 |
@@ -86,16 +86,16 @@ These combinations layer on top of `eddie.config.*` and the defaults shown above
 
 ## Environment variables and precedence
 
-Precedence: CLI flags → `EDDIE_CLI_*` environment variables → configuration files → built-in defaults. `mergeCliRuntimeOptions` merges environment-derived options first and then overlays explicit flags, while the `ConfigService` composes provider defaults, on-disk configuration, and runtime overrides in that order.【F:packages/config/src/runtime-cli.ts†L1-L120】【F:packages/config/src/config.service.ts†L123-L133】【F:packages/config/src/config.service.ts†L145-L156】【F:packages/config/src/runtime-env.ts†L63-L152】
+Precedence: CLI flags → `EDDIE_CLI_*` environment variables → configuration files → built-in defaults. `mergeCliRuntimeOptions` merges environment-derived options first and then overlays explicit flags, while the `ConfigService` composes provider defaults, on-disk configuration, and runtime overrides in that order.【F:platform/core/config/src/runtime-cli.ts†L1-L120】【F:platform/core/config/src/config.service.ts†L123-L133】【F:platform/core/config/src/config.service.ts†L145-L156】【F:platform/core/config/src/runtime-env.ts†L63-L152】
 
 Environment variables map directly to the flag surface. Common examples include:
 
 | Variable | Effect |
 | --- | --- |
-| `EDDIE_CLI_CONTEXT=src,tests` | Overrides context include globs until a flag is supplied.【F:packages/config/src/runtime-env.ts†L63-L141】 |
-| `EDDIE_CLI_LOG_LEVEL=debug` | Sets the log level across CLI commands.【F:packages/config/src/runtime-env.ts†L63-L141】 |
-| `EDDIE_CLI_JSONL_TRACE=/tmp/eddie.trace.jsonl` | Redirects trace output for subsequent `trace` or `run` invocations.【F:packages/config/src/runtime-env.ts†L63-L141】 |
-| `EDDIE_CLI_AGENT_MODE=manager` | Enables the multi-agent orchestrator without editing configuration files.【F:packages/config/src/runtime-env.ts†L63-L141】 |
+| `EDDIE_CLI_CONTEXT=src,tests` | Overrides context include globs until a flag is supplied.【F:platform/core/config/src/runtime-env.ts†L63-L141】 |
+| `EDDIE_CLI_LOG_LEVEL=debug` | Sets the log level across CLI commands.【F:platform/core/config/src/runtime-env.ts†L63-L141】 |
+| `EDDIE_CLI_JSONL_TRACE=/tmp/eddie.trace.jsonl` | Redirects trace output for subsequent `trace` or `run` invocations.【F:platform/core/config/src/runtime-env.ts†L63-L141】 |
+| `EDDIE_CLI_AGENT_MODE=manager` | Enables the multi-agent orchestrator without editing configuration files.【F:platform/core/config/src/runtime-env.ts†L63-L141】 |
 
 Shell interpolation keeps secrets and workspace-specific paths out of the repository:
 
@@ -106,25 +106,25 @@ export EDDIE_CLI_TOOLS="bash,file_read"
 eddie ask "Summarise production alerts"
 ```
 
-Flags typed on the command line still win, so `eddie run "Deploy" --provider anthropic` temporarily overrides the environment values set above.【F:packages/config/src/runtime-cli.ts†L1-L120】
+Flags typed on the command line still win, so `eddie run "Deploy" --provider anthropic` temporarily overrides the environment values set above.【F:platform/core/config/src/runtime-cli.ts†L1-L120】
 
 ## Configuration discovery and merging
 
-- The CLI searches for `eddie.config.json`, `eddie.config.yaml`, `eddie.config.yml`, `.eddierc`, `.eddierc.json`, or `.eddierc.yaml` inside the working directory and the `config/` directory (or a custom `CONFIG_ROOT`).【F:packages/config/src/config-path.ts†L5-L57】
-- `CONFIG_ROOT` lets you relocate configuration alongside infrastructure-as-code repositories while still running the CLI from project roots.【F:packages/config/src/config-path.ts†L16-L28】
-- Pass `--config relative/or/absolute/path.yaml` when you need to pin a specific file; the CLI validates the path and fails fast if it does not exist.【F:packages/config/src/config-path.ts†L31-L58】
-- Once a file is loaded, `ConfigService` layers defaults, file contents, and runtime overrides so feature-specific defaults (such as provider profiles) remain intact until you explicitly change them.【F:packages/config/src/config.service.ts†L123-L133】【F:packages/config/src/config.service.ts†L145-L156】
+- The CLI searches for `eddie.config.json`, `eddie.config.yaml`, `eddie.config.yml`, `.eddierc`, `.eddierc.json`, or `.eddierc.yaml` inside the working directory and the `config/` directory (or a custom `CONFIG_ROOT`).【F:platform/core/config/src/config-path.ts†L5-L57】
+- `CONFIG_ROOT` lets you relocate configuration alongside infrastructure-as-code repositories while still running the CLI from project roots.【F:platform/core/config/src/config-path.ts†L16-L28】
+- Pass `--config relative/or/absolute/path.yaml` when you need to pin a specific file; the CLI validates the path and fails fast if it does not exist.【F:platform/core/config/src/config-path.ts†L31-L58】
+- Once a file is loaded, `ConfigService` layers defaults, file contents, and runtime overrides so feature-specific defaults (such as provider profiles) remain intact until you explicitly change them.【F:platform/core/config/src/config.service.ts†L123-L133】【F:platform/core/config/src/config.service.ts†L145-L156】
 
 ## Error handling and troubleshooting
 
 - Missing prompts for `ask` or `run` raise clear errors before contacting a model, so scripts can exit early with actionable feedback.【F:apps/cli/src/cli/commands/ask.command.ts†L19-L27】【F:apps/cli/src/cli/commands/run.command.ts†L19-L27】
 - The `trace` command captures filesystem issues and prints `Unable to read trace at …` instead of throwing, a hint to check permissions or run history.【F:apps/cli/src/cli/commands/trace.command.ts†L24-L45】
 - When `context` globs do not match any files the command prints `No context files matched the current configuration.` to help you adjust include patterns.【F:apps/cli/src/cli/commands/context.command.ts†L41-L44】
-- All commands exit with code `1` on unhandled errors so CI pipelines can fail fast; check logs with `--log-level debug` when diagnosing provider authentication or tool failures.【F:apps/cli/src/main.ts†L20-L35】【F:packages/config/src/runtime-env.ts†L63-L141】
+- All commands exit with code `1` on unhandled errors so CI pipelines can fail fast; check logs with `--log-level debug` when diagnosing provider authentication or tool failures.【F:apps/cli/src/main.ts†L20-L35】【F:platform/core/config/src/runtime-env.ts†L63-L141】
 
 ## Performance tuning and token budgets
 
-- Context packing enforces `maxFiles` and `maxBytes` limits (defaults: 64 files, 250,000 bytes) to keep prompts within provider token budgets and prevent runaway uploads.【F:packages/context/src/context.service.ts†L23-L24】【F:packages/context/src/context.service.ts†L729-L741】
-- Raise or lower these caps in `eddie.config.*` as projects grow; the CLI will refuse to add files beyond the configured budget and logs when limits are hit.【F:packages/context/src/context.service.ts†L704-L713】【F:packages/context/src/context.service.ts†L720-L739】
+- Context packing enforces `maxFiles` and `maxBytes` limits (defaults: 64 files, 250,000 bytes) to keep prompts within provider token budgets and prevent runaway uploads.【F:platform/runtime/context/src/context.service.ts†L23-L24】【F:platform/runtime/context/src/context.service.ts†L729-L741】
+- Raise or lower these caps in `eddie.config.*` as projects grow; the CLI will refuse to add files beyond the configured budget and logs when limits are hit.【F:platform/runtime/context/src/context.service.ts†L704-L713】【F:platform/runtime/context/src/context.service.ts†L720-L739】
 - Use `eddie context` regularly to inspect the file list, byte totals, and estimated tokens before a large automation run; the command leverages the tokenizer provider to display the projected token budget upfront.【F:apps/cli/src/cli/commands/context.command.ts†L25-L55】
-- Pair conservative budgets with `--tools file_read,file_write` to keep low-latency iterations responsive, and fall back to wider budgets only when necessary for long-form tasks.【F:apps/cli/src/cli/commands/context.command.ts†L25-L59】【F:packages/context/src/context.service.ts†L729-L741】
+- Pair conservative budgets with `--tools file_read,file_write` to keep low-latency iterations responsive, and fall back to wider budgets only when necessary for long-form tasks.【F:apps/cli/src/cli/commands/context.command.ts†L25-L59】【F:platform/runtime/context/src/context.service.ts†L729-L741】

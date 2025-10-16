@@ -27,7 +27,7 @@ structured gateway payloads. Supporting providers such as
 `apps/api/src/orchestrator/orchestrator.service.ts` and
 `apps/api/src/traces/events` were updated to emit CQRS events instead of calling
 gateways directly. Downstream packages, including the generated
-`packages/api-client`, now rely on a unified DTO shape emitted by the CQRS
+`platform/integrations/api-client`, now rely on a unified DTO shape emitted by the CQRS
 handlers when consuming realtime updates.
 
 ## Consequences
@@ -35,7 +35,7 @@ handlers when consuming realtime updates.
 - CQRS gives us deterministic handler boundaries for realtime features, making
   it easier to test new websocket flows in isolation.
 - Realtime notifications share the same DTOs across the API and client packages,
-  reducing duplication in `packages/api-client` and future SDKs.
+  reducing duplication in `platform/integrations/api-client` and future SDKs.
 - Downstream consumers must migrate to the new event envelopes. Existing
   websocket clients should subscribe to the CQRS-streamed topics exposed in
   `chat-sessions.gateway.ts` and update their payload parsing to match the DTOs
