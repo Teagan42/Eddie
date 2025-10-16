@@ -29,6 +29,7 @@ describe("ToolCallsGatewayEventsHandler", () => {
       result: null,
       startedAt: "2024-01-01T00:00:00.000Z",
       updatedAt: "2024-01-01T00:00:00.000Z",
+      agentId: "agent-77",
     };
 
     handler.handle(new ToolCallStarted(baseState));
@@ -56,6 +57,7 @@ describe("ToolCallsGatewayEventsHandler", () => {
         sessionId: "s1",
         id: "t1",
         name: "summarise",
+        agentId: "agent-77",
       })
     );
     expect(emitEvent).toHaveBeenNthCalledWith(
@@ -66,6 +68,7 @@ describe("ToolCallsGatewayEventsHandler", () => {
         sessionId: "s1",
         id: "t1",
         name: "summarise",
+        agentId: "agent-77",
       })
     );
     expect(emitEvent).toHaveBeenNthCalledWith(
@@ -76,6 +79,7 @@ describe("ToolCallsGatewayEventsHandler", () => {
         sessionId: "s1",
         id: "t1",
         name: "summarise",
+        agentId: "agent-77",
       })
     );
   });

@@ -90,6 +90,7 @@ export class ToolCallPersistenceService {
       message_id: null as string | null,
       created_at: this.toDate(state.startedAt),
       updated_at: this.toDate(state.updatedAt),
+      agent_id: state.agentId ?? null,
     };
 
     await db("tool_calls")
@@ -108,6 +109,7 @@ export class ToolCallPersistenceService {
       message_id: null as string | null,
       created_at: this.toDate(state.updatedAt),
       updated_at: this.toDate(state.updatedAt),
+      agent_id: state.agentId ?? null,
     };
 
     const updates: Record<string, unknown> = {
@@ -119,6 +121,9 @@ export class ToolCallPersistenceService {
     }
     if (state.result !== undefined) {
       updates.result = this.prepareJson(state.result);
+    }
+    if (state.agentId !== undefined) {
+      updates.agent_id = state.agentId ?? null;
     }
 
     await trx("tool_results")
@@ -155,6 +160,9 @@ export class ToolCallPersistenceService {
     }
     if (state.arguments !== undefined) {
       updates.arguments = this.prepareJson(state.arguments);
+    }
+    if (state.agentId !== undefined) {
+      updates.agent_id = state.agentId ?? null;
     }
 
     if (includeCreatedAt) {

@@ -9,6 +9,7 @@ import type {
 } from "@eddie/types";
 import { ChatMessageRole } from "./dto/create-chat-message.dto";
 import { initialChatSessionsMigration } from "./migrations/initial";
+import { addAgentIdToToolTablesMigration } from "./migrations/add-agent-id-to-tool-tables";
 
 export const CHAT_SESSIONS_REPOSITORY = Symbol("CHAT_SESSIONS_REPOSITORY");
 
@@ -420,6 +421,7 @@ type ChatSessionsMigration = (db: Knex) => Promise<void>;
 
 const DEFAULT_MIGRATIONS: readonly ChatSessionsMigration[] = [
   initialChatSessionsMigration,
+  addAgentIdToToolTablesMigration,
 ];
 
 type JsonStorageDialect = "jsonb" | "json" | "text";

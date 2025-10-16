@@ -47,6 +47,10 @@ export class ToolsGateway implements OnModuleInit, OnModuleDestroy {
           if ('result' in p) {
             p.result = this.safeStringify(p.result) as unknown;
           }
+          const agentId = this.sanitizeAgentId(p.agentId);
+          if (agentId !== undefined) {
+            p.agentId = agentId;
+          }
           if (!('timestamp' in p) || !p.timestamp) {
             p.timestamp = new Date().toISOString();
           }
@@ -71,6 +75,10 @@ export class ToolsGateway implements OnModuleInit, OnModuleDestroy {
           if ('result' in p) {
             p.result = this.safeStringify(p.result) as unknown;
           }
+          const agentId = this.sanitizeAgentId(p.agentId);
+          if (agentId !== undefined) {
+            p.agentId = agentId;
+          }
           if (!('timestamp' in p) || !p.timestamp) {
             p.timestamp = new Date().toISOString();
           }
@@ -82,5 +90,16 @@ export class ToolsGateway implements OnModuleInit, OnModuleDestroy {
       } catch {
         // swallow errors
       }
+    }
+
+    private sanitizeAgentId(value: unknown): string | null | undefined {
+      if (value === undefined) {
+        return undefined;
+      }
+      if (typeof value !== 'string') {
+        return null;
+      }
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : null;
     }
 }

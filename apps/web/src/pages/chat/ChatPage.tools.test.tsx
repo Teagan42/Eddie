@@ -126,6 +126,7 @@ describe("ChatPage tool metadata merging", () => {
         name: "search",
         status: "running",
         arguments: "query: cats",
+        agentId: "manager",
       });
     });
 
@@ -171,6 +172,7 @@ describe("ChatPage tool metadata merging", () => {
         "session-1",
       ]);
       expect(snapshot?.toolInvocations?.[0]?.metadata?.arguments).toBe("query: cats");
+      expect(snapshot?.toolInvocations?.[0]?.metadata?.agentId).toBe("manager");
     });
   });
 

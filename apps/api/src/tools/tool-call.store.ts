@@ -11,6 +11,7 @@ export interface ToolCallState {
   status: ToolCallStatus;
   startedAt: string;
   updatedAt: string;
+  agentId?: string | null;
 }
 
 export interface ToolCallCommandInput {
@@ -20,6 +21,7 @@ export interface ToolCallCommandInput {
   arguments?: unknown;
   result?: unknown;
   timestamp?: string;
+  agentId?: string | null;
 }
 
 @Injectable()
@@ -41,6 +43,7 @@ export class ToolCallStore {
         result: undefined,
         startedAt: timestamp,
         updatedAt: timestamp,
+        agentId: this.normalizeAgentId(input.agentId),
       };
       list.push(next);
       return this.clone(next);
@@ -65,6 +68,7 @@ export class ToolCallStore {
         status: "running",
         startedAt: timestamp,
         updatedAt: timestamp,
+        agentId: this.normalizeAgentId(input.agentId),
       };
       list.push(created);
       return this.clone(created);
@@ -92,6 +96,7 @@ export class ToolCallStore {
         status: "completed",
         startedAt: timestamp,
         updatedAt: timestamp,
+        agentId: this.normalizeAgentId(input.agentId),
       };
       list.push(created);
       return this.clone(created);
@@ -147,6 +152,9 @@ export class ToolCallStore {
     if (input.result !== undefined) {
       target.result = input.result;
     }
+    if (input.agentId !== undefined) {
+      target.agentId = this.normalizeAgentId(input.agentId);
+    }
     target.status = nextStatus;
     target.updatedAt = timestamp;
     return this.clone(target);
@@ -154,5 +162,13 @@ export class ToolCallStore {
 
   private clone(state: ToolCallState): ToolCallState {
     return { ...state };
+  }
+
+  private normalizeAgentId(agentId: string | null | undefined): string | null {
+    if (typeof agentId !== "string") {
+      return agentId ?? null;
+    }
+    const trimmed = agentId.trim();
+    return trimmed.length > 0 ? trimmed : null;
   }
 }

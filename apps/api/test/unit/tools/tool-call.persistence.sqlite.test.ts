@@ -73,6 +73,7 @@ describe("Tool call persistence (sqlite)", () => {
         name: "search",
         arguments: { query: "docs" },
         timestamp: "2024-01-01T00:00:00.000Z",
+        agentId: "agent-1",
       })
     );
 
@@ -82,6 +83,7 @@ describe("Tool call persistence (sqlite)", () => {
         toolCallId: "call-1",
         arguments: { query: "docs", page: 2 },
         timestamp: "2024-01-01T00:00:05.000Z",
+        agentId: "agent-1",
       })
     );
 
@@ -94,6 +96,7 @@ describe("Tool call persistence (sqlite)", () => {
       tool_call_id: "call-1",
       name: "search",
       status: "running",
+      agent_id: "agent-1",
     });
     expect(JSON.parse(callRow.arguments)).toEqual({ query: "docs", page: 2 });
 
@@ -117,6 +120,7 @@ describe("Tool call persistence (sqlite)", () => {
         name: "search",
         result: { items: ["a"] },
         timestamp: "2024-01-01T00:00:10.000Z",
+        agentId: "agent-1",
       })
     );
 
@@ -128,6 +132,7 @@ describe("Tool call persistence (sqlite)", () => {
       session_id: session.id,
       tool_call_id: "call-1",
       name: "search",
+      agent_id: "agent-1",
     });
     expect(JSON.parse(resultRow.result)).toEqual({ items: ["a"] });
 
@@ -161,6 +166,7 @@ describe("Tool call persistence (sqlite)", () => {
         name: "search",
         arguments: { query: "first" },
         timestamp: "2024-01-01T00:00:00.000Z",
+        agentId: "agent-1",
       })
     );
 
@@ -170,6 +176,7 @@ describe("Tool call persistence (sqlite)", () => {
         name: "search",
         arguments: { query: "second" },
         timestamp: "2024-01-01T00:00:05.000Z",
+        agentId: "agent-2",
       })
     );
 
@@ -179,6 +186,7 @@ describe("Tool call persistence (sqlite)", () => {
 
     expect(rows).toHaveLength(2);
     expect(rows.every((row) => row.tool_call_id === null)).toBe(true);
+    expect(rows.map((row) => row.agent_id)).toEqual(["agent-1", "agent-2"]);
     expect(rows.map((row) => JSON.parse(row.arguments))).toEqual([
       { query: "first" },
       { query: "second" },
@@ -194,6 +202,7 @@ describe("Tool call persistence (sqlite)", () => {
         name: "search",
         arguments: { query: "single" },
         timestamp: "2024-01-01T00:00:00.000Z",
+        agentId: "agent-1",
       })
     );
 
@@ -203,6 +212,7 @@ describe("Tool call persistence (sqlite)", () => {
         name: "search",
         result: { items: ["a"] },
         timestamp: "2024-01-01T00:00:10.000Z",
+        agentId: "agent-1",
       })
     );
 
@@ -219,6 +229,7 @@ describe("Tool call persistence (sqlite)", () => {
       name: "search",
     });
     expect(JSON.parse(callRows[0].arguments)).toEqual({ query: "single" });
+    expect(callRows[0].agent_id).toBe("agent-1");
     expect(resultRows).toHaveLength(1);
     expect(JSON.parse(resultRows[0].result)).toEqual({ items: ["a"] });
   });

@@ -47,6 +47,7 @@ implements
           name: event.name,
           arguments: event.arguments,
           timestamp: event.timestamp,
+          agentId: event.agentId ?? null,
         })
       );
       return;
@@ -60,6 +61,7 @@ implements
           name: event.name,
           result: event.result,
           timestamp: event.timestamp,
+          agentId: event.agentId ?? null,
         })
       );
     }

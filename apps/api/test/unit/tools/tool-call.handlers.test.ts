@@ -54,6 +54,7 @@ describe("Tool call CQRS", () => {
         name: "search",
         arguments: { query: "docs" },
         timestamp: "2024-01-01T00:00:00.000Z",
+        agentId: "agent-007",
       })
     );
 
@@ -63,6 +64,7 @@ describe("Tool call CQRS", () => {
         toolCallId: "t1",
         arguments: { query: "docs", page: 2 },
         timestamp: "2024-01-01T00:00:10.000Z",
+        agentId: "agent-007",
       })
     );
 
@@ -73,6 +75,7 @@ describe("Tool call CQRS", () => {
         name: "search",
         result: { items: ["a", "b"] },
         timestamp: "2024-01-01T00:00:20.000Z",
+        agentId: "agent-007",
       })
     );
 
@@ -89,6 +92,7 @@ describe("Tool call CQRS", () => {
       result: { items: ["a", "b"] },
       startedAt: "2024-01-01T00:00:00.000Z",
       updatedAt: "2024-01-01T00:00:20.000Z",
+      agentId: "agent-007",
     });
 
     expect(events[0]).toBeInstanceOf(ToolCallStarted);
@@ -100,7 +104,9 @@ describe("Tool call CQRS", () => {
     const completed = events[2] as ToolCallCompleted;
 
     expect(started.state.status).toBe("running");
+    expect(started.state.agentId).toBe("agent-007");
     expect(updated.state.arguments).toEqual({ query: "docs", page: 2 });
     expect(completed.state.result).toEqual({ items: ["a", "b"] });
+    expect(completed.state.agentId).toBe("agent-007");
   });
 });

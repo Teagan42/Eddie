@@ -118,12 +118,14 @@ describe("ChatSessionStreamRendererService", () => {
       name: "echo",
       arguments: { text: "hi" },
       id: "t1",
+      agentId: "agent-alpha",
     };
     const toolResult: StreamEvent = {
       type: "tool_result",
       name: "echo",
       result: { schema: "s1", content: "ok" },
       id: "t1",
+      agentId: "agent-alpha",
     };
     await renderer.capture(sessionId, async () => {
       renderer.render(toolCall);
@@ -146,8 +148,18 @@ describe("ChatSessionStreamRendererService", () => {
         event instanceof ChatSessionToolResultEvent
     )!;
 
-    expect(callEvent).toMatchObject({ sessionId, name: "echo", id: "t1" });
-    expect(resultEvent).toMatchObject({ sessionId, name: "echo", id: "t1" });
+    expect(callEvent).toMatchObject({
+      sessionId,
+      name: "echo",
+      id: "t1",
+      agentId: "agent-alpha",
+    });
+    expect(resultEvent).toMatchObject({
+      sessionId,
+      name: "echo",
+      id: "t1",
+      agentId: "agent-alpha",
+    });
   });
 
   it("annotates tool events with consistent timestamps", async () => {
@@ -160,12 +172,14 @@ describe("ChatSessionStreamRendererService", () => {
       name: "echo",
       arguments: { text: "hi" },
       id: "call-1",
+      agentId: "agent-bravo",
     };
     const toolResult: StreamEvent = {
       type: "tool_result",
       name: "echo",
       result: { schema: "s1", content: "ok" },
       id: "call-1",
+      agentId: "agent-bravo",
     };
 
     await renderer.capture(sessionId, async () => {
@@ -184,7 +198,9 @@ describe("ChatSessionStreamRendererService", () => {
     )!;
 
     expect(callEvent.timestamp).toBe(now.toISOString());
+    expect(callEvent).toHaveProperty("agentId", "agent-bravo");
     expect(resultEvent.timestamp).toBe(now.toISOString());
+    expect(resultEvent).toHaveProperty("agentId", "agent-bravo");
 
     vi.useRealTimers();
   });

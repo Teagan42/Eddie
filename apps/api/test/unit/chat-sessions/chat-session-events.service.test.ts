@@ -29,8 +29,22 @@ describe("ChatSessionEventsService", () => {
         const commandBus = { execute } as unknown as CommandBus;
         const events = new ChatSessionEventsService(gateway, commandBus);
 
-        const callEvent = new ChatSessionToolCallEvent("s1", "t1", "tool", { input: "x" }, "2024-01-01T00:00:00.000Z");
-        const resultEvent = new ChatSessionToolResultEvent("s1", "t1", "tool", "ok", "2024-01-01T00:00:00.000Z");
+        const callEvent = new ChatSessionToolCallEvent(
+            "s1",
+            "t1",
+            "tool",
+            { input: "x" },
+            "2024-01-01T00:00:00.000Z",
+            "agent-42",
+        );
+        const resultEvent = new ChatSessionToolResultEvent(
+            "s1",
+            "t1",
+            "tool",
+            "ok",
+            "2024-01-01T00:00:00.000Z",
+            "agent-42",
+        );
 
         events.handle(callEvent);
         events.handle(resultEvent);
@@ -43,6 +57,7 @@ describe("ChatSessionEventsService", () => {
             name: "tool",
             arguments: { input: "x" },
             timestamp: "2024-01-01T00:00:00.000Z",
+            agentId: "agent-42",
         });
 
         const [ completeCommand ] = execute.mock.calls[1] ?? [];
@@ -53,6 +68,7 @@ describe("ChatSessionEventsService", () => {
             name: "tool",
             result: "ok",
             timestamp: "2024-01-01T00:00:00.000Z",
+            agentId: "agent-42",
         });
     });
 
@@ -60,7 +76,15 @@ describe("ChatSessionEventsService", () => {
         const gateway = { emitPartial: vi.fn() } as unknown as ChatMessagesGateway;
         const events = new ChatSessionEventsService(gateway);
 
-        expect(() => events.handle(new ChatSessionToolCallEvent("s1", "t1", "tool", {}, undefined))).not.toThrow();
-        expect(() => events.handle(new ChatSessionToolResultEvent("s1", "t1", "tool", "ok", undefined))).not.toThrow();
+        expect(() =>
+            events.handle(
+                new ChatSessionToolCallEvent("s1", "t1", "tool", {}, undefined, "agent-42"),
+            ),
+        ).not.toThrow();
+        expect(() =>
+            events.handle(
+                new ChatSessionToolResultEvent("s1", "t1", "tool", "ok", undefined, "agent-42"),
+            ),
+        ).not.toThrow();
     });
 });
