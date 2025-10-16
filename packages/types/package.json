@@ -8,10 +8,6 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    },
-    "./agents": {
-      "types": "./dist/agents.d.ts",
-      "default": "./dist/agents.js"
     }
   },
   "dependencies": {
@@ -21,8 +17,5 @@
     "build": "tsc -b tsconfig.build.json",
     "lint": "eslint 'src/**/*.ts'",
     "test": "vitest --run --config vitest.config.ts"
-  },
-  "dependencies": {
-    "@nestjs/cqrs": "^11.0.0"
   }
 }

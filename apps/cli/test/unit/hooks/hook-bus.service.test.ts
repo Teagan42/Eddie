@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
-import { HookBus, HOOK_EVENTS, blockHook } from "@eddie/hooks";
-import type { HookBlockResponse } from "@eddie/hooks";
+import { HookBus, blockHook } from "@eddie/hooks";
+import { HOOK_EVENTS } from '@eddie/types';
+import { describe, expect, it, vi } from "vitest";
 
 describe("HookBus", () => {
   it("returns listener results in registration order", async () => {

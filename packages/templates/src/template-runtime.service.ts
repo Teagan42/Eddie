@@ -1,14 +1,15 @@
 import { Inject, Injectable, type Provider } from "@nestjs/common";
-import { TemplateRendererService, type TemplateVariables } from "@eddie/templates";
 import type {
   AgentDefinition,
   AgentInvocationOptions,
   ChatMessage,
   ContextResourceTemplateConfig,
   PackedContext,
+  TemplateVariables,
 } from "@eddie/types";
 import type { Logger } from "pino";
 import { LoggerService } from "@eddie/io";
+import { TemplateRendererService } from "./template-renderer.service";
 
 export const TEMPLATE_RUNTIME_LOGGER = Symbol("TEMPLATE_RUNTIME_LOGGER");
 
@@ -53,28 +54,30 @@ export class TemplateRuntimeService {
   async renderSystemPrompt(
     params: RenderSystemPromptParams
   ): Promise<RenderSystemPromptResult> {
+    const { definition, options } = params;
+
     const merged = this.mergeVariables(
       this.createBuiltinVariables(params),
-      params.definition.variables,
-      params.options.variables
+      definition.variables,
+      options.variables
     );
 
     let systemPrompt: string;
-    if (params.definition.systemPromptTemplate) {
+    if (definition.systemPromptTemplate) {
       systemPrompt = await this.renderer.renderTemplate(
-        params.definition.systemPromptTemplate,
+        definition.systemPromptTemplate,
         merged
       );
     } else {
       systemPrompt = await this.renderer.renderString(
-        params.definition.systemPrompt,
+        definition.systemPrompt,
         merged
       );
     }
 
     merged.systemPrompt = systemPrompt;
     this.logger?.debug?.(
-      { agentId: params.definition.id },
+      { agentId: definition.id },
       "Rendered system prompt"
     );
 

@@ -1,31 +1,23 @@
-import "reflect-metadata";
-import path from "path";
-import { describe, it, expect, vi, type SpyInstance } from "vitest";
-import type { SessionMetadata } from "@eddie/hooks";
-import {
-  AgentInvocation,
-  EngineService,
-  SimpleTranscriptCompactor,
-  TokenBudgetCompactor,
-  TranscriptCompactionService,
-  type MetricsService,
-  type AgentOrchestratorService,
-  type AgentRunRequest,
-  type AgentRuntimeCatalog,
-  type AgentRuntimeDescriptor,
-  type AgentRuntimeOptions,
-  type TranscriptCompactionWorkflow,
-} from "@eddie/engine";
 import {
   ConfigStore,
   type EddieConfig,
   type ProviderConfig,
 } from "@eddie/config";
 import type { ContextService } from "@eddie/context";
-import type { ProviderFactoryService } from "@eddie/providers";
+import {
+  AgentInvocation,
+  EngineService,
+  SimpleTranscriptCompactor,
+  TokenBudgetCompactor,
+  TranscriptCompactionService,
+  type AgentOrchestratorService,
+  type AgentRunRequest,
+  type AgentRuntimeOptions,
+  type MetricsService,
+  type TranscriptCompactionWorkflow,
+} from "@eddie/engine";
 import {
   HookBus,
-  HOOK_EVENTS,
   blockHook,
   type HooksService,
 } from "@eddie/hooks";
@@ -33,15 +25,21 @@ import {
   LoggerService,
   type ConfirmService,
 } from "@eddie/io";
-import { ToolRegistryFactory } from "@eddie/tools";
-import type { TokenizerService } from "@eddie/tokenizers";
 import type { McpToolSourceService } from "@eddie/mcp";
-import type {
-  ChatMessage,
-  PackedContext,
-  ProviderAdapter,
-  ToolDefinition,
+import type { ProviderFactoryService } from "@eddie/providers";
+import type { TokenizerService } from "@eddie/tokenizers";
+import { ToolRegistryFactory } from "@eddie/tools";
+import {
+  HOOK_EVENTS,
+  SessionMetadata,
+  type ChatMessage,
+  type PackedContext,
+  type ProviderAdapter,
+  type ToolDefinition,
 } from "@eddie/types";
+import path from "path";
+import "reflect-metadata";
+import { describe, expect, it, vi, type SpyInstance } from "vitest";
 
 class FakeAgentOrchestrator {
   shouldFail = false;

@@ -9,7 +9,7 @@ import type { ContextConfig, ContextResourceBundleConfig } from '@eddie/config';
 import { ContextService } from '@eddie/context';
 import { LoggerService } from '@eddie/io';
 import { TemplateRendererService } from '@eddie/templates';
-import { TemplateRuntimeService } from '@eddie/engine/templating';
+import { TemplateRuntimeService } from '@eddie/templates';
 
 import type { ContextPackDataset } from './context-pack.fixtures';
 import { prepareContextPackDatasets } from './context-pack.fixtures';

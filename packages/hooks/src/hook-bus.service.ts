@@ -9,7 +9,7 @@ import type {
   HookEventName,
   HookListener,
   HookListenerResult,
-} from "./types";
+} from "@eddie/types";
 import { isHookBlockResponse } from "./types";
 
 /**

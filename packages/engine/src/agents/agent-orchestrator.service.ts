@@ -2,11 +2,12 @@ import { Injectable } from "@nestjs/common";
 import { EventBus } from "@nestjs/cqrs";
 import type { Logger } from "pino";
 import { JsonlWriterService, StreamRendererService } from "@eddie/io";
-import { HOOK_EVENTS, isSpawnSubagentOverride } from "@eddie/hooks";
+import { isSpawnSubagentOverride } from "@eddie/hooks";
 import type { HookBus } from "@eddie/hooks";
-import type {
+import {
   AgentLifecyclePayload,
   AgentMetadata,
+  HOOK_EVENTS,
   HookDispatchResult,
   HookEventMap,
   HookEventName,
@@ -14,18 +15,16 @@ import type {
   SpawnSubagentDelegateResult,
   SpawnSubagentHookPayload,
   SpawnSubagentTargetSummary,
-} from "@eddie/hooks";
-import type {
-  AgentDefinition,
-  AgentInvocationOptions,
-  AgentRuntimeCatalog,
-  AgentRuntimeDescriptor,
-  AgentRuntimeMetadata,
-  AgentSpawnHandler,
-  PackedContext,
-  StreamEvent,
-  ToolResult,
-  ToolSchema,
+  type AgentDefinition,
+  type AgentInvocationOptions,
+  type AgentRuntimeCatalog,
+  type AgentRuntimeDescriptor,
+  type AgentRuntimeMetadata,
+  type AgentSpawnHandler,
+  type PackedContext,
+  type StreamEvent,
+  type ToolResult,
+  type ToolSchema,
 } from "@eddie/types";
 import { AgentInvocation } from "./agent-invocation";
 import { AgentInvocationFactory } from "./agent-invocation.factory";

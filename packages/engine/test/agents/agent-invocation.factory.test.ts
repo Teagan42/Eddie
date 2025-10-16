@@ -4,7 +4,7 @@ import type { ChatMessage, PackedContext } from "@eddie/types";
 import { AgentInvocationFactory } from "../../src/agents/agent-invocation.factory";
 import type { AgentDefinition } from "@eddie/types";
 import { ToolRegistryFactory } from "@eddie/tools";
-import { TemplateRuntimeService } from "../../src/templating/template-runtime.service";
+import { TemplateRuntimeService } from "@eddie/templates";
 
 class TemplateRuntimeStub {
   renderSystemPrompt = vi.fn(async () => ({

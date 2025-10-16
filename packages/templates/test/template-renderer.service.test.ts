@@ -1,13 +1,9 @@
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { execFile } from "node:child_process";
 import fs from "fs/promises";
 import os from "os";
 import path from "path";
 import nunjucks from "nunjucks";
 import { TemplateRendererService } from "../src/template-renderer.service";
-import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
 
 describe("TemplateRendererService", () => {
   const service = new TemplateRendererService();

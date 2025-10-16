@@ -17,9 +17,6 @@
   ],
   "references": [
     {
-      "path": "../config"
-    },
-    {
       "path": "../io"
     },
     {

@@ -1,26 +1,24 @@
 import type { Logger } from "pino";
-import { HOOK_EVENTS } from "@eddie/hooks";
-import type {
-  AgentLifecyclePayload,
-  HookBus,
-  HookDispatchResult,
-  HookEventMap,
-  HookEventName,
-} from "@eddie/hooks";
+
 import type { StreamRendererService } from "@eddie/io";
 import type { EventBus } from "@nestjs/cqrs";
 import type {
+  AgentLifecyclePayload,
   AgentRuntimeDescriptor,
   ChatMessage,
+  HookDispatchResult,
+  HookEventMap,
+  HookEventName,
   PackedContext,
   StreamEvent,
   ToolResult,
   ToolSchema,
 } from "@eddie/types";
-import { AgentStreamEvent } from "@eddie/types";
+import { AgentStreamEvent, HOOK_EVENTS } from "@eddie/types";
 import type { TemplateVariables } from "@eddie/templates";
 import type { AgentInvocation } from "./agent-invocation";
 import type { MetricsService } from "../telemetry/metrics.service";
+import { HookBus } from '@eddie/hooks';
 
 export interface AgentTraceEvent {
   phase: string;

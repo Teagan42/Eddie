@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import { describe, it, expect, vi } from "vitest";
-import { HookBus, HOOK_EVENTS, HooksLoaderService } from "@eddie/hooks";
+import { HookBus, HooksLoaderService } from "@eddie/hooks";
+import { HOOK_EVENTS } from '@eddie/types';
 
 const lifecyclePayload = {
   metadata: {
