@@ -2,8 +2,9 @@ import path from "path";
 import type { Stats } from "fs";
 import { Readable } from "node:stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { LoggerService } from "@eddie/io";
-import type { TemplateRendererService } from "@eddie/templates";
+import { Test } from "@nestjs/testing";
+import { LoggerService } from "@eddie/io";
+import { TemplateRuntimeService } from "@eddie/engine";
 import { ContextService } from "../src/context.service";
 
 const fsMocks = vi.hoisted(() => ({
@@ -34,6 +35,33 @@ vi.mock("fast-glob", () => ({
   default: globMock,
 }));
 
+const instantiateContextService = async () => {
+  const logger = {
+    debug: vi.fn(),
+    warn: vi.fn(),
+  };
+  const loggerService = {
+    getLogger: vi.fn(() => logger),
+  } as unknown as LoggerService;
+
+  const templateRuntime = {
+    renderContextResource: vi.fn(async () => "template"),
+  } as unknown as TemplateRuntimeService;
+
+  const moduleRef = await Test.createTestingModule({
+    providers: [
+      { provide: LoggerService, useValue: loggerService },
+      { provide: TemplateRuntimeService, useValue: templateRuntime },
+    ],
+  }).compile();
+
+  await moduleRef.init();
+
+  const loggerProvider = moduleRef.get(LoggerService);
+  const runtime = moduleRef.get(TemplateRuntimeService);
+  return new ContextService(loggerProvider, runtime);
+};
+
 describe("ContextService byte budget checks", () => {
   beforeEach(() => {
     fsMocks.readFile.mockReset();
@@ -42,24 +70,8 @@ describe("ContextService byte budget checks", () => {
     globMock.mockReset();
   });
 
-  const createService = () => {
-    const logger = {
-      debug: vi.fn(),
-      warn: vi.fn(),
-    };
-    const loggerService = {
-      getLogger: vi.fn(() => logger),
-    } as unknown as LoggerService;
-
-    const templateRenderer = {
-      renderTemplate: vi.fn(async () => "template"),
-    } as unknown as TemplateRendererService;
-
-    return new ContextService(loggerService, templateRenderer);
-  };
-
   it("skips files exceeding the byte budget without reading them", async () => {
-    const service = createService();
+    const service = await instantiateContextService();
     globMock.mockResolvedValueOnce(["large.txt"]);
     fsMocks.stat.mockResolvedValueOnce({ size: 150 } as Stats);
 
@@ -71,7 +83,7 @@ describe("ContextService byte budget checks", () => {
   });
 
   it("includes files within the byte budget after stat check", async () => {
-    const service = createService();
+    const service = await instantiateContextService();
     globMock.mockResolvedValueOnce(["small.txt"]);
     fsMocks.stat.mockResolvedValueOnce({ size: 40 } as Stats);
     streamMocks.createReadStream.mockReturnValueOnce(
@@ -90,7 +102,7 @@ describe("ContextService byte budget checks", () => {
   });
 
   it("streams file contents when packing context", async () => {
-    const service = createService();
+    const service = await instantiateContextService();
     globMock.mockResolvedValueOnce(["big.txt"]);
     fsMocks.stat.mockResolvedValueOnce({ size: 80 } as Stats);
 
@@ -123,7 +135,7 @@ describe("ContextService byte budget checks", () => {
   });
 
   it("skips bundle files exceeding the budget without reading them", async () => {
-    const service = createService();
+    const service = await instantiateContextService();
     globMock.mockResolvedValueOnce([]);
     globMock.mockResolvedValueOnce(["bundle/large.txt"]);
     fsMocks.stat.mockResolvedValueOnce({ size: 400 } as Stats);
@@ -146,7 +158,7 @@ describe("ContextService byte budget checks", () => {
   });
 
   it("passes exclude patterns to the main glob via ignore option", async () => {
-    const service = createService();
+    const service = await instantiateContextService();
     globMock.mockResolvedValueOnce([]);
 
     await service.pack({
@@ -164,7 +176,7 @@ describe("ContextService byte budget checks", () => {
   });
 
   it("passes bundle exclude patterns to the glob via ignore option", async () => {
-    const service = createService();
+    const service = await instantiateContextService();
     globMock.mockResolvedValueOnce([]);
     globMock.mockResolvedValueOnce([]);
 
@@ -197,24 +209,8 @@ describe("ContextService.computeStats", () => {
     globMock.mockReset();
   });
 
-  const createService = () => {
-    const logger = {
-      debug: vi.fn(),
-      warn: vi.fn(),
-    };
-    const loggerService = {
-      getLogger: vi.fn(() => logger),
-    } as unknown as LoggerService;
-
-    const templateRenderer = {
-      renderTemplate: vi.fn(async () => "template"),
-    } as unknown as TemplateRendererService;
-
-    return new ContextService(loggerService, templateRenderer);
-  };
-
   it("returns file counts and byte totals without reading file contents", async () => {
-    const service = createService();
+    const service = await instantiateContextService();
     globMock.mockResolvedValueOnce(["stats.txt"]);
     fsMocks.stat.mockResolvedValueOnce({ size: 128 } as Stats);
 

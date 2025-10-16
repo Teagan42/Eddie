@@ -1,18 +1,18 @@
-import { describe, it, expect, vi } from "vitest";
-import type { TemplateVariables, TemplateRendererService } from "@eddie/templates";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Test } from "@nestjs/testing";
 import type { ChatMessage, PackedContext } from "@eddie/types";
 import { AgentInvocationFactory } from "../../src/agents/agent-invocation.factory";
 import type { AgentDefinition } from "../../src/agents/agent-definition";
-import type { ToolRegistryFactory } from "@eddie/tools";
+import { ToolRegistryFactory } from "@eddie/tools";
+import { TemplateRuntimeService } from "../../src/templating/template-runtime.service";
 
-class StubTemplateRendererService {
-  renderTemplate = vi.fn(async (_descriptor: unknown, variables: TemplateVariables = {}) => {
-    return String(variables.prompt ?? "");
-  });
+class TemplateRuntimeStub {
+  renderSystemPrompt = vi.fn(async () => ({
+    systemPrompt: "system",
+    variables: { systemPrompt: "system" },
+  }));
 
-  renderString = vi.fn(async (template: string, _variables: TemplateVariables = {}) => {
-    return template;
-  });
+  renderUserPrompt = vi.fn(async () => "prompt");
 }
 
 class StubToolRegistryFactory {
@@ -22,14 +22,32 @@ class StubToolRegistryFactory {
 }
 
 describe("AgentInvocationFactory", () => {
-  it("does not leak context or history mutations across invocations", async () => {
-    const templateRenderer = new StubTemplateRendererService();
-    const toolRegistryFactory = new StubToolRegistryFactory();
-    const factory = new AgentInvocationFactory(
-      toolRegistryFactory as unknown as ToolRegistryFactory,
-      templateRenderer as unknown as TemplateRendererService
-    );
+  let factory: AgentInvocationFactory;
+  let templateRuntime: TemplateRuntimeStub;
+  let toolRegistryFactory: StubToolRegistryFactory;
 
+  beforeEach(async () => {
+    templateRuntime = new TemplateRuntimeStub();
+    toolRegistryFactory = new StubToolRegistryFactory();
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        AgentInvocationFactory,
+        { provide: TemplateRuntimeService, useValue: templateRuntime },
+        { provide: ToolRegistryFactory, useValue: toolRegistryFactory },
+      ],
+    }).compile();
+
+    const runtime = moduleRef.get(TemplateRuntimeService);
+    const tools = moduleRef.get(ToolRegistryFactory);
+
+    factory = new AgentInvocationFactory(
+      tools as unknown as ToolRegistryFactory,
+      runtime
+    );
+  });
+
+  it("does not leak context or history mutations across invocations", async () => {
     const definition: AgentDefinition = {
       id: "planner",
       systemPrompt: "Be helpful.",

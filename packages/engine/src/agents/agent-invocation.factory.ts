@@ -1,10 +1,12 @@
 import { Injectable } from "@nestjs/common";
-import type { TemplateVariables } from "@eddie/templates";
 import type { ChatMessage, PackedContext } from "@eddie/types";
 import { ToolRegistryFactory } from "@eddie/tools";
-import { TemplateRendererService } from "@eddie/templates";
 import type { AgentDefinition } from "./agent-definition";
 import { AgentInvocation, type AgentInvocationOptions } from "./agent-invocation";
+import {
+  TemplateRuntimeService,
+  type ParentAgentContext,
+} from "../templating/template-runtime.service";
 
 const EMPTY_CONTEXT: PackedContext = { files: [], totalBytes: 0, text: "" };
 
@@ -24,7 +26,7 @@ const cloneHistory = (messages: ChatMessage[]): ChatMessage[] =>
 export class AgentInvocationFactory {
   constructor(
     private readonly toolRegistryFactory: ToolRegistryFactory,
-    private readonly templateRenderer: TemplateRendererService
+    private readonly templateRuntime: TemplateRuntimeService
   ) {}
 
   async create(
@@ -35,58 +37,27 @@ export class AgentInvocationFactory {
     const sourceContext = options.context ?? definition.context ?? EMPTY_CONTEXT;
     const context = cloneContext(sourceContext);
     const history = cloneHistory(options.history ?? []);
-    const builtinVariables: TemplateVariables = {
-      agent: {
-        id: definition.id,
-      },
-      prompt: options.prompt,
+    const parentContext: ParentAgentContext | undefined = parent
+      ? { id: parent.definition.id }
+      : undefined;
+
+    const system = await this.templateRuntime.renderSystemPrompt({
+      definition,
+      options,
       context,
       history,
-      systemPrompt: definition.systemPrompt,
-    };
+      parent: parentContext,
+    });
 
-    if (parent) {
-      builtinVariables.parent = {
-        id: parent.definition.id,
-      };
-    }
-
-    const renderVariables: TemplateVariables = {
-      ...builtinVariables,
-      ...(definition.variables ?? {}),
-      ...(options.variables ?? {}),
-    };
-
-    const systemPrompt = definition.systemPromptTemplate
-      ? await this.templateRenderer.renderTemplate(
-        definition.systemPromptTemplate,
-        renderVariables
-      )
-      : await this.templateRenderer.renderString(
-        definition.systemPrompt,
-        renderVariables
-      );
-
-    renderVariables.systemPrompt = systemPrompt;
-
-    const prompt = options.promptTemplate
-      ? await this.templateRenderer.renderTemplate(
-        options.promptTemplate,
-        renderVariables
-      )
-      : definition.userPromptTemplate
-        ? await this.templateRenderer.renderTemplate(
-          definition.userPromptTemplate,
-          renderVariables
-        )
-        : await this.templateRenderer.renderString(
-          options.prompt,
-          renderVariables
-        );
+    const prompt = await this.templateRuntime.renderUserPrompt({
+      definition,
+      options,
+      variables: system.variables,
+    });
 
     const resolvedDefinition: AgentDefinition = {
       ...definition,
-      systemPrompt,
+      systemPrompt: system.systemPrompt,
     };
 
     const invocationOptions: AgentInvocationOptions = {

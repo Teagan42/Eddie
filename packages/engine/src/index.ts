@@ -6,3 +6,4 @@ export * from "./agents/agent-invocation.factory";
 export * from "./agents/agent-orchestrator.service";
 export * from "./agents/agent-runtime.types";
 export * from "./transcript-compactors";
+export * from "./templating/template-runtime.service";

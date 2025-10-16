@@ -12,6 +12,10 @@ import { ToolsModule } from "@eddie/tools";
 import { AgentInvocationFactory } from "./agents/agent-invocation.factory";
 import { AgentOrchestratorService } from "./agents/agent-orchestrator.service";
 import { MCPModule } from "@eddie/mcp";
+import {
+  TemplateRuntimeService,
+  templateRuntimeProviders,
+} from "./templating/template-runtime.service";
 
 @Module({
   imports: [
@@ -27,6 +31,7 @@ import { MCPModule } from "@eddie/mcp";
     MCPModule,
   ],
   providers: [
+    ...templateRuntimeProviders,
     EngineService,
     AgentInvocationFactory,
     AgentOrchestratorService,
@@ -34,6 +39,7 @@ import { MCPModule } from "@eddie/mcp";
   exports: [
     EngineService,
     AgentOrchestratorService,
+    TemplateRuntimeService,
     ConfigModule,
     HooksModule,
     ProvidersModule,
