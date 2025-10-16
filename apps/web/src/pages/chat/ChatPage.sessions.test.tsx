@@ -5,6 +5,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatPageRenderer } from "./test-utils";
 
 const sessionCreatedHandlers: Array<(session: unknown) => void> = [];
+const sessionDeletedHandlers: Array<(sessionId: string) => void> = [];
+
+const updatePreferencesMock = vi.fn();
 
 const catalogMock = vi.fn();
 const listSessionsMock = vi.fn();
@@ -37,7 +40,7 @@ vi.mock("@/hooks/useLayoutPreferences", () => ({
         templates: {},
       },
     },
-    updatePreferences: vi.fn(),
+    updatePreferences: updatePreferencesMock,
     isSyncing: false,
     isRemoteAvailable: true,
   }),
@@ -73,7 +76,15 @@ vi.mock("@/api/api-provider", () => ({
           };
         }),
         onSessionUpdated: vi.fn().mockReturnValue(() => {}),
-        onSessionDeleted: vi.fn().mockReturnValue(() => {}),
+        onSessionDeleted: vi.fn((handler: (sessionId: string) => void) => {
+          sessionDeletedHandlers.push(handler);
+          return () => {
+            const index = sessionDeletedHandlers.indexOf(handler);
+            if (index >= 0) {
+              sessionDeletedHandlers.splice(index, 1);
+            }
+          };
+        }),
         onMessageCreated: vi.fn().mockReturnValue(() => {}),
         onMessageUpdated: vi.fn().mockReturnValue(() => {}),
         onAgentActivity: vi.fn().mockReturnValue(() => {}),
@@ -102,6 +113,8 @@ describe("ChatPage session creation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionCreatedHandlers.length = 0;
+    sessionDeletedHandlers.length = 0;
+    updatePreferencesMock.mockReset();
 
     const now = new Date().toISOString();
 
@@ -209,5 +222,37 @@ describe("ChatPage session creation", () => {
     } finally {
       promptSpy.mockRestore();
     }
+  });
+
+  it("clears selected session preference when the active session is deleted", async () => {
+    renderChatPage();
+
+    await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
+
+    expect(sessionDeletedHandlers.length).toBeGreaterThan(0);
+
+    expect(() => {
+      sessionDeletedHandlers.forEach((handler) => handler("session-1"));
+    }).not.toThrow();
+
+    await waitFor(() => expect(updatePreferencesMock).toHaveBeenCalled());
+
+    const updateFn = updatePreferencesMock.mock.calls.at(-1)?.[0] as
+      | ((previous: unknown) => { chat?: { selectedSessionId: string | null } })
+      | undefined;
+
+    expect(typeof updateFn).toBe("function");
+
+    const result = updateFn?.({
+      chat: {
+        selectedSessionId: "session-1",
+        sessionSettings: {},
+        collapsedPanels: {},
+        templates: {},
+      },
+      updatedAt: new Date().toISOString(),
+    });
+
+    expect(result?.chat?.selectedSessionId ?? null).toBeNull();
   });
 });
