@@ -91,6 +91,7 @@ describe('ToolTree', () => {
     const rootNode = screen.getByText('orchestrate').closest('li');
     expect(rootNode).not.toBeNull();
 
+    expect(within(rootNode!).getByTestId('json-tree-view')).toBeInTheDocument();
     expect(
       within(rootNode!).queryByTestId('json-entry-request.body'),
     ).not.toBeInTheDocument();
@@ -99,6 +100,10 @@ describe('ToolTree', () => {
       within(rootNode!).getByRole('button', { name: 'Toggle request' }),
     );
 
+    const expandedRequestEntry = within(rootNode!)
+      .getAllByTestId('json-entry-request')
+      .find((node) => node.tagName === 'LI');
+    expect(expandedRequestEntry).toHaveAttribute('data-state', 'expanded');
     const bodyEntry = within(rootNode!).getByTestId('json-entry-request.body');
     expect(bodyEntry).toHaveTextContent('"body"');
     expect(bodyEntry).toHaveTextContent('Object');

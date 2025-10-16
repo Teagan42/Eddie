@@ -86,7 +86,7 @@ describe("ChatMessageContent", () => {
     expect(list.tagName).toBe("UL");
   });
 
-  it("renders JSON explorer for structured messages", async () => {
+  it("renders JSON tree view for structured messages", async () => {
     const user = userEvent.setup();
 
     render(
@@ -96,6 +96,7 @@ describe("ChatMessageContent", () => {
       />
     );
 
+    expect(screen.getByTestId("json-tree-view")).toBeInTheDocument();
     expect(screen.getByText('"foo"')).toBeInTheDocument();
     expect(screen.queryByTestId("json-entry-baz.qux")).not.toBeInTheDocument();
 
@@ -107,7 +108,7 @@ describe("ChatMessageContent", () => {
     expect(screen.getByTestId("json-entry-baz.qux")).toHaveTextContent("1");
   });
 
-  it("displays primitive JSON values within the explorer", () => {
+  it("displays primitive JSON values with type metadata", () => {
     render(
       <ChatMessageContent messageRole="assistant" content="null" />
     );
@@ -115,6 +116,7 @@ describe("ChatMessageContent", () => {
     const primitiveEntry = screen.getByTestId("json-entry-root");
 
     expect(primitiveEntry).toHaveTextContent("null");
+    expect(primitiveEntry).toHaveAttribute("data-type", "null");
   });
 
   it("renders ordered lists with numeric markers", () => {
