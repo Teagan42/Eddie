@@ -9,6 +9,8 @@ import {
 import { ToolRegistryFactory } from "@eddie/tools";
 import type { PackedContext } from "@eddie/types";
 import { TemplateRendererService } from "@eddie/templates";
+import { TemplateRuntimeService } from "@eddie/engine/templating";
+import type { Logger } from "pino";
 
 const tmpDir = path.join(process.cwd(), "test-temp", "agent-factory");
 let factory: AgentInvocationFactory;
@@ -27,8 +29,13 @@ beforeAll(async () => {
   );
 
   const templateRenderer = new TemplateRendererService();
+  const templateLogger = { debug: () => {} } as unknown as Logger;
+  const templateRuntime = new TemplateRuntimeService(
+    templateRenderer,
+    templateLogger
+  );
   const toolRegistryFactory = new ToolRegistryFactory();
-  factory = new AgentInvocationFactory(toolRegistryFactory, templateRenderer);
+  factory = new AgentInvocationFactory(toolRegistryFactory, templateRuntime);
 });
 
 afterAll(async () => {

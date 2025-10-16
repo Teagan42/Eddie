@@ -10,8 +10,9 @@ packing codebases into a bounded context with consistent formatting.
 npm install @eddie/context
 ```
 
-> **Note**: The service depends on `@eddie/io` and `@eddie/templates`. When
-> using it outside of NestJS, instantiate those collaborators manually.
+> **Note**: The service depends on `@eddie/io`, `@eddie/templates`, and the
+> engine templating runtime. When using it outside of NestJS, instantiate those
+> collaborators manually.
 
 ## Usage
 
@@ -19,10 +20,15 @@ npm install @eddie/context
 import { ContextService } from "@eddie/context";
 import { LoggerService } from "@eddie/io";
 import { TemplateRendererService } from "@eddie/templates";
+import { TemplateRuntimeService } from "@eddie/engine/templating";
 
 const logger = new LoggerService();
 const templateRenderer = new TemplateRendererService();
-const contextService = new ContextService(logger, templateRenderer);
+const templateRuntime = new TemplateRuntimeService(
+  templateRenderer,
+  logger.getLogger("engine:templates")
+);
+const contextService = new ContextService(logger, templateRuntime);
 
 const packed = await contextService.pack({
   baseDir: process.cwd(),
@@ -78,8 +84,8 @@ configuration should stay in sync with these lists.
 Resources let you enrich the packed context with additional text or bundled
 files:
 
-- **Template resources** (`type: "template"`) render a template via the
-  `TemplateRendererService` and inject the result as text.
+- **Template resources** (`type: "template"`) render a template via the engine
+  `TemplateRuntimeService` and inject the result as text.
 - **Bundle resources** (`type: "bundle"`) glob files from disk, normalise their
   paths, and embed both metadata and formatted file sections.
 

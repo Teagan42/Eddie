@@ -17,7 +17,7 @@ import {
   type PackedResource,
 } from "@eddie/types";
 import { LoggerService } from "@eddie/io";
-import { TemplateRendererService } from "@eddie/templates";
+import { TemplateRuntimeService } from "@eddie/engine/templating";
 import type { TemplateVariables } from "@eddie/templates";
 
 const DEFAULT_MAX_BYTES = 250_000;
@@ -169,7 +169,7 @@ interface ResourceLoadResult {
 export class ContextService {
   constructor(
     private readonly loggerService: LoggerService,
-    private readonly templateRenderer: TemplateRendererService
+    private readonly templateRuntime: TemplateRuntimeService
   ) {}
 
   async computeStats(
@@ -564,15 +564,9 @@ export class ContextService {
       logger: ReturnType<LoggerService["getLogger"]>;
     }
   ): Promise<ResourceLoadResult | null> {
-    const rendered = await this.templateRenderer.renderTemplate(
-      resource.template,
-      {
-        ...options.variables,
-        ...(resource.variables ?? {}),
-      }
-    );
-
-    const text = rendered.trimEnd();
+    const text = await this.templateRuntime.renderContextResource(resource, {
+      variables: options.variables,
+    });
     const bytes = Buffer.byteLength(text);
 
     if (
@@ -693,12 +687,9 @@ export class ContextService {
       logger: ReturnType<LoggerService["getLogger"]>;
     }
   ): Promise<number> {
-    const rendered = await this.templateRenderer.renderTemplate(resource.template, {
-      ...options.variables,
-      ...(resource.variables ?? {}),
+    const text = await this.templateRuntime.renderContextResource(resource, {
+      variables: options.variables,
     });
-
-    const text = rendered.trimEnd();
     const bytes = Buffer.byteLength(text);
 
     if (
