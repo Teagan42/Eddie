@@ -14,6 +14,7 @@ Eddie is a multi-surface agent platform comprising a Node.js CLI, a NestJS API, 
 - **Architecture Decisions** – Record significant design choices as ADRs under `docs/adr/`, numbering them sequentially (`0001-*.md`, `0002-*.md`, ...).
 - **Documentation Updates** – Whenever behaviour or configuration changes, update all relevant references: the README, `docs/examples`, `docs/mcp-servers.md`, `docs/subagents.md`, and any surface-specific guides.
 - **Tooling Commands** – Use `npm` workspaces for linting, testing, and builds—`pnpm` must not be used anywhere in this repository. Run commands like `npm run lint --workspace <package>`, `npm run test --workspace @eddie/api`, and `npm run build --workspace <package>`.
+- **Pre-PR Checklist** – Run `npm run agent:check` before opening a pull request. It runs the lint, build, and workspace test suites with the correct concurrency to keep the repository healthy.
 - **Testing Discipline** – Add or update tests alongside behavioural changes. Prefer realistic fixtures and keep required dev dependencies declared so the full suite runs cleanly.
 - **Public Interfaces** – Maintain JSDoc/TSdoc coverage for exported APIs and keep generated or human-authored docs in sync with code.
 

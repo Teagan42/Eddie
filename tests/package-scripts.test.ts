@@ -12,6 +12,8 @@ const convenienceScripts = {
   'test:coverage': 'npm run test -- --coverage',
   'test:integration': 'npm run test:integration --workspaces --if-present',
   'test:unit': 'npm run test:unit --workspaces --if-present',
+  preTest: 'npm run build',
+  'agent:check': 'WORKSPACE_TEST_CONCURRENCY=2 npm run lint && npm run test',
   'docs:serve': 'npx serve docs',
   'db:migrate': 'npm run db:migrate --workspace @eddie/api --if-present',
   'db:seed': 'npm run db:seed --workspace @eddie/api --if-present',
