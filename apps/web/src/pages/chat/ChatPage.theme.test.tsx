@@ -193,6 +193,11 @@ describe("ChatPage message surfaces", () => {
     expect(reissueButton.getAttribute("data-accent-color")).toBe(
       collapsibleToggle.getAttribute("data-accent-color"),
     );
-    expect(reissueButton.className).toBe(collapsibleToggle.className);
+    expect(reissueButton.getAttribute("data-variant")).toBe(
+      collapsibleToggle.getAttribute("data-variant"),
+    );
+    expect(reissueButton).toHaveClass("rt-r-size-1");
+    expect(reissueButton).not.toHaveClass("rt-r-size-2");
+    expect(collapsibleToggle).toHaveClass("rt-r-size-2");
   });
 });

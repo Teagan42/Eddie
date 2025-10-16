@@ -1739,7 +1739,7 @@ export function ChatPage(): JSX.Element {
                             {message.role !== 'assistant' ? (
                               <Tooltip content="Re-issue command">
                                 <IconButton
-                                  size="2"
+                                  size="1"
                                   variant="solid"
                                   onClick={() => handleReissueCommand(message)}
                                   aria-label="Re-issue command"
