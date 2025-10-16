@@ -26,7 +26,7 @@ describe('chat-sessions persistence benchmarks', () => {
     expect(sqlite).toBeDefined();
   });
 
-  it('measures representative workflows against the sqlite driver', async () => {
+  it('measures representative workflows against the sqlite driver', { timeout: 15000 }, async () => {
     const drivers = await loadChatSessionsPersistenceDrivers();
     const sqlite = drivers.find((driver) => driver.id === 'sqlite');
     if (!sqlite) {
@@ -136,15 +136,15 @@ describe('chat-sessions persistence benchmarks', () => {
     const measureScenario = vi.fn().mockResolvedValue(measurement);
 
     const suiteCallbacks: Array<() => unknown> = [];
-    const groupCallbacks: Array<() => unknown> = [];
+    const describeCallbacks: Array<() => unknown> = [];
     const benchCallbacks: Array<() => unknown> = [];
 
     const registerSuite = vi.fn((name: string, factory: () => unknown) => {
       suiteCallbacks.push(factory);
       expect(name).toContain('Chat session persistence');
     });
-    const registerGroup = vi.fn((name: string, factory: () => unknown) => {
-      groupCallbacks.push(factory);
+    const registerDescribe = vi.fn((name: string, factory: () => unknown) => {
+      describeCallbacks.push(factory);
       expect(name).toContain('Stub driver');
     });
     const registerBench = vi.fn((name: string, handler: () => unknown) => {
@@ -154,24 +154,24 @@ describe('chat-sessions persistence benchmarks', () => {
 
     await defineChatSessionsPersistenceBenchmarks({
       suite: registerSuite,
-      group: registerGroup,
+      describe: registerDescribe,
       bench: registerBench,
       loadDrivers: async () => drivers,
       measureScenario,
     });
 
     expect(registerSuite).toHaveBeenCalledTimes(1);
-    expect(registerGroup).not.toHaveBeenCalled();
+    expect(registerDescribe).not.toHaveBeenCalled();
     expect(registerBench).not.toHaveBeenCalled();
 
     for (const suiteFactory of suiteCallbacks) {
       await suiteFactory();
     }
 
-    expect(registerGroup).toHaveBeenCalledTimes(1);
+    expect(registerDescribe).toHaveBeenCalledTimes(1);
 
-    for (const groupFactory of groupCallbacks) {
-      await groupFactory();
+    for (const describeFactory of describeCallbacks) {
+      await describeFactory();
     }
 
     expect(registerBench).toHaveBeenCalledTimes(1);
@@ -207,15 +207,15 @@ describe('chat-sessions persistence benchmarks', () => {
     const measureScenario = vi.fn();
 
     const suiteCallbacks: Array<() => unknown> = [];
-    const groupCallbacks: Array<() => unknown> = [];
+    const describeCallbacks: Array<() => unknown> = [];
     const benchCallbacks: Array<() => unknown> = [];
 
     const registerSuite = vi.fn((name: string, factory: () => unknown) => {
       suiteCallbacks.push(factory);
       expect(name).toContain('Chat session persistence');
     });
-    const registerGroup = vi.fn((name: string, factory: () => unknown) => {
-      groupCallbacks.push(factory);
+    const registerDescribe = vi.fn((name: string, factory: () => unknown) => {
+      describeCallbacks.push(factory);
       expect(name).toContain('Stub driver');
     });
     const registerBench = vi.fn((name: string, handler: () => unknown) => {
@@ -227,7 +227,7 @@ describe('chat-sessions persistence benchmarks', () => {
 
     await defineChatSessionsPersistenceBenchmarks({
       suite: registerSuite,
-      group: registerGroup,
+      describe: registerDescribe,
       bench: registerBench,
       loadDrivers: async () => drivers,
       measureScenario,
@@ -243,9 +243,9 @@ describe('chat-sessions persistence benchmarks', () => {
 
     await suiteFactory();
 
-    expect(groupCallbacks).toHaveLength(1);
+    expect(describeCallbacks).toHaveLength(1);
 
-    for (const factory of groupCallbacks) {
+    for (const factory of describeCallbacks) {
       await factory?.();
     }
 

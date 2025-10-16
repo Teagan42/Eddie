@@ -469,7 +469,7 @@ const emitBenchmarkReport = () => {
 
 interface ChatSessionsBenchmarkRegistrationContext {
   readonly suite: typeof suite;
-  readonly group: typeof describe;
+  readonly describe: typeof describe;
   readonly bench: typeof bench;
   readonly loadDrivers?: () => Promise<ChatSessionsPersistenceDriver[]>;
   readonly measureScenario?: (
@@ -488,7 +488,7 @@ const DEFAULT_BENCH_OPTIONS: ChatSessionsScenarioOptions = {
 
 export async function defineChatSessionsPersistenceBenchmarks({
   suite: registerSuite,
-  group: registerGroup,
+  describe: registerDescribe,
   bench: registerBench,
   loadDrivers: loadDriversFn = loadChatSessionsPersistenceDrivers,
   measureScenario: measureScenarioFn = measureChatSessionsPersistenceScenario,
@@ -504,7 +504,7 @@ export async function defineChatSessionsPersistenceBenchmarks({
     for (const driver of drivers) {
       const groupName = `${driver.label} (${driver.id})`;
       const benchName = `${driver.id} throughput`;
-      registerGroup(groupName, () => {
+      registerDescribe(groupName, () => {
         registerBench(benchName, async () => {
           let instance: ChatSessionsPersistenceDriverInstance | undefined;
           try {
@@ -534,7 +534,7 @@ const vitestState = (import.meta as unknown as { vitest?: { mode?: string } }).v
 if (vitestState?.mode === 'benchmark') {
   void defineChatSessionsPersistenceBenchmarks({
     suite,
-    group: describe,
+    describe,
     bench,
     loadDrivers: loadChatSessionsPersistenceDrivers,
     measureScenario: measureChatSessionsPersistenceScenario,
