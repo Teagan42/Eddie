@@ -247,44 +247,9 @@ export class ConfigService {
   async writeSource(
     source: string,
     format: ConfigFileFormat,
-    options: CliRuntimeOptions = {},
-    targetPath?: string | null
+    options: CliRuntimeOptions = {}
   ): Promise<ConfigFileSnapshot> {
-    const configRoot = getConfigRoot();
-    let resolvedTarget: string | null | undefined;
-    if (targetPath) {
-      if (path.isAbsolute(targetPath)) {
-        throw new Error("Invalid target path: must be relative to config directory.");
-      }
-
-      const normalisedTarget = path.normalize(targetPath);
-      if (
-        normalisedTarget.startsWith("..") ||
-        normalisedTarget.includes(`${path.sep}..`) ||
-        normalisedTarget === ".."
-      ) {
-        throw new Error("Invalid target path: outside of config directory.");
-      }
-
-      const candidate = path.join(configRoot, normalisedTarget);
-      if (
-        candidate !== configRoot &&
-        !candidate.startsWith(configRoot + path.sep)
-      ) {
-        throw new Error("Invalid target path: outside of config directory.");
-      }
-
-      resolvedTarget = candidate;
-    } else {
-      resolvedTarget = await resolveConfigFilePath(options);
-    }
-
-    const destination =
-      resolvedTarget ??
-      path.resolve(
-        configRoot,
-        format === "json" ? "eddie.config.json" : "eddie.config.yaml"
-      );
+    const destination = await this.resolveWriteDestination(format, options);
 
     const input = this.parseSource(source, format);
     const config = await this.compose(input, options);
@@ -306,6 +271,30 @@ export class ConfigService {
     this.writeSubject.next(snapshot);
 
     return snapshot;
+  }
+
+  private async resolveWriteDestination(
+    format: ConfigFileFormat,
+    options: CliRuntimeOptions,
+  ): Promise<string> {
+    const configuredPath =
+      typeof this.configFilePath === "string" &&
+      this.configFilePath.trim().length > 0
+        ? this.configFilePath
+        : null;
+    if (configuredPath) {
+      return configuredPath;
+    }
+
+    const resolvedPath = await resolveConfigFilePath(options);
+    if (resolvedPath) {
+      return resolvedPath;
+    }
+
+    const configRoot = getConfigRoot();
+    const fallbackName =
+      format === "json" ? "eddie.config.json" : "eddie.config.yaml";
+    return path.resolve(configRoot, fallbackName);
   }
 
   private async readConfigFile(candidate: string): Promise<EddieConfigInput> {
