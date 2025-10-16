@@ -1,27 +1,46 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { cn } from "@/vendor/lib/utils";
 
 type JsonValue = unknown;
 
-export interface JsonExplorerProps {
+export interface JsonTreeViewProps {
   value: JsonValue;
   className?: string;
   collapsedByDefault?: boolean;
+  rootLabel?: string;
 }
 
-export function JsonExplorer({
+export function JsonTreeView({
   value,
   className,
   collapsedByDefault = true,
-}: JsonExplorerProps): JSX.Element {
+  rootLabel,
+}: JsonTreeViewProps): JSX.Element {
+  const labelId = useId();
+  const resolvedLabelId = rootLabel ? `${labelId}-label` : undefined;
+  const labelledBy = rootLabel ? resolvedLabelId : undefined;
+  const rootLabelNode = rootLabel ? (
+    <div
+      id={resolvedLabelId}
+      data-testid="json-tree-view-root-label"
+      className="mb-2 font-mono text-xs text-foreground/80"
+    >
+      {rootLabel}
+    </div>
+  ) : null;
+
   return (
     <div
       className={cn(
         "rounded-lg border border-muted/40 bg-background/80 p-3",
         className
       )}
+      data-testid="json-tree-view"
+      aria-labelledby={labelledBy}
     >
+      {rootLabelNode}
+
       <JsonChildren
         value={value}
         path=""
@@ -43,10 +62,11 @@ function JsonChildren({
   collapsedByDefault,
 }: JsonChildrenProps): JSX.Element {
   const testId = getTestId(path);
+  const containerTestId = testId ?? undefined;
 
   if (Array.isArray(value)) {
     return (
-      <ul className="space-y-1" data-testid={testId ?? undefined}>
+      <ul className="space-y-1" data-testid={containerTestId}>
         {value.map((item, index) => {
           const childPath = `${path}[${index}]`;
           return (
@@ -67,7 +87,7 @@ function JsonChildren({
     const entries = Object.entries(value);
 
     return (
-      <ul className="space-y-1" data-testid={testId ?? undefined}>
+      <ul className="space-y-1" data-testid={containerTestId}>
         {entries.map(([key, child]) => {
           const childPath = path ? `${path}.${key}` : key;
           return (
@@ -88,6 +108,7 @@ function JsonChildren({
     <div
       className="font-mono text-xs"
       data-testid={testId ?? "json-entry-root"}
+      data-type={getPrimitiveType(value)}
     >
       {formatPrimitive(value)}
     </div>
@@ -110,12 +131,12 @@ function JsonEntry({
   const expandable = isPlainObject(value) || Array.isArray(value);
   const [expanded, setExpanded] = useState<boolean>(!collapsedByDefault);
   const testId = getTestId(path);
-  const summaryLabel = Array.isArray(value)
-    ? `Array(${value.length})`
-    : `Object(${expandable ? Object.keys(value as object).length : 0})`;
+  const containerTestId = testId ?? undefined;
+  const summaryLabel = expandable ? getSummaryLabel(value) : "";
+  const state = getEntryState(expandable, expanded);
 
   return (
-    <li className="space-y-1" data-testid={testId ?? undefined}>
+    <li className="space-y-1" data-testid={containerTestId} data-state={state}>
       <div className="flex items-center gap-2 font-mono text-xs">
         {expandable ? (
           <button
@@ -135,7 +156,12 @@ function JsonEntry({
         {expandable ? (
           <span className="text-foreground/70">{summaryLabel}</span>
         ) : (
-          <span className="text-foreground/80">{formatPrimitive(value)}</span>
+          <span
+            className="text-foreground/80"
+            data-type={getPrimitiveType(value)}
+          >
+            {formatPrimitive(value)}
+          </span>
         )}
       </div>
 
@@ -174,4 +200,32 @@ function getTestId(path: string): string | null {
   }
 
   return `json-entry-${path}`;
+}
+
+function getSummaryLabel(value: JsonValue): string {
+  if (Array.isArray(value)) {
+    return `Array(${value.length})`;
+  }
+
+  if (isPlainObject(value)) {
+    return `Object(${Object.keys(value).length})`;
+  }
+
+  return "";
+}
+
+function getPrimitiveType(value: JsonValue): string {
+  if (value === null) {
+    return "null";
+  }
+
+  return typeof value;
+}
+
+function getEntryState(expandable: boolean, expanded: boolean): "expanded" | "collapsed" | "leaf" {
+  if (!expandable) {
+    return "leaf";
+  }
+
+  return expanded ? "expanded" : "collapsed";
 }

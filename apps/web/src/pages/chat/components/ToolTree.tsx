@@ -4,7 +4,6 @@ import { Badge, Box, Flex, Text } from '@radix-ui/themes';
 import { ArrowUpRight } from 'lucide-react';
 import type { OrchestratorMetadataDto, ToolCallStatusDto } from '@eddie/api-client';
 
-import { JsonExplorer } from '@/components/common/JsonExplorer';
 import {
   Dialog,
   DialogContent,
@@ -13,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/vendor/components/ui/dialog';
+import { JsonTreeView } from '@/components/common';
 
 import { summarizeObject } from '../chat-utils';
 
@@ -410,7 +410,7 @@ function ToolTreeList({
                 </Flex>
 
                 {hasExplorer ? (
-                  <JsonExplorer
+                  <JsonTreeView
                     value={parsedArgs as unknown}
                     collapsedByDefault
                     className="text-left"
@@ -442,7 +442,7 @@ function ToolTreeList({
                   </DialogDescription>
                 </DialogHeader>
                 <Box className="space-y-3 text-left">
-                  <JsonExplorer
+                  <JsonTreeView
                     value={node as unknown}
                     collapsedByDefault
                     className="text-left"

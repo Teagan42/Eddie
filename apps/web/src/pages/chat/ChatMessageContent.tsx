@@ -3,7 +3,7 @@ import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ChatMessageDto } from "@eddie/api-client";
 import { cn } from "@/vendor/lib/utils";
-import { JsonExplorer } from "@/components/common/JsonExplorer";
+import { JsonTreeView } from "@/components/common";
 
 const CODE_BLOCK_CONTAINER_CLASSES =
   "mt-4 overflow-x-auto rounded-lg bg-slate-900/70 p-4 font-mono text-sm";
@@ -134,7 +134,7 @@ export function ChatMessageContent({
   const { success: hasJsonContent, value: jsonValue } = parseJsonContent(content);
   const containerClassName = cn("whitespace-pre-wrap break-words", className);
   const renderedContent = hasJsonContent ? (
-    <JsonExplorer
+    <JsonTreeView
       value={jsonValue}
       collapsedByDefault
       className="mt-4 text-left"
