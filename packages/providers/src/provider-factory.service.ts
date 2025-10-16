@@ -1,10 +1,10 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { ProviderConfig } from "@eddie/config";
-import type { ProviderAdapter } from "@eddie/types";
-import {
-  PROVIDER_ADAPTER_FACTORIES,
+import type {
+  ProviderAdapter,
   ProviderAdapterFactory,
-} from "./provider.tokens";
+  ProviderConfig,
+} from "@eddie/types";
+import { PROVIDER_ADAPTER_FACTORIES } from "./provider.tokens";
 
 /**
  * ProviderFactoryService creates a concrete provider adapter for the configured

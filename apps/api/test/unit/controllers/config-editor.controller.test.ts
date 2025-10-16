@@ -1,4 +1,4 @@
-import type { ConfigFileSnapshot, EddieConfig, EddieConfigInput } from "@eddie/config";
+import type { ConfigFileSnapshot, EddieConfig, EddieConfigInput } from "@eddie/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConfigEditorController } from "../../../src/config-editor/config-editor.controller";
 import { ConfigEditorService } from "../../../src/config-editor/config-editor.service";

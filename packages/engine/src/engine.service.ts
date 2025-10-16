@@ -9,7 +9,7 @@ import type {
   EddieConfig,
   ProviderConfig,
   TranscriptCompactorConfig,
-} from "@eddie/config";
+} from "@eddie/types";
 import { ConfigStore } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { ProviderFactoryService } from "@eddie/providers";

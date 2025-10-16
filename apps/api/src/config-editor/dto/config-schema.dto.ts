@@ -1,7 +1,8 @@
 import { ApiProperty } from "@nestjs/swagger";
+import type { ConfigSchemaPayload } from "@eddie/types";
 import type { JSONSchema7 } from "json-schema";
 
-export class ConfigSchemaDto {
+export class ConfigSchemaDto implements ConfigSchemaPayload {
   @ApiProperty({ description: "Identifier for the schema bundle." })
     id!: string;
 

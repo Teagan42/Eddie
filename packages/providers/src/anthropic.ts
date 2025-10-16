@@ -1,8 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { fetch } from "undici";
-import type { ProviderConfig } from "@eddie/config";
-import type { ProviderAdapter, StreamEvent, StreamOptions } from "@eddie/types";
-import type { ProviderAdapterFactory } from "./provider.tokens";
+import type {
+  ProviderAdapter,
+  ProviderAdapterFactory,
+  ProviderConfig,
+  StreamEvent,
+  StreamOptions,
+} from "@eddie/types";
 import { extractNotificationEvents } from "./notifications";
 import { resolveResponseFormat } from "./response-format";
 

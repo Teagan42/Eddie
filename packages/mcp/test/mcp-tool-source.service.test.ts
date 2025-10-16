@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { MCPToolSourceConfig } from "@eddie/config";
+import type { MCPToolSourceConfig } from "@eddie/types";
 import { McpToolSourceService } from "../src/mcp-tool-source.service";
 import type { Logger } from "pino";
 import type { LoggerService } from "@eddie/io";

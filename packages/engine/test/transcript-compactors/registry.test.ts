@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { EngineService } from "../../src/engine.service";
-import type { EddieConfig, TranscriptCompactorConfig } from "@eddie/config";
+import type { EddieConfig, TranscriptCompactorConfig } from "@eddie/types";
 import {
   registerTranscriptCompactor,
   resetTranscriptCompactorRegistry,

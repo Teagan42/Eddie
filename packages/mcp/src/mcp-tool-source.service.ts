@@ -3,9 +3,9 @@ import { Buffer } from "buffer";
 import { performance } from "node:perf_hooks";
 import { URL } from "node:url";
 import type {
-  MCPToolSourceConfig,
   MCPAuthConfig,
-} from "@eddie/config";
+  MCPToolSourceConfig,
+} from "@eddie/types";
 import { LoggerService } from "@eddie/io";
 import type { Logger } from "pino";
 import type {

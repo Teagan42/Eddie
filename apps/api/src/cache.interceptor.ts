@@ -18,7 +18,7 @@ import {
 } from "rxjs";
 import { createHash, pbkdf2Sync } from "node:crypto";
 import { ConfigService, ConfigStore } from "@eddie/config";
-import type { EddieConfig } from "@eddie/config";
+import type { EddieConfig } from "@eddie/types";
 import { ContextService } from "@eddie/context";
 import { InjectLogger } from "@eddie/io";
 import type { Logger } from "pino";

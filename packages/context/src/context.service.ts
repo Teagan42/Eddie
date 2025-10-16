@@ -9,7 +9,7 @@ import type {
   ContextResourceBundleConfig,
   ContextResourceConfig,
   ContextResourceTemplateConfig,
-} from "@eddie/config";
+} from "@eddie/types";
 import {
   composeResourceText,
   type PackedContext,

@@ -2,12 +2,18 @@ import { OnModuleDestroy } from "@nestjs/common";
 import { pbkdf2Sync, randomUUID } from "crypto";
 import knex, { type Knex } from "knex";
 
+import type {
+  AgentInvocationMessageSnapshot,
+  AgentInvocationSnapshot,
+  ChatSessionStatus,
+} from "@eddie/types";
 import { ChatMessageRole } from "./dto/create-chat-message.dto";
 import { initialChatSessionsMigration } from "./migrations/initial";
 
 export const CHAT_SESSIONS_REPOSITORY = Symbol("CHAT_SESSIONS_REPOSITORY");
 
-export type ChatSessionStatus = "active" | "archived";
+export type { AgentInvocationMessageSnapshot, AgentInvocationSnapshot, ChatSessionStatus } from "@eddie/types";
+export type ChatSessionAgentInvocationMessageSnapshot = AgentInvocationMessageSnapshot;
 
 export interface ChatSessionRecord {
   id: string;
@@ -26,21 +32,6 @@ export interface ChatMessageRecord {
   createdAt: Date;
   toolCallId?: string;
   name?: string;
-}
-
-export interface AgentInvocationMessageSnapshot {
-  role: ChatMessageRole;
-  content: string;
-  name?: string;
-  toolCallId?: string;
-}
-
-export interface AgentInvocationSnapshot {
-  id: string;
-  messages: AgentInvocationMessageSnapshot[];
-  children: AgentInvocationSnapshot[];
-  provider?: string;
-  model?: string;
 }
 
 export interface CreateChatSessionInput {
@@ -103,7 +94,9 @@ const cloneInvocation = (
 ): AgentInvocationSnapshot => {
   const snapshot: AgentInvocationSnapshot = {
     id: invocation.id,
-    messages: invocation.messages.map((message) => ({ ...message })),
+    messages: invocation.messages.map(
+      (message: ChatSessionAgentInvocationMessageSnapshot) => ({ ...message })
+    ),
     children: invocation.children.map((child) => cloneInvocation(child)),
   };
 

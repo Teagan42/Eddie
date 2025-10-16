@@ -9,9 +9,14 @@ import type {
   ResponseInputItem,
   ResponseTextConfig,
 } from "openai/resources/responses/responses";
-import type { ProviderConfig } from "@eddie/config";
-import type { ProviderAdapter, StreamEvent, StreamOptions, ToolSchema } from "@eddie/types";
-import type { ProviderAdapterFactory } from "./provider.tokens";
+import type {
+  ProviderAdapter,
+  ProviderAdapterFactory,
+  ProviderConfig,
+  StreamEvent,
+  StreamOptions,
+  ToolSchema,
+} from "@eddie/types";
 import { extractNotificationEvents } from "./notifications";
 import { resolveResponseFormat } from "./response-format";
 

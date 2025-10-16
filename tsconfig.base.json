@@ -35,8 +35,14 @@
       "@eddie/tokenizers/*": ["packages/tokenizers/src/*"],
       "@eddie/tools": ["packages/tools/src"],
       "@eddie/tools/*": ["packages/tools/src/*"],
-      "@eddie/types": ["packages/types/src"],
-      "@eddie/types/*": ["packages/types/src/*"]
+      "@eddie/types": [
+        "packages/types/dist/index.d.ts",
+        "packages/types/src"
+      ],
+      "@eddie/types/*": [
+        "packages/types/dist/*",
+        "packages/types/src/*"
+      ]
     }
   }
 }

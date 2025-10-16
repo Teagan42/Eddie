@@ -10,7 +10,7 @@ import {
   parseCliRuntimeOptionsFromArgv,
   resolveCliRuntimeOptionsFromEnv,
 } from "@eddie/config";
-import type { CliRuntimeOptions, EddieConfig } from "@eddie/config";
+import type { CliRuntimeOptions, EddieConfig } from "@eddie/types";
 import { LoggerService } from "@eddie/io";
 import { applyCorsConfig } from "./cors";
 import { ensureDefaultConfigRoot } from "./config-root";

@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import fs from "fs";
 import path from "path";
 import pino, { type Logger, type LoggerOptions } from "pino";
-import type { LoggingConfig, LoggingDestination } from "@eddie/config";
+import type { LoggingConfig, LoggingDestination } from "@eddie/types";
 
 type LogLevel = "fatal" | "error" | "warn" | "info" | "debug" | "trace";
 

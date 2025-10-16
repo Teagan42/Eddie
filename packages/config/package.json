@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@eddie/templates": "^0.0.0",
+    "@eddie/types": "^0.0.0",
     "@eddie/tools": "^0.0.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.2",
