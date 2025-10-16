@@ -42,6 +42,7 @@ import type { Logger } from "pino";
 import { McpToolSourceService } from "@eddie/mcp";
 import type { DiscoveredMcpResource } from "@eddie/mcp";
 import { TranscriptCompactionService } from "./transcript/transcript-compaction.service";
+import { MetricsService } from "./telemetry/metrics.service";
 
 export interface EngineOptions extends CliRuntimeOptions {
     history?: ChatMessage[];
@@ -73,7 +74,8 @@ export class EngineService {
         private readonly loggerService: LoggerService,
         private readonly transcriptCompactionService: TranscriptCompactionService,
         private readonly agentOrchestrator: AgentOrchestratorService,
-        private readonly mcpToolSourceService: McpToolSourceService
+        private readonly mcpToolSourceService: McpToolSourceService,
+        private readonly metrics: MetricsService
   ) {}
 
   /**
@@ -91,6 +93,8 @@ export class EngineService {
     let result: EngineResult | undefined;
     let failure: unknown;
     let logger!: Logger;
+
+    this.metrics.countMessage("user");
 
     try {
       const cfg = await this.resolveRuntimeConfig(options);
@@ -218,6 +222,7 @@ export class EngineService {
         tracePath,
         traceAppend: cfg.output?.jsonlAppend ?? true,
         transcriptCompaction,
+        metrics: this.metrics,
       };
       // Attach sessionId so trace writes include it
       (runtime as any).sessionId = sessionId;
@@ -240,14 +245,18 @@ export class EngineService {
         }
       );
 
-      const rootInvocation = await this.agentOrchestrator.runAgent(
-        {
-          definition: managerDescriptor.definition,
-          prompt,
-          context,
-          history: options.history,
-        },
-        runtime
+      const rootInvocation = await this.metrics.timeOperation(
+        "template.render",
+        () =>
+          this.agentOrchestrator.runAgent(
+            {
+              definition: managerDescriptor.definition,
+              prompt,
+              context,
+              history: options.history,
+            },
+            runtime
+          )
       );
 
       const agents = this.agentOrchestrator.collectInvocations(rootInvocation);
@@ -262,6 +271,7 @@ export class EngineService {
       return result;
     } catch (error) {
       failure = error;
+      this.metrics.countError("engine.run");
       throw error;
     } finally {
       if (hooks && session) {

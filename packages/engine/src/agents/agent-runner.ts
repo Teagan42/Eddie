@@ -20,6 +20,7 @@ import { AgentStreamEvent } from "@eddie/types";
 import type { TemplateVariables } from "@eddie/templates";
 import type { AgentInvocation } from "./agent-invocation";
 import type { AgentRuntimeDescriptor } from "./agent-runtime.types";
+import type { MetricsService } from "../telemetry/metrics.service";
 
 export interface AgentTraceEvent {
   phase: string;
@@ -55,6 +56,7 @@ export interface AgentRunnerOptions {
     payload: HookEventMap[E]
   ) => Promise<HookDispatchResult<E>>;
   writeTrace: (event: AgentTraceEvent, append?: boolean) => Promise<void>;
+  metrics: MetricsService;
 }
 
 export interface SubagentRequestDetails {
@@ -116,6 +118,7 @@ export class AgentRunner {
       startTraceAppend,
       confirm,
       cwd,
+      metrics,
     } = this.options;
 
     if (!invocation.isRoot) {
@@ -148,7 +151,10 @@ export class AgentRunner {
 
         const iterationPayload = this.createIterationPayload(iteration);
 
-        await applyTranscriptCompactionIfNeeded(iteration, iterationPayload);
+        await metrics.timeOperation(
+          "transcript.compaction",
+          () => applyTranscriptCompactionIfNeeded(iteration, iterationPayload)
+        );
 
         await hooks.emitAsync(HOOK_EVENTS.beforeModelCall, iterationPayload);
         await writeTrace({
@@ -213,6 +219,7 @@ export class AgentRunner {
               name: event.name,
               tool_call_id: event.id,
             });
+            metrics.countMessage("assistant");
 
             const blockSignal = preToolDispatch.blocked;
 
@@ -235,6 +242,11 @@ export class AgentRunner {
                 },
                 "Tool execution vetoed by hook"
               );
+
+              metrics.observeToolCall({
+                name: event.name,
+                status: "blocked",
+              });
 
               continueConversation = true;
               continue;
@@ -295,6 +307,11 @@ export class AgentRunner {
                 },
               });
 
+              metrics.observeToolCall({
+                name: event.name,
+                status: "success",
+              });
+
               continueConversation = true;
             } catch (error) {
               const serialized = AgentRunner.serializeError(error);
@@ -338,6 +355,12 @@ export class AgentRunner {
                 },
               });
 
+              metrics.observeToolCall({
+                name: event.name,
+                status: "error",
+              });
+              metrics.countError("tool.execution");
+
               continueConversation = true;
               continue;
             }
@@ -349,6 +372,10 @@ export class AgentRunner {
             publishWithAgent(event);
             agentFailed = true;
 
+            metrics.countError("agent.stream");
+
+            const { message, cause } = event;
+
             await dispatchHookOrThrow(HOOK_EVENTS.onError, {
               ...lifecycle,
               iteration,
@@ -357,16 +384,16 @@ export class AgentRunner {
             await dispatchHookOrThrow(HOOK_EVENTS.onAgentError, {
               ...lifecycle,
               error: {
-                message: event.message,
-                cause: event.cause,
+                message,
+                cause,
               },
             });
             await writeTrace({
               phase: "agent_error",
               data: {
                 iteration,
-                message: event.message,
-                cause: event.cause,
+                message,
+                cause,
               },
             });
 
@@ -392,6 +419,7 @@ export class AgentRunner {
                 role: "assistant",
                 content: assistantBuffer,
               });
+              metrics.countMessage("assistant");
             }
 
             await hooks.emitAsync(HOOK_EVENTS.stop, {
@@ -428,6 +456,7 @@ export class AgentRunner {
         phase: "agent_error",
         data: serialized,
       });
+      metrics.countError("agent.run");
       await this.emitSubagentStop();
       throw error;
     }

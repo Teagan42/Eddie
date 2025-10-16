@@ -59,6 +59,12 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     configure: vi.fn(),
     getLogger: vi.fn(() => logger),
   };
+  const metrics = {
+    countMessage: vi.fn(),
+    observeToolCall: vi.fn(),
+    countError: vi.fn(),
+    timeOperation: vi.fn(async (_metric: string, fn: () => Promise<unknown>) => fn()),
+  };
   const transcriptCompactionService = {
     createSelector: vi.fn(() => ({
       selectFor: vi.fn(),
@@ -91,6 +97,7 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     transcriptCompactionService as any,
     agentOrchestrator as any,
     mcpToolSourceService as any,
+    metrics as any,
   );
 
   return {
@@ -100,6 +107,7 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     mcpToolSourceService,
     logger,
     transcriptCompactionService,
+    metrics,
   };
 }
 
@@ -115,7 +123,7 @@ afterEach(() => {
 
 describe("EngineService", () => {
   it("does not declare a ConfigService dependency", () => {
-    expect(EngineService.length).toBe(10);
+    expect(EngineService.length).toBe(11);
   });
 
   it("does not reload configuration when runtime overrides are provided", async () => {

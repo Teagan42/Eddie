@@ -36,6 +36,7 @@ import type {
 import { AgentRunner, type AgentTraceEvent } from "./agent-runner";
 import type { TemplateVariables } from "@eddie/templates";
 import type { TranscriptCompactionWorkflow } from "../transcript/transcript-compaction.service";
+import type { MetricsService } from "../telemetry/metrics.service";
 export type {
   TranscriptCompactionPlan,
   TranscriptCompactionResult,
@@ -59,6 +60,7 @@ export interface AgentRuntimeOptions {
     sessionId?: string;
     traceAppend?: boolean;
     transcriptCompaction?: TranscriptCompactionWorkflow;
+    metrics: MetricsService;
 }
 
 export interface AgentRunRequest extends AgentInvocationOptions {
@@ -630,6 +632,7 @@ export class AgentOrchestratorService {
         this.dispatchHookOrThrow(runtime, invocation, event, payload),
       writeTrace: (event, append) =>
         this.writeTrace(runtime, invocation, event, append),
+      metrics: runtime.metrics,
     });
 
     await runner.run();

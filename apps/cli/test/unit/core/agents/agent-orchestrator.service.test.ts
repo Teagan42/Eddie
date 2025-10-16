@@ -13,6 +13,7 @@ import {
   type AgentRuntimeCatalog,
   type AgentRuntimeDescriptor,
   type AgentRuntimeOptions,
+  type MetricsService,
   type TranscriptCompactor,
   type TranscriptCompactionWorkflow,
 } from "@eddie/engine";
@@ -127,6 +128,7 @@ describe("AgentOrchestratorService", () => {
     catalogDescriptors?: Record<string, AgentRuntimeDescriptor>;
     catalogEnableSubagents?: boolean;
     model?: string;
+    metrics?: MetricsService;
   };
 
   const createCatalog = (
@@ -201,6 +203,14 @@ describe("AgentOrchestratorService", () => {
     tracePath: overrides.tracePath,
     traceAppend: overrides.traceAppend,
     transcriptCompaction: overrides.transcriptCompaction,
+    metrics:
+      overrides.metrics ??
+      ({
+        countMessage: vi.fn(),
+        observeToolCall: vi.fn(),
+        countError: vi.fn(),
+        timeOperation: vi.fn(async (_metric: string, fn: () => Promise<unknown>) => fn()),
+      } as unknown as MetricsService),
   });
 
   const contextSlice = (text: string): PackedContext => ({

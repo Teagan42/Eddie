@@ -8,3 +8,4 @@ export * from "./agents/agent-runtime.types";
 export * from "./transcript-compactors";
 export * from "./templating/template-runtime.service";
 export * from "./transcript/transcript-compaction.service";
+export * from "./telemetry/metrics.service";

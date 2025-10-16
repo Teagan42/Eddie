@@ -13,7 +13,9 @@ async function ensureToggleExpanded(
     await user.click(button);
   }
 
-  expect(button).toHaveAttribute("aria-expanded", "true");
+  await waitFor(() => {
+    expect(button).toHaveAttribute("aria-expanded", "true");
+  });
 }
 
 const listSessionsMock = vi.fn();

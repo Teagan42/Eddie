@@ -16,6 +16,13 @@ const createStream = (events: StreamEvent[]): AsyncIterable<StreamEvent> => ({
   },
 });
 
+const createMetrics = () => ({
+  countMessage: vi.fn(),
+  observeToolCall: vi.fn(),
+  countError: vi.fn(),
+  timeOperation: vi.fn(async (_metric: string, fn: () => Promise<unknown>) => fn()),
+});
+
 describe("AgentOrchestratorService", () => {
   it("delegates invocation execution to the agent runner", async () => {
     const agentDefinition = {
@@ -74,6 +81,7 @@ describe("AgentOrchestratorService", () => {
       traceAppend: true,
       tracePath: undefined,
       transcriptCompactor: undefined,
+      metrics: createMetrics(),
     };
 
     const invocationFactory = {
@@ -158,6 +166,7 @@ describe("AgentOrchestratorService", () => {
       cwd: process.cwd(),
       logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       transcriptCompactor: undefined,
+      metrics: createMetrics(),
     };
 
     const spawnSchema = (
@@ -338,6 +347,7 @@ describe("AgentOrchestratorService", () => {
       logger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
       traceAppend: true,
       tracePath: undefined,
+      metrics: createMetrics(),
     };
 
     const invocationFactory = {
@@ -481,6 +491,7 @@ describe("AgentOrchestratorService", () => {
       logger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
       traceAppend: true,
       tracePath: undefined,
+      metrics: createMetrics(),
     } as unknown as Parameters<
       AgentOrchestratorService["runAgent"]
     >[1];
@@ -636,6 +647,7 @@ describe("AgentOrchestratorService", () => {
       cwd: process.cwd(),
       logger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
       transcriptCompaction: workflow,
+      metrics: createMetrics(),
     } as unknown;
 
     const lifecycle = {
