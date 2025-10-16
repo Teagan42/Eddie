@@ -41,7 +41,7 @@ const adrExpectations = [
     title: /^# ADR 0011: MCP Integration Architecture$/m,
     patterns: [
       /## Context[\s\S]*Model Context Protocol/m,
-      /## Decision[\s\S]*packages\/mcp/m,
+      /## Decision[\s\S]*platform\/integrations\/mcp/m,
       /## Consequences[\s\S]*tooling compatibility/m,
       /## Alternatives Considered[\s\S]*custom integration/m,
     ],

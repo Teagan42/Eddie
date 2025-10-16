@@ -15,19 +15,42 @@ async function readPackageJson(path: string) {
 }
 
 async function resolveWorkspaceDirs(pattern: string): Promise<string[]> {
-  if (pattern.endsWith('/*')) {
-    const baseDir = pattern.slice(0, -2);
-    const absoluteBase = join(rootDir, baseDir);
+  const segments = pattern.split('/');
+  const joinRelativePath = (base: string, segment: string) => (base ? join(base, segment) : segment);
 
-    try {
-      const entries = await fs.readdir(absoluteBase, { withFileTypes: true });
-      return entries.filter((entry) => entry.isDirectory()).map((entry) => join(baseDir, entry.name));
-    } catch {
-      return [];
+  async function expand(relativeDir: string, index: number): Promise<string[]> {
+    if (index === segments.length) {
+      return relativeDir ? [relativeDir] : [];
     }
+
+    const segment = segments[index];
+
+    if (segment === '*') {
+      const base = relativeDir ? join(rootDir, relativeDir) : rootDir;
+
+      try {
+        const entries = await fs.readdir(base, { withFileTypes: true });
+        const results: string[] = [];
+
+        for (const entry of entries) {
+          if (!entry.isDirectory()) {
+            continue;
+          }
+
+          const expanded = await expand(joinRelativePath(relativeDir, entry.name), index + 1);
+          results.push(...expanded);
+        }
+
+        return results;
+      } catch {
+        return [];
+      }
+    }
+
+    return expand(joinRelativePath(relativeDir, segment), index + 1);
   }
 
-  return [pattern];
+  return expand('', 0);
 }
 
 export async function discoverWorkspacesWithScript(scriptName: string): Promise<Workspace[]> {

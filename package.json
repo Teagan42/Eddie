@@ -8,10 +8,7 @@
   },
   "workspaces": [
     "apps/*",
-    "platform/core/*",
-    "platform/runtime/*",
-    "platform/integrations/*",
-    "platform/testing/*"
+    "platform/*/*"
   ],
   "engines": {
     "node": ">=20.0.0"
