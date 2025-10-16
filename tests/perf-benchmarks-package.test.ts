@@ -1,18 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
-const manifestUrl = new URL('../packages/perf-benchmarks/package.json', import.meta.url);
-const tsconfigUrl = new URL('../packages/perf-benchmarks/tsconfig.json', import.meta.url);
-const tsconfigBuildUrl = new URL('../packages/perf-benchmarks/tsconfig.build.json', import.meta.url);
-const eslintConfigUrl = new URL('../packages/perf-benchmarks/eslint.config.cjs', import.meta.url);
-const vitestConfigUrl = new URL('../packages/perf-benchmarks/vitest.config.ts', import.meta.url);
+const manifestUrl = new URL('../platform/testing/perf-benchmarks/package.json', import.meta.url);
+const tsconfigUrl = new URL('../platform/testing/perf-benchmarks/tsconfig.json', import.meta.url);
+const tsconfigBuildUrl = new URL('../platform/testing/perf-benchmarks/tsconfig.build.json', import.meta.url);
+const eslintConfigUrl = new URL('../platform/testing/perf-benchmarks/eslint.config.cjs', import.meta.url);
+const rootEslintConfigUrl = new URL('../eslint.config.cjs', import.meta.url);
+const vitestConfigUrl = new URL('../platform/testing/perf-benchmarks/vitest.config.ts', import.meta.url);
 const rootTsconfigUrl = new URL('../tsconfig.json', import.meta.url);
 const rootTsconfigBaseUrl = new URL('../tsconfig.base.json', import.meta.url);
 const nestCliConfigUrl = new URL('../nest-cli.json', import.meta.url);
 const rootPackageJsonUrl = new URL('../package.json', import.meta.url);
 const packageLockUrl = new URL('../package-lock.json', import.meta.url);
 const workspaceName = '@eddie/perf-benchmarks';
-const packageRoot = 'packages/perf-benchmarks';
+const packageRoot = 'platform/testing/perf-benchmarks';
 const packageSourceRoot = `${packageRoot}/src`;
 const packageSourceGlobs = `${packageSourceRoot}/*`;
 const packageBuildTsconfigPath = `${packageRoot}/tsconfig.build.json`;
@@ -34,7 +35,7 @@ describe('@eddie/perf-benchmarks workspace configuration', () => {
   it('configures TypeScript compilation like other packages', () => {
     const tsconfig = loadJson(tsconfigUrl);
 
-    expect(tsconfig.extends).toBe('../../tsconfig.base.json');
+    expect(tsconfig.extends).toBe('../../../tsconfig.base.json');
     expect(tsconfig.compilerOptions).toMatchObject({
       composite: true,
       rootDir: 'src',
@@ -55,8 +56,9 @@ describe('@eddie/perf-benchmarks workspace configuration', () => {
 
   it('shares the repo eslint configuration for local linting', async () => {
     const module = await loadModule(eslintConfigUrl);
+    const rootConfig = await loadModule(rootEslintConfigUrl);
 
-    expect(Array.isArray(module)).toBe(true);
+    expect(module).toEqual(rootConfig);
   });
 
   it('reuses the shared vitest config factory for benches', async () => {
@@ -125,7 +127,7 @@ describe('root workspace references perf benchmarks', () => {
   it('locks the workspace in the package-lock metadata', () => {
     const packageLock = loadJson(packageLockUrl);
 
-    expect(packageLock.packages?.['packages/perf-benchmarks']).toMatchObject({
+    expect(packageLock.packages?.['platform/testing/perf-benchmarks']).toMatchObject({
       name: workspaceName,
       version: '0.0.0',
     });

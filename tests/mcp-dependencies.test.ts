@@ -6,7 +6,7 @@ describe('@eddie/mcp dependencies', () => {
   let packageJson: { dependencies?: Record<string, string> };
 
   beforeAll(() => {
-    const packageJsonUrl = new URL('./packages/mcp/package.json', ROOT);
+    const packageJsonUrl = new URL('./platform/integrations/mcp/package.json', ROOT);
     packageJson = JSON.parse(readFileSync(packageJsonUrl, 'utf8')) as {
       dependencies?: Record<string, string>;
     };

@@ -14,20 +14,72 @@ async function readPackageJson(path: string) {
   return JSON.parse(content) as { name?: string; scripts?: Record<string, string>; workspaces?: string[] };
 }
 
-async function resolveWorkspaceDirs(pattern: string): Promise<string[]> {
-  if (pattern.endsWith('/*')) {
-    const baseDir = pattern.slice(0, -2);
-    const absoluteBase = join(rootDir, baseDir);
+async function listDirectories(absolute: string): Promise<string[]> {
+  try {
+    const entries = await fs.readdir(absolute, { withFileTypes: true });
+    return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  } catch {
+    return [];
+  }
+}
 
-    try {
-      const entries = await fs.readdir(absoluteBase, { withFileTypes: true });
-      return entries.filter((entry) => entry.isDirectory()).map((entry) => join(baseDir, entry.name));
-    } catch {
-      return [];
-    }
+async function resolveWorkspaceDirs(pattern: string): Promise<string[]> {
+  if (!pattern.includes('*')) {
+    return [pattern];
   }
 
-  return [pattern];
+  const segments = pattern.split('/');
+  const results: string[] = [];
+
+  async function traverse(index: number, absolute: string, parts: string[]): Promise<void> {
+    if (index >= segments.length) {
+      if (parts.length > 0) {
+        results.push(parts.join('/'));
+      }
+      return;
+    }
+
+    const segment = segments[index];
+
+    if (segment === '*') {
+      const directories = await listDirectories(absolute);
+
+      await Promise.all(
+        directories.map((name) => traverse(index + 1, join(absolute, name), [...parts, name])),
+      );
+
+      return;
+    }
+
+    if (segment === '**') {
+      await traverse(index + 1, absolute, parts);
+
+      const directories = await listDirectories(absolute);
+
+      await Promise.all(
+        directories.map((name) => traverse(index, join(absolute, name), [...parts, name])),
+      );
+
+      return;
+    }
+
+    const nextAbsolute = join(absolute, segment);
+
+    try {
+      const stat = await fs.stat(nextAbsolute);
+      if (!stat.isDirectory()) {
+        return;
+      }
+    } catch {
+      return;
+    }
+
+    await traverse(index + 1, nextAbsolute, [...parts, segment]);
+  }
+
+  await traverse(0, rootDir, []);
+
+  return results;
 }
 
 export async function discoverWorkspacesWithScript(scriptName: string): Promise<Workspace[]> {

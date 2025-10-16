@@ -5,8 +5,8 @@ import { PassThrough } from 'node:stream';
 
 vi.mock('../scripts/utils/workspaces', () => ({
   discoverWorkspacesWithScript: vi.fn().mockResolvedValue([
-    { name: '@pkg/a', dir: 'packages/a' },
-    { name: '@pkg/b', dir: 'packages/b' },
+    { name: '@pkg/a', dir: 'platform/runtime/a' },
+    { name: '@pkg/b', dir: 'platform/core/b' },
   ]),
 }));
 

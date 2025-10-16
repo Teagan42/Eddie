@@ -69,15 +69,17 @@ describe('workspace test runner concurrency', () => {
 describe('workspace discovery', () => {
   it('returns workspaces that define the requested script', async () => {
     const repoRoot = process.cwd();
-    const packageDir = join(repoRoot, 'packages');
+    const platformDir = join(repoRoot, 'platform');
+    const runtimeDir = join(platformDir, 'runtime');
+    const coreDir = join(platformDir, 'core');
     const rootPackagePath = join(repoRoot, 'package.json');
-    const packageAPath = join(packageDir, 'pkg-a', 'package.json');
-    const packageBPath = join(packageDir, 'pkg-b', 'package.json');
+    const packageAPath = join(runtimeDir, 'pkg-a', 'package.json');
+    const packageBPath = join(coreDir, 'pkg-b', 'package.json');
 
     const readFileSpy = vi.spyOn(fs, 'readFile').mockImplementation(async (path) => {
       switch (path) {
         case rootPackagePath:
-          return JSON.stringify({ workspaces: ['packages/*'] });
+          return JSON.stringify({ workspaces: ['platform/*/*'] });
         case packageAPath:
           return JSON.stringify({ name: 'pkg-a', scripts: { lint: 'eslint .' } });
         case packageBPath:
@@ -87,24 +89,88 @@ describe('workspace discovery', () => {
       }
     });
 
+    const directory = (name: string, isDir: boolean): Dirent => ({
+      name,
+      isDirectory: () => isDir,
+    }) as Dirent;
+
     const readdirSpy = vi.spyOn(fs, 'readdir').mockImplementation(async (path) => {
-      if (path === packageDir) {
-        const directory = (name: string, isDir: boolean): Dirent => ({
-          name,
-          isDirectory: () => isDir,
-        }) as Dirent;
-
-        return [directory('pkg-a', true), directory('pkg-b', true), directory('pkg-c', false)];
+      switch (path) {
+        case platformDir:
+          return [directory('runtime', true), directory('core', true), directory('README.md', false)];
+        case runtimeDir:
+          return [directory('pkg-a', true), directory('pkg-b', true), directory('pkg-c', false)];
+        case coreDir:
+          return [directory('pkg-b', true)];
+        default:
+          throw new Error(`Unexpected readdir path: ${path}`);
       }
-
-      throw new Error(`Unexpected readdir path: ${path}`);
     });
 
     try {
       const workspaces = await discoverWorkspacesWithScript('lint');
 
       expect(workspaces).toEqual([
-        { name: 'pkg-a', dir: 'packages/pkg-a' },
+        { name: 'pkg-a', dir: 'platform/runtime/pkg-a' },
+      ]);
+    } finally {
+      readFileSpy.mockRestore();
+      readdirSpy.mockRestore();
+    }
+  });
+
+  it('supports recursive glob patterns with double star segments', async () => {
+    const repoRoot = process.cwd();
+    const platformDir = join(repoRoot, 'platform');
+    const runtimeDir = join(platformDir, 'runtime');
+    const coreDir = join(platformDir, 'core');
+    const runtimeIoDir = join(runtimeDir, 'io');
+    const coreConfigDir = join(coreDir, 'config');
+    const rootPackagePath = join(repoRoot, 'package.json');
+    const runtimeIoPackagePath = join(runtimeIoDir, 'package.json');
+    const coreConfigPackagePath = join(coreConfigDir, 'package.json');
+
+    const readFileSpy = vi.spyOn(fs, 'readFile').mockImplementation(async (path) => {
+      switch (path) {
+        case rootPackagePath:
+          return JSON.stringify({ workspaces: ['platform/**'] });
+        case runtimeIoPackagePath:
+          return JSON.stringify({ name: '@eddie/io', scripts: { lint: 'eslint .' } });
+        case coreConfigPackagePath:
+          return JSON.stringify({ name: '@eddie/config', scripts: { lint: 'eslint .' } });
+        default:
+          throw new Error(`Unexpected readFile path: ${path}`);
+      }
+    });
+
+    const directory = (name: string, isDir: boolean): Dirent => ({
+      name,
+      isDirectory: () => isDir,
+    }) as Dirent;
+
+    const readdirSpy = vi.spyOn(fs, 'readdir').mockImplementation(async (path) => {
+      switch (path) {
+        case platformDir:
+          return [directory('runtime', true), directory('core', true)];
+        case runtimeDir:
+          return [directory('io', true)];
+        case coreDir:
+          return [directory('config', true)];
+        case runtimeIoDir:
+          return [directory('README.md', false)];
+        case coreConfigDir:
+          return [];
+        default:
+          throw new Error(`Unexpected readdir path: ${path}`);
+      }
+    });
+
+    try {
+      const workspaces = await discoverWorkspacesWithScript('lint');
+
+      expect(workspaces).toEqual([
+        { name: '@eddie/config', dir: 'platform/core/config' },
+        { name: '@eddie/io', dir: 'platform/runtime/io' },
       ]);
     } finally {
       readFileSpy.mockRestore();

@@ -13,7 +13,7 @@ describe('benchmarks workflow', () => {
   it('provisions database-backed performance reporting with regression alerts', () => {
     const workflow = readFileSync(workflowPath, 'utf8');
     const absoluteOutputPath =
-      'BENCHMARK_OUTPUT_PATH: ${{ github.workspace }}/packages/perf-benchmarks/benchmark-results.json';
+      'BENCHMARK_OUTPUT_PATH: ${{ github.workspace }}/platform/testing/perf-benchmarks/benchmark-results.json';
 
     expect(workflow).toContain('name: Benchmarks');
     expect(workflow).toMatch(/on:\s+push:[\s\S]*branches:[\s\S]*- main/);

@@ -13,17 +13,17 @@
     "types": ["node"]
   },
   "references": [
-    { "path": "../../packages/types" },
-    { "path": "../../packages/templates" },
-    { "path": "../../packages/config" },
-    { "path": "../../packages/io" },
-    { "path": "../../packages/context" },
-    { "path": "../../packages/providers" },
-    { "path": "../../packages/hooks" },
-    { "path": "../../packages/tools" },
-    { "path": "../../packages/tokenizers" },
-    { "path": "../../packages/mcp" },
-    { "path": "../../packages/engine" }
+    { "path": "../../platform/core/types" },
+    { "path": "../../platform/core/templates" },
+    { "path": "../../platform/core/config" },
+    { "path": "../../platform/runtime/io" },
+    { "path": "../../platform/runtime/context" },
+    { "path": "../../platform/integrations/providers" },
+    { "path": "../../platform/runtime/hooks" },
+    { "path": "../../platform/integrations/tools" },
+    { "path": "../../platform/core/tokenizers" },
+    { "path": "../../platform/integrations/mcp" },
+    { "path": "../../platform/runtime/engine" }
   ],
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
