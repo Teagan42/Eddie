@@ -7,11 +7,13 @@ import {
   EngineService,
   SimpleTranscriptCompactor,
   TokenBudgetCompactor,
+  TranscriptCompactionService,
   type AgentOrchestratorService,
   type AgentRunRequest,
   type AgentRuntimeCatalog,
   type AgentRuntimeDescriptor,
   type AgentRuntimeOptions,
+  type TranscriptCompactionWorkflow,
 } from "@eddie/engine";
 import {
   ConfigStore,
@@ -87,7 +89,10 @@ interface EngineHarness {
 }
 
 function createEngineHarness(
-  overrides?: { orchestratorShouldFail?: boolean }
+  overrides?: {
+    orchestratorShouldFail?: boolean;
+    transcriptCompactionService?: TranscriptCompactionService;
+  }
 ): EngineHarness {
   const config: EddieConfig = {
     model: "gpt-test",
@@ -148,6 +153,8 @@ function createEngineHarness(
   } as unknown as TokenizerService;
 
   const loggerService = new LoggerService();
+  const transcriptCompactionService =
+    overrides?.transcriptCompactionService ?? new TranscriptCompactionService();
   const mcpToolSourceService = {
     collectTools: vi.fn(async () => ({ tools: [], resources: [], prompts: [] })),
   } as unknown as McpToolSourceService;
@@ -165,6 +172,7 @@ function createEngineHarness(
     confirmService as unknown as ConfirmService,
     tokenizerService,
     loggerService,
+    transcriptCompactionService,
     fakeOrchestrator as unknown as AgentOrchestratorService,
     mcpToolSourceService
   );
@@ -436,15 +444,21 @@ describe("EngineService transcript compactor configuration", () => {
     const result = await harness.engine.run("Global compactor");
 
     const runtime = harness.fakeOrchestrator.lastRuntime;
-    expect(runtime?.transcriptCompactor).toBeInstanceOf(SimpleTranscriptCompactor);
+    const workflow = runtime?.transcriptCompaction;
+    expect(workflow).toBeDefined();
 
-    const compactor = runtime?.transcriptCompactor as SimpleTranscriptCompactor;
+    const managerDescriptor = runtime?.catalog.getManager();
+    const compactor = workflow?.selectFor(
+      result.agents[0],
+      managerDescriptor,
+    );
+    expect(compactor).toBeInstanceOf(SimpleTranscriptCompactor);
     const invocation = result.agents[0];
     invocation.messages.push({ role: "assistant", content: "first" });
     invocation.messages.push({ role: "user", content: "second" });
     invocation.messages.push({ role: "assistant", content: "third" });
 
-    const plan = compactor.plan(invocation, 2);
+    const plan = compactor?.plan(invocation, 2);
     expect(plan?.reason).toContain("limit 3");
   });
 
@@ -480,25 +494,25 @@ describe("EngineService transcript compactor configuration", () => {
     await harness.engine.run("Override compactor");
 
     const runtime = harness.fakeOrchestrator.lastRuntime;
-    const selector = runtime?.transcriptCompactor;
-    expect(typeof selector).toBe("function");
+    const workflow = runtime?.transcriptCompaction;
+    expect(workflow).toBeDefined();
 
     const managerDescriptor = runtime?.catalog.getManager();
-    const managerCompactor = (selector as any)(
+    const managerCompactor = workflow?.selectFor(
       { definition: { id: "manager" } },
       managerDescriptor,
     );
     expect(managerCompactor).toBeInstanceOf(TokenBudgetCompactor);
 
     const workerDescriptor = runtime?.catalog.getAgent("worker");
-    const workerCompactor = (selector as any)(
+    const workerCompactor = workflow?.selectFor(
       { definition: { id: "worker" } },
       workerDescriptor,
     );
     expect(workerCompactor).toBeInstanceOf(SimpleTranscriptCompactor);
 
     const reviewerDescriptor = runtime?.catalog.getAgent("reviewer");
-    const reviewerCompactor = (selector as any)(
+    const reviewerCompactor = workflow?.selectFor(
       { definition: { id: "reviewer" } },
       reviewerDescriptor,
     );
@@ -576,6 +590,13 @@ describe("EngineService hot configuration", () => {
     } as unknown as TokenizerService;
 
     const loggerService = new LoggerService();
+    const transcriptCompactionWorkflow: TranscriptCompactionWorkflow = {
+      selectFor: () => null,
+      planAndApply: vi.fn(),
+    };
+    const transcriptCompactionService = {
+      createSelector: vi.fn(() => transcriptCompactionWorkflow),
+    } as unknown as TranscriptCompactionService;
     const mcpToolSourceService = {
       collectTools: vi.fn(async () => ({ tools: [], resources: [], prompts: [] })),
     } as unknown as McpToolSourceService;
@@ -590,6 +611,7 @@ describe("EngineService hot configuration", () => {
       confirmService,
       tokenizerService,
       loggerService,
+      transcriptCompactionService,
       orchestrator as unknown as AgentOrchestratorService,
       mcpToolSourceService
     );
@@ -643,5 +665,30 @@ describe("EngineService hot configuration", () => {
       "alt-provider"
     );
     expect(reloadedRuntime?.catalog.getManager().model).toBe("alt-model");
+  });
+
+  it("provides transcript compaction workflows to orchestrator runtimes", async () => {
+    const workflow: TranscriptCompactionWorkflow = {
+      selectFor: () => null,
+      planAndApply: vi.fn(),
+    };
+    const transcriptCompactionService = {
+      createSelector: vi.fn(() => workflow),
+    } as unknown as TranscriptCompactionService;
+    const harness = createEngineHarness({
+      transcriptCompactionService,
+    });
+    harness.config.transcript = { compactor: { strategy: "token-budget" } };
+    harness.store.setSnapshot(harness.config);
+
+    const result = await harness.engine.run("Compaction workflow injection");
+
+    expect(result.messages).toBeDefined();
+    expect(transcriptCompactionService.createSelector).toHaveBeenCalledWith(
+      harness.config,
+    );
+    expect(harness.fakeOrchestrator.lastRuntime?.transcriptCompaction).toBe(
+      workflow,
+    );
   });
 });

@@ -14,6 +14,7 @@ import {
   type AgentRuntimeDescriptor,
   type AgentRuntimeOptions,
   type TranscriptCompactor,
+  type TranscriptCompactionWorkflow,
 } from "@eddie/engine";
 import { ToolRegistryFactory } from "@eddie/tools";
 import {
@@ -199,13 +200,45 @@ describe("AgentOrchestratorService", () => {
     logger: overrides.logger ?? loggerService.getLogger("test"),
     tracePath: overrides.tracePath,
     traceAppend: overrides.traceAppend,
-    transcriptCompactor: overrides.transcriptCompactor,
+    transcriptCompaction: overrides.transcriptCompaction,
   });
 
   const contextSlice = (text: string): PackedContext => ({
     files: [],
     totalBytes: text.length,
     text,
+  });
+
+  const workflowWithPreCompact = (
+    compactor: TranscriptCompactor,
+  ): TranscriptCompactionWorkflow => ({
+    selectFor: () => compactor,
+    async planAndApply(compactor, invocation, iteration, runtime) {
+      const plan = await compactor.plan(invocation, iteration);
+      if (!plan) {
+        return;
+      }
+
+      await runtime.hooks.emitAsync(HOOK_EVENTS.preCompact, {
+        iteration,
+        messages: invocation.messages,
+        reason: plan.reason,
+      });
+
+      await plan.apply();
+    },
+  });
+
+  const workflowFromSelector = (
+    selector: (
+      invocation: { definition: { id: string } },
+      descriptor?: AgentRuntimeDescriptor,
+    ) => TranscriptCompactor,
+  ): TranscriptCompactionWorkflow => ({
+    selectFor: (invocation, descriptor) => selector(invocation, descriptor),
+    async planAndApply(compactor, invocation, iteration) {
+      await compactor.plan(invocation, iteration);
+    },
   });
 
   it("streams a single agent conversation", async () => {
@@ -1071,7 +1104,7 @@ describe("AgentOrchestratorService", () => {
 
     const runtime = baseRuntime(provider, {
       hooks: hookBus,
-      transcriptCompactor: compactor,
+      transcriptCompaction: workflowWithPreCompact(compactor),
     });
 
     const invocation = await orchestrator.runAgent(
@@ -1112,14 +1145,17 @@ describe("AgentOrchestratorService", () => {
       plan: vi.fn(async () => null),
     };
 
-    const selector = vi.fn((invocation: { definition: { id: string } }) =>
-      invocation.definition.id === "worker"
-        ? workerCompactor
-        : managerCompactor
+    const selector = vi.fn(
+      (
+        invocation: { definition: { id: string } },
+      ): TranscriptCompactor =>
+        invocation.definition.id === "worker"
+          ? workerCompactor
+          : managerCompactor,
     );
 
     const runtime = baseRuntime(provider, {
-      transcriptCompactor: selector as unknown as TranscriptCompactor,
+      transcriptCompaction: workflowFromSelector(selector),
     });
 
     const manager = await orchestrator.runAgent(
