@@ -1135,7 +1135,14 @@ export function ChatPage(): JSX.Element {
       queryClient.setQueryData<ChatSessionDto[]>(['chat-sessions'], (previous = []) =>
         mergeSessionList(previous, session),
       );
-      applyChatUpdate((chat) => ({ ...chat, selectedSessionId: session.id }));
+      applyChatUpdate((chat) => {
+        const hasSelection = Boolean(chat.selectedSessionId ?? selectedSessionIdRef.current);
+        if (hasSelection) {
+          return chat;
+        }
+
+        return { ...chat, selectedSessionId: session.id };
+      });
     },
     onError: () => {
       setAutoSessionAttemptState({ status: 'failed', lastFailureAt: Date.now() });

@@ -11,6 +11,7 @@ const listSessionsMock = vi.fn();
 const listMessagesMock = vi.fn();
 const createSessionMock = vi.fn();
 const getMetadataMock = vi.fn();
+const updatePreferencesMock = vi.fn();
 
 class ResizeObserverMock {
   observe(): void {}
@@ -37,7 +38,7 @@ vi.mock("@/hooks/useLayoutPreferences", () => ({
         templates: {},
       },
     },
-    updatePreferences: vi.fn(),
+    updatePreferences: updatePreferencesMock,
     isSyncing: false,
     isRemoteAvailable: true,
   }),
@@ -93,6 +94,7 @@ describe("ChatPage session creation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionCreatedHandlers.length = 0;
+    updatePreferencesMock.mockReset();
 
     const now = new Date().toISOString();
 
@@ -162,6 +164,81 @@ describe("ChatPage session creation", () => {
         "session-2",
         "session-1",
       ]);
+    } finally {
+      promptSpy.mockRestore();
+    }
+  });
+
+  it("keeps the current session selected after creating a new one", async () => {
+    const now = new Date().toISOString();
+    const createdSessionDto = {
+      id: "session-2",
+      title: "Session 2",
+      description: "",
+      status: "active" as const,
+      createdAt: now,
+      updatedAt: now,
+    };
+    let resolveCreate: ((value: typeof createdSessionDto) => void) | undefined;
+    createSessionMock.mockImplementation(
+      () =>
+        new Promise<typeof createdSessionDto>((resolve) => {
+          resolveCreate = resolve;
+        }),
+    );
+
+    const promptSpy = vi.spyOn(window, "prompt").mockReturnValue("Session 2");
+
+    try {
+      const user = userEvent.setup();
+      renderChatPage();
+
+      const initialUpdateCalls = updatePreferencesMock.mock.calls.length;
+
+      const activeHeading = await screen.findByRole("heading", {
+        level: 2,
+        name: "Session 1",
+      });
+      expect(activeHeading).toBeInTheDocument();
+
+      const addButton = await screen.findByRole("button", { name: "New session" });
+      await user.click(addButton);
+
+      sessionCreatedHandlers.forEach((handler) => handler(createdSessionDto));
+
+      resolveCreate?.(createdSessionDto);
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole("heading", { level: 2, name: "Session 1" }),
+        ).toBeInTheDocument(),
+      );
+
+      const basePreferences = {
+        chat: {
+          selectedSessionId: "session-1",
+          sessionSettings: {},
+          collapsedPanels: {},
+          templates: {},
+        },
+      };
+
+      const newSelectionResults = updatePreferencesMock.mock.calls
+        .slice(initialUpdateCalls)
+        .map(([updater]) => {
+          if (typeof updater !== "function") {
+            return null;
+          }
+          const input = {
+            ...basePreferences,
+            chat: { ...basePreferences.chat },
+          };
+          const result = updater(input);
+          const next = result ?? input;
+          return next.chat?.selectedSessionId ?? null;
+        });
+
+      expect(newSelectionResults).not.toContain("session-2");
     } finally {
       promptSpy.mockRestore();
     }
