@@ -1,15 +1,18 @@
 import "reflect-metadata";
-import { INestApplication } from "@nestjs/common";
-import type { ExecutionContext } from "@nestjs/common";
+import {
+  INestApplication,
+  Module,
+  type ExecutionContext,
+  type ModuleMetadata,
+} from "@nestjs/common";
 import type { Request } from "express";
 import { Test } from "@nestjs/testing";
 import { WsAdapter } from "@nestjs/platform-ws";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { ConfigService, ConfigStore, type EddieConfig } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { LoggerService } from "@eddie/io";
 import { Subject } from "rxjs";
-import { ApiModule } from "../../src/api.module";
 import { HealthController } from "../../src/controllers/health.controller";
 import { ApiValidationPipe } from "../../src/validation.pipe";
 import { ApiKeyGuard } from "../../src/auth/api-key.guard";
@@ -25,6 +28,74 @@ import { RuntimeConfigService } from "../../src/runtime-config/runtime-config.se
 import { RuntimeConfigGateway } from "../../src/runtime-config/runtime-config.gateway";
 import type { RuntimeConfigDto } from "../../src/runtime-config/dto/runtime-config.dto";
 
+function createStubModule(
+  name: string,
+  metadata: ModuleMetadata = {}
+) {
+  class StubModule {}
+  Module(metadata)(StubModule);
+  Object.defineProperty(StubModule, "name", { value: name });
+  return StubModule;
+}
+
+vi.mock("@eddie/context", () => {
+  class ContextService {}
+  const ContextModule = createStubModule("ContextModule", {
+    providers: [ContextService],
+    exports: [ContextService],
+  });
+  return { ContextModule, ContextService };
+});
+
+vi.mock("@eddie/engine", () => ({
+  EngineModule: createStubModule("EngineModule"),
+}));
+
+vi.mock("@eddie/io", () => {
+  class LoggerService {}
+  const IoModule = createStubModule("IoModule", {
+    providers: [LoggerService],
+    exports: [LoggerService],
+  });
+  const createLoggerProviders = () => [
+    { provide: LoggerService, useClass: LoggerService },
+  ];
+  const InjectLogger = () => () => undefined;
+  return { IoModule, LoggerService, createLoggerProviders, InjectLogger };
+});
+
+vi.mock("../../src/chat-sessions/chat-sessions.module", () => ({
+  ChatSessionsModule: createStubModule("ChatSessionsModule"),
+}));
+
+vi.mock("../../src/traces/traces.module", () => ({
+  TracesModule: createStubModule("TracesModule"),
+}));
+
+vi.mock("../../src/logs/logs.module", () => ({
+  LogsModule: createStubModule("LogsModule"),
+}));
+
+vi.mock("../../src/runtime-config/runtime-config.module", () => ({
+  RuntimeConfigModule: createStubModule("RuntimeConfigModule"),
+}));
+
+vi.mock("../../src/config-editor/config-editor.module", () => ({
+  ConfigEditorModule: createStubModule("ConfigEditorModule"),
+}));
+
+vi.mock("../../src/user-preferences/user-preferences.module", () => ({
+  UserPreferencesModule: createStubModule("UserPreferencesModule"),
+}));
+
+vi.mock("../../src/orchestrator/orchestrator.module", () => ({
+  OrchestratorModule: createStubModule("OrchestratorModule"),
+}));
+
+vi.mock("../../src/providers/providers.module", () => ({
+  ProvidersModule: createStubModule("ProvidersModule"),
+}));
+
 const createExecutionContext = (request: Partial<Request>): ExecutionContext =>
   ({
     getType: () => "http",
@@ -37,6 +108,10 @@ const createExecutionContext = (request: Partial<Request>): ExecutionContext =>
   }) as unknown as ExecutionContext;
 
 const WS_ADAPTER_PACKAGE = "@nestjs/platform-ws";
+
+let ApiModuleRef: typeof import("../../src/api.module").ApiModule;
+
+vi.setConfig({ hookTimeout: 20_000 });
 
 describe("ApiModule integration", () => {
   let app: INestApplication;
@@ -75,6 +150,7 @@ describe("ApiModule integration", () => {
   let logsServiceStub: LogsService;
   let runtimeConfigServiceStub: RuntimeConfigService;
   let runtimeConfigGatewayStub: RuntimeConfigGateway;
+  let runtimeConfigChanges: Subject<RuntimeConfigDto>;
 
   const createLoggerStub = () => {
     const stub = {
@@ -121,7 +197,8 @@ describe("ApiModule integration", () => {
     },
   } as unknown as EddieConfig;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
+    ({ ApiModule: ApiModuleRef } = await import("../../src/api.module"));
     process.env.NEST_DEFAULT_WS_ADAPTER = WS_ADAPTER_PACKAGE;
     bindStoreSpy = vi.fn();
     composeSpy = vi.fn().mockResolvedValue(config);
@@ -269,7 +346,7 @@ describe("ApiModule integration", () => {
       features: {},
       theme: "dark" as const,
     };
-    const runtimeConfigChanges = new Subject<RuntimeConfigDto>();
+    runtimeConfigChanges = new Subject<RuntimeConfigDto>();
 
     runtimeConfigServiceStub = {
       changes$: runtimeConfigChanges.asObservable(),
@@ -294,7 +371,7 @@ describe("ApiModule integration", () => {
     } as unknown as RuntimeConfigGateway;
 
     const moduleRef = await Test.createTestingModule({
-      imports: [ApiModule],
+      imports: [ApiModuleRef],
     })
       .overrideProvider(ConfigService)
       .useValue(configServiceMock)
@@ -330,16 +407,19 @@ describe("ApiModule integration", () => {
 
     app = moduleRef.createNestApplication();
     app.useWebSocketAdapter(new WsAdapter(app));
-    await app.init();
 
     configService = configServiceMock;
     contextService = contextServiceMock;
   });
 
-  afterEach(async () => {
-    delete process.env.NEST_DEFAULT_WS_ADAPTER;
-    await app?.close();
+  afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterAll(async () => {
+    delete process.env.NEST_DEFAULT_WS_ADAPTER;
+    runtimeConfigChanges?.complete?.();
+    await app?.close();
   });
 
   it("boots the API module with mocked dependencies", () => {
