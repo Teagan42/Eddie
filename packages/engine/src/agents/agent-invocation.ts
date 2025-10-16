@@ -11,12 +11,6 @@ import type { ToolRegistryFactory } from "@eddie/tools";
 
 const EMPTY_CONTEXT: PackedContext = { files: [], totalBytes: 0, text: "" };
 
-export type {
-  AgentInvocationOptions,
-  AgentInvocationRuntimeDetails,
-  AgentSpawnHandler,
-} from "@eddie/types";
-
 type AgentInvocationSpawnHandler = AgentSpawnHandler<AgentInvocation>;
 
 export class AgentInvocation {
