@@ -1,32 +1,32 @@
-import "reflect-metadata";
-import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
-import {
-  AgentStreamEvent,
-  type ChatMessage,
-  type PackedContext,
-  type ProviderAdapter,
-  type StreamEvent,
-} from "@eddie/types";
 import {
   AgentInvocationFactory,
   AgentOrchestratorService,
-  type AgentRuntimeCatalog,
-  type AgentRuntimeDescriptor,
   type AgentRuntimeOptions,
   type MetricsService,
-  type TranscriptCompactor,
   type TranscriptCompactionWorkflow,
+  type TranscriptCompactor,
 } from "@eddie/engine";
-import { ToolRegistryFactory } from "@eddie/tools";
+import { HookBus, blockHook } from "@eddie/hooks";
 import {
   JsonlWriterService,
   LoggerService,
   StreamRendererService,
 } from "@eddie/io";
-import { HookBus, HOOK_EVENTS, blockHook } from "@eddie/hooks";
-import { TemplateRendererService } from "@eddie/templates";
-import { TemplateRuntimeService } from "@eddie/templates";
+import { TemplateRendererService, TemplateRuntimeService } from "@eddie/templates";
+import { ToolRegistryFactory } from "@eddie/tools";
+import {
+  AgentRuntimeCatalog,
+  AgentRuntimeDescriptor,
+  AgentStreamEvent,
+  HOOK_EVENTS,
+  type ChatMessage,
+  type PackedContext,
+  type ProviderAdapter,
+  type StreamEvent,
+} from "@eddie/types";
 import type { Logger } from "pino";
+import "reflect-metadata";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 class RecordingStreamRendererService extends StreamRendererService {
   readonly events: StreamEvent[] = [];
@@ -591,33 +591,33 @@ describe("AgentOrchestratorService", () => {
           id: "manager",
           systemPrompt: "coordinate",
           tools: [
-          {
-            name: "echo",
-            description: "echo tool",
-            jsonSchema: {
-              type: "object",
-              properties: { text: { type: "string" } },
-              required: ["text"],
-            },
-            outputSchema: {
-              $id: "test.tools.echo.result",
-              type: "object",
-              properties: {
-                text: { type: "string" },
+            {
+              name: "echo",
+              description: "echo tool",
+              jsonSchema: {
+                type: "object",
+                properties: { text: { type: "string" } },
+                required: ["text"],
               },
-              required: ["text"],
-              additionalProperties: false,
+              outputSchema: {
+                $id: "test.tools.echo.result",
+                type: "object",
+                properties: {
+                  text: { type: "string" },
+                },
+                required: ["text"],
+                additionalProperties: false,
+              },
+              async handler(args) {
+                const text = String((args as { text: string }).text);
+                const payload = `echo:${text}`;
+                return {
+                  schema: "test.tools.echo.result",
+                  content: payload,
+                  data: { text: payload },
+                };
+              },
             },
-            async handler(args) {
-              const text = String((args as { text: string }).text);
-              const payload = `echo:${text}`;
-              return {
-                schema: "test.tools.echo.result",
-                content: payload,
-                data: { text: payload },
-              };
-            },
-          },
           ],
         },
         prompt: "delegate work",
