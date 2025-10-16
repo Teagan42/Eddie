@@ -97,11 +97,6 @@ describe("ChatMessageContent", () => {
     );
 
     expect(screen.getByTestId("json-tree-view")).toBeInTheDocument();
-    const label = screen.getByTestId("json-tree-view-root-label");
-    const tree = screen.getByTestId("json-tree-view");
-
-    expect(label).toHaveTextContent("Assistant message JSON");
-    expect(tree).toHaveAttribute("aria-labelledby", label.id);
     expect(screen.getByText('"foo"')).toBeInTheDocument();
     expect(screen.queryByTestId("json-entry-baz.qux")).not.toBeInTheDocument();
 

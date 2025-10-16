@@ -25,6 +25,7 @@ describe("LogsForwarderService", () => {
       event: {
         phase: "tool_call",
         sessionId: "s1",
+        agent: { id: "agent-123" },
         data: {
           id: "t1",
           name: "search",
@@ -39,9 +40,11 @@ describe("LogsForwarderService", () => {
       event: {
         phase: "tool_result",
         sessionId: "s1",
+        agent: { id: "agent-123" },
         data: {
           id: "t1",
           name: "search",
+          arguments: { query: "hi", page: 2 },
           result: { items: [] },
         },
       },
@@ -60,6 +63,7 @@ describe("LogsForwarderService", () => {
       name: "search",
       arguments: { query: "hi" },
       timestamp: expect.any(String),
+      agentId: "agent-123",
     });
 
     const [ completeCommand ] = execute.mock.calls[1] ?? [];
@@ -70,6 +74,8 @@ describe("LogsForwarderService", () => {
       name: "search",
       result: { items: [] },
       timestamp: expect.any(String),
+      agentId: "agent-123",
+      arguments: { query: "hi", page: 2 },
     });
   });
 });

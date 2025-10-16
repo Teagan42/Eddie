@@ -136,7 +136,12 @@ export class LogsForwarderService implements OnModuleInit, OnModuleDestroy {
         // Normalize tool payload so sessionId/id/name are top-level for the UI
         const raw = this.isPlainObject(event.event) ? (event.event as Record<string, unknown>) : { value: event.event };
         const data = this.isPlainObject(raw.data) ? (raw.data as Record<string, unknown>) : undefined;
-        const sessionId = (raw.sessionId as string) ?? (payloadContext.sessionId as string) ?? (raw.agent && (raw.agent as any).id) ?? undefined;
+        const agentId = this.extractAgentId(payloadContext, raw, data);
+        const sessionId =
+          (raw.sessionId as string)
+          ?? (payloadContext.sessionId as string)
+          ?? (raw.agent && (raw.agent as any).id)
+          ?? undefined;
         const id = (data && (data.id as string)) ?? (raw.id as string) ?? undefined;
         const name = (data && (data.name as string)) ?? (raw.name as string) ?? undefined;
         const args = (data && (data.arguments ?? data.args)) ?? (raw.arguments ?? raw.args) ?? undefined;
@@ -165,6 +170,7 @@ export class LogsForwarderService implements OnModuleInit, OnModuleDestroy {
               name: name ?? undefined,
               arguments: args ?? null,
               timestamp,
+              agentId: agentId ?? null,
             })
           );
         } else {
@@ -175,6 +181,8 @@ export class LogsForwarderService implements OnModuleInit, OnModuleDestroy {
               name: name ?? undefined,
               result: result ?? null,
               timestamp,
+              agentId: agentId ?? null,
+              arguments: args === undefined ? undefined : args,
             })
           );
         }
@@ -226,6 +234,58 @@ export class LogsForwarderService implements OnModuleInit, OnModuleDestroy {
     } catch {
       // swallow errors to keep log forwarding resilient
     }
+  }
+
+  private extractAgentId(
+    ...sources: Array<Record<string, unknown> | undefined>
+  ): string | undefined {
+    for (const source of sources) {
+      const candidate = this.pickAgentIdFrom(source);
+      if (candidate) {
+        return candidate;
+      }
+    }
+
+    return undefined;
+  }
+
+  private pickAgentIdFrom(
+    source?: Record<string, unknown>,
+    allowId = false,
+  ): string | undefined {
+    if (!source) {
+      return undefined;
+    }
+
+    const direct = this.normalizeAgentIdValue(
+      source.agentId ?? source.agent_id ?? (allowId ? source.id : undefined)
+    );
+    if (direct) {
+      return direct;
+    }
+
+    const agent = this.isPlainObject(source.agent) ? (source.agent as Record<string, unknown>) : undefined;
+    const agentCandidate = this.pickAgentIdFrom(agent, true);
+    if (agentCandidate) {
+      return agentCandidate;
+    }
+
+    const metadata = this.isPlainObject(source.metadata) ? (source.metadata as Record<string, unknown>) : undefined;
+    const metadataCandidate = this.pickAgentIdFrom(metadata);
+    if (metadataCandidate) {
+      return metadataCandidate;
+    }
+
+    return undefined;
+  }
+
+  private normalizeAgentIdValue(value: unknown): string | undefined {
+    if (typeof value !== "string") {
+      return undefined;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
   }
 
 }
