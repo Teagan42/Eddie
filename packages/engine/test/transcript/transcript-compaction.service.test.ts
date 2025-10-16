@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentInvocation } from "../../src/agents/agent-invocation";
-import type { AgentRuntimeDescriptor } from "@eddie/types";
-import type { AgentLifecyclePayload } from "@eddie/hooks";
+import { AgentLifecyclePayload, HOOK_EVENTS, type AgentRuntimeDescriptor } from "@eddie/types";
 import type { EddieConfig, TranscriptCompactorConfig } from "@eddie/types";
 import {
   createTranscriptCompactor,
@@ -13,7 +12,6 @@ import type {
   TranscriptCompactionPlan,
 } from "../../src/transcript-compactors";
 import { TranscriptCompactionService } from "../../src/transcript/transcript-compaction.service";
-import { HOOK_EVENTS } from "@eddie/hooks";
 
 describe("TranscriptCompactionService", () => {
   beforeEach(() => {
