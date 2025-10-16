@@ -11,6 +11,7 @@ const getMetadataMock = vi.fn();
 const catalogMock = vi.fn();
 
 let toolCallHandler: ((payload: unknown) => void) | null = null;
+let toolResultHandler: ((payload: unknown) => void) | null = null;
 
 class ResizeObserverMock {
   observe(): void {}
@@ -70,7 +71,10 @@ vi.mock("@/api/api-provider", () => ({
           toolCallHandler = handler;
           return () => {};
         }),
-        onToolResult: vi.fn().mockReturnValue(() => {}),
+        onToolResult: vi.fn((handler: (payload: unknown) => void) => {
+          toolResultHandler = handler;
+          return () => {};
+        }),
       },
     },
   }),
@@ -91,6 +95,7 @@ describe("ChatPage tool metadata merging", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     toolCallHandler = null;
+    toolResultHandler = null;
 
     const timestamp = new Date().toISOString();
     listSessionsMock.mockResolvedValue([
@@ -172,6 +177,88 @@ describe("ChatPage tool metadata merging", () => {
       ]);
       expect(snapshot?.toolInvocations?.[0]?.metadata?.arguments).toBe("query: cats");
     });
+  });
+
+  it("merges orchestrator metadata from realtime tool events", async () => {
+    const user = userEvent.setup();
+    const timestamp = new Date().toISOString();
+
+    renderChatPage();
+
+    await waitFor(() => expect(toolCallHandler).toBeTypeOf("function"));
+    await waitFor(() => expect(toolResultHandler).toBeTypeOf("function"));
+
+    const toolPanelHeading = await screen.findByRole("heading", { name: /tool call tree/i });
+    const toolPanel = toolPanelHeading.closest("section");
+    expect(toolPanel).toBeInstanceOf(HTMLElement);
+    const toolPanelQueries = within(toolPanel as HTMLElement);
+
+    await act(async () => {
+      toolCallHandler?.({
+        sessionId: "session-1",
+        id: "call-1",
+        orchestratorMetadata: {
+          sessionId: "session-1",
+          contextBundles: [],
+          agentHierarchy: [],
+          toolInvocations: [
+            {
+              id: "call-1",
+              name: "plan",
+              status: "running",
+              metadata: { createdAt: timestamp },
+              children: [
+                {
+                  id: "child-1",
+                  name: "search",
+                  status: "running",
+                  metadata: { createdAt: timestamp },
+                  children: [],
+                },
+              ],
+            },
+          ],
+        },
+      });
+    });
+
+    await waitFor(() => expect(toolPanelQueries.getByText("plan")).toBeInTheDocument());
+
+    const toggleButton = toolPanelQueries.getByRole("button", {
+      name: /toggle plan children/i,
+    });
+    await user.click(toggleButton);
+
+    await waitFor(() => expect(toolPanelQueries.getByText("search")).toBeInTheDocument());
+
+    await act(async () => {
+      toolResultHandler?.({
+        sessionId: "session-1",
+        id: "call-1",
+        orchestratorMetadata: {
+          sessionId: "session-1",
+          contextBundles: [],
+          agentHierarchy: [],
+          toolInvocations: [
+            {
+              id: "call-1",
+              name: "plan",
+              status: "completed",
+              metadata: {
+                createdAt: timestamp,
+                result: "metadata result",
+              },
+              children: [],
+            },
+          ],
+        },
+      });
+    });
+
+    await waitFor(() => expect(toolPanelQueries.getByText("COMPLETED")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(toolPanelQueries.getByText("Result: metadata result")).toBeInTheDocument(),
+    );
   });
 
   it("filters tool tree to the selected agent lineage until toggled off", async () => {

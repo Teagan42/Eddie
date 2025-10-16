@@ -176,6 +176,23 @@ function getOrchestratorMetadataBase(
   return current ?? createEmptyOrchestratorMetadata(sessionId);
 }
 
+function mergeBaseWithRealtimeMetadata(
+  base: OrchestratorMetadataDto,
+  sessionId: string,
+  realtime: OrchestratorMetadataDto | null,
+): OrchestratorMetadataDto {
+  if (!realtime) {
+    return base;
+  }
+
+  return (
+    mergeOrchestratorMetadata(base, {
+      ...realtime,
+      sessionId: realtime.sessionId ?? sessionId,
+    }) ?? base
+  );
+}
+
 // Small runtime type for realtime tool events forwarded over the "tools" socket.
 // We keep this conservative and shallow: server-side sanitization already
 // stringifies large values, so the client only needs to read common fields.
@@ -187,6 +204,7 @@ type ToolRealtimePayload = {
   arguments?: string | Record<string, unknown>;
   result?: string | Record<string, unknown>;
   timestamp?: string | null;
+  orchestratorMetadata?: OrchestratorMetadataDto | null;
 };
 
 type ToolRealtimeMetadataResult = Partial<
@@ -196,6 +214,17 @@ type ToolRealtimeMetadataResult = Partial<
 
 type ToolInvocationNode = OrchestratorMetadataDto['toolInvocations'][number];
 type AgentHierarchyNode = OrchestratorMetadataDto['agentHierarchy'][number];
+
+function mergeIncomingToolNodes(
+  metadataNodes: ToolInvocationNode[] | undefined,
+  node: ToolInvocationNode,
+): ToolInvocationNode[] {
+  if (!metadataNodes || metadataNodes.length === 0) {
+    return [node];
+  }
+
+  return mergeToolInvocationNodes(metadataNodes, [node]);
+}
 
 let toolInvocationIdCounter = 0;
 
@@ -954,10 +983,26 @@ export function ChatPage(): JSX.Element {
             applyOrchestratorMetadataUpdate(sessionId, (current) => {
               const base = getOrchestratorMetadataBase(current, sessionId);
 
+              const realtimeMetadata = normalizeOrchestratorMetadata(
+                p.orchestratorMetadata ?? null,
+              );
+              const baseWithRealtime = mergeBaseWithRealtimeMetadata(
+                base,
+                sessionId,
+                realtimeMetadata,
+              );
+
               const id = coerceToolInvocationId(p.id, 'call');
-              const name = String(p.name ?? 'unknown');
-              const status = (p.status ?? ('pending' as ToolCallStatusDto)) as ToolCallStatusDto;
-              const createdAt = p.timestamp ?? new Date().toISOString();
+              const metadataNode =
+                realtimeMetadata?.toolInvocations?.find((node) => node.id === id) ?? null;
+              const name = metadataNode?.name ?? String(p.name ?? 'unknown');
+              const status = (metadataNode?.status ??
+                (p.status ?? ('pending' as ToolCallStatusDto))) as ToolCallStatusDto;
+              const createdAt =
+                p.timestamp ??
+                (typeof metadataNode?.metadata?.createdAt === 'string'
+                  ? (metadataNode.metadata.createdAt as string)
+                  : new Date().toISOString());
               const argMeta =
                 typeof p.arguments === 'string'
                   ? { arguments: p.arguments, command: p.arguments, preview: p.arguments }
@@ -969,25 +1014,58 @@ export function ChatPage(): JSX.Element {
                     };
                   })();
 
+              const mergedMetadata: Record<string, unknown> = {
+                ...(metadataNode?.metadata ?? {}),
+              };
+              for (const [key, value] of Object.entries(argMeta)) {
+                if (value !== undefined && value !== null) {
+                  mergedMetadata[key] = value;
+                }
+              }
+              if (createdAt) {
+                mergedMetadata.createdAt = createdAt;
+              }
+
               const node = normalizeToolInvocationNode({
                 id,
                 name,
                 status,
-                metadata: {
-                  ...argMeta,
-                  createdAt,
-                },
-                children: [],
+                metadata: mergedMetadata as ToolInvocationNode['metadata'],
+                children: metadataNode?.children ?? [],
               });
 
-              const nextToolInvocations = mergeToolInvocationNodes(
-                base.toolInvocations ?? [],
-                [node],
+              const incomingNodes = mergeIncomingToolNodes(
+                realtimeMetadata?.toolInvocations,
+                node,
               );
 
+              const nextToolInvocations = mergeToolInvocationNodes(
+                baseWithRealtime.toolInvocations ?? [],
+                incomingNodes,
+              );
+
+              const contextBundlesUpdate = Array.isArray(realtimeMetadata?.contextBundles)
+                ? realtimeMetadata?.contextBundles ?? []
+                : undefined;
+              const agentHierarchyUpdate = Array.isArray(realtimeMetadata?.agentHierarchy)
+                ? realtimeMetadata?.agentHierarchy ?? []
+                : undefined;
+              const mergedAgentHierarchy = agentHierarchyUpdate
+                ? mergeAgentHierarchyRuntimeDetails(
+                  baseWithRealtime.agentHierarchy ?? [],
+                  agentHierarchyUpdate,
+                )
+                : baseWithRealtime.agentHierarchy ?? [];
+
+              const capturedAt =
+                realtimeMetadata?.capturedAt ?? createdAt ?? baseWithRealtime.capturedAt;
+
               return {
-                ...base,
+                ...baseWithRealtime,
                 toolInvocations: nextToolInvocations,
+                contextBundles: contextBundlesUpdate ?? baseWithRealtime.contextBundles ?? [],
+                agentHierarchy: mergedAgentHierarchy,
+                capturedAt,
               };
             });
           } catch {
@@ -1004,14 +1082,29 @@ export function ChatPage(): JSX.Element {
             applyOrchestratorMetadataUpdate(sessionId, (current) => {
               const base = getOrchestratorMetadataBase(current, sessionId);
 
+              const realtimeMetadata = normalizeOrchestratorMetadata(
+                p.orchestratorMetadata ?? null,
+              );
+              const baseWithRealtime = mergeBaseWithRealtimeMetadata(
+                base,
+                sessionId,
+                realtimeMetadata,
+              );
+
               const resultRecord =
                 typeof p.result === 'object' && p.result !== null
                   ? (p.result as ToolRealtimeMetadataResult)
                   : undefined;
               const id = coerceToolInvocationId(p.id, 'call');
-              const status = (p.status ??
-                ('completed' as ToolCallStatusDto)) as ToolCallStatusDto;
-              const createdAt = p.timestamp ?? new Date().toISOString();
+              const metadataNode =
+                realtimeMetadata?.toolInvocations?.find((node) => node.id === id) ?? null;
+              const status = (metadataNode?.status ??
+                (p.status ?? ('completed' as ToolCallStatusDto))) as ToolCallStatusDto;
+              const createdAt =
+                p.timestamp ??
+                (typeof metadataNode?.metadata?.createdAt === 'string'
+                  ? (metadataNode.metadata.createdAt as string)
+                  : new Date().toISOString());
               const resultMeta =
                 typeof p.result === 'string'
                   ? { result: p.result }
@@ -1024,43 +1117,61 @@ export function ChatPage(): JSX.Element {
 
               const node = normalizeToolInvocationNode({
                 id,
-                name: String(p.name ?? 'unknown'),
+                name: metadataNode?.name ?? String(p.name ?? 'unknown'),
                 status,
                 metadata: {
-                  ...resultMeta,
-                  preview: previewFromArgs ?? summarizeObject(p.result) ?? undefined,
+                  ...(metadataNode?.metadata ?? {}),
+                  ...Object.fromEntries(
+                    Object.entries(resultMeta).filter(([, value]) => value !== undefined && value !== null),
+                  ),
+                  preview:
+                    previewFromArgs ??
+                    summarizeObject(p.result) ??
+                    (typeof metadataNode?.metadata?.preview === 'string'
+                      ? (metadataNode.metadata.preview as string)
+                      : undefined),
                   arguments:
                     typeof p.arguments === 'string'
                       ? p.arguments
-                      : (summarizeObject(p.arguments) ?? undefined),
+                      : (summarizeObject(p.arguments) ?? metadataNode?.metadata?.arguments ?? undefined),
                   createdAt,
                 },
-                children: [],
+                children: metadataNode?.children ?? [],
               });
 
-              const nextToolInvocations = mergeToolInvocationNodes(
-                base.toolInvocations ?? [],
-                [node],
+              const incomingNodes = mergeIncomingToolNodes(
+                realtimeMetadata?.toolInvocations,
+                node,
               );
-              const contextBundlesUpdate = Array.isArray(resultRecord?.contextBundles)
-                ? resultRecord.contextBundles ?? []
-                : undefined;
-              const agentHierarchyUpdate = Array.isArray(resultRecord?.agentHierarchy)
-                ? resultRecord.agentHierarchy ?? []
-                : undefined;
+
+              const nextToolInvocations = mergeToolInvocationNodes(
+                baseWithRealtime.toolInvocations ?? [],
+                incomingNodes,
+              );
+              const contextBundlesUpdate = Array.isArray(realtimeMetadata?.contextBundles)
+                ? realtimeMetadata?.contextBundles ?? []
+                : Array.isArray(resultRecord?.contextBundles)
+                  ? resultRecord.contextBundles ?? []
+                  : undefined;
+              const agentHierarchyUpdate = Array.isArray(realtimeMetadata?.agentHierarchy)
+                ? realtimeMetadata?.agentHierarchy ?? []
+                : Array.isArray(resultRecord?.agentHierarchy)
+                  ? resultRecord.agentHierarchy ?? []
+                  : undefined;
               const mergedAgentHierarchy = agentHierarchyUpdate
                 ? mergeAgentHierarchyRuntimeDetails(
-                  base.agentHierarchy ?? [],
+                  baseWithRealtime.agentHierarchy ?? [],
                   agentHierarchyUpdate,
                 )
-                : base.agentHierarchy ?? [];
+                : baseWithRealtime.agentHierarchy ?? [];
 
               return {
-                ...base,
+                ...baseWithRealtime,
                 toolInvocations: nextToolInvocations,
-                contextBundles: contextBundlesUpdate ?? base.contextBundles ?? [],
+                contextBundles: contextBundlesUpdate ?? baseWithRealtime.contextBundles ?? [],
                 agentHierarchy: mergedAgentHierarchy,
-                capturedAt: createdAt ?? base.capturedAt,
+                capturedAt:
+                  realtimeMetadata?.capturedAt ?? createdAt ?? baseWithRealtime.capturedAt,
               };
             });
           } catch {
