@@ -19,6 +19,15 @@ function extractJobSection(jobId: string): string {
   return rest.slice(0, jobId.length + nextJobOffset);
 }
 
+function expectDiffProtectedCommit(jobSection: string, fileName: string): void {
+  const expectedFileNameDeclaration = `fileName=${fileName}`;
+  const expectedStatusCheck =
+    'git diff --name-only --diff-filter=ACMR | grep -q "$fileName"';
+
+  expect(jobSection).toContain(expectedFileNameDeclaration);
+  expect(jobSection).toContain(expectedStatusCheck);
+}
+
 describe('ci workflow configuration', () => {
   it('defines a combined build-test job', () => {
     expect(workflow).toContain('build-test:');
@@ -38,25 +47,27 @@ describe('ci workflow configuration', () => {
     expect(workflow).toMatch(/results\["\$job"\]/);
   });
 
-  it('regenerates and pushes third-party notices', () => {
-    const jobSection = extractJobSection('sync-third-party-licenses:');
+  it('regenerates and pushes the config schema diagram', () => {
+    const jobSection = extractJobSection('docs-config-schema:');
 
-    expect(jobSection).toMatch(/npm run licenses:write/);
+    expect(jobSection).toMatch(/npm run docs:config-schema(\n|\s)/);
+    expectDiffProtectedCommit(
+      jobSection,
+      './docs/generated/config-schema-diagram.md',
+    );
     expect(jobSection).toMatch(
-      /git commit --all --message "chore: update third-party notices"/
+      /git commit --all --message "chore: update config schema diagram"/
     );
     expect(jobSection).toMatch(/git push/);
   });
 
-  it('regenerates and pushes the config schema diagram', () => {
-    const jobSection = extractJobSection('docs-config-schema:');
-    const expectedStatusCheck =
-      'git status --porcelain=./docs/generated/config-schema-diagram.md';
+  it('regenerates and pushes third-party notices', () => {
+    const jobSection = extractJobSection('sync-third-party-licenses:');
 
-    expect(jobSection).toMatch(/npm run docs:config-schema(\n|\s)/);
-    expect(jobSection).toContain(expectedStatusCheck);
+    expect(jobSection).toMatch(/npm run licenses:write/);
+    expectDiffProtectedCommit(jobSection, 'THIRD_PARTY_NOTICES.md');
     expect(jobSection).toMatch(
-      /git commit --all --message "chore: update config schema diagram"/
+      /git commit --all --message "chore: update third-party notices"/
     );
     expect(jobSection).toMatch(/git push/);
   });
