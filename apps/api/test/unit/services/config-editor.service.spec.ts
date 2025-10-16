@@ -151,6 +151,18 @@ describe("ConfigEditorService", () => {
     expect(hotReloadService.persist).toHaveBeenCalledWith("contents", "yaml");
   });
 
+  it("does not forward a target path to the hot reload service", async () => {
+    const snapshot = createSnapshot();
+    hotReloadService.persist.mockImplementation((...args) => {
+      if (args.length !== 2) {
+        throw new Error(`Expected 2 arguments but received ${args.length}`);
+      }
+      return Promise.resolve(snapshot);
+    });
+
+    await expect(service.save("contents", "yaml")).resolves.toBe(snapshot);
+  });
+
   it("falls back to a friendly message when saving fails", async () => {
     hotReloadService.persist.mockRejectedValue("nope");
 
