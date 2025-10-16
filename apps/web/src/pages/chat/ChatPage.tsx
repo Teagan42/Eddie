@@ -64,6 +64,8 @@ type BadgeColor = ComponentProps<typeof Badge>['color'];
 const MESSAGE_CONTAINER_CLASS =
   'space-y-3 rounded-2xl border border-white/10 bg-slate-950/70 p-5 backdrop-blur-xl';
 
+const REISSUE_COMMAND_BUTTON_COLOR = 'amber';
+
 const ORCHESTRATOR_METADATA_QUERY_KEY = 'orchestrator-metadata' as const;
 
 const getOrchestratorMetadataQueryKey = (sessionId: string | null) =>
@@ -1740,6 +1742,7 @@ export function ChatPage(): JSX.Element {
                                 <IconButton
                                   size="2"
                                   variant="soft"
+                                  color={REISSUE_COMMAND_BUTTON_COLOR}
                                   onClick={() => handleReissueCommand(message)}
                                   aria-label="Re-issue command"
                                 >
