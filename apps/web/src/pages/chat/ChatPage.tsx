@@ -829,6 +829,15 @@ export function ChatPage(): JSX.Element {
     [updatePreferences],
   );
 
+  const setSelectedSessionPreference = useCallback(
+    (nextSessionId: string | null) => {
+      const normalized = nextSessionId ?? null;
+      selectedSessionIdRef.current = normalized;
+      applyChatUpdate((chat) => ({ ...chat, selectedSessionId: normalized }));
+    },
+    [applyChatUpdate],
+  );
+
   const selectedSessionId = useMemo(() => {
     if (preferences.chat?.selectedSessionId) {
       return preferences.chat.selectedSessionId;
@@ -840,9 +849,9 @@ export function ChatPage(): JSX.Element {
 
   useEffect(() => {
     if (!preferences.chat?.selectedSessionId && sessions[0]?.id) {
-      applyChatUpdate((chat) => ({ ...chat, selectedSessionId: sessions[0]!.id }));
+      setSelectedSessionPreference(sessions[0]!.id);
     }
-  }, [applyChatUpdate, preferences.chat?.selectedSessionId, sessions]);
+  }, [preferences.chat?.selectedSessionId, sessions, setSelectedSessionPreference]);
 
   useEffect(() => {
     setComposerValue('');
@@ -904,7 +913,7 @@ export function ChatPage(): JSX.Element {
         queryClient.removeQueries({ queryKey: ['chat-session', sessionId, 'messages'] });
         queryClient.removeQueries({ queryKey: ['chat-sessions', sessionId, 'messages'] });
         if (selectedSessionIdRef.current === sessionId) {
-          setSelectedSessionId(null);
+          setSelectedSessionPreference(null);
         }
         setContextBundlesBySession((previous) => removeSessionKey(previous, sessionId));
         setToolInvocationsBySession((previous) => removeSessionKey(previous, sessionId));
@@ -1093,7 +1102,13 @@ export function ChatPage(): JSX.Element {
     return () => {
       unsubscribes.forEach((unsubscribe) => unsubscribe());
     };
-  }, [api, applyOrchestratorMetadataUpdate, invalidateOrchestratorMetadata, queryClient]);
+  }, [
+    api,
+    applyOrchestratorMetadataUpdate,
+    invalidateOrchestratorMetadata,
+    queryClient,
+    setSelectedSessionPreference,
+  ]);
 
   const { data: orchestratorQueryData, dataUpdatedAt: orchestratorQueryUpdatedAt } = useQuery({
     queryKey: getOrchestratorMetadataQueryKey(selectedSessionId),
@@ -1155,7 +1170,7 @@ export function ChatPage(): JSX.Element {
       queryClient.setQueryData<ChatSessionDto[]>(['chat-sessions'], (previous = []) =>
         mergeSessionList(previous, session),
       );
-      applyChatUpdate((chat) => ({ ...chat, selectedSessionId: session.id }));
+      setSelectedSessionPreference(session.id);
     },
     onError: () => {
       setAutoSessionAttemptState({ status: 'failed', lastFailureAt: Date.now() });
@@ -1366,9 +1381,9 @@ export function ChatPage(): JSX.Element {
       if (sessionId === selectedSessionId) {
         return;
       }
-      applyChatUpdate((chat) => ({ ...chat, selectedSessionId: sessionId }));
+      setSelectedSessionPreference(sessionId);
     },
-    [applyChatUpdate, selectedSessionId],
+    [selectedSessionId, setSelectedSessionPreference],
   );
 
   const composerUnavailable = !apiKey || !selectedSessionId;
