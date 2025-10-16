@@ -5,6 +5,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildToolInvocationFixture, createChatPageRenderer } from "./test-utils";
 import type { OrchestratorMetadataDto } from "@eddie/api-client";
 
+async function ensureToggleExpanded(
+  button: HTMLElement,
+  user: ReturnType<typeof userEvent.setup>,
+): Promise<void> {
+  if (button.getAttribute("aria-expanded") === "false") {
+    await user.click(button);
+  }
+
+  expect(button).toHaveAttribute("aria-expanded", "true");
+}
+
 const listSessionsMock = vi.fn();
 const listMessagesMock = vi.fn();
 const getMetadataMock = vi.fn();
@@ -276,7 +287,7 @@ describe("ChatPage tool metadata merging", () => {
     const toggleChildAgents = toolPanelQueries.getByRole("button", {
       name: /toggle orchestrator agents/i,
     });
-    await user.click(toggleChildAgents);
+    await ensureToggleExpanded(toggleChildAgents, user);
 
     await waitFor(() => {
       expect(toolPanelQueries.getByText("orchestrator")).toBeInTheDocument();
