@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 const renameDeletePattern = /rename (and|or) delete chat sessions/i;
+const platformDefaultsPath = 'platform/core/config/src/defaults.ts';
 
 function readRootFile(path: string) {
   return readFileSync(new URL(path, import.meta.url), 'utf8');
@@ -30,5 +31,9 @@ describe('README documentation', () => {
 
   it('notes that the project was authored by AI collaborators', () => {
     expect(readme).toContain('This project was authored entirely by AI collaborators.');
+  });
+
+  it('documents the platform config defaults source path', () => {
+    expect(readme).toContain(platformDefaultsPath);
   });
 });
