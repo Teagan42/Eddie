@@ -17,4 +17,14 @@ describe('tag on merge workflow', () => {
 
     expect(workflow).toContain(conditionalSkip);
   });
+
+  it('quotes release commit message to preserve colon parsing', () => {
+    const workflow = readFileSync(workflowPath, 'utf8');
+    const quotedCommitMessage = indent(
+      10,
+      'commit-message: "chore: release v${{ steps.version.outputs.version }}"',
+    );
+
+    expect(workflow).toContain(quotedCommitMessage);
+  });
 });

@@ -70,7 +70,7 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           branch: release/v${{ steps.version.outputs.version }}
-          commit-message: chore: release v${{ steps.version.outputs.version }}
+          commit-message: "chore: release v${{ steps.version.outputs.version }}"
           title: chore: release v${{ steps.version.outputs.version }}
           committer: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
           author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
