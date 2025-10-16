@@ -3,6 +3,7 @@ import type { ComponentProps } from 'react';
 import { Badge, Box, Flex, Text } from '@radix-ui/themes';
 import { ArrowUpRight } from 'lucide-react';
 import type { OrchestratorMetadataDto, ToolCallStatusDto } from '@eddie/api-client';
+import { AnimatePresence, motion } from 'motion/react';
 
 import { JsonExplorer } from '@/components/common/JsonExplorer';
 import {
@@ -32,6 +33,19 @@ const TOOL_SECTION_PREFIX = 'tool:';
 const AGENT_TOOLS_PREFIX = 'agent-tools:';
 const AGENT_CHILDREN_PREFIX = 'agent-children:';
 export const TOOL_DIALOG_CTA_ICON_TEST_ID = 'tool-dialog-cta-icon';
+export const AGENT_TOOLS_MOTION_WRAPPER_TEST_ID =
+  'agent-tools-motion-wrapper';
+export const AGENT_CHILDREN_MOTION_WRAPPER_TEST_ID =
+  'agent-children-motion-wrapper';
+export const TOOL_CHILDREN_MOTION_WRAPPER_TEST_ID =
+  'tool-children-motion-wrapper';
+
+const MOTION_FADE_SLIDE_PROPS = {
+  initial: { opacity: 0, y: -6 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -6 },
+  transition: { duration: 0.2 },
+} as const;
 const TOGGLE_BUTTON_CLASS =
   'inline-flex h-6 w-6 items-center justify-center rounded-md border border-muted/50 bg-background text-xs font-medium text-foreground/80 transition-colors hover:bg-muted/40';
 const TOOL_DIALOG_TRIGGER_CLASS =
@@ -277,31 +291,47 @@ function AgentToolTreeNode({
           </Text>
         )}
 
-        {showAgentTools ? (
-          <Box className="border-l border-dashed border-muted/50 pl-3">
-            <ToolTreeList
-              nodes={agentTools}
-              expandedSectionIds={expandedSectionIds}
-              onToggleSection={onToggleSection}
-            />
-          </Box>
-        ) : null}
+        <AnimatePresence initial={false}>
+          {showAgentTools ? (
+            <motion.div
+              key="agent-tools"
+              data-testid={AGENT_TOOLS_MOTION_WRAPPER_TEST_ID}
+              layout
+              {...MOTION_FADE_SLIDE_PROPS}
+              className="border-l border-dashed border-muted/50 pl-3"
+            >
+              <ToolTreeList
+                nodes={agentTools}
+                expandedSectionIds={expandedSectionIds}
+                onToggleSection={onToggleSection}
+              />
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
 
-        {showChildAgents ? (
-          <Box className="border-l border-dashed border-muted/50 pl-3">
-            <ul className="space-y-3">
-              {agent.children.map((child) => (
-                <AgentToolTreeNode
-                  key={child.id}
-                  agent={child}
-                  expandedSectionIds={expandedSectionIds}
-                  onToggleSection={onToggleSection}
-                  getAgentTools={getAgentTools}
-                />
-              ))}
-            </ul>
-          </Box>
-        ) : null}
+        <AnimatePresence initial={false}>
+          {showChildAgents ? (
+            <motion.div
+              key="agent-children"
+              data-testid={AGENT_CHILDREN_MOTION_WRAPPER_TEST_ID}
+              layout
+              {...MOTION_FADE_SLIDE_PROPS}
+              className="border-l border-dashed border-muted/50 pl-3"
+            >
+              <ul className="space-y-3">
+                {agent.children.map((child) => (
+                  <AgentToolTreeNode
+                    key={child.id}
+                    agent={child}
+                    expandedSectionIds={expandedSectionIds}
+                    onToggleSection={onToggleSection}
+                    getAgentTools={getAgentTools}
+                  />
+                ))}
+              </ul>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </Flex>
     </li>
   );
@@ -319,141 +349,157 @@ function ToolTreeList({
   onToggleSection,
 }: ToolTreeListProps): JSX.Element {
   return (
-    <ul className="space-y-3">
-      {nodes.map((node) => {
-        const statusColor = TOOL_STATUS_COLORS[node.status] ?? 'gray';
-        const command =
-          typeof node.metadata?.command === 'string'
-            ? node.metadata.command
-            : typeof node.metadata?.preview === 'string'
-              ? node.metadata.preview
-              : null;
-        const executedAt = formatDateTime(node.metadata?.createdAt);
-        const executedAtDisplay = executedAt ?? '—';
+    <motion.ul layout className="space-y-3">
+      <AnimatePresence initial={false}>
+        {nodes.map((node) => {
+          const statusColor = TOOL_STATUS_COLORS[node.status] ?? 'gray';
+          const command =
+            typeof node.metadata?.command === 'string'
+              ? node.metadata.command
+              : typeof node.metadata?.preview === 'string'
+                ? node.metadata.preview
+                : null;
+          const executedAt = formatDateTime(node.metadata?.createdAt);
+          const executedAtDisplay = executedAt ?? '—';
 
-        const rawArgs = node.metadata?.arguments ?? node.metadata?.args ?? null;
-        const parsedArgs = parseJsonValue(rawArgs);
-        const hasExplorer = parsedArgs != null;
-        const argsSummary =
-          rawArgs == null
-            ? '—'
-            : typeof rawArgs === 'string'
-              ? rawArgs
-              : summarizeObject(rawArgs) ?? '—';
-        const argsLabel = hasExplorer ? 'Args:' : `Args: ${argsSummary}`;
-        const rawResult = node.metadata?.result ?? node.metadata?.output ?? null;
-        const resultSummary =
-          rawResult == null ? '—' : summarizeObject(rawResult) ?? '—';
-        const hasChildren = node.children.length > 0;
-        const sectionId = createToolSectionId(node.id);
-        const isExpanded = expandedSectionIds.has(sectionId);
-        const showChildren = hasChildren && isExpanded;
-        const toggleLabel = `Toggle ${node.name} children`;
-        const uppercaseStatus = node.status.toUpperCase();
-        const dialogTitle = `Tool call: ${node.name}`;
+          const rawArgs =
+            node.metadata?.arguments ?? node.metadata?.args ?? null;
+          const parsedArgs = parseJsonValue(rawArgs);
+          const hasExplorer = parsedArgs != null;
+          const argsSummary =
+            rawArgs == null
+              ? '—'
+              : typeof rawArgs === 'string'
+                ? rawArgs
+                : summarizeObject(rawArgs) ?? '—';
+          const argsLabel = hasExplorer ? 'Args:' : `Args: ${argsSummary}`;
+          const rawResult = node.metadata?.result ?? node.metadata?.output ?? null;
+          const resultSummary =
+            rawResult == null ? '—' : summarizeObject(rawResult) ?? '—';
+          const hasChildren = node.children.length > 0;
+          const sectionId = createToolSectionId(node.id);
+          const isExpanded = expandedSectionIds.has(sectionId);
+          const showChildren = hasChildren && isExpanded;
+          const toggleLabel = `Toggle ${node.name} children`;
+          const uppercaseStatus = node.status.toUpperCase();
+          const dialogTitle = `Tool call: ${node.name}`;
 
-        return (
-          <Dialog key={node.id}>
-            <li className="rounded-xl border border-muted/40 bg-muted/10 p-4">
-              <Flex align="center" justify="between" gap="3">
-                <Flex align="center" gap="2">
-                  {hasChildren ? (
-                    <button
-                      type="button"
-                      onClick={() => onToggleSection(sectionId)}
-                      aria-expanded={isExpanded}
-                      aria-label={toggleLabel}
-                      className={TOGGLE_BUTTON_CLASS}
-                    >
-                      {isExpanded ? '−' : '+'}
-                    </button>
-                  ) : null}
-                  <DialogTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label={`View ${node.name} tool call details`}
-                      className={TOOL_DIALOG_TRIGGER_CLASS}
-                    >
-                      <Badge variant="soft" color="gray">
-                        Tool
-                      </Badge>
-                      <Text weight="medium" className="font-mono text-sm">
-                        {node.name}
-                      </Text>
-                      <ArrowUpRight
-                        aria-hidden="true"
-                        data-testid={TOOL_DIALOG_CTA_ICON_TEST_ID}
-                        className="h-4 w-4"
-                      />
-                    </button>
-                  </DialogTrigger>
-                </Flex>
-                <Badge color={statusColor} variant="soft">
-                  {uppercaseStatus}
-                </Badge>
-              </Flex>
-
-              {command ? (
-                <Box className="mt-3 rounded-md bg-background/80 p-3 font-mono text-xs text-foreground/80">
-                  {command}
-                </Box>
-              ) : null}
-
-              <Box className="mt-3 space-y-2">
-                <Flex align="center" justify="between" gap="2">
-                  <Text size="1" color="gray">
-                    Captured {executedAtDisplay}
-                  </Text>
-                  <Text size="1" color="gray">
-                    {argsLabel}
-                  </Text>
+          return (
+            <motion.li
+              key={node.id}
+              layout
+              {...MOTION_FADE_SLIDE_PROPS}
+              className="rounded-xl border border-muted/40 bg-muted/10 p-4"
+            >
+              <Dialog>
+                <Flex align="center" justify="between" gap="3">
+                  <Flex align="center" gap="2">
+                    {hasChildren ? (
+                      <button
+                        type="button"
+                        onClick={() => onToggleSection(sectionId)}
+                        aria-expanded={isExpanded}
+                        aria-label={toggleLabel}
+                        className={TOGGLE_BUTTON_CLASS}
+                      >
+                        {isExpanded ? '−' : '+'}
+                      </button>
+                    ) : null}
+                    <DialogTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label={`View ${node.name} tool call details`}
+                        className={TOOL_DIALOG_TRIGGER_CLASS}
+                      >
+                        <Badge variant="soft" color="gray">
+                          Tool
+                        </Badge>
+                        <Text weight="medium" className="font-mono text-sm">
+                          {node.name}
+                        </Text>
+                        <ArrowUpRight
+                          aria-hidden="true"
+                          data-testid={TOOL_DIALOG_CTA_ICON_TEST_ID}
+                          className="h-4 w-4"
+                        />
+                      </button>
+                    </DialogTrigger>
+                  </Flex>
+                  <Badge color={statusColor} variant="soft">
+                    {uppercaseStatus}
+                  </Badge>
                 </Flex>
 
-                {hasExplorer ? (
-                  <JsonExplorer
-                    value={parsedArgs as unknown}
-                    collapsedByDefault
-                    className="text-left"
-                  />
+                {command ? (
+                  <Box className="mt-3 rounded-md bg-background/80 p-3 font-mono text-xs text-foreground/80">
+                    {command}
+                  </Box>
                 ) : null}
 
-                <Text size="1" color="gray">
-                  Result: {resultSummary}
-                </Text>
-              </Box>
+                <Box className="mt-3 space-y-2">
+                  <Flex align="center" justify="between" gap="2">
+                    <Text size="1" color="gray">
+                      Captured {executedAtDisplay}
+                    </Text>
+                    <Text size="1" color="gray">
+                      {argsLabel}
+                    </Text>
+                  </Flex>
 
-              {showChildren ? (
-                <Box className="mt-3 border-l border-dashed border-muted/50 pl-3">
-                  <ToolTreeList
-                    nodes={node.children}
-                    expandedSectionIds={expandedSectionIds}
-                    onToggleSection={onToggleSection}
-                  />
-                </Box>
-              ) : null}
+                  {hasExplorer ? (
+                    <JsonExplorer
+                      value={parsedArgs as unknown}
+                      collapsedByDefault
+                      className="text-left"
+                    />
+                  ) : null}
 
-              <DialogContent className="max-h-[85vh] space-y-4 overflow-y-auto">
-                <DialogHeader className="text-left">
-                  <DialogTitle className="font-mono text-base">
-                    {dialogTitle}
-                  </DialogTitle>
-                  <DialogDescription>
-                    Captured {executedAtDisplay} • Status {uppercaseStatus}
-                  </DialogDescription>
-                </DialogHeader>
-                <Box className="space-y-3 text-left">
-                  <JsonExplorer
-                    value={node as unknown}
-                    collapsedByDefault
-                    className="text-left"
-                  />
+                  <Text size="1" color="gray">
+                    Result: {resultSummary}
+                  </Text>
                 </Box>
-              </DialogContent>
-            </li>
-          </Dialog>
-        );
-      })}
-    </ul>
+
+                <AnimatePresence initial={false}>
+                  {showChildren ? (
+                    <motion.div
+                      key="tool-children"
+                      data-testid={TOOL_CHILDREN_MOTION_WRAPPER_TEST_ID}
+                      layout
+                      {...MOTION_FADE_SLIDE_PROPS}
+                      className="mt-3 border-l border-dashed border-muted/50 pl-3"
+                    >
+                      <ToolTreeList
+                        nodes={node.children}
+                        expandedSectionIds={expandedSectionIds}
+                        onToggleSection={onToggleSection}
+                      />
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+
+                <DialogContent className="max-h-[85vh] space-y-4 overflow-y-auto">
+                  <DialogHeader className="text-left">
+                    <DialogTitle className="font-mono text-base">
+                      {dialogTitle}
+                    </DialogTitle>
+                    <DialogDescription>
+                      Captured {executedAtDisplay} • Status {uppercaseStatus}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Box className="space-y-3 text-left">
+                    <JsonExplorer
+                      value={node as unknown}
+                      collapsedByDefault
+                      className="text-left"
+                    />
+                  </Box>
+                </DialogContent>
+              </Dialog>
+            </motion.li>
+          );
+        })}
+      </AnimatePresence>
+    </motion.ul>
   );
 }
 

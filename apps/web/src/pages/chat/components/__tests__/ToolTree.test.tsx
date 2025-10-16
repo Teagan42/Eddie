@@ -1,7 +1,13 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { ToolTree, TOOL_DIALOG_CTA_ICON_TEST_ID } from '../ToolTree';
+import {
+  ToolTree,
+  TOOL_DIALOG_CTA_ICON_TEST_ID,
+  AGENT_TOOLS_MOTION_WRAPPER_TEST_ID,
+  AGENT_CHILDREN_MOTION_WRAPPER_TEST_ID,
+  TOOL_CHILDREN_MOTION_WRAPPER_TEST_ID,
+} from '../ToolTree';
 import { summarizeObject } from '../../chat-utils';
 
 describe('ToolTree', () => {
@@ -400,5 +406,102 @@ describe('ToolTree', () => {
     );
 
     expect(screen.getByText('write_report')).toBeInTheDocument();
+  });
+
+  it('wraps expanding sections with motion containers', async () => {
+    const user = userEvent.setup();
+
+    const agentHierarchy = [
+      {
+        id: 'root-agent',
+        name: 'Root Agent',
+        provider: 'orchestrator',
+        model: 'model-x',
+        depth: 0,
+        metadata: { messageCount: 2 },
+        children: [
+          {
+            id: 'child-agent',
+            name: 'Child Agent',
+            provider: 'assistant',
+            model: 'model-y',
+            depth: 1,
+            metadata: {},
+            children: [],
+          },
+        ],
+      },
+    ];
+
+    const nodes = [
+      {
+        id: 'root-tool',
+        name: 'parent_tool',
+        status: 'completed' as const,
+        metadata: {
+          createdAt: '2024-03-01T00:00:00.000Z',
+          agentId: 'root-agent',
+          arguments: '{"key":"value"}',
+        },
+        children: [
+          {
+            id: 'child-tool',
+            name: 'child_tool',
+            status: 'completed' as const,
+            metadata: {
+              createdAt: '2024-03-01T00:02:00.000Z',
+              agentId: 'root-agent',
+            },
+            children: [],
+          },
+        ],
+      },
+    ];
+
+    render(
+      <ToolTree
+        nodes={nodes as any}
+        agentHierarchy={agentHierarchy as any}
+      />,
+    );
+
+    expect(
+      screen.queryByTestId(AGENT_TOOLS_MOTION_WRAPPER_TEST_ID),
+    ).not.toBeInTheDocument();
+
+    const agentToolsToggle = screen.getByRole('button', {
+      name: 'Toggle Root Agent tools',
+    });
+    await user.click(agentToolsToggle);
+
+    expect(
+      await screen.findByTestId(AGENT_TOOLS_MOTION_WRAPPER_TEST_ID),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.queryByTestId(AGENT_CHILDREN_MOTION_WRAPPER_TEST_ID),
+    ).not.toBeInTheDocument();
+
+    const agentChildrenToggle = screen.getByRole('button', {
+      name: 'Toggle Root Agent agents',
+    });
+    await user.click(agentChildrenToggle);
+
+    expect(
+      await screen.findByTestId(AGENT_CHILDREN_MOTION_WRAPPER_TEST_ID),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.queryByTestId(TOOL_CHILDREN_MOTION_WRAPPER_TEST_ID),
+    ).not.toBeInTheDocument();
+
+    const toolChildrenToggle = await screen.findByRole('button', {
+      name: 'Toggle parent_tool children',
+    });
+    await user.click(toolChildrenToggle);
+
+    expect(
+      await screen.findByTestId(TOOL_CHILDREN_MOTION_WRAPPER_TEST_ID),
+    ).toBeInTheDocument();
   });
 });
