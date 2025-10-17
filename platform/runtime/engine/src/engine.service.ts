@@ -226,7 +226,7 @@ export class EngineService {
         metrics: this.metrics,
       };
       // Attach sessionId so trace writes include it
-      (runtime as any).sessionId = sessionId;
+      runtime.sessionId = sessionId;
 
       const userPromptSubmit = await hooks.emitAsync(
         HOOK_EVENTS.userPromptSubmit,
