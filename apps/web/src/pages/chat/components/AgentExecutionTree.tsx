@@ -74,6 +74,24 @@ export function AgentExecutionTree({
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
   const [detailsTarget, setDetailsTarget] = useState<DetailsTarget | null>(null);
   const expandableAgentsRef = useRef<Set<string>>(new Set());
+  const hasExpandedAgents = expandedAgentIds.size > 0;
+
+  useEffect(() => {
+    if (hasExpandedAgents) {
+      return;
+    }
+
+    if (agentHierarchy.length === 0) {
+      return;
+    }
+
+    const autoExpanded = collectExpandableAgentIds(agentHierarchy);
+    if (autoExpanded.size === 0) {
+      return;
+    }
+
+    setExpandedAgentIds(autoExpanded);
+  }, [agentHierarchy, hasExpandedAgents]);
 
   useEffect(() => {
     const nodesWithChildren = new Set<string>();
@@ -532,6 +550,28 @@ function resolveInvocationPreviewSource(
   const primary = isTerminal ? entry.result : entry.args;
   const secondary = isTerminal ? entry.args : entry.result;
   return primary ?? secondary ?? null;
+}
+
+function collectExpandableAgentIds(nodes: AgentHierarchyNode[]): Set<string> {
+  const ids = new Set<string>();
+  const stack = [...nodes];
+
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (!node) {
+      continue;
+    }
+
+    const children = node.children ?? [];
+    if (children.length > 0) {
+      ids.add(node.id);
+      for (const child of children) {
+        stack.push(child);
+      }
+    }
+  }
+
+  return ids;
 }
 
 function indexAgents(
