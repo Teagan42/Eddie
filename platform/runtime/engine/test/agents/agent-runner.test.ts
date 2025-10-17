@@ -1,26 +1,19 @@
-import type { AgentRuntimeDescriptor, StreamEvent, ToolResult } from "@eddie/types";
+import type { StreamEvent, ToolResult } from "@eddie/types";
 import {
   AgentStreamEvent,
   ExecutionTreeStateUpdatedEvent,
   HOOK_EVENTS,
 } from "@eddie/types";
 import { describe, expect, it, vi } from "vitest";
-import type { AgentInvocation } from "../../src/agents/agent-invocation";
 import { AgentRunner, ExecutionTreeStateTracker } from "../../src/agents/agent-runner";
-
-type InvocationOverrides = Partial<AgentInvocation>;
-
-type RunnerOverrides = Partial<ConstructorParameters<typeof AgentRunner>[0]>;
-
-type EventBusLike = ConstructorParameters<typeof AgentRunner>[0]["eventBus"];
-
-const createStream = (events: StreamEvent[]): AsyncIterable<StreamEvent> => ({
-  [Symbol.asyncIterator]: async function* () {
-    for (const event of events) {
-      yield event;
-    }
-  },
-});
+import {
+  createAgentRunnerTestContext,
+  createDescriptor,
+  createInvocation,
+  createStream,
+  type EventBusLike,
+  type RunnerOverrides,
+} from "./__fixtures__/runner-fixture";
 
 const completeOrTimeout = async (
   promise: Promise<void>,
@@ -42,108 +35,6 @@ const completeOrTimeout = async (
   return Promise.race([completion, timeout]);
 };
 
-const baseDefinition = {
-  id: "agent-1",
-  systemPrompt: "You are helpful.",
-  tools: [] as [] | undefined,
-};
-
-const createInvocation = (overrides: InvocationOverrides = {}): AgentInvocation => ({
-  definition: { ...baseDefinition },
-  prompt: "Do work",
-  context: { files: [], totalBytes: 0, text: "" },
-  history: [],
-  messages: [
-    { role: "system", content: "You are helpful." },
-    { role: "user", content: "Do work" },
-  ],
-  children: [],
-  parent: undefined,
-  toolRegistry: {
-    schemas: () => [],
-    execute: vi.fn(),
-  },
-  setSpawnHandler: vi.fn(),
-  addChild: vi.fn(),
-  spawn: vi.fn(),
-  id: "agent-1",
-  isRoot: true,
-  ...overrides,
-} as unknown as AgentInvocation);
-
-const createDescriptor = (
-  overrides: Partial<AgentRuntimeDescriptor> = {}
-): AgentRuntimeDescriptor => ({
-  id: "agent-1",
-  definition: { ...baseDefinition },
-  model: "gpt-test",
-  provider: {
-    name: "openai",
-    stream: vi.fn().mockImplementation(() => createStream([{ type: "end" }])),
-  },
-  ...overrides,
-});
-
-const createRunner = (overrides: RunnerOverrides = {}) => {
-  const invocation = overrides.invocation ?? createInvocation();
-  const descriptor = overrides.descriptor ?? createDescriptor();
-  const publish = vi.fn();
-  const metrics =
-    overrides.metrics ??
-    ({
-      countMessage: vi.fn(),
-      observeToolCall: vi.fn(),
-      countError: vi.fn(),
-      timeOperation: vi.fn(async (_metric: string, fn: () => Promise<unknown>) => fn()),
-    } as unknown as RunnerOverrides["metrics"]);
-  const overrideEventBus = (overrides as {
-    eventBus?: { publish: (event: unknown) => void };
-  }).eventBus;
-  const eventBus = overrideEventBus ?? ({
-    publish,
-  } as { publish: (event: unknown) => void });
-
-  return new AgentRunner({
-    invocation,
-    descriptor,
-    streamRenderer: overrides.streamRenderer ?? {
-      render: vi.fn(),
-      flush: vi.fn(),
-    },
-    eventBus,
-    hooks: overrides.hooks ?? {
-      emitAsync: vi.fn().mockResolvedValue({}),
-    },
-    logger:
-      overrides.logger ??
-      ({
-        warn: vi.fn(),
-        error: vi.fn(),
-      } as unknown as RunnerOverrides["logger"]),
-    cwd: overrides.cwd ?? process.cwd(),
-    confirm: overrides.confirm ?? vi.fn(),
-    lifecycle:
-      overrides.lifecycle ?? {
-        metadata: { id: invocation.id, isRoot: invocation.isRoot },
-        prompt: invocation.prompt,
-        context: { totalBytes: 0, fileCount: 0 },
-        historyLength: invocation.history.length,
-      },
-    startTraceAppend: overrides.startTraceAppend ?? true,
-    composeToolSchemas: overrides.composeToolSchemas ?? (() => invocation.toolRegistry.schemas()),
-    executeSpawnTool: overrides.executeSpawnTool ??
-      (vi.fn() as RunnerOverrides["executeSpawnTool"]),
-    applyTranscriptCompactionIfNeeded:
-      overrides.applyTranscriptCompactionIfNeeded ?? vi.fn(),
-    dispatchHookOrThrow:
-      overrides.dispatchHookOrThrow ??
-      (vi.fn().mockResolvedValue({}) as RunnerOverrides["dispatchHookOrThrow"]),
-    writeTrace: overrides.writeTrace ?? vi.fn(),
-    metrics,
-    executionTreeTracker: overrides.executionTreeTracker,
-  } as unknown as ConstructorParameters<typeof AgentRunner>[0]);
-};
-
 describe("AgentRunner", () => {
   it("threads provider response ids into subsequent iterations", async () => {
     const invocation = createInvocation();
@@ -160,7 +51,7 @@ describe("AgentRunner", () => {
       .mockReturnValueOnce(createStream([{ type: "end", responseId: "resp_b" }]));
     const descriptor = createDescriptor({ provider: { name: "openai", stream: providerStream } });
 
-    const runner = createRunner({
+    const { runner } = createAgentRunnerTestContext({
       invocation,
       descriptor,
       composeToolSchemas: () => [],
@@ -197,19 +88,19 @@ describe("AgentRunner", () => {
       },
     });
 
-    const runner = createRunner({
+    const { runner, publish: published } = createAgentRunnerTestContext({
       invocation,
       descriptor,
-      streamRenderer: streamRenderer as unknown as RunnerOverrides["streamRenderer"],
+      streamRenderer: streamRenderer as RunnerOverrides["streamRenderer"],
       eventBus: { publish } as EventBusLike,
     });
 
     await runner.run();
 
     expect(streamRenderer.render).not.toHaveBeenCalled();
-    expect(publish).toHaveBeenCalledTimes(streamEvents.length);
+    expect(published).toHaveBeenCalledTimes(streamEvents.length);
 
-    const publishedEvents = publish.mock.calls.map(
+    const publishedEvents = published.mock.calls.map(
       ([event]) => event as AgentStreamEvent
     );
 
@@ -253,7 +144,7 @@ describe("AgentRunner", () => {
     });
 
     const publish = vi.fn();
-    const runner = createRunner({
+    const { runner, publish: published } = createAgentRunnerTestContext({
       invocation,
       descriptor,
       executeSpawnTool,
@@ -281,7 +172,7 @@ describe("AgentRunner", () => {
       content: expectedContent,
     });
 
-    expect(publish).toHaveBeenCalledWith(
+    expect(published).toHaveBeenCalledWith(
       expect.objectContaining({
         event: expect.objectContaining({
           type: "tool_result",
@@ -297,10 +188,11 @@ describe("AgentRunner", () => {
   it("flushes non-root renderers and emits lifecycle hooks", async () => {
     const flush = vi.fn();
     const hooks = { emitAsync: vi.fn().mockResolvedValue({}) };
-    const runner = createRunner({
+    const streamRenderer = { render: vi.fn(), flush };
+    const { runner, hooks: hookBus } = createAgentRunnerTestContext({
       invocation: createInvocation({ isRoot: false }),
-      streamRenderer: { render: vi.fn(), flush },
-      hooks,
+      streamRenderer: streamRenderer as RunnerOverrides["streamRenderer"],
+      hooks: hooks as RunnerOverrides["hooks"],
       composeToolSchemas: () => [],
       writeTrace: vi.fn(),
     });
@@ -308,7 +200,7 @@ describe("AgentRunner", () => {
     await runner.run();
 
     expect(flush).toHaveBeenCalledOnce();
-    const events = hooks.emitAsync.mock.calls.map(([event]) => event);
+    const events = hookBus.emitAsync.mock.calls.map(([event]) => event);
     expect(events).toEqual([
       HOOK_EVENTS.beforeAgentStart,
       HOOK_EVENTS.beforeModelCall,
@@ -359,7 +251,7 @@ describe("AgentRunner", () => {
     const descriptor = createDescriptor({ provider: { name: "openai", stream: providerStream } });
 
     const publish = vi.fn();
-    const runner = createRunner({
+    const { runner, publish: published } = createAgentRunnerTestContext({
       invocation,
       descriptor,
       dispatchHookOrThrow,
@@ -383,7 +275,7 @@ describe("AgentRunner", () => {
       expect.objectContaining({ id: "call_1" }),
       expect.objectContaining({ cwd: expect.any(String) })
     );
-    expect(publish).toHaveBeenCalledWith(
+    expect(published).toHaveBeenCalledWith(
       expect.objectContaining({
         event: expect.objectContaining({
           type: "tool_result",
@@ -441,24 +333,25 @@ describe("AgentRunner", () => {
 
     invocation.toolRegistry.execute = vi.fn().mockResolvedValue(toolResult);
 
-    const eventBus = { publish: vi.fn() } as EventBusLike;
+    const publish = vi.fn();
+    const eventBus = { publish } as EventBusLike;
     const tracker = new ExecutionTreeStateTracker({
       sessionId: "session-1",
       eventBus,
       now: () => new Date("2024-01-01T00:00:00.000Z"),
     });
 
-    const runner = createRunner({
+    const { runner } = createAgentRunnerTestContext({
       invocation,
       descriptor,
       composeToolSchemas: () => [],
       eventBus,
       executionTreeTracker: tracker,
-    } as unknown as RunnerOverrides);
+    });
 
     await runner.run();
 
-    const stateEvents = eventBus.publish.mock.calls
+    const stateEvents = publish.mock.calls
       .map(([event]) => event)
       .filter((event): event is ExecutionTreeStateUpdatedEvent => event instanceof ExecutionTreeStateUpdatedEvent);
 
@@ -493,12 +386,13 @@ describe("AgentRunner", () => {
     const parentInvocation = createInvocation();
     const childInvocation = createInvocation({
       id: "agent-child",
-      definition: { ...baseDefinition, id: "agent-child" },
+      definition: { ...parentInvocation.definition, id: "agent-child" },
       parent: parentInvocation,
       isRoot: false,
     });
 
-    const eventBus = { publish: vi.fn() } as EventBusLike;
+    const publish = vi.fn();
+    const eventBus = { publish } as EventBusLike;
     const tracker = new ExecutionTreeStateTracker({
       sessionId: "session-1",
       eventBus,
@@ -534,30 +428,30 @@ describe("AgentRunner", () => {
       )
       .mockReturnValueOnce(createStream([{ type: "end" }]));
 
-    const runner = createRunner({
+    const { runner: parentRunner } = createAgentRunnerTestContext({
       invocation: parentInvocation,
       descriptor: createDescriptor({ provider: { name: "openai", stream: providerStream } }),
       composeToolSchemas: () => [],
       eventBus,
       executionTreeTracker: tracker,
       executeSpawnTool,
-    } as unknown as RunnerOverrides);
+    });
 
     parentInvocation.toolRegistry.execute = vi.fn();
 
-    await runner.run();
+    await parentRunner.run();
 
-    const childRunner = createRunner({
+    const { runner: childRunner } = createAgentRunnerTestContext({
       invocation: childInvocation,
       descriptor: createDescriptor({ id: "agent-child" }),
       composeToolSchemas: () => [],
       eventBus,
       executionTreeTracker: tracker,
-    } as unknown as RunnerOverrides);
+    });
 
     await childRunner.run();
 
-    const stateEvents = eventBus.publish.mock.calls
+    const stateEvents = publish.mock.calls
       .map(([event]) => event)
       .filter((event): event is ExecutionTreeStateUpdatedEvent => event instanceof ExecutionTreeStateUpdatedEvent);
 
