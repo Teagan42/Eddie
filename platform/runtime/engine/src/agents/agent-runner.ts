@@ -29,10 +29,17 @@ import type { TemplateVariables } from "@eddie/templates";
 import type { AgentInvocation } from "./agent-invocation";
 import type { MetricsService } from "../telemetry/metrics.service";
 import { HookBus } from "@eddie/hooks";
-import { AgentRunLoop } from "./runner/agent-run-loop";
-import type { AgentRunLoopContext } from "./runner/agent-run-loop";
-import { ToolCallHandler } from "./runner/tool-call-handler";
-import { TraceWriterDelegate } from "./runner/trace-writer.delegate";
+import {
+  AgentRunLoop,
+  type AgentRunLoopContext,
+  cloneHistory,
+  createContextSnapshot,
+  createTranscriptSummary,
+  serializeError,
+  ToolCallHandler,
+  TraceWriterDelegate,
+  type PackedContextSnapshot,
+} from "./runner";
 
 export interface AgentTraceEvent {
   phase: string;
@@ -91,8 +98,6 @@ export interface BuildSubagentResultOptions {
   parentDescriptor: AgentRuntimeDescriptor;
   request: SubagentRequestDetails;
 }
-
-type PackedContextSnapshot = PackedContext & { selectedBundleIds?: string[] };
 
 interface SpawnResultData extends Record<string, unknown> {
   agentId: string;
@@ -725,7 +730,7 @@ export class AgentRunner {
         this.previousResponseId = value;
       },
       emitSubagentStop: () => this.emitSubagentStop(),
-      serializeError: AgentRunner.serializeError,
+      serializeError,
       spawnToolName: AgentRunner.SPAWN_TOOL_NAME,
     };
   }
@@ -736,14 +741,14 @@ export class AgentRunner {
     const { child, descriptor, parentDescriptor, request } = options;
     const finalMessage = child.messages.at(-1);
     const finalMessageText = finalMessage?.content?.trim() ?? "";
-    const transcriptSummary = AgentRunner.createTranscriptSummary(child.messages);
+    const transcriptSummary = createTranscriptSummary(child.messages);
     const { clone: contextClone, bundleIds: selectedBundleIds } =
-      AgentRunner.createContextSnapshot(child.context);
+      createContextSnapshot(child.context);
     const requestSnapshot = request.context
-      ? AgentRunner.createContextSnapshot(request.context)
+      ? createContextSnapshot(request.context)
       : undefined;
     const requestContextClone = requestSnapshot?.clone;
-    const historyClone = AgentRunner.cloneHistory(child.messages);
+    const historyClone = cloneHistory(child.messages);
 
     const variablesClone = request.variables && Object.keys(request.variables).length > 0
       ? { ...request.variables }
@@ -825,66 +830,6 @@ export class AgentRunner {
     };
   }
 
-  private static cloneContext(context: PackedContext): PackedContextSnapshot {
-    return {
-      ...context,
-      files: context.files.map((file) => ({ ...file })),
-      resources: context.resources?.map((resource) => ({
-        ...resource,
-        files: resource.files?.map((file) => ({ ...file })),
-      })),
-    };
-  }
-
-  private static createContextSnapshot(context: PackedContext): {
-    clone: PackedContextSnapshot;
-    bundleIds: string[];
-  } {
-    const clone = AgentRunner.cloneContext(context);
-    const bundleIds = AgentRunner.collectSelectedBundleIds(context);
-    if (bundleIds.length > 0) {
-      clone.selectedBundleIds = bundleIds;
-    }
-    return { clone, bundleIds };
-  }
-
-  private static cloneHistory(messages: ChatMessage[]): ChatMessage[] {
-    return messages.map((message) => ({ ...message }));
-  }
-
-  private static collectSelectedBundleIds(context: PackedContext): string[] {
-    if (!context.resources || context.resources.length === 0) {
-      return [];
-    }
-
-    return context.resources
-      .filter((resource) => resource.type === "bundle")
-      .map((resource) => resource.id)
-      .filter((id): id is string => typeof id === "string" && id.trim().length > 0);
-  }
-
-  private static createTranscriptSummary(messages: ChatMessage[]): string | undefined {
-    const relevant = messages
-      .filter((message) => message.role === "user" || message.role === "assistant")
-      .map((message) => {
-        const trimmed = message.content.trim();
-        if (!trimmed) {
-          return undefined;
-        }
-
-        const role = message.role === "user" ? "User" : "Assistant";
-        return `${ role }: ${ trimmed }`;
-      })
-      .filter((value): value is string => Boolean(value));
-
-    if (relevant.length === 0) {
-      return undefined;
-    }
-
-    const snippet = relevant.slice(-2).join(" | ");
-    return snippet.length > 280 ? `${ snippet.slice(0, 277) }...` : snippet;
-  }
-
   private async emitSubagentStop(): Promise<void> {
     const { invocation, hooks, lifecycle } = this.options;
     if (invocation.isRoot || this.subagentStopEmitted) {
@@ -906,19 +851,4 @@ export class AgentRunner {
     };
   }
 
-  static serializeError(error: unknown): {
-    message: string;
-    stack?: string;
-    cause?: unknown;
-  } {
-    if (error instanceof Error) {
-      return {
-        message: error.message,
-        stack: error.stack,
-        cause: (error as { cause?: unknown }).cause,
-      };
-    }
-
-    return { message: String(error) };
-  }
 }
