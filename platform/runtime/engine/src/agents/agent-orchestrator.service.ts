@@ -29,7 +29,7 @@ import {
 import { AgentInvocation } from "./agent-invocation";
 import { AgentInvocationFactory } from "./agent-invocation.factory";
 type InvocationSpawnHandler = AgentSpawnHandler<AgentInvocation>;
-import { AgentRunner, type AgentTraceEvent } from "./agent-runner";
+import { AgentRunner, ExecutionTreeStateTracker, type AgentTraceEvent } from "./agent-runner";
 import type { TemplateVariables } from "@eddie/templates";
 import type { TranscriptCompactionWorkflow } from "../transcript/transcript-compaction.service";
 import type { MetricsService } from "../telemetry/metrics.service";
@@ -57,6 +57,7 @@ export interface AgentRuntimeOptions {
     traceAppend?: boolean;
     transcriptCompaction?: TranscriptCompactionWorkflow;
     metrics: MetricsService;
+    executionTreeTracker?: ExecutionTreeStateTracker;
 }
 
 export interface AgentRunRequest extends AgentInvocationOptions {
@@ -634,9 +635,29 @@ export class AgentOrchestratorService {
       writeTrace: (event, append) =>
         this.writeTrace(runtime, invocation, event, append),
       metrics: runtime.metrics,
+      executionTreeTracker: this.ensureExecutionTreeTracker(runtime),
     });
 
     await runner.run();
+  }
+
+  private ensureExecutionTreeTracker(
+    runtime: AgentRuntimeOptions
+  ): ExecutionTreeStateTracker | undefined {
+    if (runtime.executionTreeTracker) {
+      return runtime.executionTreeTracker;
+    }
+
+    if (!runtime.sessionId) {
+      return undefined;
+    }
+
+    const tracker = new ExecutionTreeStateTracker({
+      sessionId: runtime.sessionId,
+      eventBus: this.eventBus,
+    });
+    runtime.executionTreeTracker = tracker;
+    return tracker;
   }
 
   private async writeTrace(

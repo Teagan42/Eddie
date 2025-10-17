@@ -10,8 +10,9 @@ import type {
   EddieConfig,
   EddieConfigInput,
   ExecutionContextBundle,
+  ExecutionAgentNode,
   ExecutionToolInvocationNode,
-  ExecutionTreeSnapshot,
+  ExecutionTreeState,
   HookEventMap,
   MCPToolSourceConfig,
   ProviderAdapter,
@@ -105,10 +106,30 @@ describe("@eddie/types shared contracts", () => {
       toolCallId: string;
     }>();
 
-    expectTypeOf<ExecutionTreeSnapshot>().toMatchTypeOf<{
-      agentHierarchy: { id: string; name: string }[];
+    expectTypeOf<ExecutionTreeState>().toMatchTypeOf<{
+      agentHierarchy: ExecutionAgentNode[];
       toolInvocations: ExecutionToolInvocationNode[];
       contextBundles: ExecutionContextBundle[];
+      agentLineageById: Record<string, string[]>;
+      toolGroupsByAgentId: Record<string, Record<ToolCallStatus, ExecutionToolInvocationNode[]>>;
+      contextBundlesByAgentId: Record<string, ExecutionContextBundle[]>;
+      contextBundlesByToolCallId: Record<string, ExecutionContextBundle[]>;
+      createdAt: string;
+      updatedAt: string;
     }>();
+
+    const enrichedState: ExecutionTreeState = {
+      agentHierarchy: [],
+      toolInvocations: [],
+      contextBundles: [],
+      agentLineageById: {},
+      toolGroupsByAgentId: {},
+      contextBundlesByAgentId: {},
+      contextBundlesByToolCallId: {},
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    };
+
+    expectTypeOf(enrichedState.agentLineageById).toEqualTypeOf<Record<string, string[]>>();
   });
 });
