@@ -2,6 +2,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient } from "@tanstack/react-query";
 import { screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ChatSessionDto } from "@eddie/api-client";
 import { createChatPageRenderer } from "./test-utils";
 
 const sessionCreatedHandlers: Array<(session: unknown) => void> = [];
@@ -13,7 +14,10 @@ const catalogMock = vi.fn();
 const listSessionsMock = vi.fn();
 const listMessagesMock = vi.fn();
 const createSessionMock = vi.fn();
+const renameSessionMock = vi.fn();
+const deleteSessionMock = vi.fn();
 const getMetadataMock = vi.fn();
+const { toastMock } = vi.hoisted(() => ({ toastMock: vi.fn() }));
 
 class ResizeObserverMock {
   observe(): void {}
@@ -53,6 +57,8 @@ vi.mock("@/api/api-provider", () => ({
         list: listSessionsMock,
         listMessages: listMessagesMock,
         create: createSessionMock,
+        rename: renameSessionMock,
+        delete: deleteSessionMock,
         get: vi.fn(),
         archive: vi.fn(),
         createMessage: vi.fn(),
@@ -93,6 +99,15 @@ vi.mock("@/api/api-provider", () => ({
   }),
 }));
 
+vi.mock("@/vendor/hooks/use-toast", () => ({
+  toast: toastMock,
+  useToast: () => ({
+    toast: toastMock,
+    dismiss: vi.fn(),
+    toasts: [],
+  }),
+}));
+
 const renderChatPage = createChatPageRenderer(
   () =>
     new QueryClient({
@@ -115,6 +130,9 @@ describe("ChatPage session creation", () => {
     sessionCreatedHandlers.length = 0;
     sessionDeletedHandlers.length = 0;
     updatePreferencesMock.mockReset();
+    toastMock.mockReset();
+    renameSessionMock.mockReset();
+    deleteSessionMock.mockReset();
 
     const now = new Date().toISOString();
 
@@ -254,5 +272,189 @@ describe("ChatPage session creation", () => {
     });
 
     expect(result?.chat?.selectedSessionId ?? null).toBeNull();
+  });
+
+  it("renames a session via the selector and merges cache updates", async () => {
+    const now = new Date().toISOString();
+    const renamedSession = {
+      id: "session-1",
+      title: "Session Prime",
+      description: "",
+      status: "active" as const,
+      createdAt: now,
+      updatedAt: now,
+    };
+    renameSessionMock.mockResolvedValue(renamedSession);
+
+    const promptSpy = vi.spyOn(window, "prompt").mockReturnValue("Session Prime");
+
+    try {
+      const user = userEvent.setup();
+      const { client } = renderChatPage();
+
+      await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
+
+      const renameButton = await screen.findByRole("button", {
+        name: "Rename Session 1",
+      });
+      await user.click(renameButton);
+
+      await waitFor(() =>
+        expect(renameSessionMock).toHaveBeenCalledWith("session-1", {
+          title: "Session Prime",
+        }),
+      );
+
+      const sessions = (client.getQueryData([
+        "chat-sessions",
+      ]) as ChatSessionDto[]) ?? [];
+      expect(sessions.find((session) => session.id === "session-1")?.title).toBe(
+        "Session Prime",
+      );
+    } finally {
+      promptSpy.mockRestore();
+    }
+  });
+
+  it("restores prior title and shows an error toast when rename fails", async () => {
+    renameSessionMock.mockRejectedValue(new Error("nope"));
+
+    const promptSpy = vi.spyOn(window, "prompt").mockReturnValue("Session Prime");
+
+    try {
+      const user = userEvent.setup();
+      const { client } = renderChatPage();
+
+      await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
+
+      const renameButton = await screen.findByRole("button", {
+        name: "Rename Session 1",
+      });
+      await user.click(renameButton);
+
+      await waitFor(() => expect(renameSessionMock).toHaveBeenCalled());
+
+      await waitFor(() => {
+        const sessions = (client.getQueryData([
+          "chat-sessions",
+        ]) as ChatSessionDto[]) ?? [];
+        expect(sessions.find((session) => session.id === "session-1")?.title).toBe(
+          "Session 1",
+        );
+      });
+
+      await waitFor(() =>
+        expect(toastMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: "Failed to rename session",
+            variant: "error",
+          }),
+        ),
+      );
+    } finally {
+      promptSpy.mockRestore();
+    }
+  });
+
+  it("deletes a session, updates caches, and clears session state", async () => {
+    deleteSessionMock.mockResolvedValue(undefined);
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    try {
+      const user = userEvent.setup();
+      const { client } = renderChatPage();
+
+      client.setQueryData(["chat-session", "session-1", "messages"], [{ id: "msg-1" }]);
+      client.setQueryData(["orchestrator-metadata", "session-1"], {
+        sessionId: "session-1",
+        contextBundles: [],
+        toolInvocations: [],
+        agentHierarchy: [],
+        capturedAt: new Date().toISOString(),
+      });
+
+      await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
+
+      const deleteButton = await screen.findByRole("button", {
+        name: "Delete Session 1",
+      });
+      await user.click(deleteButton);
+
+      await waitFor(() => expect(deleteSessionMock).toHaveBeenCalledWith("session-1"));
+
+      await waitFor(() => {
+        const sessions = (client.getQueryData([
+          "chat-sessions",
+        ]) as ChatSessionDto[]) ?? [];
+        expect(sessions.some((session) => session.id === "session-1")).toBe(false);
+      });
+
+      expect(client.getQueryData(["chat-session", "session-1", "messages"])).toEqual([]);
+      const metadata = client.getQueryData([
+        "orchestrator-metadata",
+        "session-1",
+      ]) as
+        | {
+            contextBundles?: unknown[];
+            toolInvocations?: unknown[];
+            agentHierarchy?: unknown[];
+          }
+        | null
+        | undefined;
+      expect(metadata).toEqual(
+        expect.objectContaining({
+          contextBundles: [],
+          toolInvocations: [],
+          agentHierarchy: [],
+        }),
+      );
+      await waitFor(() =>
+        expect(toastMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: "Session deleted",
+            variant: "success",
+          }),
+        ),
+      );
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
+
+  it("restores session caches and shows an error toast when delete fails", async () => {
+    deleteSessionMock.mockRejectedValue(new Error("nope"));
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    try {
+      const user = userEvent.setup();
+      const { client } = renderChatPage();
+
+      await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
+
+      const deleteButton = await screen.findByRole("button", {
+        name: "Delete Session 1",
+      });
+      await user.click(deleteButton);
+
+      await waitFor(() => expect(deleteSessionMock).toHaveBeenCalled());
+
+      const sessions = (client.getQueryData([
+        "chat-sessions",
+      ]) as ChatSessionDto[]) ?? [];
+      expect(sessions.some((session) => session.id === "session-1")).toBe(true);
+
+      await waitFor(() =>
+        expect(toastMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: "Failed to delete session",
+            variant: "error",
+          }),
+        ),
+      );
+    } finally {
+      confirmSpy.mockRestore();
+    }
   });
 });

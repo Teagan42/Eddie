@@ -1,5 +1,6 @@
-import { Badge, Button, Flex, ScrollArea, Text } from '@radix-ui/themes';
+import { Badge, Button, Flex, IconButton, ScrollArea, Text } from '@radix-ui/themes';
 import type { ChatSessionDto } from '@eddie/api-client';
+import { Pencil1Icon, TrashIcon } from '@radix-ui/react-icons';
 
 export type SessionSelectorSession = Pick<ChatSessionDto, 'id' | 'title' | 'status'>;
 
@@ -22,8 +23,6 @@ export function SessionSelector({
   onCreateSession,
   isCreatePending,
 }: SessionSelectorProps): JSX.Element {
-  void onRenameSession;
-  void onDeleteSession;
   void onCreateSession;
   void isCreatePending;
 
@@ -39,23 +38,40 @@ export function SessionSelector({
             const isSelected = session.id === selectedSessionId;
 
             return (
-              <Button
-                key={session.id}
-                size="2"
-                variant={isSelected ? 'solid' : 'soft'}
-                color={isSelected ? 'jade' : 'gray'}
-                onClick={() => onSelectSession(session.id)}
-                aria-pressed={isSelected}
-              >
-                <Flex align="center" gap="2">
-                  <span>{session.title}</span>
-                  {session.status === 'archived' ? (
-                    <Badge color="gray" variant="soft">
-                      Archived
-                    </Badge>
-                  ) : null}
-                </Flex>
-              </Button>
+              <Flex key={session.id} align="center" gap="1">
+                <Button
+                  size="2"
+                  variant={isSelected ? 'solid' : 'soft'}
+                  color={isSelected ? 'jade' : 'gray'}
+                  onClick={() => onSelectSession(session.id)}
+                  aria-pressed={isSelected}
+                >
+                  <Flex align="center" gap="2">
+                    <span>{session.title}</span>
+                    {session.status === 'archived' ? (
+                      <Badge color="gray" variant="soft">
+                        Archived
+                      </Badge>
+                    ) : null}
+                  </Flex>
+                </Button>
+                <IconButton
+                  variant="ghost"
+                  color="gray"
+                  aria-label={`Rename ${session.title}`}
+                  onClick={() => onRenameSession(session.id)}
+                >
+                  <Pencil1Icon />
+                </IconButton>
+                <IconButton
+                  variant="ghost"
+                  color="ruby"
+                  aria-label={`Delete ${session.title}`}
+                  onClick={() => onDeleteSession(session.id)}
+                >
+                  <TrashIcon />
+                </IconButton>
+              </Flex>
             );
           })
         )}

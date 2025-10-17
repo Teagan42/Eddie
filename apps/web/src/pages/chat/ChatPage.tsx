@@ -48,6 +48,7 @@ import { useLayoutPreferences } from '@/hooks/useLayoutPreferences';
 import type { LayoutPreferencesDto } from '@eddie/api-client';
 import { Panel } from "@/components/common";
 import { cn } from "@/vendor/lib/utils";
+import { toast } from '@/vendor/hooks/use-toast';
 import { ChatMessageContent } from './ChatMessageContent';
 import { getSurfaceLayoutClasses, SURFACE_CONTENT_CLASS } from '@/styles/surfaces';
 import { summarizeObject, sortSessions, upsertMessage } from './chat-utils';
@@ -125,6 +126,16 @@ function formatTime(value: string): string | null {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+function resolveErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return 'Please try again.';
+}
+
 const PANEL_IDS = {
   context: 'context-bundles',
   tools: 'tool-tree',
@@ -132,6 +143,8 @@ const PANEL_IDS = {
 } as const;
 
 const SCROLL_VIEWPORT_SELECTOR = '[data-radix-scroll-area-viewport]';
+
+const CHAT_SESSIONS_QUERY_KEY = ['chat-sessions'] as const;
 
 const scrollMessageViewportToBottom = (anchor: HTMLElement): void => {
   const viewport = anchor.closest(SCROLL_VIEWPORT_SELECTOR);
@@ -625,7 +638,7 @@ export function ChatPage(): JSX.Element {
   >('idle');
 
   const sessionsQuery = useQuery({
-    queryKey: ['chat-sessions'],
+    queryKey: CHAT_SESSIONS_QUERY_KEY,
     queryFn: () => api.http.chatSessions.list(),
   });
 
@@ -898,17 +911,17 @@ export function ChatPage(): JSX.Element {
   useEffect(() => {
     const unsubscribes = [
       api.sockets.chatSessions.onSessionCreated((session) => {
-        queryClient.setQueryData<ChatSessionDto[]>(['chat-sessions'], (previous = []) =>
+        queryClient.setQueryData<ChatSessionDto[]>(CHAT_SESSIONS_QUERY_KEY, (previous = []) =>
           mergeSessionList(previous, session),
         );
       }),
       api.sockets.chatSessions.onSessionUpdated((session) => {
-        queryClient.setQueryData<ChatSessionDto[]>(['chat-sessions'], (previous = []) =>
+        queryClient.setQueryData<ChatSessionDto[]>(CHAT_SESSIONS_QUERY_KEY, (previous = []) =>
           mergeSessionList(previous, session),
         );
       }),
       api.sockets.chatSessions.onSessionDeleted((sessionId) => {
-        queryClient.setQueryData<ChatSessionDto[]>(['chat-sessions'], (previous = []) =>
+        queryClient.setQueryData<ChatSessionDto[]>(CHAT_SESSIONS_QUERY_KEY, (previous = []) =>
           previous.filter((item) => item.id !== sessionId),
         );
         queryClient.removeQueries({ queryKey: ['chat-session', sessionId, 'messages'] });
@@ -1164,11 +1177,124 @@ export function ChatPage(): JSX.Element {
     selectedSessionId,
   ]);
 
+  const renameSessionMutation = useMutation<
+    ChatSessionDto,
+    unknown,
+    { sessionId: string; title: string },
+    { previousSessions: ChatSessionDto[] }
+  >({
+    mutationFn: ({ sessionId, title }) =>
+      api.http.chatSessions.rename(sessionId, { title }),
+    onMutate: async ({ sessionId, title }) => {
+      await queryClient.cancelQueries({ queryKey: CHAT_SESSIONS_QUERY_KEY });
+      const previousSessions =
+        queryClient.getQueryData<ChatSessionDto[]>(CHAT_SESSIONS_QUERY_KEY) ?? [];
+      const nextTitle = title.trim();
+      if (nextTitle) {
+        queryClient.setQueryData<ChatSessionDto[]>(
+          CHAT_SESSIONS_QUERY_KEY,
+          previousSessions.map((session) =>
+            session.id === sessionId ? { ...session, title: nextTitle } : session,
+          ),
+        );
+      }
+      return { previousSessions };
+    },
+    onSuccess: (session) => {
+      queryClient.setQueryData<ChatSessionDto[]>(CHAT_SESSIONS_QUERY_KEY, (previous = []) =>
+        mergeSessionList(previous, session),
+      );
+      toast({
+        title: 'Session renamed',
+        description: `Renamed to "${session.title}"`,
+        variant: 'success',
+      });
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previousSessions) {
+        queryClient.setQueryData(CHAT_SESSIONS_QUERY_KEY, context.previousSessions);
+      }
+      toast({
+        title: 'Failed to rename session',
+        description: resolveErrorMessage(error),
+        variant: 'error',
+      });
+    },
+  });
+
+  const deleteSessionMutation = useMutation<
+    void,
+    unknown,
+    string,
+    { previousSessions: ChatSessionDto[]; previousSelected: string | null }
+  >({
+    mutationFn: (sessionId) => api.http.chatSessions.delete(sessionId),
+    onMutate: async (sessionId) => {
+      await queryClient.cancelQueries({ queryKey: CHAT_SESSIONS_QUERY_KEY });
+      const previousSessions =
+        queryClient.getQueryData<ChatSessionDto[]>(CHAT_SESSIONS_QUERY_KEY) ?? [];
+      queryClient.setQueryData<ChatSessionDto[]>(
+        CHAT_SESSIONS_QUERY_KEY,
+        previousSessions.filter((session) => session.id !== sessionId),
+      );
+      return {
+        previousSessions,
+        previousSelected: selectedSessionIdRef.current ?? null,
+      };
+    },
+    onSuccess: async (_result, sessionId) => {
+      const messagesQueryKey = ['chat-session', sessionId, 'messages'] as const;
+      const overviewMessagesQueryKey = ['chat-sessions', sessionId, 'messages'] as const;
+      const orchestratorQueryKey = getOrchestratorMetadataQueryKey(sessionId);
+
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: messagesQueryKey, exact: true }),
+        queryClient.cancelQueries({ queryKey: overviewMessagesQueryKey, exact: true }),
+        queryClient.cancelQueries({ queryKey: orchestratorQueryKey, exact: true }),
+      ]);
+
+      queryClient.setQueryData<ChatMessageDto[]>(messagesQueryKey, []);
+      queryClient.setQueryData<ChatMessageDto[]>(overviewMessagesQueryKey, []);
+      queryClient.setQueryData<OrchestratorMetadataDto | null>(orchestratorQueryKey, null);
+      setContextBundlesBySession((previous) => removeSessionKey(previous, sessionId));
+      setToolInvocationsBySession((previous) => removeSessionKey(previous, sessionId));
+      setAgentHierarchyBySession((previous) => removeSessionKey(previous, sessionId));
+      setCapturedAtBySession((previous) => removeSessionKey(previous, sessionId));
+      setMetadataPresenceBySession((previous) => removeSessionKey(previous, sessionId));
+      const remainingSessions =
+        queryClient.getQueryData<ChatSessionDto[]>(CHAT_SESSIONS_QUERY_KEY) ?? [];
+      if (selectedSessionIdRef.current === sessionId) {
+        setSelectedSessionPreference(remainingSessions[0]?.id ?? null);
+      }
+      toast({
+        title: 'Session deleted',
+        description: 'The session was removed.',
+        variant: 'success',
+      });
+    },
+    onError: (error, _sessionId, context) => {
+      if (context?.previousSessions) {
+        queryClient.setQueryData(CHAT_SESSIONS_QUERY_KEY, context.previousSessions);
+      }
+      if (context?.previousSelected !== undefined) {
+        setSelectedSessionPreference(context.previousSelected);
+      }
+      toast({
+        title: 'Failed to delete session',
+        description: resolveErrorMessage(error),
+        variant: 'error',
+      });
+    },
+  });
+
+  const { mutate: runRenameSession, isPending: isRenamingSession } = renameSessionMutation;
+  const { mutate: runDeleteSession, isPending: isDeletingSession } = deleteSessionMutation;
+
   const createSessionMutation = useMutation({
     mutationFn: (payload: CreateChatSessionDto) => api.http.chatSessions.create(payload),
     onSuccess: (session) => {
       resetAutoSessionAttempt();
-      queryClient.setQueryData<ChatSessionDto[]>(['chat-sessions'], (previous = []) =>
+      queryClient.setQueryData<ChatSessionDto[]>(CHAT_SESSIONS_QUERY_KEY, (previous = []) =>
         mergeSessionList(previous, session),
       );
       setSelectedSessionPreference(session.id);
@@ -1387,8 +1513,33 @@ export function ChatPage(): JSX.Element {
     [selectedSessionId, setSelectedSessionPreference],
   );
 
-  const handleRenameSession = useCallback((_sessionId: string) => {}, []);
-  const handleDeleteSession = useCallback((_sessionId: string) => {}, []);
+  const handleRenameSession = useCallback(
+    (sessionId: string) => {
+      if (isRenamingSession) {
+        return;
+      }
+      const current = sessions.find((session) => session.id === sessionId);
+      const nextTitle = window.prompt('Rename session', current?.title ?? '');
+      const trimmed = nextTitle?.trim();
+      if (!trimmed || trimmed === current?.title) {
+        return;
+      }
+      runRenameSession({ sessionId, title: trimmed });
+    },
+    [isRenamingSession, runRenameSession, sessions],
+  );
+  const handleDeleteSession = useCallback(
+    (sessionId: string) => {
+      if (isDeletingSession) {
+        return;
+      }
+      if (!window.confirm('Delete this session? This action cannot be undone.')) {
+        return;
+      }
+      runDeleteSession(sessionId);
+    },
+    [isDeletingSession, runDeleteSession],
+  );
 
   const composerUnavailable = !apiKey || !selectedSessionId;
   const composerSubmitDisabled = composerUnavailable || !composerValue.trim();
