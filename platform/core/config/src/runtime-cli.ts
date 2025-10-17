@@ -8,6 +8,14 @@ import {
 } from "./runtime-cli-options";
 import type { CliRuntimeOptions, LogLevel } from "./types";
 
+export const METRICS_BACKEND_VALUES = new Set<
+  NonNullable<CliRuntimeOptions["metricsBackend"]>
+>(["logging", "noop"]);
+
+export const METRICS_LOGGING_LEVEL_VALUES = new Set<
+  NonNullable<CliRuntimeOptions["metricsLoggingLevel"]>
+>(["debug", "log", "verbose"]);
+
 function mergeUniqueList(
   existing: readonly string[] | undefined,
   additions: readonly string[],
@@ -152,6 +160,24 @@ export function parseCliRuntimeOptionsFromArgv(
     }
 
     if (isCliStringOption(optionDefinition)) {
+      if (optionDefinition.runtimeKey === "metricsBackend") {
+        const candidate =
+          next as NonNullable<CliRuntimeOptions["metricsBackend"]>;
+        if (METRICS_BACKEND_VALUES.has(candidate)) {
+          accumulator.metricsBackend = candidate;
+        }
+        continue;
+      }
+
+      if (optionDefinition.runtimeKey === "metricsLoggingLevel") {
+        const candidate =
+          next as NonNullable<CliRuntimeOptions["metricsLoggingLevel"]>;
+        if (METRICS_LOGGING_LEVEL_VALUES.has(candidate)) {
+          accumulator.metricsLoggingLevel = candidate;
+        }
+        continue;
+      }
+
       accumulator[optionDefinition.runtimeKey] = next as CliRuntimeOptions[
         typeof optionDefinition.runtimeKey
       ];

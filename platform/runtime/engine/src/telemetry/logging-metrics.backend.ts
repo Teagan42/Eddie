@@ -1,8 +1,9 @@
 import { Logger } from "@nestjs/common";
 
+import type { MetricsLoggingLevel } from "@eddie/types";
 import type { MetricsBackend } from "./metrics.service";
 
-export type LoggingMetricsBackendLevel = "debug" | "log" | "verbose";
+export type LoggingMetricsBackendLevel = MetricsLoggingLevel;
 
 type LoggerLike = Pick<Logger, LoggingMetricsBackendLevel>;
 

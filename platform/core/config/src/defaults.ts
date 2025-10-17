@@ -96,4 +96,7 @@ export const DEFAULT_CONFIG: EddieConfig = {
     enableSubagents: true,
   },
   transcript: {},
+  metrics: {
+    backend: { type: "noop" },
+  },
 };

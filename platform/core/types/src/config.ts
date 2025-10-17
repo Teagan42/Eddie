@@ -130,6 +130,25 @@ export interface LoggingConfig {
   enableTimestamps?: boolean;
 }
 
+export type MetricsLoggingLevel = "debug" | "log" | "verbose";
+
+export interface MetricsNoopBackendConfig {
+  type: "noop";
+}
+
+export interface MetricsLoggingBackendConfig {
+  type: "logging";
+  level?: MetricsLoggingLevel;
+}
+
+export type MetricsBackendConfig =
+  | MetricsNoopBackendConfig
+  | MetricsLoggingBackendConfig;
+
+export interface MetricsConfig {
+  backend?: MetricsBackendConfig;
+}
+
 export interface ContextConfig {
   include: string[];
   exclude?: string[];
@@ -287,6 +306,7 @@ export interface EddieConfig {
   tokenizer?: TokenizerConfig;
   agents: AgentsConfig;
   transcript?: TranscriptConfig;
+  metrics?: MetricsConfig;
 }
 
 export interface EddieConfigInput {
@@ -306,6 +326,7 @@ export interface EddieConfigInput {
   tokenizer?: Partial<TokenizerConfig>;
   agents?: AgentsConfigInput;
   transcript?: TranscriptConfig;
+  metrics?: Partial<MetricsConfig>;
 }
 
 export interface AgentsConfigInput {
@@ -335,6 +356,8 @@ export interface CliRuntimeOptions {
   logFile?: string;
   agentMode?: string;
   disableSubagents?: boolean;
+  metricsBackend?: MetricsBackendConfig["type"];
+  metricsLoggingLevel?: MetricsLoggingLevel;
 }
 
 export interface OutputConfig {

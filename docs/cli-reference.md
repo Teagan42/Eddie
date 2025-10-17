@@ -27,6 +27,8 @@ Eddie's CLI collects flags in `CliParserService` and adapts them into engine run
 | `--jsonl-trace` | – | string | Overrides the JSONL trace path for structured run logs.【F:apps/cli/src/cli/cli-parser.service.ts†L21-L74】【F:platform/core/config/src/config.service.ts†L592-L597】 | `.eddie/trace.jsonl`.【F:platform/core/config/src/defaults.ts†L71-L75】 |
 | `--log-level` | – | string | Sets the logging level for the run and propagates it to the logger configuration.【F:apps/cli/src/cli/cli-parser.service.ts†L22-L74】【F:platform/core/config/src/config.service.ts†L599-L607】 | `info`.【F:platform/core/config/src/defaults.ts†L61-L70】 |
 | `--log-file` | – | string | Writes structured logs to the specified file instead of standard output. Pretty-printing and colour are disabled when writing to files.【F:apps/cli/src/cli/cli-parser.service.ts†L23-L74】【F:platform/core/config/src/config.service.ts†L609-L619】 | Logs stream to pretty stdout transport by default.【F:platform/core/config/src/defaults.ts†L61-L70】 |
+| `--metrics-backend` | – | string | Chooses the metrics backend for the engine. Use `logging` to emit counters and histograms via the Nest logger or `noop` to disable emissions.【F:platform/core/config/src/runtime-cli-options.ts†L100-L135】【F:apps/cli/src/cli/cli-options.service.ts†L32-L88】【F:platform/runtime/engine/src/telemetry/metrics.service.ts†L103-L118】 | `noop` via the default configuration.【F:platform/core/config/src/defaults.ts†L99-L101】 |
+| `--metrics-backend-level` | – | string | When the logging backend is active, overrides the logger method used for metric events (`debug`, `log`, or `verbose`). Values outside this set are ignored.【F:platform/core/config/src/runtime-cli.ts†L150-L183】【F:apps/cli/src/cli/cli-options.service.ts†L32-L88】【F:platform/runtime/engine/src/telemetry/logging-metrics.backend.ts†L5-L43】 | `debug` when the logging backend is selected.【F:platform/runtime/engine/src/telemetry/logging-metrics.backend.ts†L17-L43】 |
 | `--agent-mode` | – | string | Switches the agent orchestration strategy (for example `single`, `manager`, or custom modes defined in config).【F:apps/cli/src/cli/cli-parser.service.ts†L24-L74】【F:platform/core/config/src/config.service.ts†L628-L630】 | `single`.【F:platform/core/config/src/defaults.ts†L87-L96】 |
 | `--disable-subagents` | – | boolean | Prevents manager agents from spawning additional subagents during the run.【F:apps/cli/src/cli/cli-parser.service.ts†L27-L90】【F:platform/core/config/src/config.service.ts†L632-L634】 | Subagents enabled (`true`).【F:platform/core/config/src/defaults.ts†L87-L96】 |
 
@@ -95,7 +97,9 @@ Environment variables map directly to the flag surface. Common examples include:
 | `EDDIE_CLI_CONTEXT=src,tests` | Overrides context include globs until a flag is supplied.【F:platform/core/config/src/runtime-env.ts†L63-L141】 |
 | `EDDIE_CLI_LOG_LEVEL=debug` | Sets the log level across CLI commands.【F:platform/core/config/src/runtime-env.ts†L63-L141】 |
 | `EDDIE_CLI_JSONL_TRACE=/tmp/eddie.trace.jsonl` | Redirects trace output for subsequent `trace` or `run` invocations.【F:platform/core/config/src/runtime-env.ts†L63-L141】 |
-| `EDDIE_CLI_AGENT_MODE=manager` | Enables the multi-agent orchestrator without editing configuration files.【F:platform/core/config/src/runtime-env.ts†L63-L141】 |
+| `EDDIE_CLI_AGENT_MODE=manager` | Enables the multi-agent orchestrator without editing configuration files.【F:platform/core/config/src/runtime-env.ts†L71-L168】 |
+| `EDDIE_CLI_METRICS_BACKEND=logging` | Switches the metrics backend to the logging implementation without modifying config files.【F:platform/core/config/src/runtime-env.ts†L71-L168】 |
+| `EDDIE_CLI_METRICS_LOGGING_LEVEL=verbose` | Raises the logging backend verbosity for metrics events when combined with the logging backend.【F:platform/core/config/src/runtime-env.ts†L71-L168】 |
 
 Shell interpolation keeps secrets and workspace-specific paths out of the repository:
 
