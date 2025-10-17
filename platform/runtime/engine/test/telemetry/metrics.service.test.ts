@@ -6,10 +6,10 @@ import {
   MetricsService,
   METRICS_BACKEND,
   METRICS_NAMESPACES,
-  metricsProviders,
   type MetricsBackend,
   type MetricsSnapshot,
 } from "../../src/telemetry/metrics.service";
+import { MetricsModule } from "../../src/telemetry/metrics.module";
 
 describe("MetricsService", () => {
   it("records durations when timing operations", async () => {
@@ -20,17 +20,15 @@ describe("MetricsService", () => {
     };
 
     const moduleRef = await Test.createTestingModule({
-      providers: [
-        MetricsService,
-        { provide: METRICS_BACKEND, useValue: backend },
-        {
-          provide: METRICS_NAMESPACES,
-          useValue: {
-            timers: "engine.timer",
-          },
-        },
-      ],
-    }).compile();
+      imports: [MetricsModule],
+    })
+      .overrideProvider(METRICS_BACKEND)
+      .useValue(backend)
+      .overrideProvider(METRICS_NAMESPACES)
+      .useValue({
+        timers: "engine.timer",
+      })
+      .compile();
 
     const service = moduleRef.get(MetricsService);
     const result = await service.timeOperation("template.render", async () => 42);
@@ -48,11 +46,11 @@ describe("MetricsService", () => {
     };
 
     const moduleRef = await Test.createTestingModule({
-      providers: [
-        MetricsService,
-        { provide: METRICS_BACKEND, useValue: backend },
-      ],
-    }).compile();
+      imports: [MetricsModule],
+    })
+      .overrideProvider(METRICS_BACKEND)
+      .useValue(backend)
+      .compile();
 
     const service = moduleRef.get(MetricsService);
 
@@ -107,24 +105,21 @@ describe("MetricsService", () => {
 
     try {
       const moduleRef = await Test.createTestingModule({
-        providers: [
-          ...metricsProviders,
-          {
-            provide: ConfigStore,
-            useValue: {
-              getSnapshot: vi.fn(() => ({
-                metrics: {
-                  backend: {
-                    type: "otel",
-                    meterName: "eddie-engine",
-                    meterVersion: "0.0.0-test",
-                  },
-                },
-              })),
+        imports: [MetricsModule],
+      })
+        .overrideProvider(ConfigStore)
+        .useValue({
+          getSnapshot: vi.fn(() => ({
+            metrics: {
+              backend: {
+                type: "otel",
+                meterName: "eddie-engine",
+                meterVersion: "0.0.0-test",
+              },
             },
-          },
-        ],
-      }).compile();
+          })),
+        })
+        .compile();
 
       const backend = moduleRef.get<MetricsBackend>(METRICS_BACKEND);
 

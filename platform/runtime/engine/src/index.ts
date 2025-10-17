@@ -6,5 +6,6 @@ export * from "./agents/agent-orchestrator.service";
 export * from "./transcript-compactors";
 export * from "./transcript/transcript-compaction.service";
 export * from "./telemetry/metrics.service";
+export * from "./telemetry/metrics.module";
 export * from "./telemetry/logging-metrics.backend";
 export * from "./telemetry/otel-metrics.backend";
