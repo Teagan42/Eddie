@@ -95,7 +95,6 @@ export class EngineService {
     let failure: unknown;
     let logger!: Logger;
 
-    this.metrics.reset();
     this.metrics.countMessage("user");
 
     try {

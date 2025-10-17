@@ -145,12 +145,11 @@ describe("EngineService", () => {
     expect(transcriptCompactionService.createSelector).toHaveBeenCalledTimes(1);
   });
 
-  it("resets metrics before dispatching the run", async () => {
+  it("passes metrics through to the agent orchestrator", async () => {
     const { service, metrics, agentOrchestrator } = createService();
 
     await service.run("prompt");
 
-    expect(metrics.reset).toHaveBeenCalledTimes(1);
     expect(agentOrchestrator.runAgent).toHaveBeenCalled();
     const [, runtimeOptions] = agentOrchestrator.runAgent.mock.calls[0] ?? [];
     expect(runtimeOptions?.metrics).toBe(metrics);
