@@ -15,6 +15,7 @@ export * from "./config";
 export * from "./hooks";
 export * from "./api";
 export * from "./chat-sessions/events";
+export * from "./engine";
 
 export function composeResourceText(resource: PackedResource): string {
   const label = resource.name ?? resource.id;
