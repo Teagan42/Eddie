@@ -59,6 +59,13 @@ import {
   type SessionSelectorSession,
 } from './components';
 import { useChatMessagesRealtime } from './useChatMessagesRealtime';
+import {
+  applyToolSocketEvent,
+  createExecutionTreeState,
+  type ExecutionTreeState,
+  type ToolSocketEventType,
+  type ToolSocketPayload,
+} from './execution-tree-state';
 
 type BadgeColor = ComponentProps<typeof Badge>['color'];
 
@@ -171,45 +178,7 @@ type AutoSessionAttemptState = {
   lastFailureAt: number | null;
 };
 
-type SessionContextSnapshot = {
-  sessionId: string;
-  contextBundles: OrchestratorMetadataDto['contextBundles'];
-  agentHierarchy: OrchestratorMetadataDto['agentHierarchy'];
-  toolInvocations: OrchestratorMetadataDto['toolInvocations'];
-  capturedAt?: string;
-};
-
-function cloneContextBundles(
-  bundles: OrchestratorMetadataDto['contextBundles'] | null | undefined,
-): OrchestratorMetadataDto['contextBundles'] {
-  const source = bundles ?? [];
-  return source.map((bundle) => ({
-    ...bundle,
-    files: bundle.files ? bundle.files.map((file) => ({ ...file })) : undefined,
-  }));
-}
-
-function cloneAgentHierarchy(
-  hierarchy: OrchestratorMetadataDto['agentHierarchy'] | null | undefined,
-): OrchestratorMetadataDto['agentHierarchy'] {
-  const source = hierarchy ?? [];
-  return source.map((node) => ({
-    ...node,
-    metadata: node.metadata ? { ...node.metadata } : undefined,
-    children: cloneAgentHierarchy(node.children),
-  }));
-}
-
-function cloneToolInvocations(
-  nodes: OrchestratorMetadataDto['toolInvocations'] | null | undefined,
-): OrchestratorMetadataDto['toolInvocations'] {
-  const source = nodes ?? [];
-  return source.map((node) => ({
-    ...node,
-    metadata: node.metadata ? { ...node.metadata } : undefined,
-    children: cloneToolInvocations(node.children),
-  }));
-}
+type SessionContextSnapshot = ExecutionTreeState;
 
 function cloneSessionContext(
   snapshot: SessionContextSnapshot | null | undefined,
@@ -218,13 +187,16 @@ function cloneSessionContext(
     return null;
   }
 
-  return {
-    sessionId: snapshot.sessionId,
-    capturedAt: snapshot.capturedAt,
-    contextBundles: cloneContextBundles(snapshot.contextBundles),
-    agentHierarchy: cloneAgentHierarchy(snapshot.agentHierarchy),
-    toolInvocations: cloneToolInvocations(snapshot.toolInvocations),
-  };
+  return createExecutionTreeState(snapshot);
+}
+
+function createEmptyExecutionSnapshot(sessionId: string): SessionContextSnapshot {
+  return createExecutionTreeState({
+    sessionId,
+    contextBundles: [],
+    toolInvocations: [],
+    agentHierarchy: [],
+  });
 }
 
 function removeSessionKey<T extends Record<string, unknown>>(
@@ -320,6 +292,28 @@ export function ChatPage(): JSX.Element {
       return cloned;
     },
     [syncSessionContextCache],
+  );
+
+  const handleToolSocketUpdate = useCallback(
+    (payload: ToolSocketPayload, eventType: ToolSocketEventType) => {
+      const sessionId = typeof payload.sessionId === 'string' ? payload.sessionId : null;
+      if (!sessionId) {
+        return;
+      }
+
+      let nextSnapshot: SessionContextSnapshot | null = null;
+      setSessionContextById((previous) => {
+        const currentSnapshot = previous[sessionId] ?? createEmptyExecutionSnapshot(sessionId);
+        const updated = applyToolSocketEvent(currentSnapshot, payload, eventType);
+        nextSnapshot = updated;
+        return { ...previous, [sessionId]: updated };
+      });
+
+      if (nextSnapshot) {
+        syncSessionContextCache(sessionId, nextSnapshot);
+      }
+    },
+    [setSessionContextById, syncSessionContextCache],
   );
 
   const getMessageCacheLength = useCallback(
@@ -619,6 +613,18 @@ export function ChatPage(): JSX.Element {
       );
     }
 
+    const toolSockets = api.sockets.tools;
+    if (toolSockets) {
+      unsubscribes.push(
+        toolSockets.onToolCall((payload) =>
+          handleToolSocketUpdate(payload as ToolSocketPayload, 'tool.call'),
+        ),
+        toolSockets.onToolResult((payload) =>
+          handleToolSocketUpdate(payload as ToolSocketPayload, 'tool.result'),
+        ),
+      );
+    }
+
     return () => {
       unsubscribes.forEach((unsubscribe) => unsubscribe());
     };
@@ -629,6 +635,7 @@ export function ChatPage(): JSX.Element {
     queryClient,
     setSessionContext,
     setSelectedSessionPreference,
+    handleToolSocketUpdate,
   ]);
 
   const { data: sessionContextQueryData } = useQuery({
@@ -644,12 +651,13 @@ export function ChatPage(): JSX.Element {
         return null;
       }
 
-      return {
+      const state = createExecutionTreeState({
+        ...raw,
         sessionId: raw.sessionId ?? selectedSessionId,
-        contextBundles: cloneContextBundles(raw.contextBundles),
-        agentHierarchy: cloneAgentHierarchy(raw.agentHierarchy),
-        toolInvocations: cloneToolInvocations(raw.toolInvocations),
-        capturedAt: raw.capturedAt ?? undefined,
+      });
+      return {
+        ...state,
+        capturedAt: raw.capturedAt ?? state.capturedAt,
       } satisfies SessionContextSnapshot;
     },
     refetchInterval: 10_000,
