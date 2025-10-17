@@ -14,10 +14,10 @@ import { EngineService } from "../../src/engine.service";
 import {
   MetricsService,
   METRICS_BACKEND,
-  metricsProviders,
   type MetricsBackend,
 } from "../../src/telemetry/metrics.service";
 import { LoggingMetricsBackend } from "../../src/telemetry/logging-metrics.backend";
+import { MetricsModule } from "../../src/telemetry/metrics.module";
 
 describe("EngineService metrics", () => {
   const baseConfig: EddieConfig = {
@@ -58,9 +58,8 @@ describe("EngineService metrics", () => {
     const confirm = { confirm: vi.fn() };
 
     const moduleRef = await Test.createTestingModule({
+      imports: [MetricsModule],
       providers: [
-        ...metricsProviders,
-        { provide: ConfigStore, useValue: { getSnapshot: vi.fn(() => ({ ...baseConfig })) } },
         { provide: ContextService, useValue: { pack: vi.fn(async () => ({ files: [], totalBytes: 0, text: "" })) } },
         { provide: ProviderFactoryService, useValue: { create: vi.fn(() => ({ name: "adapter" })) } },
         { provide: HooksService, useValue: { load: vi.fn(async () => hooks) } },
@@ -100,7 +99,10 @@ describe("EngineService metrics", () => {
         },
         { provide: McpToolSourceService, useValue: { collectTools: vi.fn(async () => ({ tools: [], resources: [], prompts: [] })) } },
       ],
-    }).compile();
+    })
+      .overrideProvider(ConfigStore)
+      .useValue({ getSnapshot: vi.fn(() => ({ ...baseConfig })) })
+      .compile();
 
     const configStore = moduleRef.get<ConfigStore>(ConfigStore);
     const contextService = moduleRef.get<ContextService>(ContextService);

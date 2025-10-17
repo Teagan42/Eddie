@@ -18,7 +18,8 @@ import { AgentOrchestratorService } from "./agents/agent-orchestrator.service";
 import { MCPModule } from "@eddie/mcp";
 import { TranscriptCompactionService } from "./transcript/transcript-compaction.service";
 import { transcriptCompactorFactoryProvider } from "./transcript/transcript-compactor.factory";
-import { metricsProviders, MetricsService } from "./telemetry/metrics.service";
+import { MetricsService } from "./telemetry/metrics.service";
+import { MetricsModule } from "./telemetry/metrics.module";
 
 @Module({
   imports: [
@@ -32,10 +33,10 @@ import { metricsProviders, MetricsService } from "./telemetry/metrics.service";
     TemplateModule,
     ToolsModule,
     MCPModule,
+    MetricsModule,
   ],
   providers: [
     ...templateRuntimeProviders,
-    ...metricsProviders,
     EngineService,
     AgentInvocationFactory,
     AgentOrchestratorService,
