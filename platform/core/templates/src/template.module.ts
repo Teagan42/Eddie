@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { IoModule } from "@eddie/io";
 import { TemplateRendererService } from "./template-renderer.service";
 import {
   TemplateRuntimeService,
@@ -16,6 +17,7 @@ const templateModuleExports = [
 ];
 
 @Module({
+  imports: [IoModule],
   providers: templateModuleProviders,
   exports: templateModuleExports,
 })
