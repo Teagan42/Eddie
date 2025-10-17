@@ -1,5 +1,5 @@
-export { AgentTree } from './AgentTree';
-export type { AgentTreeProps } from './AgentTree';
+export { AgentExecutionTree } from './AgentExecutionTree';
+export type { AgentExecutionTreeProps } from './AgentExecutionTree';
 export { CollapsiblePanel } from './CollapsiblePanel';
 export type { CollapsiblePanelProps } from './CollapsiblePanel';
 export { ContextBundlesPanel } from './ContextBundlesPanel';
@@ -10,5 +10,3 @@ export type {
   SessionSelectorSession,
   SessionSelectorMetricsSummary,
 } from './SessionSelector';
-export { ToolTree } from './ToolTree';
-export type { ToolTreeProps } from './ToolTree';
