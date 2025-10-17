@@ -11,6 +11,7 @@ import {
   TRANSCRIPT_COMPACTOR_FACTORY,
   transcriptCompactorFactoryProvider,
 } from "../src/transcript/transcript-compactor.factory";
+import { MetricsService } from "../src/telemetry/metrics.service";
 
 function getMetadataArray<T = unknown>(key: string): T[] {
   const metadata = Reflect.getMetadata(key, EngineModule);
@@ -41,5 +42,11 @@ describe("EngineModule runtime providers", () => {
     expect(exportsList).toEqual(
       expect.arrayContaining([TemplateRuntimeService])
     );
+  });
+
+  it("does not export metrics service", () => {
+    const exportsList = getMetadataArray(MODULE_METADATA.EXPORTS);
+
+    expect(exportsList).not.toContain(MetricsService);
   });
 });

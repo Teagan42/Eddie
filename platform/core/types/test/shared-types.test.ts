@@ -6,8 +6,12 @@ import type {
   ConfigSchemaPayload,
   ConfigSourcePayload,
   ConfigSourceRequestPayload,
+  ContextUpdateSourceType,
   EddieConfig,
   EddieConfigInput,
+  ExecutionContextBundle,
+  ExecutionToolInvocationNode,
+  ExecutionTreeSnapshot,
   HookEventMap,
   MCPToolSourceConfig,
   ProviderAdapter,
@@ -15,6 +19,7 @@ import type {
   ProviderConfig,
   SessionStartPayload,
   ToolSourceConfig,
+  ToolCallStatus,
 } from "@eddie/types";
 
 type ProviderFactoryContract = {
@@ -78,5 +83,32 @@ describe("@eddie/types shared contracts", () => {
       path: "./eddie.config.yaml",
     };
     void invalidPayload;
+  });
+
+  it("exposes execution tree contracts", () => {
+    expectTypeOf<ToolCallStatus>().toEqualTypeOf<
+      "pending" | "running" | "completed" | "failed"
+    >();
+
+    expectTypeOf<ExecutionToolInvocationNode>().toMatchTypeOf<{
+      id: string;
+      agentId: string;
+      name: string;
+      status: ToolCallStatus;
+      metadata?: Record<string, unknown>;
+      children: ExecutionToolInvocationNode[];
+    }>();
+
+    expectTypeOf<ExecutionContextBundle>().toHaveProperty("source").toMatchTypeOf<{
+      type: ContextUpdateSourceType;
+      agentId: string;
+      toolCallId: string;
+    }>();
+
+    expectTypeOf<ExecutionTreeSnapshot>().toMatchTypeOf<{
+      agentHierarchy: { id: string; name: string }[];
+      toolInvocations: ExecutionToolInvocationNode[];
+      contextBundles: ExecutionContextBundle[];
+    }>();
   });
 });
