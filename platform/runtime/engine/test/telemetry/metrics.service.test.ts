@@ -6,6 +6,7 @@ import {
   MetricsService,
   METRICS_BACKEND,
   METRICS_NAMESPACES,
+  METRICS_METER_PROVIDER,
   metricsProviders,
   type MetricsBackend,
   type MetricsSnapshot,
@@ -139,5 +140,64 @@ describe("MetricsService", () => {
     } finally {
       metrics.disable();
     }
+  });
+
+  it("uses an injected meter provider and flushes during shutdown", async () => {
+    const counter = { add: vi.fn() };
+    const histogram = { record: vi.fn() };
+    const meter: Meter = {
+      createCounter: vi.fn(() => counter as any),
+      createHistogram: vi.fn(() => histogram as any),
+      createObservableCounter: vi.fn(),
+      createObservableGauge: vi.fn(),
+      createObservableUpDownCounter: vi.fn(),
+      createUpDownCounter: vi.fn(),
+      createGauge: vi.fn(),
+      addBatchObservableCallback: vi.fn(),
+      removeBatchObservableCallback: vi.fn(),
+    } as unknown as Meter;
+
+    const provider = {
+      getMeter: vi.fn(() => meter),
+      forceFlush: vi.fn(async () => undefined),
+      shutdown: vi.fn(async () => undefined),
+    } satisfies MeterProvider;
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        ...metricsProviders,
+        {
+          provide: ConfigStore,
+          useValue: {
+            getSnapshot: vi.fn(() => ({
+              metrics: {
+                backend: {
+                  type: "otel",
+                  meterName: "eddie-engine",
+                  meterVersion: "0.0.0-test",
+                },
+              },
+            })),
+          },
+        },
+        {
+          provide: METRICS_METER_PROVIDER,
+          useValue: provider,
+        },
+      ],
+    }).compile();
+
+    const backend = moduleRef.get<MetricsBackend>(METRICS_BACKEND);
+
+    backend.incrementCounter("engine.messages.user", 1);
+    backend.recordHistogram("engine.timers.loop", 5);
+
+    expect(provider.getMeter).toHaveBeenCalledWith("eddie-engine", "0.0.0-test", {});
+
+    const service = moduleRef.get(MetricsService);
+    await service.onModuleDestroy();
+
+    expect(provider.forceFlush).toHaveBeenCalledTimes(1);
+    expect(provider.shutdown).toHaveBeenCalledTimes(1);
   });
 });
