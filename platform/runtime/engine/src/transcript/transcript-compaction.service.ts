@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable, OnModuleDestroy } from "@nestjs/common";
 import { HOOK_EVENTS, type AgentLifecyclePayload, type AgentRuntimeDescriptor } from "@eddie/types";
 import type { AgentInvocation } from "../agents/agent-invocation";
 import type { HookBus } from "@eddie/hooks";
@@ -6,6 +6,10 @@ import type { EddieConfig, TranscriptCompactorConfig } from "@eddie/types";
 import type { Logger } from "pino";
 import type { TranscriptCompactor } from "../transcript-compactors";
 import { createTranscriptCompactor } from "../transcript-compactors";
+import {
+  TRANSCRIPT_COMPACTOR_FACTORY,
+  type TranscriptCompactorFactoryBinding,
+} from "./transcript-compactor.factory";
 
 export interface TranscriptCompactionWorkflow {
   selectFor(
@@ -32,12 +36,27 @@ interface CompactionRuntime {
 }
 
 @Injectable()
-export class TranscriptCompactionService {
+export class TranscriptCompactionService implements OnModuleDestroy {
   private readonly cache = new Map<string, CachedCompactor>();
+  private readonly teardownSubscription: () => void;
+  private readonly instantiate: typeof createTranscriptCompactor;
 
   constructor(
-    private readonly instantiate: typeof createTranscriptCompactor = createTranscriptCompactor,
-  ) {}
+    @Inject(TRANSCRIPT_COMPACTOR_FACTORY)
+    private readonly binding: TranscriptCompactorFactoryBinding = {
+      create: createTranscriptCompactor,
+      onSnapshot: () => () => {},
+    },
+  ) {
+    this.instantiate = this.binding.create;
+    this.teardownSubscription = this.binding.onSnapshot(() => {
+      this.cache.clear();
+    });
+  }
+
+  onModuleDestroy(): void {
+    this.teardownSubscription();
+  }
 
   createSelector(config: EddieConfig): TranscriptCompactionWorkflow {
     const globalConfig = config.transcript?.compactor;

@@ -7,6 +7,10 @@ import {
   templateRuntimeProviders,
 } from "@eddie/templates";
 import { EngineModule } from "../src/engine.module";
+import {
+  TRANSCRIPT_COMPACTOR_FACTORY,
+  transcriptCompactorFactoryProvider,
+} from "../src/transcript/transcript-compactor.factory";
 
 function getMetadataArray<T = unknown>(key: string): T[] {
   const metadata = Reflect.getMetadata(key, EngineModule);
@@ -22,6 +26,10 @@ describe("EngineModule runtime providers", () => {
         ...templateRuntimeProviders,
         expect.objectContaining({
           provide: getLoggerToken(TEMPLATE_RUNTIME_LOGGER_SCOPE),
+        }),
+        expect.objectContaining({
+          provide: TRANSCRIPT_COMPACTOR_FACTORY,
+          useFactory: transcriptCompactorFactoryProvider.useFactory,
         }),
       ])
     );
