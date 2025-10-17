@@ -11,7 +11,13 @@ import { AgentOrchestratorService } from "../../src/agents/agent-orchestrator.se
 import { TranscriptCompactionService } from "../../src/transcript/transcript-compaction.service";
 import { McpToolSourceService } from "@eddie/mcp";
 import { EngineService } from "../../src/engine.service";
-import { MetricsService, metricsProviders } from "../../src/telemetry/metrics.service";
+import {
+  MetricsService,
+  METRICS_BACKEND,
+  metricsProviders,
+  type MetricsBackend,
+} from "../../src/telemetry/metrics.service";
+import { LoggingMetricsBackend } from "../../src/telemetry/logging-metrics.backend";
 
 describe("EngineService metrics", () => {
   const baseConfig: EddieConfig = {
@@ -34,6 +40,7 @@ describe("EngineService metrics", () => {
       enableSubagents: false,
     },
     transcript: {},
+    metrics: { backend: { type: "logging", level: "verbose" } },
   };
 
   beforeEach(() => {
@@ -106,6 +113,7 @@ describe("EngineService metrics", () => {
     const orchestrator = moduleRef.get<any>(AgentOrchestratorService);
     const mcpToolSourceService = moduleRef.get<McpToolSourceService>(McpToolSourceService);
     const metricsService = moduleRef.get<MetricsService>(MetricsService);
+    const backend = moduleRef.get<MetricsBackend>(METRICS_BACKEND);
 
     const countMessageSpy = vi.spyOn(metricsService, "countMessage");
     const timeOperationSpy = vi.spyOn(metricsService, "timeOperation");
@@ -125,15 +133,16 @@ describe("EngineService metrics", () => {
       metricsService,
     );
 
-    return { service, orchestrator, countMessageSpy, timeOperationSpy, countErrorSpy };
+    return { service, orchestrator, countMessageSpy, timeOperationSpy, countErrorSpy, backend };
   };
 
   it("counts user and assistant messages and wraps template rendering", async () => {
-    const { service, orchestrator, countMessageSpy, timeOperationSpy } =
+    const { service, orchestrator, countMessageSpy, timeOperationSpy, backend } =
       await createModule();
 
     await service.run("Hello world");
 
+    expect(backend).toBeInstanceOf(LoggingMetricsBackend);
     expect(countMessageSpy).toHaveBeenCalledWith("user");
     expect(countMessageSpy).toHaveBeenCalledWith("assistant");
     expect(timeOperationSpy).toHaveBeenCalledWith(
@@ -144,7 +153,8 @@ describe("EngineService metrics", () => {
   });
 
   it("records errors when run fails", async () => {
-    const { service, orchestrator, countErrorSpy } = await createModule();
+    const { service, orchestrator, countErrorSpy, backend } = await createModule();
+    expect(backend).toBeInstanceOf(LoggingMetricsBackend);
     orchestrator.runAgent.mockRejectedValueOnce(new Error("boom"));
 
     await expect(service.run("Hello world")).rejects.toThrow("boom");

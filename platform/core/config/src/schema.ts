@@ -219,6 +219,37 @@ const LOGGING_CONFIG_SCHEMA: JSONSchema7 = {
   },
 };
 
+const METRICS_BACKEND_NOOP_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type"],
+  properties: {
+    type: { const: "noop" },
+  },
+};
+
+const METRICS_BACKEND_LOGGING_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type"],
+  properties: {
+    type: { const: "logging" },
+    level: { enum: ["debug", "log", "verbose"] },
+  },
+};
+
+const METRICS_BACKEND_SCHEMA: JSONSchema7 = {
+  oneOf: [METRICS_BACKEND_NOOP_SCHEMA, METRICS_BACKEND_LOGGING_SCHEMA],
+};
+
+const METRICS_CONFIG_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    backend: METRICS_BACKEND_SCHEMA,
+  },
+};
+
 const CONTEXT_RESOURCE_BUNDLE_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
@@ -626,6 +657,7 @@ export const EDDIE_CONFIG_SCHEMA: JSONSchema7 = {
     tokenizer: TOKENIZER_CONFIG_SCHEMA,
     agents: AGENTS_CONFIG_SCHEMA,
     transcript: TRANSCRIPT_CONFIG_SCHEMA,
+    metrics: METRICS_CONFIG_SCHEMA,
   },
 };
 
@@ -663,6 +695,7 @@ export const EDDIE_CONFIG_INPUT_SCHEMA: JSONSchema7 = {
       required: [],
     },
     transcript: TRANSCRIPT_CONFIG_SCHEMA,
+    metrics: METRICS_CONFIG_SCHEMA,
   },
 };
 

@@ -44,6 +44,18 @@ export class CliOptionsService {
     }
     assignStringOption(base, options, "logFile");
     assignStringOption(base, options, "agentMode");
+    if (typeof options.metricsBackend === "string") {
+      const backend = options.metricsBackend;
+      if (backend === "logging" || backend === "noop") {
+        base.metricsBackend = backend;
+      }
+    }
+    if (typeof options.metricsLoggingLevel === "string") {
+      const level = options.metricsLoggingLevel;
+      if (level === "debug" || level === "log" || level === "verbose") {
+        base.metricsLoggingLevel = level as CliRuntimeOptions["metricsLoggingLevel"];
+      }
+    }
     if (typeof options.disableSubagents === "boolean") {
       base.disableSubagents = options.disableSubagents;
     }

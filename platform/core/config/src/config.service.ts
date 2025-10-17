@@ -26,6 +26,7 @@ import type {
   EddieConfig,
   EddieConfigInput,
   LoggingConfig,
+  MetricsConfig,
   ProviderConfig,
   ProviderProfileConfig,
   TranscriptConfig,
@@ -473,6 +474,7 @@ export class ConfigService {
         base.transcript,
         input.transcript,
       ),
+      metrics: this.mergeMetricsConfig(base.metrics, input.metrics),
     };
   }
 
@@ -488,6 +490,7 @@ export class ConfigService {
       ...logging,
       projectDir,
       context,
+      metrics: this.cloneMetricsConfig(config.metrics),
       agents: this.applyAgentsBaseDir(
         this.ensureAgentsShape(config.agents, config.systemPrompt),
         projectDir
@@ -533,6 +536,7 @@ export class ConfigService {
       provider: this.cloneProviderConfig(config.provider),
       providers: this.mergeProviders(undefined, config.providers),
       transcript: this.cloneTranscriptConfig(config.transcript),
+      metrics: this.cloneMetricsConfig(config.metrics),
     };
 
     if (options.provider) {
@@ -617,6 +621,33 @@ export class ConfigService {
       merged.logging = {
         ...(merged.logging ?? { level: merged.logLevel }),
         destination,
+      };
+    }
+
+    if (options.metricsBackend) {
+      if (!merged.metrics) {
+        merged.metrics = {};
+      }
+
+      if (options.metricsBackend === "logging") {
+        merged.metrics.backend = {
+          type: "logging",
+          level:
+            options.metricsLoggingLevel ??
+            (merged.metrics.backend?.type === "logging"
+              ? merged.metrics.backend.level
+              : undefined),
+        };
+      } else {
+        merged.metrics.backend = { type: "noop" };
+      }
+    } else if (
+      options.metricsLoggingLevel &&
+      merged.metrics?.backend?.type === "logging"
+    ) {
+      merged.metrics.backend = {
+        type: "logging",
+        level: options.metricsLoggingLevel,
       };
     }
 
@@ -724,6 +755,24 @@ export class ConfigService {
     };
 
     return merged;
+  }
+
+  private mergeMetricsConfig(
+    base: MetricsConfig | undefined,
+    input: Partial<MetricsConfig> | undefined,
+  ): MetricsConfig | undefined {
+    if (!base && !input) {
+      return undefined;
+    }
+
+    const backend = input?.backend ?? base?.backend;
+    if (!backend) {
+      return undefined;
+    }
+
+    return {
+      backend: { ...backend },
+    } satisfies MetricsConfig;
   }
 
   private ensureAgentsShape(
@@ -934,6 +983,25 @@ export class ConfigService {
     }
 
     return cloned;
+  }
+
+  private cloneMetricsConfig(
+    config: MetricsConfig | undefined,
+  ): MetricsConfig | undefined {
+    if (!config?.backend) {
+      return undefined;
+    }
+
+    if (config.backend.type === "logging") {
+      return {
+        backend: {
+          type: "logging",
+          level: config.backend.level,
+        },
+      } satisfies MetricsConfig;
+    }
+
+    return { backend: { type: "noop" } } satisfies MetricsConfig;
   }
 
   private cloneProviderConfig(config: ProviderConfig): ProviderConfig {

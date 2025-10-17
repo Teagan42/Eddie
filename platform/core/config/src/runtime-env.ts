@@ -1,3 +1,4 @@
+import { METRICS_BACKEND_VALUES, METRICS_LOGGING_LEVEL_VALUES } from "./runtime-cli";
 import type { CliRuntimeOptions, LogLevel } from "./types";
 
 const TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
@@ -136,6 +137,26 @@ export function resolveCliRuntimeOptionsFromEnv(
 
   if (disableSubagents !== undefined) {
     options.disableSubagents = disableSubagents;
+  }
+
+  const metricsBackend = parseString(env.EDDIE_CLI_METRICS_BACKEND);
+  if (metricsBackend !== undefined) {
+    const candidate =
+      metricsBackend as NonNullable<CliRuntimeOptions["metricsBackend"]>;
+    if (METRICS_BACKEND_VALUES.has(candidate)) {
+      options.metricsBackend = candidate;
+    }
+  }
+
+  const metricsLoggingLevel = parseString(env.EDDIE_CLI_METRICS_LOGGING_LEVEL);
+  if (metricsLoggingLevel !== undefined) {
+    const candidate =
+      metricsLoggingLevel as NonNullable<
+        CliRuntimeOptions["metricsLoggingLevel"]
+      >;
+    if (METRICS_LOGGING_LEVEL_VALUES.has(candidate)) {
+      options.metricsLoggingLevel = candidate;
+    }
   }
 
   return options;

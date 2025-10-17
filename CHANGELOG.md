@@ -10,6 +10,7 @@
 - Integration tests covering the Nest-backed command runner and CLI argument parsing parity.
 - Migration guide documenting environment variables, configuration lookups, and build steps for downstream consumers.
 - Documentation for configuring SQLite, PostgreSQL, MySQL, and MariaDB persistence, including migration automation notes.
+- Configurable engine metrics backends with CLI overrides and logging support.【F:platform/core/types/src/config.ts†L133-L150】【F:platform/runtime/engine/src/telemetry/metrics.service.ts†L103-L118】
 
 ## [1.0.5] - 2025-10-09
 

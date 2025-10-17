@@ -55,6 +55,14 @@ describe("parseCliRuntimeOptionsFromArgv", () => {
         case "logLevel":
           return [flag, "debug"];
         default:
+          if (definition.runtimeKey === "metricsBackend") {
+            return [flag, "logging"];
+          }
+
+          if (definition.runtimeKey === "metricsLoggingLevel") {
+            return [flag, "verbose"];
+          }
+
           return [flag, `${definition.runtimeKey}-value`];
       }
     });
@@ -70,6 +78,16 @@ describe("parseCliRuntimeOptionsFromArgv", () => {
 
       if (definition.runtimeKey === "logLevel") {
         expect(value).toBe("debug");
+        continue;
+      }
+
+      if (definition.runtimeKey === "metricsBackend") {
+        expect(value).toBe("logging");
+        continue;
+      }
+
+      if (definition.runtimeKey === "metricsLoggingLevel") {
+        expect(value).toBe("verbose");
         continue;
       }
 
