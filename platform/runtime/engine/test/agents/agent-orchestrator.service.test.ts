@@ -7,6 +7,11 @@ import type {
   AgentRuntimeCatalog,
   AgentRuntimeDescriptor,
 } from "@eddie/types";
+import type {
+  AgentRunLoop,
+  ToolCallHandler,
+  TraceWriterDelegate,
+} from "../../src/agents/runner";
 
 const createStream = (events: StreamEvent[]): AsyncIterable<StreamEvent> => ({
   [Symbol.asyncIterator]: async function* () {
@@ -24,6 +29,22 @@ const createMetrics = () => ({
   reset: vi.fn(),
   snapshot: vi.fn(() => ({ counters: {}, histograms: {} })),
 });
+
+const createRunnerDependencies = () => {
+  const traceWriterDelegate = {
+    write: vi.fn(),
+  } as unknown as TraceWriterDelegate;
+  const toolCallHandler = {
+    handle: vi.fn(),
+  } as unknown as ToolCallHandler;
+  const runLoop = {
+    run: vi
+      .fn<AgentRunLoop["run"]>()
+      .mockResolvedValue({ agentFailed: false, iterationCount: 0 }),
+  } as unknown as AgentRunLoop;
+
+  return { traceWriterDelegate, toolCallHandler, runLoop };
+};
 
 describe("AgentOrchestratorService", () => {
   it("delegates invocation execution to the agent runner", async () => {
@@ -100,11 +121,15 @@ describe("AgentOrchestratorService", () => {
     };
 
     const eventBus = { publish: vi.fn() };
+    const runnerDeps = createRunnerDependencies();
     const orchestrator = new AgentOrchestratorService(
       invocationFactory as any,
       streamRenderer as any,
       eventBus as any,
       traceWriter as any,
+      runnerDeps.runLoop,
+      runnerDeps.toolCallHandler,
+      runnerDeps.traceWriterDelegate,
     );
 
     const runSpy = vi
@@ -125,23 +150,133 @@ describe("AgentOrchestratorService", () => {
     runSpy.mockRestore();
   });
 
+  it("creates agent runners with injected runner collaborators", async () => {
+    const agentDefinition = {
+      id: "agent-1",
+      systemPrompt: "You are helpful.",
+      tools: [],
+    };
+
+    const invocation = {
+      definition: agentDefinition,
+      prompt: "List files",
+      context: { files: [], totalBytes: 0, text: "" },
+      history: [],
+      messages: [
+        { role: "system", content: agentDefinition.systemPrompt },
+        { role: "user", content: "List files" },
+      ],
+      children: [],
+      parent: undefined,
+      toolRegistry: {
+        schemas: () => [],
+        execute: vi.fn().mockResolvedValue({ schema: "tool", content: "done" }),
+      },
+      setSpawnHandler: vi.fn(),
+      setRuntime: vi.fn(),
+      addChild: vi.fn(),
+      spawn: vi.fn(),
+      id: agentDefinition.id,
+      isRoot: true,
+    } as unknown as AgentInvocation;
+
+    const descriptor: AgentRuntimeDescriptor = {
+      id: agentDefinition.id,
+      definition: agentDefinition,
+      model: "gpt-test",
+      provider: {
+        name: "openai",
+        stream: vi.fn().mockReturnValue(createStream([{ type: "end" }])),
+      },
+    };
+
+    const catalog: AgentRuntimeCatalog = {
+      enableSubagents: false,
+      getManager: () => descriptor,
+      getAgent: () => descriptor,
+      getSubagent: () => undefined,
+      listSubagents: () => [],
+    };
+
+    const runtime = {
+      catalog,
+      hooks: { emitAsync: vi.fn().mockResolvedValue({}) },
+      confirm: vi.fn().mockResolvedValue(true),
+      cwd: process.cwd(),
+      logger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      traceAppend: true,
+      tracePath: undefined,
+      transcriptCompactor: undefined,
+      metrics: createMetrics(),
+    };
+
+    const invocationFactory = {
+      create: vi.fn().mockResolvedValue(invocation),
+    };
+
+    const streamRenderer = {
+      render: vi.fn(),
+      flush: vi.fn(),
+    };
+
+    const traceWriter = {
+      write: vi.fn(),
+    };
+
+    const eventBus = { publish: vi.fn() };
+    const runnerDeps = createRunnerDependencies();
+    const orchestrator = new AgentOrchestratorService(
+      invocationFactory as any,
+      streamRenderer as any,
+      eventBus as any,
+      traceWriter as any,
+      runnerDeps.runLoop,
+      runnerDeps.toolCallHandler,
+      runnerDeps.traceWriterDelegate,
+    );
+
+    const runSpy = vi
+      .spyOn(AgentRunner.prototype as Record<string, unknown>, "run")
+      .mockImplementation(async function (this: Record<string, unknown>) {
+        expect(this.runLoop).toBe(runnerDeps.runLoop);
+        expect(this.toolCallHandler).toBe(runnerDeps.toolCallHandler);
+        expect(this.traceWriter).toBe(runnerDeps.traceWriterDelegate);
+      });
+
+    await orchestrator.runAgent(
+      { definition: agentDefinition, prompt: "List files" },
+      runtime as any,
+    );
+
+    expect(runSpy).toHaveBeenCalled();
+    runSpy.mockRestore();
+  });
+
   it("does not expose a stream renderer mutator", () => {
+    const runnerDeps = createRunnerDependencies();
     const orchestrator = new AgentOrchestratorService(
       { create: vi.fn() } as any,
       { render: vi.fn(), flush: vi.fn() } as any,
       { publish: vi.fn() } as any,
       { write: vi.fn() } as any,
+      runnerDeps.runLoop,
+      runnerDeps.toolCallHandler,
+      runnerDeps.traceWriterDelegate,
     );
 
     expect("setStreamRenderer" in orchestrator).toBe(false);
   });
 
   it("annotates spawn_subagent schema with structured output contract", () => {
+    const runnerDeps = createRunnerDependencies();
     const orchestrator = new AgentOrchestratorService(
       { create: vi.fn() } as any,
       { render: vi.fn(), flush: vi.fn() } as any,
       { publish: vi.fn() } as any,
       { write: vi.fn() } as any,
+      runnerDeps.runLoop,
+      runnerDeps.toolCallHandler,
+      runnerDeps.traceWriterDelegate,
     );
 
     const runtime = {
@@ -365,11 +500,15 @@ describe("AgentOrchestratorService", () => {
       write: vi.fn(),
     };
 
+    const runnerDeps = createRunnerDependencies();
     const orchestrator = new AgentOrchestratorService(
       invocationFactory as any,
       streamRenderer as any,
       { publish: vi.fn() } as any,
       traceWriter as any,
+      runnerDeps.runLoop,
+      runnerDeps.toolCallHandler,
+      runnerDeps.traceWriterDelegate,
     );
 
     const runSpy = vi
@@ -468,11 +607,15 @@ describe("AgentOrchestratorService", () => {
       write: vi.fn(),
     };
 
+    const runnerDeps = createRunnerDependencies();
     const orchestrator = new AgentOrchestratorService(
       invocationFactory as any,
       streamRenderer as any,
       { publish: vi.fn() } as any,
       traceWriter as any,
+      runnerDeps.runLoop,
+      runnerDeps.toolCallHandler,
+      runnerDeps.traceWriterDelegate,
     );
 
     const runtime = {
@@ -547,11 +690,15 @@ describe("AgentOrchestratorService", () => {
   });
 
   it("collects invocations breadth-first without relying on Array.shift", () => {
+    const runnerDeps = createRunnerDependencies();
     const orchestrator = new AgentOrchestratorService(
       { create: vi.fn() } as any,
       { render: vi.fn(), flush: vi.fn() } as any,
       { publish: vi.fn() } as any,
       { write: vi.fn() } as any,
+      runnerDeps.runLoop,
+      runnerDeps.toolCallHandler,
+      runnerDeps.traceWriterDelegate,
     );
 
     const createInvocation = (
@@ -606,11 +753,15 @@ describe("AgentOrchestratorService", () => {
   });
 
   it("delegates transcript compaction to the runtime workflow", async () => {
+    const runnerDeps = createRunnerDependencies();
     const orchestrator = new AgentOrchestratorService(
       { create: vi.fn() } as any,
       { render: vi.fn(), flush: vi.fn() } as any,
       { publish: vi.fn() } as any,
       { write: vi.fn() } as any,
+      runnerDeps.runLoop,
+      runnerDeps.toolCallHandler,
+      runnerDeps.traceWriterDelegate,
     );
 
     const invocation = {
@@ -684,11 +835,15 @@ describe("AgentOrchestratorService", () => {
 
   it("writes metrics snapshots alongside trace events", async () => {
     const traceWriter = { write: vi.fn().mockResolvedValue(undefined) };
+    const runnerDeps = createRunnerDependencies();
     const orchestrator = new AgentOrchestratorService(
       { create: vi.fn() } as any,
       { render: vi.fn(), flush: vi.fn() } as any,
       { publish: vi.fn() } as any,
       traceWriter as any,
+      runnerDeps.runLoop,
+      runnerDeps.toolCallHandler,
+      runnerDeps.traceWriterDelegate,
     );
 
     const metrics = createMetrics();

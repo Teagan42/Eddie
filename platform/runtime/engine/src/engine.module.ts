@@ -19,6 +19,11 @@ import { MCPModule } from "@eddie/mcp";
 import { TranscriptCompactionService } from "./transcript/transcript-compaction.service";
 import { transcriptCompactorFactoryProvider } from "./transcript/transcript-compactor.factory";
 import { MetricsModule } from "./telemetry/metrics.module";
+import {
+  AgentRunLoop,
+  ToolCallHandler,
+  TraceWriterDelegate,
+} from "./agents/runner";
 
 @Module({
   imports: [
@@ -39,6 +44,9 @@ import { MetricsModule } from "./telemetry/metrics.module";
     EngineService,
     AgentInvocationFactory,
     AgentOrchestratorService,
+    AgentRunLoop,
+    ToolCallHandler,
+    TraceWriterDelegate,
     transcriptCompactorFactoryProvider,
     TranscriptCompactionService,
   ],
