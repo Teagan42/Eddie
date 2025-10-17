@@ -332,9 +332,14 @@ describe("ChatPage session creation", () => {
     const { client, rerender } = renderChatPage();
 
     const sessionButton = await screen.findByRole("button", { name: "Session 1" });
+    await waitFor(() => {
+      const description = getSessionMetricsDescription(sessionButton);
+      expect(description).not.toBeNull();
+      expect(description).toHaveTextContent("0 bundles");
+    });
+
     const initialDescription = getSessionMetricsDescription(sessionButton);
     expect(initialDescription).not.toBeNull();
-    expect(initialDescription).toHaveTextContent("0 bundles");
     expect(initialDescription).toHaveAttribute("aria-live", "polite");
 
     await act(async () => {
