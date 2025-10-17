@@ -57,6 +57,8 @@ import {
   CollapsiblePanel,
   ContextBundlesPanel,
   SessionSelector,
+  type SessionSelectorMetricsSummary,
+  type SessionSelectorSession,
   ToolTree,
 } from './components';
 import { useChatMessagesRealtime } from './useChatMessagesRealtime';
@@ -189,6 +191,19 @@ function getOrchestratorMetadataBase(
   sessionId: string,
 ): OrchestratorMetadataDto {
   return current ?? createEmptyOrchestratorMetadata(sessionId);
+}
+
+function countAgentHierarchyNodes(
+  nodes: OrchestratorMetadataDto['agentHierarchy'] | undefined,
+): number {
+  if (!Array.isArray(nodes) || nodes.length === 0) {
+    return 0;
+  }
+
+  return nodes.reduce((total, node) => {
+    const children = Array.isArray(node.children) ? node.children : [];
+    return total + 1 + countAgentHierarchyNodes(children);
+  }, 0);
 }
 
 // Small runtime type for realtime tool events forwarded over the "tools" socket.
@@ -673,6 +688,7 @@ export function ChatPage(): JSX.Element {
   >({});
   const [capturedAtBySession, setCapturedAtBySession] = useState<Record<string, string | undefined>>({});
   const [metadataPresenceBySession, setMetadataPresenceBySession] = useState<Record<string, true>>({});
+  const [messageCountBySession, setMessageCountBySession] = useState<Record<string, number>>({});
   const [focusedAgentId, setFocusedAgentId] = useState<string | null>(null);
 
   const composeOrchestratorMetadata = useCallback(
@@ -697,6 +713,103 @@ export function ChatPage(): JSX.Element {
       toolInvocationsBySession,
     ],
   );
+
+  const getMessageCacheLength = useCallback(
+    (sessionId: string): number | undefined => {
+      const directMessages = queryClient.getQueryData<ChatMessageDto[]>([
+        'chat-session',
+        sessionId,
+        'messages',
+      ]);
+      if (Array.isArray(directMessages)) {
+        return directMessages.length;
+      }
+
+      const overviewMessages = queryClient.getQueryData<ChatMessageDto[]>([
+        'chat-sessions',
+        sessionId,
+        'messages',
+      ]);
+      if (Array.isArray(overviewMessages)) {
+        return overviewMessages.length;
+      }
+
+      return undefined;
+    },
+    [queryClient],
+  );
+
+  const synchronizeMessageCount = useCallback(
+    (sessionId: string) => {
+      setMessageCountBySession((previous) => {
+        const nextCount = getMessageCacheLength(sessionId);
+
+        if (typeof nextCount !== 'number') {
+          if (sessionId in previous) {
+            return removeSessionKey(previous, sessionId);
+          }
+          return previous;
+        }
+
+        if (previous[sessionId] === nextCount) {
+          return previous;
+        }
+
+        return { ...previous, [sessionId]: nextCount };
+      });
+    },
+    [getMessageCacheLength],
+  );
+
+  const resolveMessageCount = useCallback(
+    (sessionId: string): number | undefined => {
+      const cached = messageCountBySession[sessionId];
+      if (typeof cached === 'number') {
+        return cached;
+      }
+
+      return getMessageCacheLength(sessionId);
+    },
+    [getMessageCacheLength, messageCountBySession],
+  );
+
+  useEffect(() => {
+    sessions.forEach((session) => {
+      synchronizeMessageCount(session.id);
+    });
+  }, [sessions, synchronizeMessageCount]);
+
+  const sessionsWithMetrics = useMemo<SessionSelectorSession[]>(() => {
+    return sessions.map((session) => {
+      const metrics: SessionSelectorMetricsSummary = {};
+      const messageCount = resolveMessageCount(session.id);
+      if (typeof messageCount === 'number') {
+        metrics.messageCount = messageCount;
+      }
+
+      const contextBundles = contextBundlesBySession[session.id];
+      if (Array.isArray(contextBundles)) {
+        metrics.contextBundleCount = contextBundles.length;
+      }
+
+      const agentHierarchy = agentHierarchyBySession[session.id];
+      if (Array.isArray(agentHierarchy)) {
+        metrics.agentCount = countAgentHierarchyNodes(agentHierarchy);
+      }
+
+      const hasMetrics =
+        metrics.messageCount != null ||
+        metrics.agentCount != null ||
+        metrics.contextBundleCount != null;
+
+      return hasMetrics ? { ...session, metrics } : session;
+    });
+  }, [
+    agentHierarchyBySession,
+    contextBundlesBySession,
+    resolveMessageCount,
+    sessions,
+  ]);
 
   const syncOrchestratorMetadataCache = useCallback(
     (sessionId: string, value: OrchestratorMetadataDto | null) => {
@@ -882,6 +995,17 @@ export function ChatPage(): JSX.Element {
   });
 
   useEffect(() => {
+    if (!selectedSessionId) {
+      return;
+    }
+    if (!Array.isArray(messagesQuery.data)) {
+      return;
+    }
+
+    synchronizeMessageCount(selectedSessionId);
+  }, [messagesQuery.data, selectedSessionId, synchronizeMessageCount]);
+
+  useEffect(() => {
     const normalizedSessionId = selectedSessionId ?? null;
     if (agentActivitySessionRef.current !== normalizedSessionId) {
       agentActivitySessionRef.current = normalizedSessionId;
@@ -934,6 +1058,7 @@ export function ChatPage(): JSX.Element {
         setAgentHierarchyBySession((previous) => removeSessionKey(previous, sessionId));
         setCapturedAtBySession((previous) => removeSessionKey(previous, sessionId));
         setMetadataPresenceBySession((previous) => removeSessionKey(previous, sessionId));
+        setMessageCountBySession((previous) => removeSessionKey(previous, sessionId));
       }),
       api.sockets.chatSessions.onMessageCreated((message) => {
         queryClient.setQueryData<ChatMessageDto[]>(
@@ -947,6 +1072,7 @@ export function ChatPage(): JSX.Element {
             );
           },
         );
+        synchronizeMessageCount(message.sessionId);
       }),
       api.sockets.chatSessions.onMessageUpdated((message) => {
         queryClient.setQueryData<ChatMessageDto[]>(
@@ -963,6 +1089,7 @@ export function ChatPage(): JSX.Element {
             );
           },
         );
+        synchronizeMessageCount(message.sessionId);
       }),
     ];
 
@@ -1120,6 +1247,7 @@ export function ChatPage(): JSX.Element {
     api,
     applyOrchestratorMetadataUpdate,
     invalidateOrchestratorMetadata,
+    synchronizeMessageCount,
     queryClient,
     setSelectedSessionPreference,
   ]);
@@ -1261,6 +1389,7 @@ export function ChatPage(): JSX.Element {
       setAgentHierarchyBySession((previous) => removeSessionKey(previous, sessionId));
       setCapturedAtBySession((previous) => removeSessionKey(previous, sessionId));
       setMetadataPresenceBySession((previous) => removeSessionKey(previous, sessionId));
+      setMessageCountBySession((previous) => removeSessionKey(previous, sessionId));
       const remainingSessions =
         queryClient.getQueryData<ChatSessionDto[]>(CHAT_SESSIONS_QUERY_KEY) ?? [];
       if (selectedSessionIdRef.current === sessionId) {
@@ -1794,7 +1923,7 @@ export function ChatPage(): JSX.Element {
           }
         >
           <SessionSelector
-            sessions={sessions}
+            sessions={sessionsWithMetrics}
             selectedSessionId={selectedSessionId ?? null}
             onSelectSession={handleSelectSession}
             onRenameSession={handleRenameSession}

@@ -70,4 +70,38 @@ describe('SessionSelector', () => {
 
     expect(screen.getByText('Archived')).toBeInTheDocument();
   });
+
+  it('renders session metrics with accessible labelling', () => {
+    render(
+      <SessionSelector
+        sessions={[
+          {
+            id: 'session-1',
+            title: 'Session 1',
+            status: 'active',
+            metrics: {
+              messageCount: 12,
+              agentCount: 3,
+              contextBundleCount: 4,
+            },
+          },
+        ] as unknown as SessionSelectorProps['sessions']}
+        selectedSessionId={null}
+        onSelectSession={vi.fn()}
+        onRenameSession={vi.fn()}
+        onDeleteSession={vi.fn()}
+        onCreateSession={vi.fn()}
+        isCreatePending={false}
+      />,
+    );
+
+    const button = screen.getByRole('button', { name: 'Session 1' });
+    const descriptionId = button.getAttribute('aria-describedby');
+    expect(descriptionId).toBeTruthy();
+    const description = document.getElementById(descriptionId!);
+    expect(description).toHaveTextContent('12 messages');
+    expect(description).toHaveTextContent('3 agents');
+    expect(description).toHaveTextContent('4 bundles');
+    expect(description).toHaveTextContent('Session 1 metrics');
+  });
 });

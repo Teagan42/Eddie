@@ -1,12 +1,14 @@
 import userEvent from "@testing-library/user-event";
 import { QueryClient } from "@tanstack/react-query";
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatSessionDto } from "@eddie/api-client";
 import { createChatPageRenderer } from "./test-utils";
 
 const sessionCreatedHandlers: Array<(session: unknown) => void> = [];
 const sessionDeletedHandlers: Array<(sessionId: string) => void> = [];
+const messageCreatedHandlers: Array<(message: any) => void> = [];
+const messageUpdatedHandlers: Array<(message: any) => void> = [];
 
 const updatePreferencesMock = vi.fn();
 
@@ -91,8 +93,24 @@ vi.mock("@/api/api-provider", () => ({
             }
           };
         }),
-        onMessageCreated: vi.fn().mockReturnValue(() => {}),
-        onMessageUpdated: vi.fn().mockReturnValue(() => {}),
+        onMessageCreated: vi.fn((handler: (message: unknown) => void) => {
+          messageCreatedHandlers.push(handler);
+          return () => {
+            const index = messageCreatedHandlers.indexOf(handler);
+            if (index >= 0) {
+              messageCreatedHandlers.splice(index, 1);
+            }
+          };
+        }),
+        onMessageUpdated: vi.fn((handler: (message: unknown) => void) => {
+          messageUpdatedHandlers.push(handler);
+          return () => {
+            const index = messageUpdatedHandlers.indexOf(handler);
+            if (index >= 0) {
+              messageUpdatedHandlers.splice(index, 1);
+            }
+          };
+        }),
         onAgentActivity: vi.fn().mockReturnValue(() => {}),
       },
     },
@@ -115,6 +133,11 @@ const renderChatPage = createChatPageRenderer(
     }),
 );
 
+function getSessionMetricsDescription(button: HTMLElement): HTMLElement | null {
+  const descriptionId = button.getAttribute("aria-describedby");
+  return descriptionId ? document.getElementById(descriptionId) : null;
+}
+
 describe("ChatPage session creation", () => {
   const buildSessionDto = (id: string, title: string, timestamp: string) => ({
     id,
@@ -129,6 +152,8 @@ describe("ChatPage session creation", () => {
     vi.clearAllMocks();
     sessionCreatedHandlers.length = 0;
     sessionDeletedHandlers.length = 0;
+    messageCreatedHandlers.length = 0;
+    messageUpdatedHandlers.length = 0;
     updatePreferencesMock.mockReset();
     toastMock.mockReset();
     renameSessionMock.mockReset();
@@ -198,6 +223,148 @@ describe("ChatPage session creation", () => {
     } finally {
       promptSpy.mockRestore();
     }
+  });
+
+  it("displays cached aggregate metrics for each session", async () => {
+    const now = new Date().toISOString();
+    listMessagesMock.mockResolvedValueOnce([
+      {
+        id: "message-1",
+        sessionId: "session-1",
+        role: "user",
+        content: "Hello",
+        createdAt: now,
+        updatedAt: now,
+        annotations: [],
+        status: "completed",
+      },
+      {
+        id: "message-2",
+        sessionId: "session-1",
+        role: "assistant",
+        content: "World",
+        createdAt: now,
+        updatedAt: now,
+        annotations: [],
+        status: "completed",
+      },
+    ]);
+    getMetadataMock.mockResolvedValueOnce({
+      contextBundles: [
+        { id: "bundle-1", title: "Bundle 1", tokens: 256, createdAt: now, type: "memory" },
+        { id: "bundle-2", title: "Bundle 2", tokens: 128, createdAt: now, type: "memory" },
+      ],
+      toolInvocations: [],
+      agentHierarchy: [
+        {
+          id: "agent-1",
+          name: "Agent One",
+          type: "workflow",
+          metadata: {},
+          children: [
+            { id: "agent-2", name: "Agent Two", type: "workflow", metadata: {}, children: [] },
+          ],
+        },
+      ],
+    });
+
+    renderChatPage();
+
+    const sessionButton = await screen.findByRole("button", { name: "Session 1" });
+    const description = getSessionMetricsDescription(sessionButton);
+    expect(description).not.toBeNull();
+    expect(description).toHaveTextContent("2 messages");
+    expect(description).toHaveTextContent("2 agents");
+    expect(description).toHaveTextContent("2 bundles");
+  });
+
+  it("updates message metrics when new messages stream in", async () => {
+    const now = new Date().toISOString();
+    listMessagesMock.mockResolvedValueOnce([]);
+    getMetadataMock.mockResolvedValueOnce({
+      contextBundles: [],
+      toolInvocations: [],
+      agentHierarchy: [],
+    });
+
+    renderChatPage();
+
+    const sessionButton = await screen.findByRole("button", { name: "Session 1" });
+    const initialDescription = getSessionMetricsDescription(sessionButton);
+    expect(initialDescription).not.toBeNull();
+    expect(initialDescription).toHaveTextContent("0 messages");
+    const initialBadge = within(sessionButton).getByText("0 messages");
+    expect(initialBadge.closest('[data-highlighted="true"]')).toBeNull();
+
+    const newMessage = {
+      id: "message-3",
+      sessionId: "session-1",
+      role: "assistant",
+      content: "Hello",
+      createdAt: now,
+      updatedAt: now,
+      annotations: [],
+      status: "completed",
+    };
+
+    await act(async () => {
+      messageCreatedHandlers.forEach((handler) => handler(newMessage));
+    });
+
+    await waitFor(() => {
+      const updatedDescription = getSessionMetricsDescription(sessionButton);
+      expect(updatedDescription).not.toBeNull();
+      expect(updatedDescription).toHaveTextContent("1 message");
+      const updatedBadge = within(sessionButton).getByText("1 message");
+      expect(updatedBadge.closest('[data-highlighted="true"]')).not.toBeNull();
+    });
+  });
+
+  it("highlights metrics when orchestrator metadata updates", async () => {
+    const now = new Date().toISOString();
+    listMessagesMock.mockResolvedValueOnce([]);
+    getMetadataMock.mockResolvedValueOnce({
+      contextBundles: [],
+      toolInvocations: [],
+      agentHierarchy: [],
+    });
+
+    const { client, rerender } = renderChatPage();
+
+    const sessionButton = await screen.findByRole("button", { name: "Session 1" });
+    await waitFor(() => {
+      const description = getSessionMetricsDescription(sessionButton);
+      expect(description).not.toBeNull();
+      expect(description).toHaveTextContent("0 bundles");
+    });
+
+    const initialDescription = getSessionMetricsDescription(sessionButton);
+    expect(initialDescription).not.toBeNull();
+    expect(initialDescription).toHaveAttribute("aria-live", "polite");
+
+    await act(async () => {
+      client.setQueryData(
+        ["orchestrator-metadata", "session-1"],
+        {
+          sessionId: "session-1",
+          contextBundles: [
+            { id: "bundle-1", title: "Bundle 1", tokens: 64, createdAt: now, type: "memory" },
+          ],
+          toolInvocations: [],
+          agentHierarchy: [],
+        },
+      );
+      rerender();
+    });
+
+    await waitFor(() => {
+      const updatedDescription = getSessionMetricsDescription(sessionButton);
+      expect(updatedDescription).not.toBeNull();
+      expect(updatedDescription).toHaveTextContent("1 bundle");
+      expect(updatedDescription).toHaveAttribute("aria-live", "polite");
+      const bundleBadge = within(sessionButton).getByText("1 bundle");
+      expect(bundleBadge.closest('[data-highlighted="true"]')).not.toBeNull();
+    });
   });
 
   it("keeps prior sessions visible when create resolves without socket broadcast", async () => {

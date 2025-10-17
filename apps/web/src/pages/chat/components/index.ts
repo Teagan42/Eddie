@@ -8,6 +8,7 @@ export { SessionSelector } from './SessionSelector';
 export type {
   SessionSelectorProps,
   SessionSelectorSession,
+  SessionSelectorMetricsSummary,
 } from './SessionSelector';
 export { ToolTree } from './ToolTree';
 export type { ToolTreeProps } from './ToolTree';
