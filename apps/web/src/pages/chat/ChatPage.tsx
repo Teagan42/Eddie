@@ -52,6 +52,7 @@ import { ChatMessageContent } from './ChatMessageContent';
 import { getSurfaceLayoutClasses, SURFACE_CONTENT_CLASS } from '@/styles/surfaces';
 import { sortSessions, upsertMessage } from './chat-utils';
 import {
+  AgentExecutionTree,
   ContextBundlesPanel,
   SessionSelector,
   type SessionSelectorMetricsSummary,
@@ -173,6 +174,8 @@ type AutoSessionAttemptState = {
 type SessionContextSnapshot = {
   sessionId: string;
   contextBundles: OrchestratorMetadataDto['contextBundles'];
+  agentHierarchy: OrchestratorMetadataDto['agentHierarchy'];
+  toolInvocations: OrchestratorMetadataDto['toolInvocations'];
   capturedAt?: string;
 };
 
@@ -183,6 +186,28 @@ function cloneContextBundles(
   return source.map((bundle) => ({
     ...bundle,
     files: bundle.files ? bundle.files.map((file) => ({ ...file })) : undefined,
+  }));
+}
+
+function cloneAgentHierarchy(
+  hierarchy: OrchestratorMetadataDto['agentHierarchy'] | null | undefined,
+): OrchestratorMetadataDto['agentHierarchy'] {
+  const source = hierarchy ?? [];
+  return source.map((node) => ({
+    ...node,
+    metadata: node.metadata ? { ...node.metadata } : undefined,
+    children: cloneAgentHierarchy(node.children),
+  }));
+}
+
+function cloneToolInvocations(
+  nodes: OrchestratorMetadataDto['toolInvocations'] | null | undefined,
+): OrchestratorMetadataDto['toolInvocations'] {
+  const source = nodes ?? [];
+  return source.map((node) => ({
+    ...node,
+    metadata: node.metadata ? { ...node.metadata } : undefined,
+    children: cloneToolInvocations(node.children),
   }));
 }
 
@@ -197,6 +222,8 @@ function cloneSessionContext(
     sessionId: snapshot.sessionId,
     capturedAt: snapshot.capturedAt,
     contextBundles: cloneContextBundles(snapshot.contextBundles),
+    agentHierarchy: cloneAgentHierarchy(snapshot.agentHierarchy),
+    toolInvocations: cloneToolInvocations(snapshot.toolInvocations),
   };
 }
 
@@ -243,6 +270,7 @@ export function ChatPage(): JSX.Element {
     lastAttemptAt: null,
     lastFailureAt: null,
   });
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const setAutoSessionAttemptState = useCallback(
     (updates: Partial<AutoSessionAttemptState>) => {
       setAutoSessionAttempt((previous) => ({ ...previous, ...updates }));
@@ -445,6 +473,24 @@ export function ChatPage(): JSX.Element {
 
   selectedSessionIdRef.current = selectedSessionId ?? null;
 
+  const selectedSessionMetadata = selectedSessionId
+    ? sessionContextById[selectedSessionId] ?? null
+    : null;
+  const executionMetadata = useMemo(() => {
+    if (!selectedSessionMetadata) {
+      return null;
+    }
+
+    return {
+      agentHierarchy: selectedSessionMetadata.agentHierarchy,
+      toolInvocations: selectedSessionMetadata.toolInvocations,
+      contextBundles: selectedSessionMetadata.contextBundles,
+    } satisfies Pick<
+      OrchestratorMetadataDto,
+      'agentHierarchy' | 'toolInvocations' | 'contextBundles'
+    >;
+  }, [selectedSessionMetadata]);
+
   useEffect(() => {
     if (!preferences.chat?.selectedSessionId && sessions[0]?.id) {
       setSelectedSessionPreference(sessions[0]!.id);
@@ -454,6 +500,7 @@ export function ChatPage(): JSX.Element {
   useEffect(() => {
     setComposerValue('');
     setComposerRole(defaultComposerRole);
+    setSelectedAgentId(null);
   }, [selectedSessionId]);
 
   const messagesQuery = useQuery({
@@ -600,6 +647,8 @@ export function ChatPage(): JSX.Element {
       return {
         sessionId: raw.sessionId ?? selectedSessionId,
         contextBundles: cloneContextBundles(raw.contextBundles),
+        agentHierarchy: cloneAgentHierarchy(raw.agentHierarchy),
+        toolInvocations: cloneToolInvocations(raw.toolInvocations),
         capturedAt: raw.capturedAt ?? undefined,
       } satisfies SessionContextSnapshot;
     },
@@ -1377,6 +1426,16 @@ export function ChatPage(): JSX.Element {
           </Panel>
 
           <div className="flex w-full flex-col gap-4 lg:w-[22rem] xl:w-[26rem] 2xl:w-[30rem]">
+            <Panel
+              title="Agent execution"
+              description="Inspect tool calls, context, and spawned agents for this session."
+            >
+              <AgentExecutionTree
+                metadata={executionMetadata}
+                selectedAgentId={selectedAgentId}
+                onSelectAgent={setSelectedAgentId}
+              />
+            </Panel>
             <ContextBundlesPanel
               id={PANEL_IDS.context}
               bundles={selectedContextBundles}
