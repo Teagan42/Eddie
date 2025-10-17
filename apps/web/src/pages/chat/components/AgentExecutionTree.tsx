@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge, Box, Flex, Text } from '@radix-ui/themes';
 import { ArrowUpRight, ChevronDown, ChevronRight } from 'lucide-react';
-import type { OrchestratorMetadataDto, ToolCallStatusDto } from '@eddie/api-client';
+import type { ToolCallStatusDto } from '@eddie/api-client';
 
 import {
   Dialog,
@@ -14,6 +14,7 @@ import { JsonTreeView } from '@/components/common';
 import { cn } from '@/vendor/lib/utils';
 
 import { summarizeObject } from '../chat-utils';
+import type { ExecutionTreeState } from '../execution-tree-state';
 
 const TOOL_STATUS_ORDER: ToolCallStatusDto[] = ['pending', 'running', 'completed', 'failed'];
 const TOOL_STATUS_LABELS: Record<ToolCallStatusDto, string> = {
@@ -30,19 +31,25 @@ const TOOL_STATUS_BADGE: Record<ToolCallStatusDto, 'gray' | 'blue' | 'green' | '
   failed: 'red',
 };
 
+const EMPTY_AGENT_HIERARCHY = [] as ExecutionTreeState['agentHierarchy'];
+const EMPTY_TOOL_INVOCATIONS = [] as ExecutionTreeState['toolInvocations'];
+const EMPTY_CONTEXT_BUNDLES = [] as ExecutionTreeState['contextBundles'];
+const EMPTY_TOOL_GROUPS = {} as ExecutionTreeState['toolGroupsByAgentId'];
+const EMPTY_AGENT_LINEAGE = {} as ExecutionTreeState['agentLineageById'];
+
 const SECTION_TOGGLE_BUTTON_CLASS =
   'flex w-full items-center justify-between rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm transition hover:border-accent/50 hover:bg-slate-900/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
 
 const TOOL_PREVIEW_LIMIT = 120;
 
 export interface AgentExecutionTreeProps {
-  metadata: OrchestratorMetadataDto | null | undefined;
+  state: ExecutionTreeState | null | undefined;
   selectedAgentId: string | null;
   onSelectAgent: (agentId: string | null) => void;
 }
 
-type AgentHierarchyNode = OrchestratorMetadataDto['agentHierarchy'][number];
-type ToolInvocationNode = OrchestratorMetadataDto['toolInvocations'][number];
+type AgentHierarchyNode = ExecutionTreeState['agentHierarchy'][number];
+type ToolInvocationNode = ExecutionTreeState['toolInvocations'][number];
 type ToolGroupKey = `${string}:${ToolCallStatusDto}`;
 
 type DetailsTarget = {
@@ -51,28 +58,17 @@ type DetailsTarget = {
 };
 
 export function AgentExecutionTree({
-  metadata,
+  state,
   selectedAgentId,
   onSelectAgent,
 }: AgentExecutionTreeProps): JSX.Element {
-  const agentHierarchy = useMemo(
-    () => metadata?.agentHierarchy ?? [],
-    [metadata?.agentHierarchy],
-  );
-  const toolInvocations = useMemo(
-    () => metadata?.toolInvocations ?? [],
-    [metadata?.toolInvocations],
-  );
-  const contextBundles = useMemo(
-    () => metadata?.contextBundles ?? [],
-    [metadata?.contextBundles],
-  );
+  const agentHierarchy = state?.agentHierarchy ?? EMPTY_AGENT_HIERARCHY;
+  const toolInvocations = state?.toolInvocations ?? EMPTY_TOOL_INVOCATIONS;
+  const contextBundles = state?.contextBundles ?? EMPTY_CONTEXT_BUNDLES;
+  const toolGroupsByAgentId = state?.toolGroupsByAgentId ?? EMPTY_TOOL_GROUPS;
+  const agentLineageById = state?.agentLineageById ?? EMPTY_AGENT_LINEAGE;
 
   const agentsById = useMemo(() => indexAgents(agentHierarchy), [agentHierarchy]);
-  const groupedToolInvocations = useMemo(
-    () => groupToolInvocations(toolInvocations),
-    [toolInvocations],
-  );
 
   const [expandedAgentIds, setExpandedAgentIds] = useState<Set<string>>(() => new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
@@ -83,7 +79,7 @@ export function AgentExecutionTree({
       return;
     }
 
-    const lineage = collectAgentLineage(agentHierarchy, selectedAgentId);
+    const lineage = new Set(agentLineageById[selectedAgentId] ?? []);
     if (lineage.size === 0) {
       return;
     }
@@ -100,7 +96,39 @@ export function AgentExecutionTree({
       }
       return next;
     });
-  }, [agentHierarchy, selectedAgentId]);
+  }, [agentHierarchy, agentLineageById, selectedAgentId]);
+
+  const agentsWithActivity = useMemo(
+    () =>
+      Object.entries(toolGroupsByAgentId).filter(([, groups]) =>
+        TOOL_STATUS_ORDER.some((status) => (groups?.[status]?.length ?? 0) > 0),
+      ),
+    [toolGroupsByAgentId],
+  );
+
+  useEffect(() => {
+    if (agentsWithActivity.length === 0) {
+      return;
+    }
+
+    setExpandedAgentIds((previous) => {
+      let changed = false;
+      const next = new Set(previous);
+      for (const [agentId] of agentsWithActivity) {
+        const lineage = agentLineageById[agentId];
+        if (!lineage || lineage.length === 0) {
+          continue;
+        }
+        for (const id of lineage) {
+          if (!next.has(id)) {
+            next.add(id);
+            changed = true;
+          }
+        }
+      }
+      return changed ? next : previous;
+    });
+  }, [agentLineageById, agentsWithActivity]);
 
   const handleSelectAgent = useCallback(
     (agentId: string) => {
@@ -135,7 +163,7 @@ export function AgentExecutionTree({
   }, []);
 
   function renderToolGroups(agent: AgentHierarchyNode): JSX.Element | null {
-    const groups = groupedToolInvocations.get(agent.id);
+    const groups = toolGroupsByAgentId[agent.id];
     if (!groups) {
       return null;
     }
@@ -143,7 +171,7 @@ export function AgentExecutionTree({
     return (
       <Box className="space-y-2">
         {TOOL_STATUS_ORDER.map((status) => {
-          const entries = groups.get(status);
+          const entries = groups[status];
           if (!entries || entries.length === 0) {
             return null;
           }
@@ -190,7 +218,10 @@ export function AgentExecutionTree({
                               {entry.name ?? 'Unnamed invocation'}
                             </Text>
                             <Text size="1" color="gray" className="mt-1 block">
-                              {summarizeObject(entry.args ?? entry.result, TOOL_PREVIEW_LIMIT) ??
+                              {summarizeObject(
+                                resolveInvocationPreviewSource(status, entry),
+                                TOOL_PREVIEW_LIMIT,
+                              ) ??
                                 'No preview available'}
                             </Text>
                           </Box>
@@ -454,44 +485,18 @@ export function AgentExecutionTree({
   );
 }
 
-function groupToolInvocations(
-  nodes: OrchestratorMetadataDto['toolInvocations'],
-): Map<string, Map<ToolCallStatusDto, ToolInvocationNode[]>> {
-  const grouped = new Map<string, Map<ToolCallStatusDto, ToolInvocationNode[]>>();
-
-  for (const node of nodes) {
-    const agentId = typeof node.metadata?.agentId === 'string' ? node.metadata.agentId : 'unknown';
-    if (!grouped.has(agentId)) {
-      grouped.set(agentId, new Map());
-    }
-
-    const groups = grouped.get(agentId)!;
-    const status = node.status ?? 'pending';
-    if (!groups.has(status)) {
-      groups.set(status, []);
-    }
-
-    groups.get(status)!.push(node);
-  }
-
-  for (const [, groups] of grouped) {
-    for (const status of TOOL_STATUS_ORDER) {
-      const entries = groups.get(status);
-      if (entries) {
-        entries.sort((a, b) => {
-          const aTime = Date.parse(a.updatedAt ?? a.createdAt ?? '');
-          const bTime = Date.parse(b.updatedAt ?? b.createdAt ?? '');
-          return bTime - aTime;
-        });
-      }
-    }
-  }
-
-  return grouped;
+function resolveInvocationPreviewSource(
+  status: ToolCallStatusDto,
+  entry: ToolInvocationNode,
+): unknown {
+  const isTerminal = status === 'completed' || status === 'failed';
+  const primary = isTerminal ? entry.result : entry.args;
+  const secondary = isTerminal ? entry.args : entry.result;
+  return primary ?? secondary ?? null;
 }
 
 function indexAgents(
-  nodes: OrchestratorMetadataDto['agentHierarchy'],
+  nodes: ExecutionTreeState['agentHierarchy'],
 ): Map<string, AgentHierarchyNode> {
   const map = new Map<string, AgentHierarchyNode>();
 
@@ -507,34 +512,4 @@ function indexAgents(
   }
 
   return map;
-}
-
-function collectAgentLineage(
-  nodes: OrchestratorMetadataDto['agentHierarchy'],
-  targetId: string,
-): Set<string> {
-  const lineage = new Set<string>();
-
-  const visit = (node: AgentHierarchyNode, ancestors: string[]): boolean => {
-    if (node.id === targetId) {
-      ancestors.forEach((id) => lineage.add(id));
-      lineage.add(node.id);
-      return true;
-    }
-
-    for (const child of node.children ?? []) {
-      if (visit(child, [...ancestors, node.id])) {
-        lineage.add(node.id);
-        return true;
-      }
-    }
-
-    return false;
-  };
-
-  for (const node of nodes) {
-    visit(node, []);
-  }
-
-  return lineage;
 }

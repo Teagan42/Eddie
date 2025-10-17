@@ -38,7 +38,6 @@ import type {
   ChatSessionDto,
   CreateChatMessageDto,
   CreateChatSessionDto,
-  OrchestratorMetadataDto,
   ProviderCatalogEntryDto,
 } from '@eddie/api-client';
 import { useApi } from '@/api/api-provider';
@@ -59,6 +58,16 @@ import {
   type SessionSelectorSession,
 } from './components';
 import { useChatMessagesRealtime } from './useChatMessagesRealtime';
+import {
+  applyToolCallEvent,
+  applyToolResultEvent,
+  cloneExecutionTreeState,
+  composeExecutionTreeState,
+  createEmptyExecutionTreeState,
+  createExecutionTreeStateFromMetadata,
+  type ExecutionTreeState,
+  type ToolEventPayload,
+} from './execution-tree-state';
 
 type BadgeColor = ComponentProps<typeof Badge>['color'];
 
@@ -173,42 +182,42 @@ type AutoSessionAttemptState = {
 
 type SessionContextSnapshot = {
   sessionId: string;
-  contextBundles: OrchestratorMetadataDto['contextBundles'];
-  agentHierarchy: OrchestratorMetadataDto['agentHierarchy'];
-  toolInvocations: OrchestratorMetadataDto['toolInvocations'];
+  executionTree: ExecutionTreeState;
   capturedAt?: string;
 };
 
-function cloneContextBundles(
-  bundles: OrchestratorMetadataDto['contextBundles'] | null | undefined,
-): OrchestratorMetadataDto['contextBundles'] {
-  const source = bundles ?? [];
-  return source.map((bundle) => ({
-    ...bundle,
-    files: bundle.files ? bundle.files.map((file) => ({ ...file })) : undefined,
-  }));
-}
+type PartialExecutionTreeMetadata = {
+  executionTree?: ExecutionTreeState | null;
+  agentHierarchy?: ExecutionTreeState['agentHierarchy'];
+  toolInvocations?: ExecutionTreeState['toolInvocations'];
+  contextBundles?: ExecutionTreeState['contextBundles'];
+};
 
-function cloneAgentHierarchy(
-  hierarchy: OrchestratorMetadataDto['agentHierarchy'] | null | undefined,
-): OrchestratorMetadataDto['agentHierarchy'] {
-  const source = hierarchy ?? [];
-  return source.map((node) => ({
-    ...node,
-    metadata: node.metadata ? { ...node.metadata } : undefined,
-    children: cloneAgentHierarchy(node.children),
-  }));
-}
+function deriveExecutionTreeFromSnapshotLike(value: unknown): ExecutionTreeState | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
 
-function cloneToolInvocations(
-  nodes: OrchestratorMetadataDto['toolInvocations'] | null | undefined,
-): OrchestratorMetadataDto['toolInvocations'] {
-  const source = nodes ?? [];
-  return source.map((node) => ({
-    ...node,
-    metadata: node.metadata ? { ...node.metadata } : undefined,
-    children: cloneToolInvocations(node.children),
-  }));
+  const candidate = value as PartialExecutionTreeMetadata;
+  if (candidate.executionTree) {
+    return candidate.executionTree;
+  }
+
+  const agentHierarchy = Array.isArray(candidate.agentHierarchy)
+    ? candidate.agentHierarchy
+    : [];
+  const toolInvocations = Array.isArray(candidate.toolInvocations)
+    ? candidate.toolInvocations
+    : [];
+  const contextBundles = Array.isArray(candidate.contextBundles)
+    ? candidate.contextBundles
+    : [];
+
+  if (agentHierarchy.length === 0 && toolInvocations.length === 0 && contextBundles.length === 0) {
+    return null;
+  }
+
+  return composeExecutionTreeState(agentHierarchy, toolInvocations, contextBundles);
 }
 
 function cloneSessionContext(
@@ -221,9 +230,7 @@ function cloneSessionContext(
   return {
     sessionId: snapshot.sessionId,
     capturedAt: snapshot.capturedAt,
-    contextBundles: cloneContextBundles(snapshot.contextBundles),
-    agentHierarchy: cloneAgentHierarchy(snapshot.agentHierarchy),
-    toolInvocations: cloneToolInvocations(snapshot.toolInvocations),
+    executionTree: cloneExecutionTreeState(snapshot.executionTree),
   };
 }
 
@@ -281,6 +288,7 @@ export function ChatPage(): JSX.Element {
     setAutoSessionAttemptState({ status: 'idle', lastAttemptAt: null, lastFailureAt: null });
   }, [setAutoSessionAttemptState]);
   const agentActivitySessionRef = useRef<string | null>(null);
+  const sessionContextByIdRef = useRef<Record<string, SessionContextSnapshot>>({});
   const [sessionContextById, setSessionContextById] = useState<
     Record<string, SessionContextSnapshot>
   >({});
@@ -321,6 +329,66 @@ export function ChatPage(): JSX.Element {
     },
     [syncSessionContextCache],
   );
+
+  useEffect(() => {
+    sessionContextByIdRef.current = sessionContextById;
+  }, [sessionContextById]);
+
+  const handleToolLifecycleEvent = useCallback(
+    (type: 'call' | 'result', payload: unknown) => {
+      if (!payload || typeof payload !== 'object') {
+        return;
+      }
+
+      const event = payload as ToolEventPayload;
+      const sessionId = typeof event.sessionId === 'string' ? event.sessionId : null;
+      if (!sessionId) {
+        return;
+      }
+
+      const existing = sessionContextByIdRef.current[sessionId];
+      const clonedExisting = existing ? cloneSessionContext(existing) : null;
+      const snapshot: SessionContextSnapshot = clonedExisting ?? {
+        sessionId,
+        executionTree: createEmptyExecutionTreeState(),
+        capturedAt: undefined,
+      };
+
+      const nextTree =
+        type === 'call'
+          ? applyToolCallEvent(snapshot.executionTree, event)
+          : applyToolResultEvent(snapshot.executionTree, event);
+
+      setSessionContext(sessionId, {
+        sessionId: snapshot.sessionId,
+        capturedAt: snapshot.capturedAt,
+        executionTree: nextTree,
+      });
+    },
+    [setSessionContext],
+  );
+
+  useEffect(() => {
+    const tools = api.sockets.tools;
+    if (!tools) {
+      return;
+    }
+
+    const unsubscribes = [
+      tools.onToolCall((payload) => handleToolLifecycleEvent('call', payload)),
+      tools.onToolResult((payload) => handleToolLifecycleEvent('result', payload)),
+    ];
+
+    return () => {
+      unsubscribes.forEach((unsubscribe) => {
+        try {
+          unsubscribe?.();
+        } catch {
+          // Swallow teardown errors to keep realtime resilient.
+        }
+      });
+    };
+  }, [api, handleToolLifecycleEvent]);
 
   const getMessageCacheLength = useCallback(
     (sessionId: string): number | undefined => {
@@ -388,12 +456,12 @@ export function ChatPage(): JSX.Element {
   }, [sessions, synchronizeMessageCount]);
 
   const getSessionContextBundles = useCallback(
-    (sessionId: string | null): OrchestratorMetadataDto['contextBundles'] => {
+    (sessionId: string | null): ExecutionTreeState['contextBundles'] => {
       if (!sessionId) {
         return [];
       }
 
-      return sessionContextById[sessionId]?.contextBundles ?? [];
+      return sessionContextById[sessionId]?.executionTree.contextBundles ?? [];
     },
     [sessionContextById],
   );
@@ -473,23 +541,13 @@ export function ChatPage(): JSX.Element {
 
   selectedSessionIdRef.current = selectedSessionId ?? null;
 
-  const selectedSessionMetadata = selectedSessionId
+  const selectedSessionSnapshot = selectedSessionId
     ? sessionContextById[selectedSessionId] ?? null
     : null;
-  const executionMetadata = useMemo(() => {
-    if (!selectedSessionMetadata) {
-      return null;
-    }
-
-    return {
-      agentHierarchy: selectedSessionMetadata.agentHierarchy,
-      toolInvocations: selectedSessionMetadata.toolInvocations,
-      contextBundles: selectedSessionMetadata.contextBundles,
-    } satisfies Pick<
-      OrchestratorMetadataDto,
-      'agentHierarchy' | 'toolInvocations' | 'contextBundles'
-    >;
-  }, [selectedSessionMetadata]);
+  const executionTreeState = useMemo(
+    () => selectedSessionSnapshot?.executionTree ?? null,
+    [selectedSessionSnapshot],
+  );
 
   useEffect(() => {
     if (!preferences.chat?.selectedSessionId && sessions[0]?.id) {
@@ -646,9 +704,7 @@ export function ChatPage(): JSX.Element {
 
       return {
         sessionId: raw.sessionId ?? selectedSessionId,
-        contextBundles: cloneContextBundles(raw.contextBundles),
-        agentHierarchy: cloneAgentHierarchy(raw.agentHierarchy),
-        toolInvocations: cloneToolInvocations(raw.toolInvocations),
+        executionTree: createExecutionTreeStateFromMetadata(raw),
         capturedAt: raw.capturedAt ?? undefined,
       } satisfies SessionContextSnapshot;
     },
@@ -665,7 +721,35 @@ export function ChatPage(): JSX.Element {
       return;
     }
 
-    setSessionContext(sessionId, sessionContextQueryData, { syncQueryCache: false });
+    const existing = sessionContextByIdRef.current[sessionId];
+    const incomingTree = deriveExecutionTreeFromSnapshotLike(sessionContextQueryData);
+
+    if (!incomingTree) {
+      if (!existing) {
+        setSessionContext(sessionId, null, { syncQueryCache: false });
+      }
+      return;
+    }
+
+    let mergedTree = incomingTree;
+    if (existing) {
+      const { executionTree: existingTree } = existing;
+      mergedTree = composeExecutionTreeState(
+        incomingTree.agentHierarchy,
+        incomingTree.toolInvocations.length > 0
+          ? incomingTree.toolInvocations
+          : existingTree.toolInvocations,
+        incomingTree.contextBundles.length > 0
+          ? incomingTree.contextBundles
+          : existingTree.contextBundles,
+      );
+    }
+
+    setSessionContext(
+      sessionId,
+      { ...sessionContextQueryData, executionTree: mergedTree },
+      { syncQueryCache: false },
+    );
   }, [
     selectedSessionId,
     sessionContextQueryData,
@@ -1431,7 +1515,7 @@ export function ChatPage(): JSX.Element {
               description="Inspect tool calls, context, and spawned agents for this session."
             >
               <AgentExecutionTree
-                metadata={executionMetadata}
+                state={executionTreeState}
                 selectedAgentId={selectedAgentId}
                 onSelectAgent={setSelectedAgentId}
               />
