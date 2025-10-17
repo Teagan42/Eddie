@@ -39,6 +39,7 @@ import type {
   CreateChatMessageDto,
   CreateChatSessionDto,
   OrchestratorMetadataDto,
+  ToolCallStatusDto,
   ProviderCatalogEntryDto,
 } from '@eddie/api-client';
 import { useApi } from '@/api/api-provider';
@@ -179,6 +180,15 @@ type SessionContextSnapshot = {
   capturedAt?: string;
 };
 
+type SessionContextBundle = SessionContextSnapshot['contextBundles'][number];
+type AgentHierarchyNode = SessionContextSnapshot['agentHierarchy'][number];
+type ToolInvocationNode = SessionContextSnapshot['toolInvocations'][number] & {
+  args?: unknown;
+  result?: unknown;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 function cloneContextBundles(
   bundles: OrchestratorMetadataDto['contextBundles'] | null | undefined,
 ): OrchestratorMetadataDto['contextBundles'] {
@@ -238,6 +248,618 @@ function removeSessionKey<T extends Record<string, unknown>>(
   const next = { ...record } as T;
   delete next[sessionId];
   return next;
+}
+
+function createEmptySessionContext(sessionId: string): SessionContextSnapshot {
+  return {
+    sessionId,
+    contextBundles: [],
+    agentHierarchy: [],
+    toolInvocations: [],
+  };
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function coerceString(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return null;
+}
+
+function normalizeAgentId(value: unknown): string | null {
+  const text = coerceString(value);
+  return text ?? null;
+}
+
+function parseJson(value: unknown): unknown {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function areValuesEqual(a: unknown, b: unknown): boolean {
+  if (a === b) {
+    return true;
+  }
+
+  if (typeof a !== typeof b) {
+    return false;
+  }
+
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
+}
+
+function collectMetadata(
+  ...sources: Array<Record<string, unknown> | null | undefined>
+): Record<string, unknown> | undefined {
+  const merged: Record<string, unknown> = {};
+  let populated = false;
+
+  sources.forEach((source) => {
+    if (!source) {
+      return;
+    }
+    Object.entries(source).forEach(([key, value]) => {
+      if (value !== undefined) {
+        merged[key] = value;
+        populated = true;
+      }
+    });
+  });
+
+  return populated ? merged : undefined;
+}
+
+function mergeToolMetadata(
+  existing: Record<string, unknown> | undefined,
+  additions: Record<string, unknown> | undefined,
+  agentId: string | null | undefined,
+): Record<string, unknown> {
+  const next: Record<string, unknown> = { ...(existing ?? {}) };
+
+  if (additions) {
+    for (const [key, value] of Object.entries(additions)) {
+      if (key === 'contextBundles') {
+        continue;
+      }
+      next[key] = value;
+    }
+  }
+
+  if (agentId !== undefined) {
+    next.agentId = agentId;
+  } else if (!('agentId' in next)) {
+    next.agentId = null;
+  }
+
+  return next;
+}
+
+function generateTempId(prefix: string): string {
+  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function sanitizeContextBundles(value: unknown): SessionContextBundle[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const bundles: SessionContextBundle[] = [];
+
+  value.forEach((entry) => {
+    if (!isPlainObject(entry)) {
+      return;
+    }
+
+    const id = coerceString(entry.id) ?? coerceString(entry.contextId);
+    if (!id) {
+      return;
+    }
+
+    const title = coerceString(entry.title) ?? coerceString(entry.label) ?? id;
+    const source = coerceString(entry.source) ?? undefined;
+    const createdAt = coerceString(entry.createdAt) ?? undefined;
+    const summary = coerceString(entry.summary) ?? undefined;
+    const metadata = isPlainObject(entry.metadata) ? { ...entry.metadata } : undefined;
+
+    const rawFiles = Array.isArray(entry.files)
+      ? entry.files
+        .map((file) => {
+          if (!isPlainObject(file)) {
+            return null;
+          }
+
+          const fileName = coerceString(file.name) ?? coerceString(file.path);
+          const filePath = coerceString(file.path) ?? fileName ?? undefined;
+          if (!fileName && !filePath) {
+            return null;
+          }
+
+          const sizeBytes =
+              typeof file.sizeBytes === 'number'
+                ? file.sizeBytes
+                : typeof file.size === 'number'
+                  ? file.size
+                  : 0;
+          const preview = coerceString(file.preview) ?? undefined;
+          const fileMetadata = isPlainObject(file.metadata)
+            ? { ...file.metadata }
+            : undefined;
+
+          return {
+            id: coerceString(file.id) ?? generateTempId('file'),
+            name: fileName ?? filePath ?? 'Context asset',
+            path: filePath ?? '',
+            sizeBytes,
+            preview,
+            metadata: fileMetadata,
+          };
+        })
+        .filter(
+          (item): item is {
+              id: string;
+              name: string;
+              path: string;
+              sizeBytes: number;
+              preview?: string;
+              metadata?: Record<string, unknown>;
+            } => item != null,
+        )
+      : undefined;
+
+    const fileCount =
+      typeof entry.fileCount === 'number'
+        ? entry.fileCount
+        : rawFiles?.length ?? 0;
+    const sizeBytes =
+      typeof entry.sizeBytes === 'number'
+        ? entry.sizeBytes
+        : typeof entry.size === 'number'
+          ? entry.size
+          : rawFiles?.reduce((total, file) => total + (file.sizeBytes ?? 0), 0) ?? 0;
+
+    const bundle = {
+      id,
+      label: coerceString(entry.label) ?? title ?? id,
+      title: title ?? undefined,
+      source,
+      createdAt,
+      summary,
+      metadata,
+      sizeBytes,
+      fileCount,
+      files: rawFiles?.map((file) => ({
+        path: file.path,
+        sizeBytes: file.sizeBytes,
+        preview: file.preview,
+        name: file.name,
+        id: file.id,
+        metadata: file.metadata,
+      })),
+    } as SessionContextBundle & {
+      title?: string;
+      source?: string;
+      createdAt?: string;
+      metadata?: Record<string, unknown>;
+      files?: Array<
+        NonNullable<SessionContextBundle['files']>[number] & {
+          id?: string;
+          name?: string;
+          metadata?: Record<string, unknown>;
+        }
+      >;
+    };
+
+    bundles.push(bundle);
+  });
+
+  return bundles.length > 0 ? bundles : null;
+}
+
+function mergeContextBundles(
+  existing: SessionContextBundle[],
+  updates: SessionContextBundle[],
+): SessionContextBundle[] {
+  if (updates.length === 0) {
+    return existing;
+  }
+
+  const map = new Map<string, SessionContextBundle>();
+
+  existing.forEach((bundle) => {
+    map.set(bundle.id, {
+      ...bundle,
+      metadata: bundle.metadata ? { ...bundle.metadata } : undefined,
+      files: bundle.files ? bundle.files.map((file) => ({ ...file })) : undefined,
+    });
+  });
+
+  updates.forEach((bundle) => {
+    const previous = map.get(bundle.id);
+    if (!previous) {
+      map.set(bundle.id, {
+        ...bundle,
+        metadata: bundle.metadata ? { ...bundle.metadata } : undefined,
+        files: bundle.files ? bundle.files.map((file) => ({ ...file })) : undefined,
+      });
+      return;
+    }
+
+    map.set(bundle.id, {
+      ...previous,
+      ...bundle,
+      metadata: {
+        ...(previous.metadata ?? {}),
+        ...(bundle.metadata ?? {}),
+      },
+      files: bundle.files
+        ? bundle.files.map((file) => ({ ...file }))
+        : previous.files
+          ? previous.files.map((file) => ({ ...file }))
+          : undefined,
+    });
+  });
+
+  const merged = Array.from(map.values());
+  merged.sort((a, b) => {
+    const aTime = Date.parse(a.createdAt ?? '');
+    const bTime = Date.parse(b.createdAt ?? '');
+    if (Number.isNaN(aTime) && Number.isNaN(bTime)) {
+      return a.id.localeCompare(b.id);
+    }
+    if (Number.isNaN(aTime)) {
+      return 1;
+    }
+    if (Number.isNaN(bTime)) {
+      return -1;
+    }
+    return bTime - aTime;
+  });
+
+  return merged;
+}
+
+function findAgentNodeWithParent(
+  nodes: AgentHierarchyNode[],
+  id: string,
+): { node: AgentHierarchyNode; parent: AgentHierarchyNode | null } | null {
+  const stack: Array<{ node: AgentHierarchyNode; parent: AgentHierarchyNode | null }> = nodes.map((node) => ({
+    node,
+    parent: null,
+  }));
+
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    if (current.node.id === id) {
+      return current;
+    }
+
+    for (const child of current.node.children ?? []) {
+      stack.push({ node: child, parent: current.node });
+    }
+  }
+
+  return null;
+}
+
+interface SpawnMetadata {
+  agentId: string;
+  parentAgentId: string | null;
+  agentName: string | null;
+  provider: string | null;
+  model: string | null;
+}
+
+function extractSpawnMetadata(
+  eventName: string | null,
+  ...candidates: Array<Record<string, unknown> | undefined>
+): SpawnMetadata | null {
+  if (eventName?.toLowerCase() !== 'spawn_subagent') {
+    return null;
+  }
+
+  for (const candidate of candidates) {
+    if (!candidate) {
+      continue;
+    }
+
+    const agentId = coerceString(candidate.agentId);
+    if (!agentId) {
+      continue;
+    }
+
+    return {
+      agentId,
+      parentAgentId: coerceString(candidate.parentAgentId),
+      agentName:
+        coerceString(candidate.agentName) ??
+        coerceString(candidate.name) ??
+        agentId,
+      provider:
+        coerceString(candidate.provider) ??
+        coerceString(candidate.agentProvider) ??
+        null,
+      model:
+        coerceString(candidate.model) ??
+        coerceString(candidate.agentModel) ??
+        null,
+    } satisfies SpawnMetadata;
+  }
+
+  return null;
+}
+
+function applySpawnMetadata(
+  hierarchy: AgentHierarchyNode[],
+  spawn: SpawnMetadata,
+): boolean {
+  const existingEntry = findAgentNodeWithParent(hierarchy, spawn.agentId);
+  const parentEntry = spawn.parentAgentId
+    ? findAgentNodeWithParent(hierarchy, spawn.parentAgentId)
+    : null;
+  const parentNode = parentEntry?.node ?? null;
+  const targetDepth = parentNode ? (parentNode.depth ?? 0) + 1 : 0;
+
+  if (existingEntry) {
+    const { node, parent } = existingEntry;
+    let changed = false;
+
+    if (spawn.agentName && node.name !== spawn.agentName) {
+      node.name = spawn.agentName;
+      changed = true;
+    }
+    if (spawn.provider && node.provider !== spawn.provider) {
+      node.provider = spawn.provider;
+      changed = true;
+    }
+    if (spawn.model && node.model !== spawn.model) {
+      node.model = spawn.model;
+      changed = true;
+    }
+    if (node.depth !== targetDepth) {
+      node.depth = targetDepth;
+      changed = true;
+    }
+
+    if (parentNode && parent?.id !== parentNode.id) {
+      if (parent) {
+        parent.children = (parent.children ?? []).filter((child) => child.id !== node.id);
+      } else {
+        const index = hierarchy.findIndex((candidate) => candidate.id === node.id);
+        if (index >= 0) {
+          hierarchy.splice(index, 1);
+        }
+      }
+      parentNode.children = parentNode.children ?? [];
+      parentNode.children.push(node);
+      changed = true;
+    } else if (!parentNode && parent) {
+      parent.children = (parent.children ?? []).filter((child) => child.id !== node.id);
+      hierarchy.push(node);
+      changed = true;
+    }
+
+    return changed;
+  }
+
+  const nextNode: AgentHierarchyNode = {
+    id: spawn.agentId,
+    name: spawn.agentName ?? spawn.agentId,
+    provider: spawn.provider ?? undefined,
+    model: spawn.model ?? undefined,
+    depth: targetDepth,
+    metadata: {},
+    children: [],
+  };
+
+  if (parentNode) {
+    parentNode.children = parentNode.children ?? [];
+    parentNode.children.push(nextNode);
+  } else {
+    hierarchy.push(nextNode);
+  }
+
+  return true;
+}
+
+interface NormalizedToolEvent {
+  sessionId: string;
+  id: string;
+  name: string | null;
+  status: ToolCallStatusDto;
+  agentId: string | null | undefined;
+  timestamp: string | null;
+  args?: unknown;
+  result?: unknown;
+  metadata?: Record<string, unknown>;
+  contextBundles?: SessionContextBundle[];
+  spawn?: SpawnMetadata | null;
+}
+
+function normalizeToolEvent(
+  payload: unknown,
+  fallbackStatus: ToolCallStatusDto,
+): NormalizedToolEvent | null {
+  if (!isPlainObject(payload)) {
+    return null;
+  }
+
+  const sessionId = coerceString(payload.sessionId);
+  const id = coerceString(payload.id) ?? coerceString(payload.toolCallId);
+  if (!sessionId || !id) {
+    return null;
+  }
+
+  const name = coerceString(payload.name);
+  const agentIdProvided = Object.prototype.hasOwnProperty.call(payload, 'agentId');
+  const agentId = agentIdProvided ? normalizeAgentId(payload.agentId) : undefined;
+  const timestamp = coerceString(payload.timestamp);
+
+  const args = 'arguments' in payload ? (payload as Record<string, unknown>).arguments : undefined;
+  const result = 'result' in payload ? (payload as Record<string, unknown>).result : undefined;
+
+  const metadataSource = isPlainObject(payload.metadata)
+    ? (payload.metadata as Record<string, unknown>)
+    : undefined;
+  const structuredResult = parseJson(result);
+  const resultMetadata =
+    isPlainObject(structuredResult) && isPlainObject((structuredResult as Record<string, unknown>).metadata)
+      ? ((structuredResult as Record<string, unknown>).metadata as Record<string, unknown>)
+      : undefined;
+
+  const metadata = collectMetadata(metadataSource, resultMetadata);
+  if (metadata && 'contextBundles' in metadata) {
+    delete metadata.contextBundles;
+  }
+
+  const contextBundles =
+    sanitizeContextBundles(
+      (payload as Record<string, unknown>).contextBundles ?? metadataSource?.contextBundles ?? resultMetadata?.contextBundles,
+    ) ?? undefined;
+
+  let status = fallbackStatus;
+  if (typeof payload.status === 'string') {
+    switch (payload.status) {
+      case 'pending':
+      case 'running':
+      case 'completed':
+      case 'failed':
+        status = payload.status;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return {
+    sessionId,
+    id,
+    name: name ?? null,
+    status,
+    agentId: agentIdProvided ? agentId ?? null : undefined,
+    timestamp: timestamp ?? null,
+    args,
+    result,
+    metadata,
+    contextBundles,
+    spawn: extractSpawnMetadata(name ?? null, metadataSource, resultMetadata),
+  };
+}
+
+function applyToolLifecycle(
+  snapshot: SessionContextSnapshot,
+  event: NormalizedToolEvent,
+): boolean {
+  const toolInvocations = snapshot.toolInvocations as ToolInvocationNode[];
+  const timestamp = event.timestamp ?? new Date().toISOString();
+  let changed = false;
+
+  const existingIndex = toolInvocations.findIndex((node) => node.id === event.id);
+  if (existingIndex >= 0) {
+    const existing = toolInvocations[existingIndex]!;
+    const updated: ToolInvocationNode = { ...existing };
+
+    const nextMetadata = mergeToolMetadata(existing.metadata, event.metadata, event.agentId);
+    if (!areValuesEqual(nextMetadata, existing.metadata)) {
+      updated.metadata = nextMetadata;
+      changed = true;
+    }
+
+    if (event.name && event.name !== existing.name) {
+      updated.name = event.name;
+      changed = true;
+    }
+
+    if (event.status && event.status !== existing.status) {
+      updated.status = event.status;
+      changed = true;
+    }
+
+    if (event.args !== undefined && !areValuesEqual(event.args, existing.args)) {
+      updated.args = event.args;
+      changed = true;
+    }
+
+    if (event.result !== undefined && !areValuesEqual(event.result, existing.result)) {
+      updated.result = event.result;
+      changed = true;
+    }
+
+    if (!existing.createdAt) {
+      updated.createdAt = timestamp;
+      changed = true;
+    }
+
+    if (updated.updatedAt !== timestamp) {
+      updated.updatedAt = timestamp;
+      changed = true;
+    }
+
+    if (changed) {
+      toolInvocations[existingIndex] = updated;
+    }
+  } else {
+    const metadata = mergeToolMetadata(undefined, event.metadata, event.agentId);
+    const newNode: ToolInvocationNode = {
+      id: event.id,
+      name: event.name ?? 'Tool invocation',
+      status: event.status,
+      metadata,
+      children: [],
+      args: event.args,
+      result: event.result,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    toolInvocations.push(newNode);
+    changed = true;
+  }
+
+  if (event.contextBundles?.length) {
+    const mergedBundles = mergeContextBundles(snapshot.contextBundles, event.contextBundles);
+    if (!areValuesEqual(mergedBundles, snapshot.contextBundles)) {
+      snapshot.contextBundles = mergedBundles;
+      changed = true;
+    }
+  }
+
+  if (event.spawn) {
+    if (applySpawnMetadata(snapshot.agentHierarchy as AgentHierarchyNode[], event.spawn)) {
+      changed = true;
+    }
+  }
+
+  return changed;
+}
+
+function unsubscribeAll(unsubscribes: Array<(() => void) | undefined>): void {
+  unsubscribes.forEach((unsubscribe) => {
+    if (typeof unsubscribe !== 'function') {
+      return;
+    }
+    try {
+      unsubscribe();
+    } catch {
+      // Ignore cleanup failures caused by disposed sockets
+    }
+  });
 }
 
 export function ChatPage(): JSX.Element {
@@ -320,6 +942,43 @@ export function ChatPage(): JSX.Element {
       return cloned;
     },
     [syncSessionContextCache],
+  );
+
+  const upsertSessionContext = useCallback(
+    (
+      sessionId: string,
+      updater: (snapshot: SessionContextSnapshot) => SessionContextSnapshot | null,
+    ) => {
+      setSessionContextById((previous) => {
+        const existing = previous[sessionId] ?? createEmptySessionContext(sessionId);
+        const draft =
+          cloneSessionContext(existing) ?? createEmptySessionContext(sessionId);
+        const next = updater(draft);
+        if (!next) {
+          return previous;
+        }
+        const normalized =
+          cloneSessionContext(next) ?? createEmptySessionContext(sessionId);
+        syncSessionContextCache(sessionId, normalized);
+        return { ...previous, [sessionId]: normalized };
+      });
+    },
+    [setSessionContextById, syncSessionContextCache],
+  );
+
+  const applyToolEvent = useCallback(
+    (payload: unknown, fallbackStatus: ToolCallStatusDto) => {
+      const normalized = normalizeToolEvent(payload, fallbackStatus);
+      if (!normalized) {
+        return;
+      }
+
+      upsertSessionContext(normalized.sessionId, (snapshot) => {
+        const mutated = applyToolLifecycle(snapshot, normalized);
+        return mutated ? snapshot : null;
+      });
+    },
+    [upsertSessionContext],
   );
 
   const getMessageCacheLength = useCallback(
@@ -620,7 +1279,7 @@ export function ChatPage(): JSX.Element {
     }
 
     return () => {
-      unsubscribes.forEach((unsubscribe) => unsubscribe());
+      unsubscribeAll(unsubscribes);
     };
   }, [
     api,
@@ -630,6 +1289,22 @@ export function ChatPage(): JSX.Element {
     setSessionContext,
     setSelectedSessionPreference,
   ]);
+
+  useEffect(() => {
+    const toolsSocket = api.sockets.tools;
+    if (!toolsSocket) {
+      return;
+    }
+
+    const unsubscribes = [
+      toolsSocket.onToolCall((payload) => applyToolEvent(payload, 'running')),
+      toolsSocket.onToolResult((payload) => applyToolEvent(payload, 'completed')),
+    ];
+
+    return () => {
+      unsubscribeAll(unsubscribes);
+    };
+  }, [api, applyToolEvent]);
 
   const { data: sessionContextQueryData } = useQuery({
     queryKey: getOrchestratorMetadataQueryKey(selectedSessionId),
