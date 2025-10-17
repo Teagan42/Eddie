@@ -1,5 +1,6 @@
 import { IEvent } from "@nestjs/cqrs";
 import { StreamEvent } from "../providers";
+import type { ExecutionTreeState } from "../engine";
 
 export class ChatSessionCreatedEvent {
   constructor(public readonly sessionId: string) {}
@@ -52,6 +53,13 @@ export class ChatSessionToolResultEvent {
   ) {}
 }
 
+export class ExecutionTreeStateUpdatedEvent implements IEvent {
+  constructor(
+    public readonly sessionId: string,
+    public readonly state: ExecutionTreeState,
+  ) {}
+}
+
 export const CHAT_SESSION_EVENT_CLASSES = [
   ChatSessionCreatedEvent,
   ChatSessionUpdatedEvent,
@@ -59,6 +67,7 @@ export const CHAT_SESSION_EVENT_CLASSES = [
   ChatMessagePartialEvent,
   ChatSessionToolCallEvent,
   ChatSessionToolResultEvent,
+  ExecutionTreeStateUpdatedEvent,
 ] as const;
 
 export class AgentStreamEvent implements IEvent {
