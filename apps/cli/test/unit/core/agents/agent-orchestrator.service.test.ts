@@ -210,6 +210,8 @@ describe("AgentOrchestratorService", () => {
         observeToolCall: vi.fn(),
         countError: vi.fn(),
         timeOperation: vi.fn(async (_metric: string, fn: () => Promise<unknown>) => fn()),
+        reset: vi.fn(),
+        snapshot: vi.fn(() => ({ counters: {}, histograms: {} })),
       } as unknown as MetricsService),
   });
 
