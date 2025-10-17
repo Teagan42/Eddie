@@ -292,7 +292,8 @@ describe("ChatPage session creation", () => {
     const initialDescription = getSessionMetricsDescription(sessionButton);
     expect(initialDescription).not.toBeNull();
     expect(initialDescription).toHaveTextContent("0 messages");
-    const initialBadge = within(sessionButton).getByText("0 messages");
+    const initialBadge = within(sessionButton).getByLabelText("0 messages");
+    expect(initialBadge).toHaveTextContent("0");
     expect(initialBadge.closest('[data-highlighted="true"]')).toBeNull();
 
     const newMessage = {
@@ -314,7 +315,8 @@ describe("ChatPage session creation", () => {
       const updatedDescription = getSessionMetricsDescription(sessionButton);
       expect(updatedDescription).not.toBeNull();
       expect(updatedDescription).toHaveTextContent("1 message");
-      const updatedBadge = within(sessionButton).getByText("1 message");
+      const updatedBadge = within(sessionButton).getByLabelText("1 message");
+      expect(updatedBadge).toHaveTextContent("1");
       expect(updatedBadge.closest('[data-highlighted="true"]')).not.toBeNull();
     });
   });
@@ -361,7 +363,8 @@ describe("ChatPage session creation", () => {
       expect(updatedDescription).not.toBeNull();
       expect(updatedDescription).toHaveTextContent("1 bundle");
       expect(updatedDescription).toHaveAttribute("aria-live", "polite");
-      const bundleBadge = within(sessionButton).getByText("1 bundle");
+      const bundleBadge = within(sessionButton).getByLabelText("1 bundle");
+      expect(bundleBadge).toHaveTextContent("1");
       expect(bundleBadge.closest('[data-highlighted="true"]')).not.toBeNull();
     });
   });
@@ -461,7 +464,7 @@ describe("ChatPage session creation", () => {
       await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
 
       const renameButton = await screen.findByRole("button", {
-        name: "Rename Session 1",
+        name: "Edit Session 1",
       });
       await user.click(renameButton);
 
@@ -494,7 +497,7 @@ describe("ChatPage session creation", () => {
       await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
 
       const renameButton = await screen.findByRole("button", {
-        name: "Rename Session 1",
+        name: "Edit Session 1",
       });
       await user.click(renameButton);
 
