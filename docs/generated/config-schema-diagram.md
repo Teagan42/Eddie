@@ -249,6 +249,10 @@ graph LR
   logging__enableTimestamps["enableTimestamps: boolean"]
   logging --> logging__level
   logging__level["level (required): string"]
+  root --> metrics
+  metrics["metrics: object"]
+  metrics --> metrics__backend
+  metrics__backend["backend: oneOf"]
   root --> model
   model["model (required): string"]
   root --> output
