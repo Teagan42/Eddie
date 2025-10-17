@@ -238,8 +238,23 @@ const METRICS_BACKEND_LOGGING_SCHEMA: JSONSchema7 = {
   },
 };
 
+const METRICS_BACKEND_OTEL_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type"],
+  properties: {
+    type: { const: "otel" },
+    meterName: { type: "string", minLength: 1 },
+    meterVersion: { type: "string", minLength: 1 },
+  },
+};
+
 const METRICS_BACKEND_SCHEMA: JSONSchema7 = {
-  oneOf: [METRICS_BACKEND_NOOP_SCHEMA, METRICS_BACKEND_LOGGING_SCHEMA],
+  oneOf: [
+    METRICS_BACKEND_NOOP_SCHEMA,
+    METRICS_BACKEND_LOGGING_SCHEMA,
+    METRICS_BACKEND_OTEL_SCHEMA,
+  ],
 };
 
 const METRICS_CONFIG_SCHEMA: JSONSchema7 = {

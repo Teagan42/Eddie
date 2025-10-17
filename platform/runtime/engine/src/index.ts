@@ -7,3 +7,4 @@ export * from "./transcript-compactors";
 export * from "./transcript/transcript-compaction.service";
 export * from "./telemetry/metrics.service";
 export * from "./telemetry/logging-metrics.backend";
+export * from "./telemetry/otel-metrics.backend";

@@ -3,6 +3,7 @@ import { ConfigStore } from "@eddie/config";
 import type { MetricsConfig } from "@eddie/types";
 import { performance } from "node:perf_hooks";
 import { LoggingMetricsBackend } from "./logging-metrics.backend";
+import { OtelMetricsBackend } from "./otel-metrics.backend";
 
 export interface MetricsBackend {
   incrementCounter(
@@ -50,6 +51,13 @@ function createMetricsBackend(config: MetricsConfig | undefined): MetricsBackend
 
   if (backendConfig?.type === "logging") {
     return new LoggingMetricsBackend({ level: backendConfig.level });
+  }
+
+  if (backendConfig?.type === "otel") {
+    return new OtelMetricsBackend({
+      meterName: backendConfig.meterName,
+      meterVersion: backendConfig.meterVersion,
+    });
   }
 
   return new NoopMetricsBackend();
