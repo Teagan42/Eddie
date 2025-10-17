@@ -4,6 +4,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { LogEntryDto } from "@eddie/api-client";
 import { OverviewPage } from "../OverviewPage";
+import { ThemeProvider } from "@/theme";
 
 vi.mock("@/auth/auth-context", () => ({
   useAuth: () => ({ apiKey: "test", setApiKey: vi.fn() }),
@@ -107,6 +108,7 @@ class IntersectionObserverMock implements IntersectionObserver {
 }
 
 const intersectionObservers: IntersectionObserverMock[] = [];
+const activeQueryClients: QueryClient[] = [];
 
 Object.assign(globalThis, {
   IntersectionObserver: vi
@@ -122,6 +124,7 @@ function renderOverview(): {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+  activeQueryClients.push(queryClient);
 
   let handler: ((entry: LogEntryDto) => void) | null = null;
   registerLogListener.mockImplementation((callback: (entry: LogEntryDto) => void) => {
@@ -133,9 +136,11 @@ function renderOverview(): {
 
   render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <OverviewPage />
-      </MemoryRouter>
+      <ThemeProvider>
+        <MemoryRouter>
+          <OverviewPage />
+        </MemoryRouter>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 
@@ -158,6 +163,21 @@ describe("OverviewPage log updates", () => {
     registerMessageUpdated.mockReturnValue(() => {});
     intersectionObservers.splice(0, intersectionObservers.length);
     (globalThis.IntersectionObserver as unknown as vi.Mock).mockClear();
+    document.documentElement.classList.remove("dark");
+  });
+
+  afterEach(() => {
+    while (activeQueryClients.length) {
+      activeQueryClients.pop()?.clear();
+    }
+  });
+
+  it("applies the document dark class from runtime config", async () => {
+    renderOverview();
+
+    await waitFor(() => {
+      expect(document.documentElement.classList.contains("dark")).toBe(true);
+    });
   });
 
   it("does not refetch logs when websocket entries arrive", async () => {

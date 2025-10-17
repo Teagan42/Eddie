@@ -1,10 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Theme } from "@radix-ui/themes";
 import { App } from "./pages";
 import { AuthProvider } from "./auth/auth-context";
 import { ApiProvider } from "./api/api-provider";
+import { ThemeProvider } from "./theme";
 import "@radix-ui/themes/styles.css";
 import "./styles/global.css";
 
@@ -19,14 +19,14 @@ const queryClient = new QueryClient({
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <Theme accentColor="jade" radius="large">
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <ApiProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <ApiProvider>
+          <ThemeProvider>
             <App />
-          </ApiProvider>
-        </AuthProvider>
-      </QueryClientProvider>
-    </Theme>
+          </ThemeProvider>
+        </ApiProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   </React.StrictMode>
 );
