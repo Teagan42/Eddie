@@ -24,6 +24,7 @@ import { PaperPlaneIcon, PlusIcon, ReloadIcon } from '@radix-ui/react-icons';
 import { Panel } from "@/components/common";
 import { useAuth } from '@/auth/auth-context';
 import { useApi } from '@/api/api-provider';
+import { useTheme } from '@/theme';
 import { ChatSessionsPanel, OverviewAuthPanel, OverviewHero } from './components';
 import { useChatSessionEvents, useOverviewStats } from './hooks';
 import type {
@@ -230,12 +231,7 @@ export function OverviewPage(): JSX.Element {
     },
   });
 
-  const toggleThemeMutation = useMutation({
-    mutationFn: (theme: RuntimeConfigDto['theme']) => api.http.config.update({ theme }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['config'] });
-    },
-  });
+  const { theme, setTheme } = useTheme();
 
   const activeSession = useMemo<ChatSessionDto | null>(() => {
     if (!selectedSessionId) {
@@ -270,9 +266,8 @@ export function OverviewPage(): JSX.Element {
   };
 
   const handleToggleTheme = (): void => {
-    const currentTheme = (configQuery.data?.theme ?? 'dark') as RuntimeConfigDto['theme'];
-    const nextTheme = (currentTheme === 'dark' ? 'light' : 'dark') as RuntimeConfigDto['theme'];
-    toggleThemeMutation.mutate(nextTheme);
+    const nextTheme = (theme === 'dark' ? 'light' : 'dark') as RuntimeConfigDto['theme'];
+    setTheme(nextTheme);
   };
 
   return (
