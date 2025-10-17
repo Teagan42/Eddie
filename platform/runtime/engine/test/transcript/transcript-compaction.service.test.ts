@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentInvocation } from "../../src/agents/agent-invocation";
 import { AgentLifecyclePayload, HOOK_EVENTS, type AgentRuntimeDescriptor } from "@eddie/types";
 import type { EddieConfig, TranscriptCompactorConfig } from "@eddie/types";
+import { ConfigStore } from "@eddie/config";
 import {
   createTranscriptCompactor,
   registerTranscriptCompactor,
@@ -12,6 +13,10 @@ import type {
   TranscriptCompactionPlan,
 } from "../../src/transcript-compactors";
 import { TranscriptCompactionService } from "../../src/transcript/transcript-compaction.service";
+import {
+  TranscriptCompactorFactoryBinding,
+  transcriptCompactorFactoryProvider,
+} from "../../src/transcript/transcript-compactor.factory";
 
 describe("TranscriptCompactionService", () => {
   beforeEach(() => {
@@ -54,6 +59,28 @@ describe("TranscriptCompactionService", () => {
     }));
   }
 
+  const createService = (
+    factoryOverrides: Partial<TranscriptCompactorFactoryBinding> = {},
+  ): {
+    service: TranscriptCompactionService;
+    listeners: Array<() => void>;
+    binding: TranscriptCompactorFactoryBinding;
+  } => {
+    const listeners: Array<() => void> = [];
+    const binding: TranscriptCompactorFactoryBinding = {
+      create: createTranscriptCompactor,
+      onSnapshot: (listener) => {
+        listeners.push(listener);
+        return () => {};
+      },
+      ...factoryOverrides,
+    };
+
+    const service = new TranscriptCompactionService(binding);
+
+    return { service, listeners, binding };
+  };
+
   it("reuses cached compactors for the same agent configuration", async () => {
     registerTranscriptCompactor({
       strategy: "fake",
@@ -73,7 +100,7 @@ describe("TranscriptCompactionService", () => {
       },
     };
 
-    const service = new TranscriptCompactionService(createTranscriptCompactor);
+    const { service } = createService();
     const selector = service.createSelector(config);
 
     const invocation = {
@@ -120,7 +147,7 @@ describe("TranscriptCompactionService", () => {
       },
     };
 
-    const service = new TranscriptCompactionService(createTranscriptCompactor);
+    const { service } = createService();
     const selector = service.createSelector(config);
 
     const manager = {
@@ -185,7 +212,7 @@ describe("TranscriptCompactionService", () => {
       historyLength: 0,
     };
 
-    const service = new TranscriptCompactionService(createTranscriptCompactor);
+    const { service } = createService();
     const invocation = {
       definition: { id: "manager" },
       messages: [],
@@ -199,5 +226,97 @@ describe("TranscriptCompactionService", () => {
       HOOK_EVENTS.preCompact,
       expect.objectContaining({ reason: "test" })
     );
+  });
+  it("emits fresh compactors after a config snapshot change", () => {
+    registerTranscriptCompactor({
+      strategy: "fake",
+      create: (config: TranscriptCompactorConfig, context) =>
+        new FakeCompactor(`${context.agentId}:${(config as any).tag}`),
+    });
+
+    const config: EddieConfig = {
+      ...baseConfig,
+      transcript: { compactor: { strategy: "fake", tag: "global" } },
+      agents: {
+        ...baseConfig.agents,
+        manager: {
+          ...baseConfig.agents.manager,
+          transcript: { compactor: { strategy: "fake", tag: "manager" } },
+        },
+      },
+    };
+
+    const { service, listeners } = createService();
+    const selector = service.createSelector(config);
+
+    const invocation = {
+      definition: { id: "manager" },
+      messages: [],
+    } as AgentInvocation;
+    const descriptor = {
+      id: "manager",
+      model: "test",
+      provider: { name: "provider" },
+    } as AgentRuntimeDescriptor;
+
+    const first = selector.selectFor(invocation, descriptor);
+
+    listeners.forEach((listener) => listener());
+
+    const second = selector.selectFor(invocation, descriptor);
+
+    expect(second).not.toBe(first);
+  });
+
+  it("rebuilds cached compactors when ConfigStore publishes a new snapshot", () => {
+    registerTranscriptCompactor({
+      strategy: "fake",
+      create: (config: TranscriptCompactorConfig, context) =>
+        new FakeCompactor(`${context.agentId}:${(config as any).tag ?? ""}`),
+    });
+
+    const configStore = new ConfigStore();
+    const providerBinding = transcriptCompactorFactoryProvider.useFactory!(
+      configStore,
+    );
+
+    const service = new TranscriptCompactionService(providerBinding);
+
+    const initialConfig: EddieConfig = {
+      ...baseConfig,
+      agents: {
+        ...baseConfig.agents,
+        manager: {
+          ...baseConfig.agents.manager,
+          transcript: { compactor: { strategy: "fake", tag: "manager" } },
+        },
+      },
+    };
+
+    const selectorA = service.createSelector(initialConfig);
+
+    const invocation = {
+      definition: { id: "manager" },
+      messages: [],
+    } as AgentInvocation;
+    const descriptor = {
+      id: "manager",
+      model: "test",
+      provider: { name: "provider" },
+    } as AgentRuntimeDescriptor;
+
+    const first = selectorA.selectFor(invocation, descriptor);
+
+    const nextConfig: EddieConfig = {
+      ...initialConfig,
+      projectDir: "/tmp/new-project",
+    };
+
+    configStore.setSnapshot(nextConfig);
+
+    const selectorB = service.createSelector(nextConfig);
+    const second = selectorB.selectFor(invocation, descriptor);
+
+    expect(second).not.toBe(first);
   });
 });

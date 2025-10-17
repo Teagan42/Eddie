@@ -17,6 +17,7 @@ import { AgentInvocationFactory } from "./agents/agent-invocation.factory";
 import { AgentOrchestratorService } from "./agents/agent-orchestrator.service";
 import { MCPModule } from "@eddie/mcp";
 import { TranscriptCompactionService } from "./transcript/transcript-compaction.service";
+import { transcriptCompactorFactoryProvider } from "./transcript/transcript-compactor.factory";
 import { metricsProviders, MetricsService } from "./telemetry/metrics.service";
 
 @Module({
@@ -38,6 +39,7 @@ import { metricsProviders, MetricsService } from "./telemetry/metrics.service";
     EngineService,
     AgentInvocationFactory,
     AgentOrchestratorService,
+    transcriptCompactorFactoryProvider,
     TranscriptCompactionService,
   ],
   exports: [
@@ -51,6 +53,7 @@ import { metricsProviders, MetricsService } from "./telemetry/metrics.service";
     ProvidersModule,
     TokenizersModule,
     ToolsModule,
+    transcriptCompactorFactoryProvider,
   ],
 })
 export class EngineModule {}
