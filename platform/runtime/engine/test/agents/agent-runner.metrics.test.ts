@@ -11,6 +11,8 @@ type MetricsLike = {
   observeToolCall: ReturnType<typeof vi.fn>;
   countError: ReturnType<typeof vi.fn>;
   timeOperation: ReturnType<typeof vi.fn>;
+  reset: ReturnType<typeof vi.fn>;
+  snapshot: ReturnType<typeof vi.fn>;
 };
 
 const createStream = (events: StreamEvent[]): AsyncIterable<StreamEvent> => ({
@@ -68,6 +70,8 @@ const createMetrics = (): MetricsLike => ({
   observeToolCall: vi.fn(),
   countError: vi.fn(),
   timeOperation: vi.fn(async (_metric: string, fn: () => Promise<unknown>) => fn()),
+  reset: vi.fn(),
+  snapshot: vi.fn(() => ({ counters: {}, histograms: {} })),
 });
 
 const createRunner = (overrides: RunnerOverrides = {}) => {
