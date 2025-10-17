@@ -23,7 +23,7 @@ describe('benchmarks workflow', () => {
     expect(workflow).toContain('actions/checkout@v4');
     expect(workflow).toContain('./scripts/install.sh');
     expect(workflow).toMatch(
-      /npm run bench --workspace @eddie\/perf-benchmarks -- --run [^\n]*--reporter=json/
+      /npm run bench --workspace @eddie\/perf-benchmarks -- --run [^\n]*--reporter=.\/src\/benchmark-action\.reporter\.ts/
     );
     expect(workflow).toContain(absoluteOutputPath);
     expect(workflow).toContain('services:');
@@ -66,6 +66,7 @@ describe('benchmarks workflow', () => {
 
     expect(readme).toContain('https://github.com/Teagan42/Eddie/tree/benchmarks');
     expect(readme).toMatch(/regression alerts/i);
+    expect(readme).toContain('--reporter=./src/benchmark-action.reporter.ts');
     expect(docs).toContain('benchmarks.yml');
     expect(docs).toContain('https://github.com/Teagan42/Eddie/tree/benchmarks');
     expect(docs).toMatch(/alert notifications/i);

@@ -58,12 +58,16 @@ workflow. Every push to `main` (and the scheduled weekly run) provisions SQLite,
 PostgreSQL, MySQL, and MariaDB backends, executes
 
 ```
-npm run bench --workspace @eddie/perf-benchmarks -- --reporter=json
+BENCHMARK_OUTPUT_PATH=platform/testing/perf-benchmarks/benchmark-results.json \
+  npm run bench --workspace @eddie/perf-benchmarks -- --run --reporter=./src/benchmark-action.reporter.ts
 ```
 
 and publishes regression charts to the [`benchmarks` branch](https://github.com/Teagan42/Eddie/tree/benchmarks).
 Results are rendered on GitHub Pages so trends remain visible between releases,
 while the raw JSON is attached to the workflow run for offline analysis.
+
+Omit `BENCHMARK_OUTPUT_PATH` for quick local runs when you do not need to
+persist the JSON payload.
 
 The benchmark action raises regression alerts whenever a metric degrades by 5%
 or more compared to the last successful run. Alerts fail the workflow and leave

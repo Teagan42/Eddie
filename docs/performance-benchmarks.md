@@ -11,6 +11,14 @@ Run the suite locally with:
 npm run bench --workspace @eddie/perf-benchmarks
 ```
 
+To mirror the CI workflow and emit the JSON payload consumed by the
+`benchmark-action` step, provide an output path and enable the reporter:
+
+```
+BENCHMARK_OUTPUT_PATH=./benchmark-results.json \
+  npm run bench --workspace @eddie/perf-benchmarks -- --run --reporter=./src/benchmark-action.reporter.ts
+```
+
 The CI workflow defined in [`.github/workflows/benchmarks.yml`](../.github/workflows/benchmarks.yml)
 keeps the history fresh by running on every push to `main` and on a weekly
 schedule. The job provisions PostgreSQL, MySQL, and MariaDB service containers
