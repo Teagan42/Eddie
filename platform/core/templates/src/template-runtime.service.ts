@@ -1,4 +1,4 @@
-import { Inject, Injectable, type Provider } from "@nestjs/common";
+import { Injectable, type Provider } from "@nestjs/common";
 import type {
   AgentDefinition,
   AgentInvocationOptions,
@@ -8,10 +8,10 @@ import type {
   TemplateVariables,
 } from "@eddie/types";
 import type { Logger } from "pino";
-import { LoggerService } from "@eddie/io";
+import { createLoggerProvider, InjectLogger } from "@eddie/io";
 import { TemplateRendererService } from "./template-renderer.service";
 
-export const TEMPLATE_RUNTIME_LOGGER = Symbol("TEMPLATE_RUNTIME_LOGGER");
+export const TEMPLATE_RUNTIME_LOGGER_SCOPE = "core:template:runtime" as const;
 
 export interface ParentAgentContext {
   id: string;
@@ -48,7 +48,7 @@ export interface RenderContextResourceParams {
 export class TemplateRuntimeService {
   constructor(
     private readonly renderer: TemplateRendererService,
-    @Inject(TEMPLATE_RUNTIME_LOGGER) private readonly logger: Logger
+    @InjectLogger(TEMPLATE_RUNTIME_LOGGER_SCOPE) private readonly logger: Logger
   ) {}
 
   async renderSystemPrompt(
@@ -213,10 +213,5 @@ export class TemplateRuntimeService {
 
 export const templateRuntimeProviders: Provider[] = [
   TemplateRuntimeService,
-  {
-    provide: TEMPLATE_RUNTIME_LOGGER,
-    useFactory: (loggerService: LoggerService): Logger =>
-      loggerService.getLogger("engine:templates"),
-    inject: [LoggerService],
-  },
+  createLoggerProvider(TEMPLATE_RUNTIME_LOGGER_SCOPE),
 ];

@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   TemplateDescriptor,
@@ -10,9 +11,14 @@ import type {
   ContextResourceTemplateConfig,
   PackedContext,
 } from "@eddie/types";
-import { TemplateRuntimeService } from "../src/template-runtime.service";
+import {
+  TEMPLATE_RUNTIME_LOGGER_SCOPE,
+  TemplateRuntimeService,
+} from "../src/template-runtime.service";
 import { TemplateRendererService } from "../src/template-renderer.service";
 import type { Logger } from "pino";
+import { SELF_DECLARED_DEPS_METADATA } from "@nestjs/common/constants";
+import { getLoggerToken } from "@eddie/io";
 
 class TemplateRendererStub {
   renderTemplate = vi.fn(
@@ -32,6 +38,23 @@ class TemplateRendererStub {
 }
 
 describe("TemplateRuntimeService", () => {
+  it("injects the scoped logger token", () => {
+    const dependencies =
+      Reflect.getMetadata(
+        SELF_DECLARED_DEPS_METADATA,
+        TemplateRuntimeService
+      ) ?? [];
+
+    expect(dependencies).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          index: 1,
+          param: getLoggerToken(TEMPLATE_RUNTIME_LOGGER_SCOPE),
+        }),
+      ])
+    );
+  });
+
   let renderer: TemplateRendererStub;
   let service: TemplateRuntimeService;
   let logger: Logger;

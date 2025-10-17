@@ -1,10 +1,14 @@
+import "reflect-metadata";
 import { describe, expect, it } from "vitest";
 import { MODULE_METADATA } from "@nestjs/common/constants";
 import {
   TemplateModule,
   TemplateRendererService,
   TemplateRuntimeService,
+  TEMPLATE_RUNTIME_LOGGER_SCOPE,
 } from "../src";
+import { IoModule } from "@eddie/io";
+import { getLoggerToken } from "@eddie/io";
 
 function getMetadataArray<T = unknown>(key: string): T[] {
   const metadata = Reflect.getMetadata(key, TemplateModule);
@@ -19,7 +23,9 @@ describe("TemplateModule", () => {
       expect.arrayContaining([
         TemplateRendererService,
         TemplateRuntimeService,
-        expect.objectContaining({ provide: expect.any(Symbol) }),
+        expect.objectContaining({
+          provide: getLoggerToken(TEMPLATE_RUNTIME_LOGGER_SCOPE),
+        }),
       ])
     );
   });
@@ -33,5 +39,11 @@ describe("TemplateModule", () => {
         TemplateRuntimeService,
       ])
     );
+  });
+
+  it("imports IO dependencies for logging", () => {
+    const imports = getMetadataArray(MODULE_METADATA.IMPORTS);
+
+    expect(imports).toContain(IoModule);
   });
 });
