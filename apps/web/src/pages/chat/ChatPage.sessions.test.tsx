@@ -115,6 +115,8 @@ const renderChatPage = createChatPageRenderer(
     }),
 );
 
+const newOrchestratorSessionLabel = "New orchestrator session";
+
 describe("ChatPage session creation", () => {
   const buildSessionDto = (id: string, title: string, timestamp: string) => ({
     id,
@@ -173,7 +175,9 @@ describe("ChatPage session creation", () => {
 
       await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
 
-      const addButton = await screen.findByRole("button", { name: "New session" });
+      const addButton = await screen.findByRole("button", {
+        name: newOrchestratorSessionLabel,
+      });
       await user.click(addButton);
 
       await waitFor(() => expect(createSessionMock).toHaveBeenCalledTimes(1));
@@ -182,11 +186,11 @@ describe("ChatPage session creation", () => {
 
       resolveCreate?.(createdSessionDto);
 
-      const createdSession = await screen.findByRole("button", { name: "Session 2" });
+      await screen.findByRole("button", { name: /^Session 2\b/, pressed: false });
 
-      await waitFor(() => expect(createdSession).toBeInTheDocument());
-
-      expect(screen.getByRole("button", { name: "Session 1" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /^Session 1\b/, pressed: true })
+      ).toBeInTheDocument();
 
       const sessions = client.getQueryData([
         "chat-sessions",
@@ -218,17 +222,20 @@ describe("ChatPage session creation", () => {
 
       await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
 
-      const addButton = await screen.findByRole("button", { name: "New session" });
+      const addButton = await screen.findByRole("button", {
+        name: newOrchestratorSessionLabel,
+      });
       await user.click(addButton);
 
       await waitFor(() => expect(createSessionMock).toHaveBeenCalledTimes(1));
 
       resolveCreate?.(createdSessionDto);
 
-      const createdSession = await screen.findByRole("button", { name: "Session 2" });
-      await waitFor(() => expect(createdSession).toBeInTheDocument());
+      await screen.findByRole("button", { name: /^Session 2\b/, pressed: false });
 
-      expect(screen.getByRole("button", { name: "Session 1" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /^Session 1\b/, pressed: true })
+      ).toBeInTheDocument();
 
       const sessions = client.getQueryData([
         "chat-sessions",
@@ -456,5 +463,63 @@ describe("ChatPage session creation", () => {
     } finally {
       confirmSpy.mockRestore();
     }
+  });
+
+  it("displays per-session aggregates in the session selector", async () => {
+    const now = new Date().toISOString();
+    listMessagesMock.mockResolvedValue(
+      Array.from({ length: 3 }, (_, index) => ({
+        id: `message-${index + 1}`,
+        sessionId: "session-1",
+        role: "user" as const,
+        content: `message ${index + 1}`,
+        createdAt: now,
+        updatedAt: now,
+      })),
+    );
+    getMetadataMock.mockResolvedValue({
+      contextBundles: [
+        {
+          id: "bundle-1",
+          label: "Dataset A",
+          summary: "",
+          fileCount: 1,
+          sizeBytes: 128,
+        },
+        {
+          id: "bundle-2",
+          label: "Dataset B",
+          summary: "",
+          fileCount: 2,
+          sizeBytes: 256,
+        },
+      ],
+      toolInvocations: [],
+      agentHierarchy: [
+        {
+          id: "agent-1",
+          name: "Primary Agent",
+          metadata: {},
+          children: [
+            {
+              id: "agent-2",
+              name: "Support Agent",
+              metadata: {},
+              children: [],
+            },
+          ],
+        },
+      ],
+    });
+
+    renderChatPage();
+
+    await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
+
+    await waitFor(() => {
+      expect(screen.getByText("Messages: 3")).toBeInTheDocument();
+      expect(screen.getByText("Agents: 2")).toBeInTheDocument();
+      expect(screen.getByText("Context: 2")).toBeInTheDocument();
+    });
   });
 });

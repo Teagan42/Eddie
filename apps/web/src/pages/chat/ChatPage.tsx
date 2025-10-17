@@ -59,6 +59,7 @@ import {
   SessionSelector,
   ToolTree,
 } from './components';
+import type { SessionSelectorSessionAggregate } from './components';
 import { useChatMessagesRealtime } from './useChatMessagesRealtime';
 
 type BadgeColor = ComponentProps<typeof Badge>['color'];
@@ -145,6 +146,7 @@ const PANEL_IDS = {
 const SCROLL_VIEWPORT_SELECTOR = '[data-radix-scroll-area-viewport]';
 
 const CHAT_SESSIONS_QUERY_KEY = ['chat-sessions'] as const;
+const DEFAULT_SESSION_TITLE = 'New orchestrator session';
 
 const scrollMessageViewportToBottom = (anchor: HTMLElement): void => {
   const viewport = anchor.closest(SCROLL_VIEWPORT_SELECTOR);
@@ -510,6 +512,23 @@ function cloneAgentHierarchy(
     metadata: node.metadata ? { ...node.metadata } : undefined,
     children: cloneAgentHierarchy(node.children ?? []),
   }));
+}
+
+function countAgentHierarchyNodes(nodes: AgentHierarchyNode[]): number {
+  let total = 0;
+
+  const visit = (items: AgentHierarchyNode[]): void => {
+    for (const node of items ?? []) {
+      total += 1;
+      if (Array.isArray(node.children) && node.children.length > 0) {
+        visit(node.children);
+      }
+    }
+  };
+
+  visit(nodes);
+
+  return total;
 }
 
 function removeSessionKey<T extends Record<string, unknown>>(
@@ -1349,7 +1368,7 @@ export function ChatPage(): JSX.Element {
       lastFailureAt: null,
     });
     runCreateSession({
-      title: 'New orchestrator session',
+      title: DEFAULT_SESSION_TITLE,
       description: '',
     });
   }, [
@@ -1430,7 +1449,43 @@ export function ChatPage(): JSX.Element {
 
   const selectedModel = activeSettings.model ?? modelOptions[0] ?? '';
 
-  const messages = messagesQuery.data ?? [];
+  const messages = useMemo(() => messagesQuery.data ?? [], [messagesQuery.data]);
+  const sessionAggregates = useMemo<Record<string, SessionSelectorSessionAggregate>>(() => {
+    const aggregates: Record<string, SessionSelectorSessionAggregate> = {};
+
+    for (const session of sessions) {
+      const sessionId = session.id;
+      const overviewMessages = queryClient.getQueryData<ChatMessageDto[]>([
+        'chat-sessions',
+        sessionId,
+        'messages',
+      ]);
+      const detailMessages = queryClient.getQueryData<ChatMessageDto[]>([
+        'chat-session',
+        sessionId,
+        'messages',
+      ]);
+      const cachedMessages =
+        sessionId === selectedSessionId ? messages : overviewMessages ?? detailMessages ?? [];
+      const agentHierarchy = agentHierarchyBySession[sessionId] ?? [];
+      const contextBundles = contextBundlesBySession[sessionId] ?? [];
+
+      aggregates[sessionId] = {
+        messageCount: cachedMessages.length,
+        agentCount: countAgentHierarchyNodes(agentHierarchy),
+        contextCount: contextBundles.length,
+      };
+    }
+
+    return aggregates;
+  }, [
+    agentHierarchyBySession,
+    contextBundlesBySession,
+    messages,
+    queryClient,
+    selectedSessionId,
+    sessions,
+  ]);
   const selectedContextBundles = useMemo(
     () => (selectedSessionId ? contextBundlesBySession[selectedSessionId] ?? [] : []),
     [contextBundlesBySession, selectedSessionId],
@@ -1740,7 +1795,7 @@ export function ChatPage(): JSX.Element {
   );
 
   const handleCreateSession = useCallback(() => {
-    const title = window.prompt('Session title', 'New orchestrator session');
+    const title = window.prompt('Session title', DEFAULT_SESSION_TITLE);
     if (!title?.trim()) {
       return;
     }
@@ -1789,12 +1844,13 @@ export function ChatPage(): JSX.Element {
               color="jade"
               disabled={createSessionMutation.isPending}
             >
-              <PlusIcon /> New session
+              <PlusIcon /> {DEFAULT_SESSION_TITLE}
             </Button>
           }
         >
           <SessionSelector
             sessions={sessions}
+            aggregates={sessionAggregates}
             selectedSessionId={selectedSessionId ?? null}
             onSelectSession={handleSelectSession}
             onRenameSession={handleRenameSession}
