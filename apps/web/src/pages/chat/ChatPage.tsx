@@ -40,6 +40,7 @@ import type {
   CreateChatSessionDto,
   OrchestratorMetadataDto,
   ProviderCatalogEntryDto,
+  ToolCallStatusDto,
 } from '@eddie/api-client';
 import { useApi } from '@/api/api-provider';
 import { useAuth } from '@/auth/auth-context';
@@ -240,6 +241,371 @@ function removeSessionKey<T extends Record<string, unknown>>(
   return next;
 }
 
+type ToolInvocationNode = OrchestratorMetadataDto['toolInvocations'][number];
+type AgentHierarchyNode = OrchestratorMetadataDto['agentHierarchy'][number];
+
+type ToolEventKind = 'call' | 'result';
+
+interface ToolRealtimeEvent {
+  sessionId: string;
+  id: string;
+  name?: string;
+  args?: unknown;
+  result?: unknown;
+  agentId?: string | null;
+  timestamp?: string;
+}
+
+interface SpawnAgentDetails {
+  agentId: string;
+  name?: string;
+  provider?: string;
+  model?: string;
+  metadata: Record<string, unknown>;
+  contextBundleIds: string[];
+}
+
+function normalizeToolRealtimePayload(payload: unknown): ToolRealtimeEvent | null {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const rawSessionId = record.sessionId;
+  if (typeof rawSessionId !== 'string') {
+    return null;
+  }
+  const sessionId = rawSessionId.trim();
+  if (!sessionId) {
+    return null;
+  }
+
+  const rawId = record.id;
+  if (typeof rawId !== 'string') {
+    return null;
+  }
+  const id = rawId.trim();
+  if (!id) {
+    return null;
+  }
+
+  const name = typeof record.name === 'string' ? record.name : undefined;
+  const args = 'arguments' in record ? record.arguments : undefined;
+  const result = 'result' in record ? record.result : undefined;
+  const timestamp = typeof record.timestamp === 'string' ? record.timestamp : undefined;
+
+  let agentId: string | null | undefined = undefined;
+  if (record.agentId === null) {
+    agentId = null;
+  } else if (typeof record.agentId === 'string') {
+    const trimmed = record.agentId.trim();
+    agentId = trimmed.length > 0 ? trimmed : null;
+  }
+
+  return {
+    sessionId,
+    id,
+    name,
+    args,
+    result,
+    agentId,
+    timestamp,
+  } satisfies ToolRealtimeEvent;
+}
+
+function parseEventValue(value: unknown): unknown {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
+}
+
+function updateToolInvocations(
+  nodes: OrchestratorMetadataDto['toolInvocations'],
+  event: ToolRealtimeEvent,
+  kind: ToolEventKind,
+  argsValue: unknown,
+  resultValue: unknown,
+): OrchestratorMetadataDto['toolInvocations'] {
+  const cloned = cloneToolInvocations(nodes);
+  const status: ToolCallStatusDto =
+    kind === 'call' ? 'running' : 'completed';
+  const metadataUpdates: Record<string, unknown> = {};
+  if (event.agentId !== undefined) {
+    metadataUpdates.agentId = event.agentId;
+  }
+  if (event.timestamp) {
+    metadataUpdates.updatedAt = event.timestamp;
+  }
+
+  const index = cloned.findIndex((node) => node.id === event.id);
+  if (index >= 0) {
+    const existing = cloned[index] as ToolInvocationNode & { args?: unknown; result?: unknown };
+    const nextMetadata = {
+      ...(existing.metadata ?? {}),
+      ...metadataUpdates,
+    } as Record<string, unknown>;
+    cloned[index] = {
+      ...existing,
+      name: event.name ?? existing.name,
+      status,
+      metadata: Object.keys(nextMetadata).length > 0 ? nextMetadata : undefined,
+      children: existing.children ?? [],
+      ...(argsValue !== undefined ? { args: argsValue } : {}),
+      ...(resultValue !== undefined ? { result: resultValue } : {}),
+    } satisfies ToolInvocationNode & { args?: unknown; result?: unknown };
+    return cloned;
+  }
+
+  const metadata = Object.keys(metadataUpdates).length > 0 ? metadataUpdates : undefined;
+  const created: ToolInvocationNode & { args?: unknown; result?: unknown } = {
+    id: event.id,
+    name: event.name ?? 'Tool invocation',
+    status,
+    metadata,
+    children: [],
+  };
+  if (argsValue !== undefined) {
+    created.args = argsValue;
+  }
+  if (resultValue !== undefined) {
+    created.result = resultValue;
+  }
+  cloned.push(created);
+  return cloned;
+}
+
+function findAgentNode(
+  nodes: AgentHierarchyNode[],
+  targetId: string,
+): AgentHierarchyNode | null {
+  for (const node of nodes) {
+    if (node.id === targetId) {
+      return node;
+    }
+    const children = node.children ?? [];
+    const match = findAgentNode(children, targetId);
+    if (match) {
+      return match;
+    }
+  }
+  return null;
+}
+
+function upsertSpawnedAgent(
+  hierarchy: OrchestratorMetadataDto['agentHierarchy'],
+  parentId: string | null | undefined,
+  spawn: SpawnAgentDetails,
+): OrchestratorMetadataDto['agentHierarchy'] {
+  if (!parentId) {
+    return hierarchy;
+  }
+
+  const cloned = cloneAgentHierarchy(hierarchy);
+  const parent = findAgentNode(cloned, parentId);
+  if (!parent) {
+    return cloned;
+  }
+
+  const depth = typeof parent.depth === 'number' ? parent.depth + 1 : (parent.depth ?? 0) + 1;
+  const children = parent.children ?? [];
+  const existingIndex = children.findIndex((child) => child.id === spawn.agentId);
+  const metadataBase = existingIndex >= 0 ? { ...(children[existingIndex].metadata ?? {}) } : {};
+  const contextIds = Array.isArray(metadataBase.contextBundleIds)
+    ? new Set<string>(metadataBase.contextBundleIds as string[])
+    : new Set<string>();
+  for (const id of spawn.contextBundleIds) {
+    contextIds.add(id);
+  }
+  const nextMetadata: Record<string, unknown> = {
+    ...metadataBase,
+    ...spawn.metadata,
+  };
+  if (contextIds.size > 0) {
+    nextMetadata.contextBundleIds = Array.from(contextIds);
+  }
+  if (typeof nextMetadata.messageCount !== 'number') {
+    nextMetadata.messageCount = 0;
+  }
+
+  if (existingIndex >= 0) {
+    const existing = children[existingIndex];
+    children[existingIndex] = {
+      ...existing,
+      name: spawn.name ?? existing.name,
+      provider: spawn.provider ?? existing.provider,
+      model: spawn.model ?? existing.model,
+      depth,
+      metadata: nextMetadata,
+      children: existing.children ?? [],
+    } satisfies AgentHierarchyNode;
+  } else {
+    children.push({
+      id: spawn.agentId,
+      name: spawn.name ?? spawn.agentId,
+      provider: spawn.provider,
+      model: spawn.model,
+      depth,
+      metadata: nextMetadata,
+      children: [],
+    });
+  }
+
+  parent.children = children;
+  return cloned;
+}
+
+function ensureContextBundlePlaceholders(
+  bundles: OrchestratorMetadataDto['contextBundles'],
+  identifiers: string[],
+): OrchestratorMetadataDto['contextBundles'] {
+  if (identifiers.length === 0) {
+    return bundles;
+  }
+
+  const existing = new Set(bundles.map((bundle) => bundle.id));
+  const additions = identifiers
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0 && !existing.has(id));
+
+  if (additions.length === 0) {
+    return bundles;
+  }
+
+  const base = cloneContextBundles(bundles);
+  additions.forEach((id) => {
+    base.push({
+      id,
+      label: id,
+      summary: undefined,
+      sizeBytes: 0,
+      fileCount: 0,
+    });
+  });
+  return base;
+}
+
+function extractSpawnAgentDetails(value: unknown): SpawnAgentDetails | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  if (record.schema !== 'eddie.tool.spawn_subagent.result.v1') {
+    return null;
+  }
+
+  const metadata = record.metadata;
+  if (!metadata || typeof metadata !== 'object') {
+    return null;
+  }
+
+  const metadataRecord = metadata as Record<string, unknown>;
+  const agentIdValue = metadataRecord.agentId;
+  if (typeof agentIdValue !== 'string') {
+    return null;
+  }
+  const agentId = agentIdValue.trim();
+  if (!agentId) {
+    return null;
+  }
+
+  const name =
+    typeof metadataRecord.name === 'string' && metadataRecord.name.trim()
+      ? metadataRecord.name
+      : undefined;
+  const provider =
+    typeof metadataRecord.provider === 'string' && metadataRecord.provider.trim()
+      ? metadataRecord.provider
+      : undefined;
+  const model =
+    typeof metadataRecord.model === 'string' && metadataRecord.model.trim()
+      ? metadataRecord.model
+      : undefined;
+
+  const contextBundleIds = Array.isArray(metadataRecord.contextBundleIds)
+    ? metadataRecord.contextBundleIds.filter(
+      (id): id is string => typeof id === 'string' && id.trim().length > 0,
+    )
+    : [];
+
+  const metadataPayload: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(metadataRecord)) {
+    if (
+      key === 'agentId' ||
+      key === 'name' ||
+      key === 'provider' ||
+      key === 'model' ||
+      key === 'contextBundleIds'
+    ) {
+      continue;
+    }
+    metadataPayload[key] = entry;
+  }
+
+  const data = record.data;
+  if (data && typeof data === 'object') {
+    for (const [key, entry] of Object.entries(data as Record<string, unknown>)) {
+      if (!(key in metadataPayload)) {
+        metadataPayload[key] = entry;
+      }
+    }
+  }
+
+  return {
+    agentId,
+    name,
+    provider,
+    model,
+    metadata: metadataPayload,
+    contextBundleIds,
+  } satisfies SpawnAgentDetails;
+}
+
+function applyToolEventUpdate(
+  snapshot: SessionContextSnapshot,
+  event: ToolRealtimeEvent,
+  kind: ToolEventKind,
+): SessionContextSnapshot {
+  const argsValue = event.args !== undefined ? parseEventValue(event.args) : undefined;
+  const resultValue = event.result !== undefined ? parseEventValue(event.result) : undefined;
+  const nextToolInvocations = updateToolInvocations(
+    snapshot.toolInvocations,
+    event,
+    kind,
+    argsValue,
+    resultValue,
+  );
+
+  let nextHierarchy = snapshot.agentHierarchy;
+  let nextBundles = snapshot.contextBundles;
+
+  if (kind === 'result' && resultValue && typeof resultValue === 'object') {
+    const spawn = extractSpawnAgentDetails(resultValue);
+    if (spawn) {
+      nextHierarchy = upsertSpawnedAgent(snapshot.agentHierarchy, event.agentId ?? null, spawn);
+      nextBundles = ensureContextBundlePlaceholders(nextBundles, spawn.contextBundleIds);
+    }
+  }
+
+  return {
+    ...snapshot,
+    toolInvocations: nextToolInvocations,
+    agentHierarchy: nextHierarchy,
+    contextBundles: nextBundles,
+  } satisfies SessionContextSnapshot;
+}
+
 export function ChatPage(): JSX.Element {
   const api = useApi();
   const { apiKey } = useAuth();
@@ -264,6 +630,7 @@ export function ChatPage(): JSX.Element {
   const sessionsLoaded = sessionsQuery.isSuccess;
 
   const selectedSessionIdRef = useRef<string | null>(null);
+  const sessionContextRef = useRef<Record<string, SessionContextSnapshot>>({});
   const [autoSessionAttempt, setAutoSessionAttempt] = useState<AutoSessionAttemptState>({
     status: 'idle',
     apiKey: null,
@@ -285,6 +652,10 @@ export function ChatPage(): JSX.Element {
     Record<string, SessionContextSnapshot>
   >({});
   const [messageCountBySession, setMessageCountBySession] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    sessionContextRef.current = sessionContextById;
+  }, [sessionContextById]);
 
   const syncSessionContextCache = useCallback(
     (sessionId: string, snapshot: SessionContextSnapshot | null) => {
@@ -367,6 +738,26 @@ export function ChatPage(): JSX.Element {
       });
     },
     [getMessageCacheLength],
+  );
+
+  const applyExecutionTreeUpdate = useCallback(
+    (
+      sessionId: string,
+      updater: (snapshot: SessionContextSnapshot) => SessionContextSnapshot,
+    ) => {
+      const current = sessionContextRef.current[sessionId];
+      const base =
+        cloneSessionContext(current) ??
+        ({
+          sessionId,
+          contextBundles: [],
+          agentHierarchy: [],
+          toolInvocations: [],
+        } satisfies SessionContextSnapshot);
+      const next = updater(base);
+      setSessionContext(sessionId, next);
+    },
+    [setSessionContext],
   );
 
   const resolveMessageCount = useCallback(
@@ -630,6 +1021,38 @@ export function ChatPage(): JSX.Element {
     setSessionContext,
     setSelectedSessionPreference,
   ]);
+
+  useEffect(() => {
+    const toolsSocket = api.sockets.tools;
+    if (!toolsSocket) {
+      return;
+    }
+
+    const createHandler = (kind: ToolEventKind) => (payload: unknown) => {
+      const event = normalizeToolRealtimePayload(payload);
+      if (!event) {
+        return;
+      }
+      applyExecutionTreeUpdate(event.sessionId, (snapshot) =>
+        applyToolEventUpdate(snapshot, event, kind),
+      );
+    };
+
+    const unsubscribes = [
+      toolsSocket.onToolCall(createHandler('call')),
+      toolsSocket.onToolResult(createHandler('result')),
+    ].filter(Boolean);
+
+    return () => {
+      unsubscribes.forEach((unsubscribe) => {
+        try {
+          unsubscribe?.();
+        } catch {
+          // noop
+        }
+      });
+    };
+  }, [api, applyExecutionTreeUpdate]);
 
   const { data: sessionContextQueryData } = useQuery({
     queryKey: getOrchestratorMetadataQueryKey(selectedSessionId),

@@ -9,6 +9,8 @@ const sessionCreatedHandlers: Array<(session: unknown) => void> = [];
 const sessionDeletedHandlers: Array<(sessionId: string) => void> = [];
 const messageCreatedHandlers: Array<(message: any) => void> = [];
 const messageUpdatedHandlers: Array<(message: any) => void> = [];
+const toolCallHandlers: Array<(payload: any) => void> = [];
+const toolResultHandlers: Array<(payload: any) => void> = [];
 
 const updatePreferencesMock = vi.fn();
 
@@ -113,6 +115,26 @@ vi.mock("@/api/api-provider", () => ({
         }),
         onAgentActivity: vi.fn().mockReturnValue(() => {}),
       },
+      tools: {
+        onToolCall: vi.fn((handler: (payload: unknown) => void) => {
+          toolCallHandlers.push(handler);
+          return () => {
+            const index = toolCallHandlers.indexOf(handler);
+            if (index >= 0) {
+              toolCallHandlers.splice(index, 1);
+            }
+          };
+        }),
+        onToolResult: vi.fn((handler: (payload: unknown) => void) => {
+          toolResultHandlers.push(handler);
+          return () => {
+            const index = toolResultHandlers.indexOf(handler);
+            if (index >= 0) {
+              toolResultHandlers.splice(index, 1);
+            }
+          };
+        }),
+      },
     },
   }),
 }));
@@ -154,6 +176,8 @@ describe("ChatPage session creation", () => {
     sessionDeletedHandlers.length = 0;
     messageCreatedHandlers.length = 0;
     messageUpdatedHandlers.length = 0;
+    toolCallHandlers.length = 0;
+    toolResultHandlers.length = 0;
     updatePreferencesMock.mockReset();
     toastMock.mockReset();
     renameSessionMock.mockReset();
@@ -409,6 +433,118 @@ describe("ChatPage session creation", () => {
     } finally {
       promptSpy.mockRestore();
     }
+  });
+
+  it("adds running tool invocations when tool call events stream in", async () => {
+    const now = new Date().toISOString();
+    getMetadataMock.mockResolvedValueOnce({
+      contextBundles: [],
+      toolInvocations: [],
+      agentHierarchy: [
+        {
+          id: "session-1",
+          name: "Session 1",
+          provider: "orchestrator",
+          model: "delegator",
+          depth: 0,
+          metadata: { messageCount: 0 },
+          children: [],
+        },
+      ],
+    });
+
+    renderChatPage();
+
+    const agentButton = await screen.findByRole("button", {
+      name: /select session 1 agent/i,
+    });
+    expect(agentButton).toBeInTheDocument();
+
+    await act(async () => {
+      toolCallHandlers.forEach((handler) =>
+        handler({
+          sessionId: "session-1",
+          id: "call-1",
+          name: "search_docs",
+          arguments: JSON.stringify({ query: "latest" }),
+          agentId: "session-1",
+          timestamp: now,
+        }),
+      );
+    });
+
+    const runningToggle = await screen.findByRole("button", {
+      name: /toggle running tool invocations for session 1/i,
+    });
+    const user = userEvent.setup();
+    await user.click(runningToggle);
+
+    const runningRegion = await screen.findByRole("region", {
+      name: /running tool invocations for session 1/i,
+    });
+    expect(
+      within(runningRegion).getByText(/search_docs/i),
+    ).toBeInTheDocument();
+  });
+
+  it("adds spawned agents when tool results include spawn_subagent metadata", async () => {
+    const now = new Date().toISOString();
+    getMetadataMock.mockResolvedValueOnce({
+      contextBundles: [],
+      toolInvocations: [],
+      agentHierarchy: [
+        {
+          id: "session-1",
+          name: "Session 1",
+          provider: "orchestrator",
+          model: "delegator",
+          depth: 0,
+          metadata: { messageCount: 0 },
+          children: [],
+        },
+      ],
+    });
+
+    renderChatPage();
+
+    await screen.findByRole("button", { name: /select session 1 agent/i });
+
+    const spawnResult = {
+      schema: "eddie.tool.spawn_subagent.result.v1",
+      metadata: {
+        agentId: "agent-child",
+        name: "Docs scout",
+        provider: "openai",
+        model: "gpt-4o",
+        contextBundleIds: ["bundle-123"],
+      },
+      data: {
+        description: "Search documentation",
+      },
+    };
+
+    await act(async () => {
+      toolResultHandlers.forEach((handler) =>
+        handler({
+          sessionId: "session-1",
+          id: "call-1",
+          name: "spawn_subagent",
+          result: JSON.stringify(spawnResult),
+          agentId: "session-1",
+          timestamp: now,
+        }),
+      );
+    });
+
+    const user = userEvent.setup();
+    const toggleSpawned = await screen.findByRole("button", {
+      name: /toggle spawned agents for session 1/i,
+    });
+    await user.click(toggleSpawned);
+
+    expect(
+      await screen.findByRole("button", { name: /select docs scout agent/i }),
+    ).toBeInTheDocument();
   });
 
   it("clears selected session preference when the active session is deleted", async () => {
