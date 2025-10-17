@@ -45,7 +45,7 @@ describe("CliOptionsService", () => {
     const service = new CliOptionsService();
     const result = service.parse({
       metricsBackend: "logging",
-      metricsBackendLevel: "verbose",
+      metricsLoggingLevel: "verbose",
     });
 
     expect(result.metricsBackend).toBe("logging");
