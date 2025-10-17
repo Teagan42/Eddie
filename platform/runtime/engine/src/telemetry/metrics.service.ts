@@ -1,4 +1,12 @@
-import { FactoryProvider, Inject, Injectable, OnModuleDestroy, Optional } from "@nestjs/common";
+import {
+  FactoryProvider,
+  Inject,
+  Injectable,
+  OnModuleDestroy,
+  Optional,
+  type OptionalFactoryDependency,
+} from "@nestjs/common";
+import type { MeterProvider } from "@opentelemetry/api";
 import { ConfigStore } from "@eddie/config";
 import type { MetricsConfig } from "@eddie/types";
 import { performance } from "node:perf_hooks";
@@ -33,6 +41,7 @@ export interface MetricsSnapshot {
 
 export const METRICS_BACKEND = Symbol("ENGINE_METRICS_BACKEND");
 export const METRICS_NAMESPACES = Symbol("ENGINE_METRICS_NAMESPACES");
+export const METRICS_METER_PROVIDER = Symbol("ENGINE_METRICS_METER_PROVIDER");
 
 const DEFAULT_NAMESPACES: Readonly<Required<MetricsNamespaceConfig>> = {
   messages: "engine.messages",
@@ -46,7 +55,10 @@ class NoopMetricsBackend implements MetricsBackend {
   recordHistogram(): void {}
 }
 
-function createMetricsBackend(config: MetricsConfig | undefined): MetricsBackend {
+function createMetricsBackend(
+  config: MetricsConfig | undefined,
+  meterProvider?: MeterProvider,
+): MetricsBackend {
   const backendConfig = config?.backend;
 
   if (backendConfig?.type === "logging") {
@@ -57,6 +69,7 @@ function createMetricsBackend(config: MetricsConfig | undefined): MetricsBackend
     return new OtelMetricsBackend({
       meterName: backendConfig.meterName,
       meterVersion: backendConfig.meterVersion,
+      meterProvider,
     });
   }
 
@@ -153,18 +166,26 @@ export class MetricsService implements OnModuleDestroy {
 
 const metricsBackendProvider: FactoryProvider<MetricsBackend> = {
   provide: METRICS_BACKEND,
-  useFactory: (configStore: ConfigStore): MetricsBackend => {
+  useFactory: (
+    configStore: ConfigStore,
+    meterProvider?: MeterProvider,
+  ): MetricsBackend => {
     const snapshot = configStore.getSnapshot();
-    return createMetricsBackend(snapshot.metrics);
+    return createMetricsBackend(snapshot.metrics, meterProvider);
   },
-  inject: [ConfigStore],
+  inject: [
+    ConfigStore,
+    { token: METRICS_METER_PROVIDER, optional: true } satisfies OptionalFactoryDependency,
+  ],
+};
+
+const metricsNamespacesProvider: FactoryProvider<Required<MetricsNamespaceConfig>> = {
+  provide: METRICS_NAMESPACES,
+  useFactory: () => ({ ...DEFAULT_NAMESPACES }),
 };
 
 export const metricsProviders = [
   metricsBackendProvider,
-  {
-    provide: METRICS_NAMESPACES,
-    useFactory: () => ({ ...DEFAULT_NAMESPACES }),
-  },
+  metricsNamespacesProvider,
   MetricsService,
 ];
