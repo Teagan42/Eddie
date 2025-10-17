@@ -376,13 +376,15 @@ describe('runLicenseCheck', () => {
 });
 
 describe('repository automation', () => {
-  it('wires the license check into the lint pipeline', () => {
+  it('does not wire the license check into the lint pipeline', () => {
     const packageJson = JSON.parse(
       readFileSync(join(process.cwd(), 'package.json'), 'utf8'),
     ) as { scripts?: Record<string, string> };
 
+    const lintScript = packageJson.scripts?.lint ?? '';
+
     expect(packageJson.scripts?.['lint:licenses']).toBeDefined();
-    expect(packageJson.scripts?.lint).toContain('lint:licenses');
+    expect(lintScript).not.toContain('lint:licenses');
   });
 
   it('keeps third-party notices synchronized with the lockfile', () => {
