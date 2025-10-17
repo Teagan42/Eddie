@@ -10,6 +10,7 @@ import type {
   EddieConfig,
   EddieConfigInput,
   ExecutionContextBundle,
+  ExecutionAgentNode,
   ExecutionToolInvocationNode,
   ExecutionTreeState,
   HookEventMap,
