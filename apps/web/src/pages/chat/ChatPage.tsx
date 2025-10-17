@@ -676,7 +676,11 @@ export function ChatPage(): JSX.Element {
       const { syncQueryCache = true } = options ?? {};
 
       if (!snapshot) {
-        setSessionContextById((previous) => removeSessionKey(previous, sessionId));
+        const nextRecord = removeSessionKey(sessionContextRef.current, sessionId);
+        if (nextRecord !== sessionContextRef.current) {
+          sessionContextRef.current = nextRecord;
+          setSessionContextById(nextRecord);
+        }
         if (syncQueryCache) {
           syncSessionContextCache(sessionId, null);
         }
@@ -684,7 +688,9 @@ export function ChatPage(): JSX.Element {
       }
 
       const cloned = cloneSessionContext(snapshot);
-      setSessionContextById((previous) => ({ ...previous, [sessionId]: cloned }));
+      const nextRecord = { ...sessionContextRef.current, [sessionId]: cloned };
+      sessionContextRef.current = nextRecord;
+      setSessionContextById(nextRecord);
       if (syncQueryCache) {
         syncSessionContextCache(sessionId, cloned);
       }
