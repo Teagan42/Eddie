@@ -100,4 +100,70 @@ describe('AgentExecutionTree', () => {
     expect(screen.getByRole('dialog', { name: /tool invocation details/i })).toBeInTheDocument();
     expect(screen.getByText(/preferences.json/)).toBeInTheDocument();
   });
+
+  it('auto-expands agents with children on initial render', () => {
+    const metadata = {
+      agentHierarchy: [
+        {
+          id: 'root-agent',
+          name: 'orchestrator',
+          provider: 'openai',
+          model: 'gpt-4o',
+          depth: 0,
+          metadata: { messageCount: 1 },
+          children: [
+            {
+              id: 'child-agent',
+              name: 'delegate',
+              provider: 'anthropic',
+              model: 'claude-3',
+              depth: 1,
+              metadata: { messageCount: 0 },
+              children: [
+                {
+                  id: 'grandchild-agent',
+                  name: 'specialist',
+                  provider: 'openai',
+                  model: 'gpt-4o-mini',
+                  depth: 2,
+                  metadata: { messageCount: 0 },
+                  children: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      toolInvocations: [],
+      contextBundles: [],
+    } as unknown as OrchestratorMetadataDto;
+
+    render(
+      <AgentExecutionTree
+        state={createExecutionTreeStateFromMetadata(metadata)}
+        selectedAgentId={null}
+        onSelectAgent={() => {}}
+      />,
+    );
+
+    const toggle = screen.getByRole('button', {
+      name: /toggle spawned agents for orchestrator/i,
+    });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    const subAgentRegion = screen.getByRole('region', {
+      name: /spawned agents for orchestrator/i,
+    });
+    expect(subAgentRegion).toBeInTheDocument();
+
+    const childToggle = screen.getByRole('button', {
+      name: /toggle spawned agents for delegate/i,
+    });
+    expect(childToggle).toHaveAttribute('aria-expanded', 'true');
+
+    const nestedRegion = screen.getByRole('region', {
+      name: /spawned agents for delegate/i,
+    });
+    expect(nestedRegion).toBeInTheDocument();
+  });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Box, Flex, Text } from '@radix-ui/themes';
 import { ArrowUpRight, ChevronDown, ChevronRight } from 'lucide-react';
 import type { ToolCallStatusDto } from '@eddie/api-client';
@@ -73,6 +73,45 @@ export function AgentExecutionTree({
   const [expandedAgentIds, setExpandedAgentIds] = useState<Set<string>>(() => new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
   const [detailsTarget, setDetailsTarget] = useState<DetailsTarget | null>(null);
+  const expandableAgentsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const nodesWithChildren = new Set<string>();
+    const stack = [...agentHierarchy];
+    while (stack.length > 0) {
+      const node = stack.pop();
+      if (!node) {
+        continue;
+      }
+      const children = node.children ?? [];
+      if (children.length > 0) {
+        nodesWithChildren.add(node.id);
+        for (const child of children) {
+          stack.push(child);
+        }
+      }
+    }
+
+    const previouslySeenAgents = expandableAgentsRef.current;
+    const newlySeenAgents = [...nodesWithChildren].filter((id) => !previouslySeenAgents.has(id));
+    expandableAgentsRef.current = nodesWithChildren;
+
+    if (newlySeenAgents.length === 0) {
+      return;
+    }
+
+    setExpandedAgentIds((previous) => {
+      let changed = false;
+      const next = new Set(previous);
+      for (const id of newlySeenAgents) {
+        if (!next.has(id)) {
+          next.add(id);
+          changed = true;
+        }
+      }
+      return changed ? next : previous;
+    });
+  }, [agentHierarchy]);
 
   useEffect(() => {
     if (!selectedAgentId) {
