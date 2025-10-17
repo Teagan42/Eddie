@@ -5,6 +5,8 @@ const packageJson = JSON.parse(
   readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
 );
 
+const concurrencyFallback = 'WORKSPACE_TEST_CONCURRENCY=${WORKSPACE_TEST_CONCURRENCY:-2}';
+
 const convenienceScripts = {
   clean: 'npm run clean --workspaces --if-present && git clean -fdX',
   reset: 'npm run clean && npm install',
@@ -13,7 +15,7 @@ const convenienceScripts = {
   'test:integration': 'npm run test:integration --workspaces --if-present',
   'test:unit': 'npm run test:unit --workspaces --if-present',
   preTest: 'npm run build',
-  'agent:check': 'WORKSPACE_TEST_CONCURRENCY=2 npm run lint && npm run test',
+  'agent:check': `${concurrencyFallback} npm run lint && ${concurrencyFallback} npm run test`,
   'docs:serve': 'npx serve docs',
   'db:migrate': 'npm run db:migrate --workspace @eddie/api --if-present',
   'db:seed': 'npm run db:seed --workspace @eddie/api --if-present',
