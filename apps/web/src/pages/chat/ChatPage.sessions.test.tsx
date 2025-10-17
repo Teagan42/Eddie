@@ -274,7 +274,6 @@ describe("ChatPage session creation", () => {
     const description = getSessionMetricsDescription(sessionButton);
     expect(description).not.toBeNull();
     expect(description).toHaveTextContent("2 messages");
-    expect(description).toHaveTextContent("2 agents");
     expect(description).toHaveTextContent("2 bundles");
   });
 
@@ -335,7 +334,7 @@ describe("ChatPage session creation", () => {
     await waitFor(() => {
       const description = getSessionMetricsDescription(sessionButton);
       expect(description).not.toBeNull();
-      expect(description).toHaveTextContent("0 bundles");
+      expect(description).not.toHaveTextContent("0 bundles");
     });
 
     const initialDescription = getSessionMetricsDescription(sessionButton);
@@ -561,21 +560,8 @@ describe("ChatPage session creation", () => {
       const metadata = client.getQueryData([
         "orchestrator-metadata",
         "session-1",
-      ]) as
-        | {
-            contextBundles?: unknown[];
-            toolInvocations?: unknown[];
-            agentHierarchy?: unknown[];
-          }
-        | null
-        | undefined;
-      expect(metadata).toEqual(
-        expect.objectContaining({
-          contextBundles: [],
-          toolInvocations: [],
-          agentHierarchy: [],
-        }),
-      );
+      ]);
+      expect(metadata).toBeNull();
       await waitFor(() =>
         expect(toastMock).toHaveBeenCalledWith(
           expect.objectContaining({
