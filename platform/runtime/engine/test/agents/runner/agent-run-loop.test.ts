@@ -76,9 +76,8 @@ describe("AgentRunLoop", () => {
       }),
     ]);
 
-    expect(writeTrace).toHaveBeenCalledWith(
-      expect.objectContaining({ phase: "iteration_complete" })
-    );
+    const tracePhases = writeTrace.mock.calls.map(([event]) => event.phase);
+    expect(tracePhases).toContain("iteration_complete");
   });
 
   it("delegates tool calls to spawn handler and tool registry", async () => {
@@ -193,20 +192,19 @@ describe("AgentRunLoop", () => {
       }),
       expect.any(Boolean)
     );
-    expect(writeTrace).toHaveBeenCalledWith(
-      expect.objectContaining({ phase: "model_call" })
+
+    const traceEvents = writeTrace.mock.calls.map(([event]) => event);
+    expect(traceEvents.some((event) => event.phase === "model_call")).toBe(true);
+
+    const toolResultTrace = traceEvents.find((event) => event.phase === "tool_result");
+    expect(toolResultTrace).toBeDefined();
+    expect(toolResultTrace?.data).toEqual(
+      expect.objectContaining({ id: "call_1", result: toolResult })
     );
-    expect(writeTrace).toHaveBeenCalledWith(
-      expect.objectContaining({
-        phase: "tool_result",
-        data: expect.objectContaining({ id: "call_1", result: toolResult }),
-      })
+
+    expect(traceEvents.some((event) => event.phase === "iteration_complete")).toBe(
+      true
     );
-    expect(writeTrace).toHaveBeenCalledWith(
-      expect.objectContaining({ phase: "iteration_complete" })
-    );
-    expect(writeTrace).toHaveBeenCalledWith(
-      expect.objectContaining({ phase: "agent_complete" })
-    );
+    expect(traceEvents.some((event) => event.phase === "agent_complete")).toBe(true);
   });
 });

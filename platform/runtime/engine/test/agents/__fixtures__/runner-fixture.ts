@@ -2,11 +2,17 @@ import { vi } from "vitest";
 import type { StreamEvent } from "@eddie/types";
 
 import type { AgentInvocation } from "../../../src/agents/agent-invocation";
-import { AgentRunner, type AgentRunnerOptions } from "../../../src/agents/agent-runner";
+import {
+  AgentRunner,
+  type AgentRunnerDependencies,
+  type AgentRunnerOptions,
+} from "../../../src/agents/agent-runner";
 import type { AgentRuntimeDescriptor } from "../../../src/agents/agent-runtime.types";
 
 export type RunnerOptions = AgentRunnerOptions;
-export type RunnerOverrides = Partial<RunnerOptions>;
+export type RunnerOverrides = Partial<RunnerOptions> & {
+  runnerDependencies?: AgentRunnerDependencies;
+};
 export type HookBusLike = RunnerOptions["hooks"];
 export type StreamRendererLike = RunnerOptions["streamRenderer"];
 export type EventBusLike = RunnerOptions["eventBus"];
@@ -129,7 +135,7 @@ export const createAgentRunnerTestContext = (
     writeTrace,
     metrics,
     executionTreeTracker: overrides.executionTreeTracker,
-  });
+  }, overrides.runnerDependencies);
 
   return {
     runner,
