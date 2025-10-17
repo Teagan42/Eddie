@@ -52,6 +52,28 @@ describe('SessionSelector', () => {
     expect(handleSelect).toHaveBeenCalledWith('session-2');
   });
 
+  it('marks the selected session for styling cues', () => {
+    render(
+      <SessionSelector
+        sessions={baseSessions}
+        selectedSessionId="session-1"
+        onSelectSession={vi.fn()}
+        onRenameSession={vi.fn()}
+        onDeleteSession={vi.fn()}
+        onCreateSession={vi.fn()}
+        isCreatePending={false}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Session 1' })).toHaveAttribute(
+      'data-selected',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Session 2' })).not.toHaveAttribute(
+      'data-selected',
+    );
+  });
+
   it('renders archived status badges when present', () => {
     render(
       <SessionSelector
@@ -103,5 +125,55 @@ describe('SessionSelector', () => {
     expect(description).toHaveTextContent('3 agents');
     expect(description).toHaveTextContent('4 bundles');
     expect(description).toHaveTextContent('Session 1 metrics');
+
+    expect(screen.queryByText('12 messages')).not.toBeInTheDocument();
+    expect(screen.queryByText('4 bundles')).not.toBeInTheDocument();
+
+    const messageBadge = screen.getByLabelText('12 messages');
+    expect(messageBadge).toHaveTextContent('12');
+    expect(messageBadge.textContent).not.toContain('messages');
+    expect(messageBadge.querySelector('svg')).not.toBeNull();
+
+    const bundleBadge = screen.getByLabelText('4 bundles');
+    expect(bundleBadge).toHaveTextContent('4');
+    expect(bundleBadge.textContent).not.toContain('bundles');
+    expect(bundleBadge.querySelector('svg')).not.toBeNull();
+  });
+
+  it('renders an edit action that renames the session', async () => {
+    const user = userEvent.setup();
+    const handleRename = vi.fn();
+
+    render(
+      <SessionSelector
+        sessions={baseSessions}
+        selectedSessionId="session-1"
+        onSelectSession={vi.fn()}
+        onRenameSession={handleRename}
+        onDeleteSession={vi.fn()}
+        onCreateSession={vi.fn()}
+        isCreatePending={false}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Edit Session 1' }));
+
+    expect(handleRename).toHaveBeenCalledWith('session-1');
+  });
+
+  it('aligns the delete action with the session controls', () => {
+    render(
+      <SessionSelector
+        sessions={baseSessions}
+        selectedSessionId="session-1"
+        onSelectSession={vi.fn()}
+        onRenameSession={vi.fn()}
+        onDeleteSession={vi.fn()}
+        onCreateSession={vi.fn()}
+        isCreatePending={false}
+      />,
+    );
+
+    expect(screen.getByLabelText('Delete Session 1')).toHaveStyle('align-self: stretch');
   });
 });

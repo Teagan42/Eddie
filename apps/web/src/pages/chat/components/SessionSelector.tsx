@@ -1,12 +1,20 @@
-import { Badge, Button, Flex, IconButton, ScrollArea, Text } from '@radix-ui/themes';
 import type { ChatSessionDto } from '@eddie/api-client';
-import { Pencil1Icon, TrashIcon } from '@radix-ui/react-icons';
+import { Badge, Button, Flex, IconButton, ScrollArea, Text } from '@radix-ui/themes';
+import { CardStackIcon, ChatBubbleIcon, Pencil1Icon, TrashIcon } from '@radix-ui/react-icons';
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { clsx } from 'clsx';
 
 export interface SessionSelectorMetricsSummary {
   messageCount?: number | null;
   agentCount?: number | null;
   contextBundleCount?: number | null;
+}
+
+interface SessionMetricBadge {
+  id: string;
+  ariaLabel: string;
+  displayValue: string;
+  icon?: JSX.Element;
 }
 
 const visuallyHiddenStyles: CSSProperties = {
@@ -20,6 +28,8 @@ const visuallyHiddenStyles: CSSProperties = {
   whiteSpace: 'nowrap',
   width: 1,
 };
+
+const deleteButtonStyles: CSSProperties = { alignSelf: 'stretch' };
 
 function createMetricsSignature(metrics: SessionSelectorMetricsSummary | undefined): string {
   if (!metrics) {
@@ -144,40 +154,72 @@ export function SessionSelector({
             const isSelected = session.id === selectedSessionId;
             const metrics = session.metrics;
 
-            const formattedMetrics: Array<{ id: string; label: string }> = [];
+            const formattedMetrics: SessionMetricBadge[] = [];
             if (metrics) {
-              const messageLabel = formatMetricCount(
-                metrics.messageCount,
-                'message',
-                'messages',
-              );
-              if (messageLabel) {
-                formattedMetrics.push({ id: 'messages', label: messageLabel });
+              if (typeof metrics.messageCount === 'number') {
+                const messageLabel = formatMetricCount(
+                  metrics.messageCount,
+                  'message',
+                  'messages',
+                );
+                if (messageLabel) {
+                  formattedMetrics.push({
+                    id: 'messages',
+                    ariaLabel: messageLabel,
+                    displayValue: `${metrics.messageCount}`,
+                    icon: <ChatBubbleIcon aria-hidden="true" />,
+                  });
+                }
               }
 
               const agentLabel = formatMetricCount(metrics.agentCount, 'agent', 'agents');
               if (agentLabel) {
-                formattedMetrics.push({ id: 'agents', label: agentLabel });
+                formattedMetrics.push({
+                  id: 'agents',
+                  ariaLabel: agentLabel,
+                  displayValue: agentLabel,
+                });
               }
 
-              const bundleLabel = formatMetricCount(
-                metrics.contextBundleCount,
-                'bundle',
-                'bundles',
-              );
-              if (bundleLabel) {
-                formattedMetrics.push({ id: 'bundles', label: bundleLabel });
+              if (typeof metrics.contextBundleCount === 'number') {
+                const bundleLabel = formatMetricCount(
+                  metrics.contextBundleCount,
+                  'bundle',
+                  'bundles',
+                );
+                if (bundleLabel) {
+                  formattedMetrics.push({
+                    id: 'bundles',
+                    ariaLabel: bundleLabel,
+                    displayValue: `${metrics.contextBundleCount}`,
+                    icon: <CardStackIcon aria-hidden="true" />,
+                  });
+                }
               }
             }
 
-            const metricsDescription = formattedMetrics.map((item) => item.label).join(', ');
+            const metricsDescription = formattedMetrics
+              .map((item) => item.ariaLabel)
+              .join(', ');
             const metricsDescriptionId = metricsDescription
               ? `${session.id}-metrics-description`
               : undefined;
             const isHighlighted = isSelected && highlightedSessionId === session.id;
+            const editLabel = `Edit ${session.title}`;
+
+            const selectedState = isSelected ? 'true' : undefined;
 
             return (
-              <Flex key={session.id} align="center" gap="1">
+              <Flex
+                key={session.id}
+                align="center"
+                gap="1"
+                className={clsx(
+                  'rounded-lg px-2 py-1 transition-colors',
+                  isSelected ? 'bg-[var(--jade-4)] text-[var(--jade-12)]' : undefined,
+                )}
+                data-selected={selectedState}
+              >
                 <Button
                   size="2"
                   variant={isSelected ? 'solid' : 'soft'}
@@ -186,6 +228,7 @@ export function SessionSelector({
                   aria-pressed={isSelected}
                   aria-label={session.title}
                   aria-describedby={metricsDescriptionId}
+                  data-selected={selectedState}
                 >
                   <Flex align="center" gap="2">
                     <span>{session.title}</span>
@@ -214,8 +257,18 @@ export function SessionSelector({
                           data-highlighted={isHighlighted ? 'true' : undefined}
                         >
                           {formattedMetrics.map((item) => (
-                            <Badge key={item.id} variant="soft" color="gray">
-                              {item.label}
+                            <Badge
+                              key={item.id}
+                              variant="soft"
+                              color="gray"
+                              aria-label={item.ariaLabel}
+                              title={item.ariaLabel}
+                              data-has-icon={item.icon ? 'true' : undefined}
+                            >
+                              <Flex align="center" gap="1" aria-hidden="true">
+                                {item.icon ? <span className="text-[var(--gray-12)]">{item.icon}</span> : null}
+                                <span>{item.displayValue}</span>
+                              </Flex>
                             </Badge>
                           ))}
                         </Flex>
@@ -223,19 +276,26 @@ export function SessionSelector({
                     ) : null}
                   </Flex>
                 </Button>
-                <IconButton
+                <Button
                   variant="ghost"
                   color="gray"
-                  aria-label={`Rename ${session.title}`}
+                  size="2"
+                  aria-label={editLabel}
+                  title={editLabel}
                   onClick={() => onRenameSession(session.id)}
                 >
-                  <Pencil1Icon />
-                </IconButton>
+                  <Flex align="center" gap="1">
+                    <Pencil1Icon aria-hidden="true" />
+                    <span>Edit</span>
+                  </Flex>
+                </Button>
                 <IconButton
                   variant="ghost"
                   color="ruby"
+                  size="2"
                   aria-label={`Delete ${session.title}`}
                   onClick={() => onDeleteSession(session.id)}
+                  style={deleteButtonStyles}
                 >
                   <TrashIcon />
                 </IconButton>
