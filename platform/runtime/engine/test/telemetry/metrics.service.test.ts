@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
+import { metrics, type Meter, type MeterProvider } from "@opentelemetry/api";
 import { Test } from "@nestjs/testing";
+import { ConfigStore } from "@eddie/config";
 import {
   MetricsService,
   METRICS_BACKEND,
   METRICS_NAMESPACES,
+  metricsProviders,
   type MetricsBackend,
   type MetricsSnapshot,
 } from "../../src/telemetry/metrics.service";
@@ -79,5 +82,62 @@ describe("MetricsService", () => {
 
     expect(afterReset.counters).toEqual({});
     expect(afterReset.histograms).toEqual({});
+  });
+
+  it("forwards metrics to the OpenTelemetry backend when configured", async () => {
+    const counter = { add: vi.fn() };
+    const histogram = { record: vi.fn() };
+    const meter: Meter = {
+      createCounter: vi.fn(() => counter as any),
+      createHistogram: vi.fn(() => histogram as any),
+      createObservableCounter: vi.fn(),
+      createObservableGauge: vi.fn(),
+      createObservableUpDownCounter: vi.fn(),
+      createUpDownCounter: vi.fn(),
+      createGauge: vi.fn(),
+      addBatchObservableCallback: vi.fn(),
+      removeBatchObservableCallback: vi.fn(),
+    } as unknown as Meter;
+
+    const provider: MeterProvider = {
+      getMeter: vi.fn(() => meter),
+    };
+
+    metrics.setGlobalMeterProvider(provider);
+
+    try {
+      const moduleRef = await Test.createTestingModule({
+        providers: [
+          ...metricsProviders,
+          {
+            provide: ConfigStore,
+            useValue: {
+              getSnapshot: vi.fn(() => ({
+                metrics: {
+                  backend: {
+                    type: "otel",
+                    meterName: "eddie-engine",
+                    meterVersion: "0.0.0-test",
+                  },
+                },
+              })),
+            },
+          },
+        ],
+      }).compile();
+
+      const backend = moduleRef.get<MetricsBackend>(METRICS_BACKEND);
+
+      backend.incrementCounter("engine.messages.user", 3, { scope: "test" });
+      backend.recordHistogram("engine.timers.loop", 17, { scope: "test" });
+
+      expect(provider.getMeter).toHaveBeenCalledWith("eddie-engine", "0.0.0-test", {});
+      expect(meter.createCounter).toHaveBeenCalledWith("engine.messages.user");
+      expect(counter.add).toHaveBeenCalledWith(3, { scope: "test" });
+      expect(meter.createHistogram).toHaveBeenCalledWith("engine.timers.loop");
+      expect(histogram.record).toHaveBeenCalledWith(17, { scope: "test" });
+    } finally {
+      metrics.disable();
+    }
   });
 });

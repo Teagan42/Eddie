@@ -141,9 +141,16 @@ export interface MetricsLoggingBackendConfig {
   level?: MetricsLoggingLevel;
 }
 
+export interface MetricsOtelBackendConfig {
+  type: "otel";
+  meterName?: string;
+  meterVersion?: string;
+}
+
 export type MetricsBackendConfig =
   | MetricsNoopBackendConfig
-  | MetricsLoggingBackendConfig;
+  | MetricsLoggingBackendConfig
+  | MetricsOtelBackendConfig;
 
 export interface MetricsConfig {
   backend?: MetricsBackendConfig;
