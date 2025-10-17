@@ -15,6 +15,8 @@ export interface ExecutionToolInvocationNode {
   agentId: string;
   name: string;
   status: ToolCallStatus;
+  createdAt?: string;
+  updatedAt?: string;
   metadata?: Record<string, unknown>;
   children: ExecutionToolInvocationNode[];
 }
@@ -44,8 +46,25 @@ export interface ExecutionContextBundle {
   };
 }
 
-export interface ExecutionTreeSnapshot {
+export type ExecutionToolInvocationGroupsByAgentId = Record<
+  string,
+  Record<ToolCallStatus, ExecutionToolInvocationNode[]>
+>;
+
+export type ExecutionContextBundlesByAgentId = Record<string, ExecutionContextBundle[]>;
+
+export type ExecutionContextBundlesByToolCallId = Record<string, ExecutionContextBundle[]>;
+
+export type ExecutionAgentLineageMap = Record<string, string[]>;
+
+export interface ExecutionTreeState {
   agentHierarchy: ExecutionAgentNode[];
   toolInvocations: ExecutionToolInvocationNode[];
   contextBundles: ExecutionContextBundle[];
+  agentLineageById: ExecutionAgentLineageMap;
+  toolGroupsByAgentId: ExecutionToolInvocationGroupsByAgentId;
+  contextBundlesByAgentId: ExecutionContextBundlesByAgentId;
+  contextBundlesByToolCallId: ExecutionContextBundlesByToolCallId;
+  createdAt: string;
+  updatedAt: string;
 }
