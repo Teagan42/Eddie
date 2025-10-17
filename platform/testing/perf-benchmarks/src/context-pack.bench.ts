@@ -24,6 +24,8 @@ interface DatasetBenchContext {
 
 const BENCHMARK_NAME = 'context-pack.pack';
 const DATASET_NAMES = ['10x1KB', '100x10KB', '500x100KB'] as const;
+const PACK_BENCH_ITERATIONS = 3;
+const PACK_BENCH_OPTIONS = { iterations: PACK_BENCH_ITERATIONS } as const;
 
 function createBundleConfig(dataset: ContextPackDataset): ContextResourceBundleConfig[] {
   return dataset.resourceBundles.map((bundle, index) => ({
@@ -97,7 +99,7 @@ suite('ContextService.pack benchmarks', () => {
       await contextService.pack(context.config);
       const durationMs = performance.now() - start;
       context.durations.push(durationMs);
-    });
+    }, PACK_BENCH_OPTIONS);
   }
 });
 
