@@ -1,8 +1,12 @@
 import type { AgentRuntimeDescriptor, StreamEvent, ToolResult } from "@eddie/types";
-import { AgentStreamEvent, HOOK_EVENTS } from "@eddie/types";
+import {
+  AgentStreamEvent,
+  ExecutionTreeStateUpdatedEvent,
+  HOOK_EVENTS,
+} from "@eddie/types";
 import { describe, expect, it, vi } from "vitest";
 import type { AgentInvocation } from "../../src/agents/agent-invocation";
-import { AgentRunner } from "../../src/agents/agent-runner";
+import { AgentRunner, ExecutionTreeStateTracker } from "../../src/agents/agent-runner";
 
 type InvocationOverrides = Partial<AgentInvocation>;
 
@@ -136,6 +140,7 @@ const createRunner = (overrides: RunnerOverrides = {}) => {
       (vi.fn().mockResolvedValue({}) as RunnerOverrides["dispatchHookOrThrow"]),
     writeTrace: overrides.writeTrace ?? vi.fn(),
     metrics,
+    executionTreeTracker: overrides.executionTreeTracker,
   } as unknown as ConstructorParameters<typeof AgentRunner>[0]);
 };
 
@@ -394,5 +399,175 @@ describe("AgentRunner", () => {
       name: "math",
       tool_call_id: "call_1",
     });
+  });
+
+  it("emits execution tree updates for tool call lifecycle", async () => {
+    const invocation = createInvocation();
+    const providerStream = vi
+      .fn()
+      .mockReturnValueOnce(
+        createStream([
+          { type: "tool_call", id: "call_1", name: "math", arguments: { x: 1 } },
+          { type: "end" },
+        ]),
+      )
+      .mockReturnValueOnce(
+        createStream([
+          { type: "delta", text: "Complete" },
+          { type: "end" },
+        ]),
+      );
+    const descriptor = createDescriptor({
+      metadata: { name: "Manager" },
+      provider: { name: "openai", stream: providerStream },
+    });
+    const toolResult: ToolResult = {
+      schema: "tool.schema",
+      content: "done",
+      metadata: { contextBundles: [
+        {
+          id: "bundle-1",
+          label: "Context bundle",
+          sizeBytes: 0,
+          fileCount: 0,
+          source: {
+            type: "tool_result",
+            agentId: invocation.id,
+            toolCallId: "call_1",
+          },
+        },
+      ] },
+    };
+
+    invocation.toolRegistry.execute = vi.fn().mockResolvedValue(toolResult);
+
+    const eventBus = { publish: vi.fn() } as EventBusLike;
+    const tracker = new ExecutionTreeStateTracker({
+      sessionId: "session-1",
+      eventBus,
+      now: () => new Date("2024-01-01T00:00:00.000Z"),
+    });
+
+    const runner = createRunner({
+      invocation,
+      descriptor,
+      composeToolSchemas: () => [],
+      eventBus,
+      executionTreeTracker: tracker,
+    } as unknown as RunnerOverrides);
+
+    await runner.run();
+
+    const stateEvents = eventBus.publish.mock.calls
+      .map(([event]) => event)
+      .filter((event): event is ExecutionTreeStateUpdatedEvent => event instanceof ExecutionTreeStateUpdatedEvent);
+
+    expect(stateEvents.length).toBeGreaterThanOrEqual(3);
+
+    const [agentRegistered, toolCallUpdate, toolResultUpdate] = stateEvents;
+
+    expect(agentRegistered.state.agentHierarchy).toEqual([
+      expect.objectContaining({ id: invocation.id, name: "Manager" }),
+    ]);
+    expect(agentRegistered.state.toolInvocations).toEqual([]);
+
+    expect(toolCallUpdate.state.toolInvocations).toEqual([
+      expect.objectContaining({ id: "call_1", status: "running" }),
+    ]);
+
+    const finalInvocation = toolResultUpdate.state.toolInvocations[0];
+    expect(finalInvocation).toMatchObject({
+      id: "call_1",
+      status: "completed",
+      metadata: expect.objectContaining({
+        contextBundles: expect.arrayContaining([
+          expect.objectContaining({ id: "bundle-1" }),
+        ]),
+      }),
+    });
+
+    expect(stateEvents[0]?.state).not.toBe(stateEvents[1]?.state);
+  });
+
+  it("includes spawned agents in execution tree state", async () => {
+    const parentInvocation = createInvocation();
+    const childInvocation = createInvocation({
+      id: "agent-child",
+      definition: { ...baseDefinition, id: "agent-child" },
+      parent: parentInvocation,
+      isRoot: false,
+    });
+
+    const eventBus = { publish: vi.fn() } as EventBusLike;
+    const tracker = new ExecutionTreeStateTracker({
+      sessionId: "session-1",
+      eventBus,
+      now: () => new Date("2024-01-01T00:00:00.000Z"),
+    });
+
+    const spawnResult: ToolResult = {
+      schema: AgentRunner.SPAWN_TOOL_RESULT_SCHEMA,
+      content: "Subagent finished",
+      metadata: {
+        agentId: "agent-child",
+        model: "gpt-child",
+        provider: "openai",
+        parentAgentId: parentInvocation.id,
+        request: { prompt: "help" },
+      },
+    };
+
+    const executeSpawnTool = vi.fn().mockResolvedValue(spawnResult);
+
+    const providerStream = vi
+      .fn()
+      .mockReturnValueOnce(
+        createStream([
+          {
+            type: "tool_call",
+            id: "spawn-1",
+            name: AgentRunner.SPAWN_TOOL_NAME,
+            arguments: { prompt: "Delegate" },
+          },
+          { type: "end" },
+        ]),
+      )
+      .mockReturnValueOnce(createStream([{ type: "end" }]));
+
+    const runner = createRunner({
+      invocation: parentInvocation,
+      descriptor: createDescriptor({ provider: { name: "openai", stream: providerStream } }),
+      composeToolSchemas: () => [],
+      eventBus,
+      executionTreeTracker: tracker,
+      executeSpawnTool,
+    } as unknown as RunnerOverrides);
+
+    parentInvocation.toolRegistry.execute = vi.fn();
+
+    await runner.run();
+
+    const childRunner = createRunner({
+      invocation: childInvocation,
+      descriptor: createDescriptor({ id: "agent-child" }),
+      composeToolSchemas: () => [],
+      eventBus,
+      executionTreeTracker: tracker,
+    } as unknown as RunnerOverrides);
+
+    await childRunner.run();
+
+    const stateEvents = eventBus.publish.mock.calls
+      .map(([event]) => event)
+      .filter((event): event is ExecutionTreeStateUpdatedEvent => event instanceof ExecutionTreeStateUpdatedEvent);
+
+    const latestState = stateEvents.at(-1)?.state;
+    expect(latestState?.agentHierarchy).toEqual([
+      expect.objectContaining({ id: parentInvocation.id }),
+      expect.objectContaining({ id: childInvocation.id, lineage: [parentInvocation.id] }),
+    ]);
+
+    const spawnNode = latestState?.toolInvocations.find((node) => node.id === "spawn-1");
+    expect(spawnNode).toMatchObject({ status: "completed" });
   });
 });
