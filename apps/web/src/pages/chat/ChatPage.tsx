@@ -40,6 +40,7 @@ import type {
   CreateChatSessionDto,
   OrchestratorMetadataDto,
   ProviderCatalogEntryDto,
+  ToolCallStatusDto,
 } from '@eddie/api-client';
 import { useApi } from '@/api/api-provider';
 import { useAuth } from '@/auth/auth-context';
@@ -179,6 +180,32 @@ type SessionContextSnapshot = {
   capturedAt?: string;
 };
 
+type ToolInvocationNode =
+  OrchestratorMetadataDto['toolInvocations'][number] & {
+    args?: unknown;
+    result?: unknown;
+    createdAt?: string;
+    updatedAt?: string;
+  };
+
+type ToolInvocationRealtimePayload = {
+  sessionId: string;
+  id?: string;
+  name?: string;
+  arguments?: unknown;
+  result?: unknown;
+  timestamp?: string;
+  agentId?: string | null;
+  status?: ToolCallStatusDto;
+};
+
+const TOOL_CALL_STATUS_VALUES: ToolCallStatusDto[] = [
+  'pending',
+  'running',
+  'completed',
+  'failed',
+] as const;
+
 function cloneContextBundles(
   bundles: OrchestratorMetadataDto['contextBundles'] | null | undefined,
 ): OrchestratorMetadataDto['contextBundles'] {
@@ -240,6 +267,177 @@ function removeSessionKey<T extends Record<string, unknown>>(
   return next;
 }
 
+function createEmptySessionSnapshot(sessionId: string): SessionContextSnapshot {
+  return {
+    sessionId,
+    contextBundles: [],
+    agentHierarchy: [],
+    toolInvocations: [],
+  } satisfies SessionContextSnapshot;
+}
+
+function isToolCallStatus(value: unknown): value is ToolCallStatusDto {
+  return typeof value === 'string' && TOOL_CALL_STATUS_VALUES.includes(value as ToolCallStatusDto);
+}
+
+function parseToolInvocationPayload(payload: unknown): ToolInvocationRealtimePayload | null {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+
+  const source = payload as Record<string, unknown>;
+  const sessionId = typeof source.sessionId === 'string' ? source.sessionId : null;
+  if (!sessionId) {
+    return null;
+  }
+
+  const id = typeof source.id === 'string' && source.id.length > 0 ? source.id : undefined;
+  const name = typeof source.name === 'string' && source.name.length > 0 ? source.name : undefined;
+  const timestamp = typeof source.timestamp === 'string' && source.timestamp.length > 0 ? source.timestamp : undefined;
+  const agentId =
+    typeof source.agentId === 'string'
+      ? source.agentId
+      : source.agentId === null
+        ? null
+        : undefined;
+  const status = isToolCallStatus(source.status) ? (source.status as ToolCallStatusDto) : undefined;
+
+  return {
+    sessionId,
+    id,
+    name,
+    arguments: source.arguments,
+    result: source.result,
+    timestamp,
+    agentId,
+    status,
+  } satisfies ToolInvocationRealtimePayload;
+}
+
+function mergeToolInvocationSnapshot(
+  snapshot: SessionContextSnapshot,
+  payload: ToolInvocationRealtimePayload,
+  defaultStatus: ToolCallStatusDto,
+): SessionContextSnapshot {
+  if (!payload.id) {
+    return snapshot;
+  }
+
+  const nextToolInvocations = cloneToolInvocations(snapshot.toolInvocations) as ToolInvocationNode[];
+  const updated = applyToolInvocationToTree(nextToolInvocations, payload, defaultStatus);
+
+  if (!updated) {
+    nextToolInvocations.unshift(createToolInvocationNode(payload, defaultStatus));
+  }
+
+  return {
+    ...snapshot,
+    sessionId: snapshot.sessionId ?? payload.sessionId,
+    toolInvocations: nextToolInvocations,
+  } satisfies SessionContextSnapshot;
+}
+
+function applyToolInvocationToTree(
+  nodes: ToolInvocationNode[],
+  payload: ToolInvocationRealtimePayload,
+  defaultStatus: ToolCallStatusDto,
+): boolean {
+  for (let index = 0; index < nodes.length; index += 1) {
+    const node = nodes[index];
+    if (node.id === payload.id) {
+      nodes[index] = mergeToolInvocationNode(node, payload, defaultStatus);
+      return true;
+    }
+
+    if (Array.isArray(node.children) && node.children.length > 0) {
+      const childUpdated = applyToolInvocationToTree(
+        node.children as ToolInvocationNode[],
+        payload,
+        defaultStatus,
+      );
+      if (childUpdated) {
+        nodes[index] = {
+          ...node,
+          children: node.children,
+        } as ToolInvocationNode;
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function mergeToolInvocationNode(
+  node: ToolInvocationNode,
+  payload: ToolInvocationRealtimePayload,
+  defaultStatus: ToolCallStatusDto,
+): ToolInvocationNode {
+  const metadata = { ...(node.metadata ?? {}) } as Record<string, unknown>;
+  if (typeof payload.agentId === 'string') {
+    metadata.agentId = payload.agentId;
+  } else if (payload.agentId === null) {
+    delete metadata.agentId;
+  }
+
+  const next: ToolInvocationNode = {
+    ...node,
+    name: payload.name ?? node.name,
+    status: payload.status ?? node.status ?? defaultStatus,
+    metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+  };
+
+  if (payload.arguments !== undefined) {
+    (next as ToolInvocationNode & { args?: unknown }).args = payload.arguments;
+  }
+
+  if (payload.result !== undefined) {
+    (next as ToolInvocationNode & { result?: unknown }).result = payload.result;
+  }
+
+  if (payload.timestamp) {
+    const target = next as ToolInvocationNode & { createdAt?: string; updatedAt?: string };
+    if (!target.createdAt) {
+      target.createdAt = payload.timestamp;
+    }
+    target.updatedAt = payload.timestamp;
+  }
+
+  return next;
+}
+
+function createToolInvocationNode(
+  payload: ToolInvocationRealtimePayload,
+  defaultStatus: ToolCallStatusDto,
+): ToolInvocationNode {
+  const metadata: Record<string, unknown> = {};
+  if (typeof payload.agentId === 'string') {
+    metadata.agentId = payload.agentId;
+  }
+
+  const node: ToolInvocationNode = {
+    id: payload.id!,
+    name: payload.name ?? payload.id!,
+    status: payload.status ?? defaultStatus,
+    metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+    children: [],
+  };
+
+  const target = node as ToolInvocationNode & { createdAt?: string; updatedAt?: string; args?: unknown; result?: unknown };
+  if (payload.timestamp) {
+    target.createdAt = payload.timestamp;
+    target.updatedAt = payload.timestamp;
+  }
+  if (payload.arguments !== undefined) {
+    target.args = payload.arguments;
+  }
+  if (payload.result !== undefined) {
+    target.result = payload.result;
+  }
+
+  return node;
+}
+
 export function ChatPage(): JSX.Element {
   const api = useApi();
   const { apiKey } = useAuth();
@@ -284,6 +482,7 @@ export function ChatPage(): JSX.Element {
   const [sessionContextById, setSessionContextById] = useState<
     Record<string, SessionContextSnapshot>
   >({});
+  const sessionContextRef = useRef<Record<string, SessionContextSnapshot>>({});
   const [messageCountBySession, setMessageCountBySession] = useState<Record<string, number>>({});
 
   const syncSessionContextCache = useCallback(
@@ -305,7 +504,11 @@ export function ChatPage(): JSX.Element {
       const { syncQueryCache = true } = options ?? {};
 
       if (!snapshot) {
-        setSessionContextById((previous) => removeSessionKey(previous, sessionId));
+        setSessionContextById((previous) => {
+          const next = removeSessionKey(previous, sessionId);
+          sessionContextRef.current = next;
+          return next;
+        });
         if (syncQueryCache) {
           syncSessionContextCache(sessionId, null);
         }
@@ -313,7 +516,11 @@ export function ChatPage(): JSX.Element {
       }
 
       const cloned = cloneSessionContext(snapshot);
-      setSessionContextById((previous) => ({ ...previous, [sessionId]: cloned }));
+      setSessionContextById((previous) => {
+        const next = { ...previous, [sessionId]: cloned };
+        sessionContextRef.current = next;
+        return next;
+      });
       if (syncQueryCache) {
         syncSessionContextCache(sessionId, cloned);
       }
@@ -616,6 +823,31 @@ export function ChatPage(): JSX.Element {
         traceSockets.onTraceUpdated((trace) => {
           invalidateSessionContext(trace.sessionId);
         }),
+      );
+    }
+
+    const toolsSocket = api.sockets.tools;
+    if (toolsSocket) {
+      const handleToolPayload = (raw: unknown, fallbackStatus: ToolCallStatusDto) => {
+        const payload = parseToolInvocationPayload(raw);
+        if (!payload) {
+          return;
+        }
+
+        const baseSnapshot =
+          sessionContextRef.current[payload.sessionId] ??
+          createEmptySessionSnapshot(payload.sessionId);
+
+        const mergedSnapshot = mergeToolInvocationSnapshot(baseSnapshot, payload, fallbackStatus);
+        if (mergedSnapshot === baseSnapshot) {
+          return;
+        }
+        setSessionContext(payload.sessionId, mergedSnapshot, { syncQueryCache: false });
+      };
+
+      unsubscribes.push(
+        toolsSocket.onToolCall((payload) => handleToolPayload(payload, 'pending')),
+        toolsSocket.onToolResult((payload) => handleToolPayload(payload, 'completed')),
       );
     }
 
