@@ -68,4 +68,34 @@ describe("OverviewHero", () => {
 
     queryClient.clear();
   });
+
+  it("uses theme tokens for hero surface styling", async () => {
+    const user = userEvent.setup();
+    const queryClient = new QueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <ThemeHarness />
+        </ThemeProvider>
+      </QueryClientProvider>
+    );
+
+    const hero = await screen.findByTestId("overview-hero");
+
+    expect(hero).toHaveClass("text-foreground");
+    expect(hero.className).toContain("border-border/60");
+    expect(hero.className).toContain("from-[hsl(var(--hero-surface-from))]");
+    expect(hero.className).toContain("via-[hsl(var(--hero-surface-via))]");
+    expect(hero.className).toContain("to-[hsl(var(--hero-surface-to))]");
+    expect(hero.className).toContain("dark:from-[hsl(var(--hero-surface-from-dark))]");
+    expect(hero.className).toContain("dark:via-[hsl(var(--hero-surface-via-dark))]");
+    expect(hero.className).toContain("dark:to-[hsl(var(--hero-surface-to-dark))]");
+
+    await user.click(screen.getByRole("button", { name: /cycle theme/i }));
+
+    await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
+
+    queryClient.clear();
+  });
 });

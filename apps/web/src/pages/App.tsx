@@ -8,6 +8,7 @@ import { useAuth } from "@/auth/auth-context";
 import { AuroraBackground } from "@/components/common";
 import { AppHeader } from "@/components/layout";
 import { NavigationLink } from "@/components/navigation";
+import { cn } from "@/vendor/lib/utils";
 
 const navigationItems = [
   { to: "/", label: "Overview" },
@@ -18,9 +19,15 @@ const navigationItems = [
 function AppShell({ children }: { children: ReactNode }): JSX.Element {
   const { apiKey, setApiKey } = useAuth();
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-900 text-slate-100">
+    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
       <AuroraBackground className="mix-blend-soft-light" />
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.2),transparent_60%)]" />
+      <div
+        className={cn(
+          "pointer-events-none fixed inset-0",
+          "bg-[radial-gradient(var(--app-shell-overlay))]",
+          "dark:bg-[radial-gradient(var(--app-shell-overlay-dark))]"
+        )}
+      />
       <Flex direction="column" className="relative z-10 min-h-screen">
         <AppHeader
           apiConnected={Boolean(apiKey)}
@@ -28,7 +35,14 @@ function AppShell({ children }: { children: ReactNode }): JSX.Element {
           navigation={navigationItems}
         />
         <main className="relative flex-1">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(59,130,246,0.08),transparent_60%)]" aria-hidden />
+          <div
+            className={cn(
+              "absolute inset-0",
+              "bg-[radial-gradient(var(--app-shell-main-overlay))]",
+              "dark:bg-[radial-gradient(var(--app-shell-main-overlay-dark))]"
+            )}
+            aria-hidden
+          />
           <div className="relative z-10 mx-auto w-full max-w-6xl px-6 py-10">
             <Flex direction="column" gap="9">
               <Flex className="md:hidden" direction="column" gap="3">

@@ -75,6 +75,41 @@ export function AgentExecutionTree({
   const [detailsTarget, setDetailsTarget] = useState<DetailsTarget | null>(null);
 
   useEffect(() => {
+    setExpandedAgentIds((previous) => {
+      const nodesToExpand: AgentHierarchyNode[] = [];
+      const stack = [...agentHierarchy];
+      while (stack.length > 0) {
+        const node = stack.pop();
+        if (!node) {
+          continue;
+        }
+        const children = node.children ?? [];
+        if (children.length > 0) {
+          nodesToExpand.push(node);
+          for (const child of children) {
+            stack.push(child);
+          }
+        }
+      }
+      if (nodesToExpand.length === 0) {
+        return previous;
+      }
+
+      const hasMissingNode = nodesToExpand.some((node) => !previous.has(node.id));
+      if (!hasMissingNode) {
+        return previous;
+      }
+
+      const next = new Set(previous);
+      for (const node of nodesToExpand) {
+        next.add(node.id);
+      }
+
+      return next;
+    });
+  }, [agentHierarchy]);
+
+  useEffect(() => {
     if (!selectedAgentId) {
       return;
     }
