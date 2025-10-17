@@ -4,7 +4,7 @@ import {
   Injectable,
   OnModuleDestroy,
   Optional,
-  type ValueProvider,
+  type OptionalFactoryDependency,
 } from "@nestjs/common";
 import type { MeterProvider } from "@opentelemetry/api";
 import { ConfigStore } from "@eddie/config";
@@ -173,7 +173,10 @@ const metricsBackendProvider: FactoryProvider<MetricsBackend> = {
     const snapshot = configStore.getSnapshot();
     return createMetricsBackend(snapshot.metrics, meterProvider);
   },
-  inject: [ConfigStore, METRICS_METER_PROVIDER],
+  inject: [
+    ConfigStore,
+    { token: METRICS_METER_PROVIDER, optional: true } satisfies OptionalFactoryDependency,
+  ],
 };
 
 const metricsNamespacesProvider: FactoryProvider<Required<MetricsNamespaceConfig>> = {
@@ -181,14 +184,8 @@ const metricsNamespacesProvider: FactoryProvider<Required<MetricsNamespaceConfig
   useFactory: () => ({ ...DEFAULT_NAMESPACES }),
 };
 
-const metricsMeterProvider: ValueProvider<MeterProvider | undefined> = {
-  provide: METRICS_METER_PROVIDER,
-  useValue: undefined,
-};
-
 export const metricsProviders = [
   metricsBackendProvider,
   metricsNamespacesProvider,
-  metricsMeterProvider,
   MetricsService,
 ];
