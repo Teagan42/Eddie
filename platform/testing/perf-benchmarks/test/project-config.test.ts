@@ -40,6 +40,14 @@ test('perf benchmarks depend on shared runtime packages', async () => {
   });
 });
 
+test('perf benchmarks declare dependencies once to avoid parser ambiguity', async () => {
+  const source = await readFile(resolve(packageRoot, 'package.json'), 'utf-8');
+
+  const dependencyOccurrences = source.match(/"dependencies"\s*:/g) ?? [];
+
+  expect(dependencyOccurrences).toHaveLength(1);
+});
+
 test('perf benchmark tsconfig references shared packages', async () => {
   const tsconfig = await readJson<Record<string, unknown>>(
     resolve(packageRoot, 'tsconfig.json'),
