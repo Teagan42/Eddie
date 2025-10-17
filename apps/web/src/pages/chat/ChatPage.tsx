@@ -1242,28 +1242,20 @@ export function ChatPage(): JSX.Element {
         previousSelected: selectedSessionIdRef.current ?? null,
       };
     },
-    onSuccess: (_result, sessionId) => {
-      queryClient.removeQueries({
-        queryKey: ['chat-session', sessionId],
-        exact: false,
-      });
-      queryClient.removeQueries({
-        queryKey: ['chat-sessions', sessionId],
-        exact: false,
-      });
-      queryClient
-        .getQueryCache()
-        .find({ queryKey: ['chat-session', sessionId, 'messages'], exact: true })
-        ?.destroy();
-      queryClient.removeQueries({
-        queryKey: getOrchestratorMetadataQueryKey(sessionId),
-        exact: true,
-      });
-      queryClient.setQueryData(getOrchestratorMetadataQueryKey(sessionId), undefined);
-      queryClient
-        .getQueryCache()
-        .find({ queryKey: getOrchestratorMetadataQueryKey(sessionId), exact: true })
-        ?.destroy();
+    onSuccess: async (_result, sessionId) => {
+      const messagesQueryKey = ['chat-session', sessionId, 'messages'] as const;
+      const overviewMessagesQueryKey = ['chat-sessions', sessionId, 'messages'] as const;
+      const orchestratorQueryKey = getOrchestratorMetadataQueryKey(sessionId);
+
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: messagesQueryKey, exact: true }),
+        queryClient.cancelQueries({ queryKey: overviewMessagesQueryKey, exact: true }),
+        queryClient.cancelQueries({ queryKey: orchestratorQueryKey, exact: true }),
+      ]);
+
+      queryClient.setQueryData<ChatMessageDto[]>(messagesQueryKey, []);
+      queryClient.setQueryData<ChatMessageDto[]>(overviewMessagesQueryKey, []);
+      queryClient.setQueryData<OrchestratorMetadataDto | null>(orchestratorQueryKey, null);
       setContextBundlesBySession((previous) => removeSessionKey(previous, sessionId));
       setToolInvocationsBySession((previous) => removeSessionKey(previous, sessionId));
       setAgentHierarchyBySession((previous) => removeSessionKey(previous, sessionId));
