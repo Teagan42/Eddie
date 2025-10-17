@@ -1,71 +1,78 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+import type { OrchestratorMetadataDto } from '@eddie/api-client';
+
 import { AgentExecutionTree } from '../AgentExecutionTree';
+import { createExecutionTreeStateFromMetadata } from '../../execution-tree-state';
 
 describe('AgentExecutionTree', () => {
   it('groups tool invocations under each agent with previews and a details CTA', async () => {
     const user = userEvent.setup();
-    render(
+    const metadata = {
+      agentHierarchy: [
+        {
+          id: 'root-agent',
+          name: 'orchestrator',
+          provider: 'openai',
+          model: 'gpt-4o',
+          depth: 0,
+          metadata: { messageCount: 3 },
+          children: [],
+        },
+      ],
+      toolInvocations: [
+        {
+          id: 'tool-1',
+          name: 'browse-web',
+          status: 'completed',
+          createdAt: '2024-05-01T12:00:00.000Z',
+          updatedAt: '2024-05-01T12:01:00.000Z',
+          args: { query: 'latest weather updates near San Francisco, CA with details' },
+          result: {
+            output:
+              'Partly cloudy with highs of 72°F. Expect light winds from the northwest and clear skies overnight.',
+          },
+          metadata: { agentId: 'root-agent' },
+        },
+        {
+          id: 'tool-2',
+          name: 'fetch-weather',
+          status: 'pending',
+          createdAt: '2024-05-01T12:02:00.000Z',
+          updatedAt: '2024-05-01T12:02:00.000Z',
+          args: { location: 'San Francisco, CA' },
+          metadata: { agentId: 'root-agent' },
+        },
+      ],
+      contextBundles: [
+        {
+          id: 'bundle-1',
+          title: 'User Profile',
+          source: 'system',
+          createdAt: '2024-05-01T11:55:00.000Z',
+          metadata: { tags: ['beta-tester'] },
+          files: [
+            {
+              id: 'file-1',
+              name: 'preferences.json',
+              size: 128,
+              metadata: { mediaType: 'application/json' },
+            },
+          ],
+        },
+      ],
+    } as unknown as OrchestratorMetadataDto;
+
+    const tree = (
       <AgentExecutionTree
-        metadata={{
-          agentHierarchy: [
-            {
-              id: 'root-agent',
-              name: 'orchestrator',
-              provider: 'openai',
-              model: 'gpt-4o',
-              depth: 0,
-              metadata: { messageCount: 3 },
-              children: [],
-            },
-          ],
-          toolInvocations: [
-            {
-              id: 'tool-1',
-              name: 'browse-web',
-              status: 'completed',
-              createdAt: '2024-05-01T12:00:00.000Z',
-              updatedAt: '2024-05-01T12:01:00.000Z',
-              args: { query: 'latest weather updates near San Francisco, CA with details' },
-              result: {
-                output:
-                  'Partly cloudy with highs of 72°F. Expect light winds from the northwest and clear skies overnight.',
-              },
-              metadata: { agentId: 'root-agent' },
-            },
-            {
-              id: 'tool-2',
-              name: 'fetch-weather',
-              status: 'pending',
-              createdAt: '2024-05-01T12:02:00.000Z',
-              updatedAt: '2024-05-01T12:02:00.000Z',
-              args: { location: 'San Francisco, CA' },
-              metadata: { agentId: 'root-agent' },
-            },
-          ],
-          contextBundles: [
-            {
-              id: 'bundle-1',
-              title: 'User Profile',
-              source: 'system',
-              createdAt: '2024-05-01T11:55:00.000Z',
-              metadata: { tags: ['beta-tester'] },
-              files: [
-                {
-                  id: 'file-1',
-                  name: 'preferences.json',
-                  size: 128,
-                  metadata: { mediaType: 'application/json' },
-                },
-              ],
-            },
-          ],
-        }}
+        state={createExecutionTreeStateFromMetadata(metadata)}
         selectedAgentId={null}
         onSelectAgent={() => {}}
-      />,
+      />
     );
+
+    render(tree);
 
     const agentSection = screen.getByRole('button', { name: /select orchestrator agent/i });
     expect(agentSection).toBeInTheDocument();
@@ -81,7 +88,7 @@ describe('AgentExecutionTree', () => {
     const invocation = within(completedList).getByText(/browse-web/i);
     expect(invocation).toBeInTheDocument();
     expect(
-      within(invocation.closest('li') as HTMLLIElement).getByText(/latest weather updates near San Francisco/i),
+      within(invocation.closest('li') as HTMLLIElement).getByText(/partly cloudy/i),
     ).toBeInTheDocument();
 
     const detailsButton = within(invocation.closest('li') as HTMLLIElement).getByRole('button', {
