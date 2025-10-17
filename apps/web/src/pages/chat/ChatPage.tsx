@@ -55,6 +55,7 @@ import {
   AgentTree,
   CollapsiblePanel,
   ContextBundlesPanel,
+  SessionSelector,
   ToolTree,
 } from './components';
 import { useChatMessagesRealtime } from './useChatMessagesRealtime';
@@ -1386,6 +1387,9 @@ export function ChatPage(): JSX.Element {
     [selectedSessionId, setSelectedSessionPreference],
   );
 
+  const handleRenameSession = useCallback((_sessionId: string) => {}, []);
+  const handleDeleteSession = useCallback((_sessionId: string) => {}, []);
+
   const composerUnavailable = !apiKey || !selectedSessionId;
   const composerSubmitDisabled = composerUnavailable || !composerValue.trim();
   const composerInputDisabled = composerUnavailable || sendMessageMutation.isPending;
@@ -1638,34 +1642,15 @@ export function ChatPage(): JSX.Element {
             </Button>
           }
         >
-          <ScrollArea type="always" className="mt-4 max-h-40">
-            <Flex gap="2" wrap="wrap">
-              {sessions.length === 0 ? (
-                <Text size="2" color="gray">
-                  No sessions yet.
-                </Text>
-              ) : (
-                sessions.map((session) => (
-                  <Button
-                    key={session.id}
-                    size="2"
-                    variant={session.id === selectedSessionId ? 'solid' : 'soft'}
-                    color={session.id === selectedSessionId ? 'jade' : 'gray'}
-                    onClick={() => handleSelectSession(session.id)}
-                  >
-                    <Flex align="center" gap="2">
-                      <span>{session.title}</span>
-                      {session.status === 'archived' ? (
-                        <Badge color="gray" variant="soft">
-                          Archived
-                        </Badge>
-                      ) : null}
-                    </Flex>
-                  </Button>
-                ))
-              )}
-            </Flex>
-          </ScrollArea>
+          <SessionSelector
+            sessions={sessions}
+            selectedSessionId={selectedSessionId ?? null}
+            onSelectSession={handleSelectSession}
+            onRenameSession={handleRenameSession}
+            onDeleteSession={handleDeleteSession}
+            onCreateSession={handleCreateSession}
+            isCreatePending={createSessionMutation.isPending}
+          />
         </Panel>
 
         <div className="flex flex-col gap-6 lg:flex-row">
