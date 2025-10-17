@@ -8,14 +8,10 @@ import type {
   TemplateVariables,
 } from "@eddie/types";
 import type { Logger } from "pino";
-import { createLoggerProvider, getLoggerToken, InjectLogger } from "@eddie/io";
+import { createLoggerProvider, InjectLogger } from "@eddie/io";
 import { TemplateRendererService } from "./template-renderer.service";
 
-const TEMPLATE_RUNTIME_LOGGER_SCOPE = "core:template:runtime" as const;
-
-export const TEMPLATE_RUNTIME_LOGGER = getLoggerToken(
-  TEMPLATE_RUNTIME_LOGGER_SCOPE
-);
+export const TEMPLATE_RUNTIME_LOGGER_SCOPE = "core:template:runtime" as const;
 
 export interface ParentAgentContext {
   id: string;

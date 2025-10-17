@@ -1,5 +1,5 @@
 export {
-  TEMPLATE_RUNTIME_LOGGER,
+  TEMPLATE_RUNTIME_LOGGER_SCOPE,
   TemplateRuntimeService,
   templateRuntimeProviders,
   type ParentAgentContext,

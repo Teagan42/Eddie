@@ -5,6 +5,7 @@ import {
   TemplateModule,
   TemplateRendererService,
   TemplateRuntimeService,
+  TEMPLATE_RUNTIME_LOGGER_SCOPE,
 } from "../src";
 import { IoModule } from "@eddie/io";
 import { getLoggerToken } from "@eddie/io";
@@ -23,7 +24,7 @@ describe("TemplateModule", () => {
         TemplateRendererService,
         TemplateRuntimeService,
         expect.objectContaining({
-          provide: getLoggerToken("core:template:runtime"),
+          provide: getLoggerToken(TEMPLATE_RUNTIME_LOGGER_SCOPE),
         }),
       ])
     );

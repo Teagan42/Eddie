@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { MODULE_METADATA } from "@nestjs/common/constants";
+import { getLoggerToken } from "@eddie/io";
 import {
-  TEMPLATE_RUNTIME_LOGGER,
+  TEMPLATE_RUNTIME_LOGGER_SCOPE,
   TemplateRuntimeService,
   templateRuntimeProviders,
 } from "@eddie/templates";
@@ -19,7 +20,9 @@ describe("EngineModule runtime providers", () => {
     expect(providers).toEqual(
       expect.arrayContaining([
         ...templateRuntimeProviders,
-        expect.objectContaining({ provide: TEMPLATE_RUNTIME_LOGGER }),
+        expect.objectContaining({
+          provide: getLoggerToken(TEMPLATE_RUNTIME_LOGGER_SCOPE),
+        }),
       ])
     );
   });

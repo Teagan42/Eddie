@@ -11,7 +11,10 @@ import type {
   ContextResourceTemplateConfig,
   PackedContext,
 } from "@eddie/types";
-import { TemplateRuntimeService } from "../src/template-runtime.service";
+import {
+  TEMPLATE_RUNTIME_LOGGER_SCOPE,
+  TemplateRuntimeService,
+} from "../src/template-runtime.service";
 import { TemplateRendererService } from "../src/template-renderer.service";
 import type { Logger } from "pino";
 import { SELF_DECLARED_DEPS_METADATA } from "@nestjs/common/constants";
@@ -46,7 +49,7 @@ describe("TemplateRuntimeService", () => {
       expect.arrayContaining([
         expect.objectContaining({
           index: 1,
-          param: getLoggerToken("core:template:runtime"),
+          param: getLoggerToken(TEMPLATE_RUNTIME_LOGGER_SCOPE),
         }),
       ])
     );
