@@ -36,6 +36,28 @@ const completeOrTimeout = async (
 };
 
 describe("AgentRunner", () => {
+  it("delegates execution to the injected run loop", async () => {
+    const runLoop = {
+      run: vi.fn().mockResolvedValue({ agentFailed: false, iterationCount: 0 }),
+    };
+
+    const { runner } = createAgentRunnerTestContext({
+      runnerDependencies: { runLoop },
+    });
+
+    await runner.run();
+
+    expect(runLoop.run).toHaveBeenCalledTimes(1);
+    expect(runLoop.run).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({
+          invocation: expect.objectContaining({ id: "agent-1" }),
+        }),
+        spawnToolName: AgentRunner.SPAWN_TOOL_NAME,
+      })
+    );
+  });
+
   it("threads provider response ids into subsequent iterations", async () => {
     const invocation = createInvocation();
     const toolResult: ToolResult = { schema: "tool.schema", content: "done" };

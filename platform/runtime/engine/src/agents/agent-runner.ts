@@ -24,18 +24,22 @@ import type {
   ToolSchema,
   ToolCallStatus,
 } from "@eddie/types";
-import { AgentStreamEvent, ExecutionTreeStateUpdatedEvent, HOOK_EVENTS } from "@eddie/types";
+import { ExecutionTreeStateUpdatedEvent, HOOK_EVENTS } from "@eddie/types";
 import type { TemplateVariables } from "@eddie/templates";
 import type { AgentInvocation } from "./agent-invocation";
 import type { MetricsService } from "../telemetry/metrics.service";
-import { HookBus } from '@eddie/hooks';
+import { HookBus } from "@eddie/hooks";
+import { AgentRunLoop } from "./runner/agent-run-loop";
+import type { AgentRunLoopContext } from "./runner/agent-run-loop";
+import { ToolCallHandler } from "./runner/tool-call-handler";
+import { TraceWriterDelegate } from "./runner/trace-writer.delegate";
 
 export interface AgentTraceEvent {
   phase: string;
   data?: Record<string, unknown>;
 }
 
-type AgentIterationPayload = AgentLifecyclePayload & {
+export type AgentIterationPayload = AgentLifecyclePayload & {
   iteration: number;
   messages: ChatMessage[];
 };
@@ -66,6 +70,12 @@ export interface AgentRunnerOptions {
   writeTrace: (event: AgentTraceEvent, append?: boolean) => Promise<void>;
   metrics: MetricsService;
   executionTreeTracker?: ExecutionTreeStateTracker;
+}
+
+export interface AgentRunnerDependencies {
+  runLoop?: AgentRunLoop;
+  toolCallHandler?: ToolCallHandler;
+  traceWriterDelegate?: TraceWriterDelegate;
 }
 
 export interface SubagentRequestDetails {
@@ -619,26 +629,33 @@ export class AgentRunner {
   private previousResponseId: string | undefined;
   private subagentStopEmitted = false;
 
-  constructor(private readonly options: AgentRunnerOptions) {}
+  private readonly traceWriter: TraceWriterDelegate;
+  private readonly toolCallHandler: ToolCallHandler;
+  private readonly runLoop: AgentRunLoop;
+
+  constructor(
+    private readonly options: AgentRunnerOptions,
+    dependencies: AgentRunnerDependencies = {}
+  ) {
+    this.traceWriter =
+      dependencies.traceWriterDelegate ?? new TraceWriterDelegate();
+    this.toolCallHandler =
+      dependencies.toolCallHandler ??
+      new ToolCallHandler(this.traceWriter);
+    this.runLoop =
+      dependencies.runLoop ??
+      new AgentRunLoop(this.toolCallHandler, this.traceWriter);
+  }
 
   async run(): Promise<void> {
     const {
       invocation,
       descriptor,
       streamRenderer,
-      eventBus,
       hooks,
-      logger,
-      composeToolSchemas,
-      executeSpawnTool,
-      applyTranscriptCompactionIfNeeded,
-      dispatchHookOrThrow,
-      writeTrace,
       lifecycle,
+      writeTrace,
       startTraceAppend,
-      confirm,
-      cwd,
-      metrics,
       executionTreeTracker,
     } = this.options;
 
@@ -654,8 +671,10 @@ export class AgentRunner {
       descriptor,
     });
 
-    await writeTrace(
-      {
+    await this.traceWriter.write({
+      writeTrace,
+      append: startTraceAppend,
+      event: {
         phase: "agent_start",
         data: {
           prompt: invocation.prompt,
@@ -664,339 +683,11 @@ export class AgentRunner {
           provider: descriptor.provider.name,
         },
       },
-      startTraceAppend
+    });
+
+    const { agentFailed, iterationCount } = await this.runLoop.run(
+      this.createRunLoopContext()
     );
-
-    let iteration = 0;
-    let agentFailed = false;
-    let continueConversation = true;
-
-    try {
-      while (continueConversation) {
-        iteration += 1;
-        continueConversation = false;
-
-        const iterationPayload = this.createIterationPayload(iteration);
-
-        await metrics.timeOperation(
-          "transcript.compaction",
-          () => applyTranscriptCompactionIfNeeded(iteration, iterationPayload)
-        );
-
-        await hooks.emitAsync(HOOK_EVENTS.beforeModelCall, iterationPayload);
-        await writeTrace({
-          phase: "model_call",
-          data: {
-            iteration,
-            messageCount: invocation.messages.length,
-            model: descriptor.model,
-            provider: descriptor.provider.name,
-          },
-        });
-
-        const toolSchemas = composeToolSchemas();
-
-        const publishWithAgent = (incoming: StreamEvent): void => {
-          eventBus.publish(
-            new AgentStreamEvent({ ...incoming, agentId: invocation.id })
-          );
-        };
-
-        const stream = descriptor.provider.stream({
-          model: descriptor.model,
-          messages: invocation.messages,
-          tools: toolSchemas,
-          ...(this.previousResponseId ? { previousResponseId: this.previousResponseId } : {}),
-        });
-
-        let assistantBuffer = "";
-
-        for await (const event of stream) {
-          if (event.type === "delta") {
-            assistantBuffer += event.text;
-            publishWithAgent(event);
-            continue;
-          }
-
-          if (event.type === "tool_call") {
-            streamRenderer.flush();
-            publishWithAgent(event);
-
-            executionTreeTracker?.recordToolCall(invocation.id, event);
-
-            const preToolDispatch = await dispatchHookOrThrow(
-              HOOK_EVENTS.preToolUse,
-              {
-                ...iterationPayload,
-                event,
-              }
-            );
-
-            await writeTrace({
-              phase: "tool_call",
-              data: {
-                iteration,
-                id: event.id,
-                name: event.name,
-                arguments: event.arguments,
-              },
-            });
-
-            invocation.messages.push({
-              role: "assistant",
-              content: "",
-              name: event.name,
-              tool_call_id: event.id,
-            });
-            metrics.countMessage("assistant");
-
-            const blockSignal = preToolDispatch.blocked;
-
-            if (blockSignal) {
-              const reason =
-                blockSignal.reason ?? "Tool execution blocked by hook.";
-
-              invocation.messages.push({
-                role: "tool",
-                name: event.name,
-                tool_call_id: event.id,
-                content: reason,
-              });
-
-              logger.warn(
-                {
-                  tool: event.name,
-                  agent: invocation.id,
-                  reason,
-                },
-                "Tool execution vetoed by hook"
-              );
-
-              metrics.observeToolCall({
-                name: event.name,
-                status: "blocked",
-              });
-
-              continueConversation = true;
-              continue;
-            }
-
-            try {
-              let result: ToolResult;
-              if (event.name === AgentRunner.SPAWN_TOOL_NAME) {
-                result = await executeSpawnTool(event);
-              } else {
-                result = await invocation.toolRegistry.execute(event, {
-                  cwd,
-                  confirm,
-                  env: process.env,
-                });
-              }
-
-              publishWithAgent({
-                type: "tool_result",
-                name: event.name,
-                id: event.id,
-                result,
-              });
-
-              executionTreeTracker?.recordToolResult(
-                invocation.id,
-                { type: "tool_result", id: event.id, name: event.name, result },
-                result
-              );
-
-              const messagePayload: Record<string, unknown> = {
-                schema: result.schema,
-                content: result.content,
-              };
-
-              if (result.data !== undefined) {
-                messagePayload.data = result.data;
-              }
-
-              if (result.metadata !== undefined) {
-                messagePayload.metadata = result.metadata;
-              }
-
-              invocation.messages.push({
-                role: "tool",
-                name: event.name,
-                tool_call_id: event.id,
-                content: JSON.stringify(messagePayload),
-              });
-
-              await dispatchHookOrThrow(HOOK_EVENTS.postToolUse, {
-                ...iterationPayload,
-                event,
-                result,
-              });
-
-              await writeTrace({
-                phase: "tool_result",
-                data: {
-                  iteration,
-                  id: event.id,
-                  name: event.name,
-                  result,
-                },
-              });
-
-              metrics.observeToolCall({
-                name: event.name,
-                status: "success",
-              });
-
-              continueConversation = true;
-            } catch (error) {
-              const serialized = AgentRunner.serializeError(error);
-              const message = `Tool execution failed: ${ serialized.message }`;
-              const notification: Extract<StreamEvent, { type: "notification" }> = {
-                type: "notification",
-                payload: message,
-                metadata: {
-                  tool: event.name,
-                  tool_call_id: event.id,
-                  severity: "error",
-                },
-              };
-
-              logger.warn(
-                { err: serialized.message, tool: event.name, agent: invocation.id },
-                "Tool execution failed"
-              );
-
-              publishWithAgent(notification);
-
-              invocation.messages.push({
-                role: "tool",
-                name: event.name,
-                tool_call_id: event.id,
-                content: message,
-              });
-
-              await hooks.emitAsync(HOOK_EVENTS.notification, {
-                ...iterationPayload,
-                event: notification,
-              });
-
-              await writeTrace({
-                phase: "tool_error",
-                data: {
-                  iteration,
-                  id: event.id,
-                  name: event.name,
-                  error: serialized,
-                },
-              });
-
-              executionTreeTracker?.recordToolError(invocation.id, event, serialized);
-
-              metrics.observeToolCall({
-                name: event.name,
-                status: "error",
-              });
-              metrics.countError("tool.execution");
-
-              continueConversation = true;
-              continue;
-            }
-
-            continue;
-          }
-
-          if (event.type === "error") {
-            publishWithAgent(event);
-            agentFailed = true;
-
-            metrics.countError("agent.stream");
-
-            const { message, cause } = event;
-
-            await dispatchHookOrThrow(HOOK_EVENTS.onError, {
-              ...lifecycle,
-              iteration,
-              error: event,
-            });
-            await dispatchHookOrThrow(HOOK_EVENTS.onAgentError, {
-              ...lifecycle,
-              error: {
-                message,
-                cause,
-              },
-            });
-            await writeTrace({
-              phase: "agent_error",
-              data: {
-                iteration,
-                message,
-                cause,
-              },
-            });
-
-            break;
-          }
-
-          if (event.type === "notification") {
-            publishWithAgent(event);
-            await hooks.emitAsync(HOOK_EVENTS.notification, {
-              ...iterationPayload,
-              event,
-            });
-            continue;
-          }
-
-          if (event.type === "end") {
-            publishWithAgent(event);
-            if (event.responseId) {
-              this.previousResponseId = event.responseId;
-            }
-            if (assistantBuffer.trim().length > 0) {
-              invocation.messages.push({
-                role: "assistant",
-                content: assistantBuffer,
-              });
-              metrics.countMessage("assistant");
-            }
-
-            await hooks.emitAsync(HOOK_EVENTS.stop, {
-              ...iterationPayload,
-              messages: invocation.messages,
-            });
-            await writeTrace({
-              phase: "iteration_complete",
-              data: {
-                iteration,
-                messageCount: invocation.messages.length,
-                finalMessage: invocation.messages.at(-1)?.content,
-              },
-            });
-
-            continue;
-          }
-
-          publishWithAgent(event);
-        }
-
-        if (agentFailed) {
-          break;
-        }
-      }
-    } catch (error) {
-      agentFailed = true;
-      const serialized = AgentRunner.serializeError(error);
-      await dispatchHookOrThrow(HOOK_EVENTS.onAgentError, {
-        ...lifecycle,
-        error: serialized,
-      });
-      await writeTrace({
-        phase: "agent_error",
-        data: serialized,
-      });
-      metrics.countError("agent.run");
-      await this.emitSubagentStop();
-      throw error;
-    }
 
     if (agentFailed) {
       await this.emitSubagentStop();
@@ -1005,20 +696,38 @@ export class AgentRunner {
 
     await hooks.emitAsync(HOOK_EVENTS.afterAgentComplete, {
       ...lifecycle,
-      iterations: iteration,
+      iterations: iterationCount,
       messages: invocation.messages,
     });
-    await writeTrace({
-      phase: "agent_complete",
-      data: {
-        iterations: iteration,
-        messageCount: invocation.messages.length,
-        finalMessage: invocation.messages.at(-1)?.content,
+    await this.traceWriter.write({
+      writeTrace,
+      event: {
+        phase: "agent_complete",
+        data: {
+          iterations: iterationCount,
+          messageCount: invocation.messages.length,
+          finalMessage: invocation.messages.at(-1)?.content,
+        },
       },
     });
 
     await this.emitSubagentStop();
     executionTreeTracker?.recordAgentCompletion(invocation.id);
+  }
+
+  private createRunLoopContext(): AgentRunLoopContext {
+    return {
+      options: this.options,
+      createIterationPayload: (iteration) =>
+        this.createIterationPayload(iteration),
+      getPreviousResponseId: () => this.previousResponseId,
+      setPreviousResponseId: (value) => {
+        this.previousResponseId = value;
+      },
+      emitSubagentStop: () => this.emitSubagentStop(),
+      serializeError: AgentRunner.serializeError,
+      spawnToolName: AgentRunner.SPAWN_TOOL_NAME,
+    };
   }
 
   static buildSubagentResult(
@@ -1197,7 +906,7 @@ export class AgentRunner {
     };
   }
 
-  private static serializeError(error: unknown): {
+  static serializeError(error: unknown): {
     message: string;
     stack?: string;
     cause?: unknown;
