@@ -13,3 +13,12 @@ to regenerate it after making schema changes.
 
 - [View the Mermaid diagram](./generated/config-schema-diagram.md)
 - [`platform/core/config/scripts/render-config-schema-diagram.ts`](../platform/core/config/scripts/render-config-schema-diagram.ts)
+
+## Metrics configuration
+
+The `metrics` section controls which backend the runtime uses when publishing counters and histograms. By default Eddie ships with the noop backend so installations without observability requirements incur no logging overhead.【F:platform/core/config/src/defaults.ts†L99-L101】【F:platform/runtime/engine/src/telemetry/metrics.service.ts†L103-L118】 The configuration schema accepts two backend types.【F:platform/core/config/src/schema.ts†L222-L249】
+
+- `noop` – disables metrics emission entirely.【F:platform/core/config/src/schema.ts†L222-L229】
+- `logging` – instantiates the `LoggingMetricsBackend`, which records metrics through the Nest logger. You can set `metrics.backend.level` to `debug`, `log`, or `verbose` to control which logger method is invoked; when omitted the backend falls back to `debug`.【F:platform/core/types/src/config.ts†L133-L150】【F:platform/runtime/engine/src/telemetry/logging-metrics.backend.ts†L5-L43】
+
+Runtime overrides such as `--metrics-backend` and `--metrics-backend-level` flow through `CliRuntimeOptions`, so CLI flags and environment variables can switch the backend per run without editing configuration files.【F:platform/core/types/src/config.ts†L347-L362】【F:platform/core/config/src/config.service.ts†L600-L653】【F:platform/core/config/src/runtime-env.ts†L71-L168】 

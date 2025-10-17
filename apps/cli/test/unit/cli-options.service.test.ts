@@ -40,4 +40,15 @@ describe("CliOptionsService", () => {
 
     expect(result.preset).toBe("api-host");
   });
+
+  it("accepts metrics backend overrides", () => {
+    const service = new CliOptionsService();
+    const result = service.parse({
+      metricsBackend: "logging",
+      metricsBackendLevel: "verbose",
+    });
+
+    expect(result.metricsBackend).toBe("logging");
+    expect(result.metricsLoggingLevel).toBe("verbose");
+  });
 });

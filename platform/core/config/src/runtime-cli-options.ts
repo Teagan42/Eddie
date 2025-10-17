@@ -11,7 +11,9 @@ type CliStringOptionKey =
   | "provider"
   | "jsonlTrace"
   | "logFile"
-  | "agentMode";
+  | "agentMode"
+  | "metricsBackend"
+  | "metricsLoggingLevel";
 
 type CliListOptionKey = "context" | "tools" | "disabledTools";
 
@@ -119,6 +121,16 @@ export const CLI_VALUE_OPTION_DEFINITIONS: readonly CliValueOptionDefinition[] =
   {
     runtimeKey: "agentMode",
     keys: ["--agent-mode"],
+    valueType: "string",
+  },
+  {
+    runtimeKey: "metricsBackend",
+    keys: ["--metrics-backend"],
+    valueType: "string",
+  },
+  {
+    runtimeKey: "metricsLoggingLevel",
+    keys: ["--metrics-backend-level"],
     valueType: "string",
   },
 ] satisfies readonly CliValueOptionDefinition[];

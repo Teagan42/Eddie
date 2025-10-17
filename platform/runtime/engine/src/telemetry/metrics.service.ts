@@ -1,5 +1,8 @@
-import { Inject, Injectable, OnModuleDestroy, Optional } from "@nestjs/common";
+import { FactoryProvider, Inject, Injectable, OnModuleDestroy, Optional } from "@nestjs/common";
+import { ConfigStore } from "@eddie/config";
+import type { MetricsConfig } from "@eddie/types";
 import { performance } from "node:perf_hooks";
+import { LoggingMetricsBackend } from "./logging-metrics.backend";
 
 export interface MetricsBackend {
   incrementCounter(
@@ -40,6 +43,16 @@ const DEFAULT_NAMESPACES: Readonly<Required<MetricsNamespaceConfig>> = {
 class NoopMetricsBackend implements MetricsBackend {
   incrementCounter(): void {}
   recordHistogram(): void {}
+}
+
+function createMetricsBackend(config: MetricsConfig | undefined): MetricsBackend {
+  const backendConfig = config?.backend;
+
+  if (backendConfig?.type === "logging") {
+    return new LoggingMetricsBackend({ level: backendConfig.level });
+  }
+
+  return new NoopMetricsBackend();
 }
 
 @Injectable()
@@ -130,8 +143,17 @@ export class MetricsService implements OnModuleDestroy {
   }
 }
 
+const metricsBackendProvider: FactoryProvider<MetricsBackend> = {
+  provide: METRICS_BACKEND,
+  useFactory: (configStore: ConfigStore): MetricsBackend => {
+    const snapshot = configStore.getSnapshot();
+    return createMetricsBackend(snapshot.metrics);
+  },
+  inject: [ConfigStore],
+};
+
 export const metricsProviders = [
-  { provide: METRICS_BACKEND, useValue: new NoopMetricsBackend() },
+  metricsBackendProvider,
   {
     provide: METRICS_NAMESPACES,
     useFactory: () => ({ ...DEFAULT_NAMESPACES }),
