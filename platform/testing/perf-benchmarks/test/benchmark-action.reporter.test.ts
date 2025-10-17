@@ -73,7 +73,7 @@ describe("buildBenchmarkEntries", () => {
       {
         name: "Context pack › pack small",
         unit: "ms",
-        value: 4.322,
+        value: 4321.9,
         extra: {
           hz: 112.5,
           min: 3.8,
@@ -86,7 +86,7 @@ describe("buildBenchmarkEntries", () => {
       {
         name: "Context pack › pack large",
         unit: "ms",
-        value: 12.126,
+        value: 12126,
         extra: {
           hz: 82.7,
           min: 11.4,
@@ -151,7 +151,7 @@ describe("buildBenchmarkEntries", () => {
       {
         name: "Renderer › render inline",
         unit: "ms",
-        value: 8.616,
+        value: 8615.9,
         extra: {
           hz: 143.2,
           min: 8.2,

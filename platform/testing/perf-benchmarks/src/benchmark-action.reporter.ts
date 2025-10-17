@@ -78,10 +78,12 @@ export function buildBenchmarkEntries(files: readonly FileTaskLike[]): Benchmark
           samples: stats.sampleCount,
         }).filter(([, value]) => value !== undefined);
 
+        const meanInMilliseconds = stats.mean * 1000;
+
         entries.push({
           name,
           unit: "ms",
-          value: round(stats.mean),
+          value: round(meanInMilliseconds),
           extra: extraEntries.length > 0 ? Object.fromEntries(extraEntries) : undefined,
         });
       }
