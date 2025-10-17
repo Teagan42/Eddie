@@ -650,6 +650,7 @@ export class AgentOrchestratorService {
     }
 
     const lifecycle = this.createLifecyclePayload(invocation);
+    const metrics = runtime.metrics.snapshot();
 
     await this.traceWriter.write(
       runtime.tracePath,
@@ -662,6 +663,7 @@ export class AgentOrchestratorService {
         data: event.data,
         sessionId: runtime.sessionId,
         timestamp: new Date().toISOString(),
+        metrics,
       },
       append
     );

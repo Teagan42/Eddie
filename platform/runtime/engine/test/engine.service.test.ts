@@ -64,6 +64,8 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     observeToolCall: vi.fn(),
     countError: vi.fn(),
     timeOperation: vi.fn(async (_metric: string, fn: () => Promise<unknown>) => fn()),
+    reset: vi.fn(),
+    snapshot: vi.fn(() => ({ counters: {}, histograms: {} })),
   };
   const transcriptCompactionService = {
     createSelector: vi.fn(() => ({
@@ -108,6 +110,7 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     logger,
     transcriptCompactionService,
     metrics,
+    agentOrchestrator,
   };
 }
 
@@ -140,6 +143,17 @@ describe("EngineService", () => {
     await service.run("prompt");
 
     expect(transcriptCompactionService.createSelector).toHaveBeenCalledTimes(1);
+  });
+
+  it("resets metrics before dispatching the run", async () => {
+    const { service, metrics, agentOrchestrator } = createService();
+
+    await service.run("prompt");
+
+    expect(metrics.reset).toHaveBeenCalledTimes(1);
+    expect(agentOrchestrator.runAgent).toHaveBeenCalled();
+    const [, runtimeOptions] = agentOrchestrator.runAgent.mock.calls[0] ?? [];
+    expect(runtimeOptions?.metrics).toBe(metrics);
   });
 
   it("skips MCP resources that exceed context byte budget", async () => {

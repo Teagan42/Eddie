@@ -22,6 +22,11 @@ export interface MetricsNamespaceConfig {
   timers?: string;
 }
 
+export interface MetricsSnapshot {
+  counters: Record<string, number>;
+  histograms: Record<string, number[]>;
+}
+
 export const METRICS_BACKEND = Symbol("ENGINE_METRICS_BACKEND");
 export const METRICS_NAMESPACES = Symbol("ENGINE_METRICS_NAMESPACES");
 
@@ -40,6 +45,8 @@ class NoopMetricsBackend implements MetricsBackend {
 @Injectable()
 export class MetricsService implements OnModuleDestroy {
   private readonly namespaces: Required<MetricsNamespaceConfig>;
+  private readonly counters = new Map<string, number>();
+  private readonly histograms = new Map<string, number[]>();
 
   constructor(
     @Inject(METRICS_BACKEND) private readonly backend: MetricsBackend,
@@ -53,16 +60,19 @@ export class MetricsService implements OnModuleDestroy {
   countMessage(role: string): void {
     const metric = this.composeMetric(this.namespaces.messages, role);
     this.backend.incrementCounter(metric);
+    this.recordCounter(metric, 1);
   }
 
   observeToolCall(details: { name: string; status: string }): void {
     const metric = this.composeMetric(this.namespaces.tools, details.status);
     this.backend.incrementCounter(metric, 1, { tool: details.name });
+    this.recordCounter(metric, 1);
   }
 
   countError(metric: string): void {
     const name = this.composeMetric(this.namespaces.errors, metric);
     this.backend.incrementCounter(name);
+    this.recordCounter(name, 1);
   }
 
   async timeOperation<T>(metric: string, fn: () => Promise<T>): Promise<T> {
@@ -73,7 +83,25 @@ export class MetricsService implements OnModuleDestroy {
       const durationMs = performance.now() - start;
       const name = this.composeMetric(this.namespaces.timers, metric);
       this.backend.recordHistogram(name, durationMs);
+      this.recordHistogram(name, durationMs);
     }
+  }
+
+  reset(): void {
+    this.counters.clear();
+    this.histograms.clear();
+  }
+
+  snapshot(): MetricsSnapshot {
+    const counters = Object.fromEntries(this.counters) as Record<string, number>;
+    const histograms = Object.fromEntries(
+      Array.from(this.histograms.entries(), ([metric, values]) => [
+        metric,
+        [ ...values ],
+      ])
+    ) as Record<string, number[]>;
+
+    return { counters, histograms };
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -84,6 +112,21 @@ export class MetricsService implements OnModuleDestroy {
 
   private composeMetric(namespace: string, metric: string): string {
     return `${ namespace }.${ metric }`;
+  }
+
+  private recordCounter(metric: string, value: number): void {
+    const current = this.counters.get(metric) ?? 0;
+    this.counters.set(metric, current + value);
+  }
+
+  private recordHistogram(metric: string, value: number): void {
+    const series = this.histograms.get(metric);
+    if (series) {
+      series.push(value);
+      return;
+    }
+
+    this.histograms.set(metric, [ value ]);
   }
 }
 

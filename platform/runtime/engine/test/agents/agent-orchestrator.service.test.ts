@@ -21,6 +21,8 @@ const createMetrics = () => ({
   observeToolCall: vi.fn(),
   countError: vi.fn(),
   timeOperation: vi.fn(async (_metric: string, fn: () => Promise<unknown>) => fn()),
+  reset: vi.fn(),
+  snapshot: vi.fn(() => ({ counters: {}, histograms: {} })),
 });
 
 describe("AgentOrchestratorService", () => {
@@ -677,6 +679,69 @@ describe("AgentOrchestratorService", () => {
       1,
       runtime,
       lifecycle,
+    );
+  });
+
+  it("writes metrics snapshots alongside trace events", async () => {
+    const traceWriter = { write: vi.fn().mockResolvedValue(undefined) };
+    const orchestrator = new AgentOrchestratorService(
+      { create: vi.fn() } as any,
+      { render: vi.fn(), flush: vi.fn() } as any,
+      { publish: vi.fn() } as any,
+      traceWriter as any,
+    );
+
+    const metrics = createMetrics();
+    metrics.snapshot.mockReturnValue({
+      counters: { "engine.messages.user": 1 },
+      histograms: { "engine.timers.loop": [10] },
+    });
+
+    const runtime = {
+      tracePath: "/tmp/run.jsonl",
+      sessionId: "session-1",
+      hooks: { emitAsync: vi.fn().mockResolvedValue({}) },
+      catalog: {
+        enableSubagents: false,
+        getManager: vi.fn(),
+        getAgent: vi.fn(),
+        getSubagent: vi.fn(),
+        listSubagents: () => [],
+      },
+      confirm: vi.fn(),
+      cwd: process.cwd(),
+      logger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      metrics,
+    } as unknown;
+
+    const invocation = {
+      id: "manager",
+      definition: { id: "manager", systemPrompt: "", tools: [] },
+      prompt: "Prompt",
+      context: { totalBytes: 0, files: [], text: "" },
+      history: [],
+      parent: undefined,
+      messages: [],
+      children: [],
+    } as unknown as AgentInvocation;
+
+    const event = {
+      phase: "invoke",
+      data: { kind: "log" },
+    };
+
+    await (orchestrator as any).writeTrace(runtime, invocation, event, true);
+
+    expect(metrics.snapshot).toHaveBeenCalledTimes(1);
+    expect(traceWriter.write).toHaveBeenCalledWith(
+      "/tmp/run.jsonl",
+      expect.objectContaining({
+        metrics: {
+          counters: { "engine.messages.user": 1 },
+          histograms: { "engine.timers.loop": [10] },
+        },
+      }),
+      true,
     );
   });
 });
