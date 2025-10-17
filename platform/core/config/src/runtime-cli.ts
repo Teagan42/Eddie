@@ -161,21 +161,19 @@ export function parseCliRuntimeOptionsFromArgv(
 
     if (isCliStringOption(optionDefinition)) {
       if (optionDefinition.runtimeKey === "metricsBackend") {
-        if (METRICS_BACKEND_VALUES.has(next as typeof accumulator.metricsBackend)) {
-          accumulator.metricsBackend =
-            next as CliRuntimeOptions["metricsBackend"];
+        const candidate =
+          next as NonNullable<CliRuntimeOptions["metricsBackend"]>;
+        if (METRICS_BACKEND_VALUES.has(candidate)) {
+          accumulator.metricsBackend = candidate;
         }
         continue;
       }
 
       if (optionDefinition.runtimeKey === "metricsLoggingLevel") {
-        if (
-          METRICS_LOGGING_LEVEL_VALUES.has(
-            next as typeof accumulator.metricsLoggingLevel,
-          )
-        ) {
-          accumulator.metricsLoggingLevel =
-            next as CliRuntimeOptions["metricsLoggingLevel"];
+        const candidate =
+          next as NonNullable<CliRuntimeOptions["metricsLoggingLevel"]>;
+        if (METRICS_LOGGING_LEVEL_VALUES.has(candidate)) {
+          accumulator.metricsLoggingLevel = candidate;
         }
         continue;
       }

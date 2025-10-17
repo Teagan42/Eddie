@@ -50,8 +50,8 @@ export class CliOptionsService {
         base.metricsBackend = backend;
       }
     }
-    if (typeof options.metricsBackendLevel === "string") {
-      const level = options.metricsBackendLevel;
+    if (typeof options.metricsLoggingLevel === "string") {
+      const level = options.metricsLoggingLevel;
       if (level === "debug" || level === "log" || level === "verbose") {
         base.metricsLoggingLevel = level as CliRuntimeOptions["metricsLoggingLevel"];
       }

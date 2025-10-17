@@ -140,22 +140,23 @@ export function resolveCliRuntimeOptionsFromEnv(
   }
 
   const metricsBackend = parseString(env.EDDIE_CLI_METRICS_BACKEND);
-  if (
-    metricsBackend !== undefined &&
-    METRICS_BACKEND_VALUES.has(metricsBackend as CliRuntimeOptions["metricsBackend"])
-  ) {
-    options.metricsBackend = metricsBackend as CliRuntimeOptions["metricsBackend"];
+  if (metricsBackend !== undefined) {
+    const candidate =
+      metricsBackend as NonNullable<CliRuntimeOptions["metricsBackend"]>;
+    if (METRICS_BACKEND_VALUES.has(candidate)) {
+      options.metricsBackend = candidate;
+    }
   }
 
   const metricsLoggingLevel = parseString(env.EDDIE_CLI_METRICS_LOGGING_LEVEL);
-  if (
-    metricsLoggingLevel !== undefined &&
-    METRICS_LOGGING_LEVEL_VALUES.has(
-      metricsLoggingLevel as CliRuntimeOptions["metricsLoggingLevel"]
-    )
-  ) {
-    options.metricsLoggingLevel =
-      metricsLoggingLevel as CliRuntimeOptions["metricsLoggingLevel"];
+  if (metricsLoggingLevel !== undefined) {
+    const candidate =
+      metricsLoggingLevel as NonNullable<
+        CliRuntimeOptions["metricsLoggingLevel"]
+      >;
+    if (METRICS_LOGGING_LEVEL_VALUES.has(candidate)) {
+      options.metricsLoggingLevel = candidate;
+    }
   }
 
   return options;
