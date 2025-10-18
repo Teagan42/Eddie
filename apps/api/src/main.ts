@@ -6,6 +6,7 @@ import { initTracing } from "./telemetry/tracing";
 import { HttpLoggerMiddleware } from "./middleware/http-logger.middleware";
 import {
   ConfigStore,
+  hasRuntimeOverrides,
   mergeCliRuntimeOptions,
   parseCliRuntimeOptionsFromArgv,
   resolveCliRuntimeOptionsFromEnv,
@@ -22,8 +23,12 @@ import {
 
 function resolveRuntimeOverrides(): CliRuntimeOptions {
   const envRuntimeOptions = resolveCliRuntimeOptionsFromEnv(process.env);
-  const cliRuntimeOptions = parseCliRuntimeOptionsFromArgv(process.argv.slice(2));
-  return mergeCliRuntimeOptions(envRuntimeOptions, cliRuntimeOptions);
+  const cachedOverrides = getRuntimeOptions();
+  const runtimeOverrides = hasRuntimeOverrides(cachedOverrides)
+    ? cachedOverrides
+    : parseCliRuntimeOptionsFromArgv(process.argv.slice(2));
+
+  return mergeCliRuntimeOptions(envRuntimeOptions, runtimeOverrides);
 }
 
 function configureLogging(

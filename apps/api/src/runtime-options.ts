@@ -4,10 +4,26 @@ import {
   parseCliRuntimeOptionsFromArgv,
 } from "@eddie/config";
 
-let cachedOptions: CliRuntimeOptions | null = null;
+const RUNTIME_OPTIONS_CACHE_KEY = Symbol.for("eddie.api.runtimeOptions");
+
+type RuntimeOptionsGlobalState = {
+  [RUNTIME_OPTIONS_CACHE_KEY]?: CliRuntimeOptions | null;
+};
+
+function runtimeOptionsStore(): typeof globalThis & RuntimeOptionsGlobalState {
+  return globalThis as typeof globalThis & RuntimeOptionsGlobalState;
+}
+
+function readCachedOptions(): CliRuntimeOptions | null {
+  return runtimeOptionsStore()[RUNTIME_OPTIONS_CACHE_KEY] ?? null;
+}
+
+function writeCachedOptions(options: CliRuntimeOptions | null): void {
+  runtimeOptionsStore()[RUNTIME_OPTIONS_CACHE_KEY] = options;
+}
 
 function cacheOptions(options: CliRuntimeOptions): void {
-  cachedOptions = cloneCliRuntimeOptions(options, true, true);
+  writeCachedOptions(cloneCliRuntimeOptions(options, true, true));
 }
 
 export function setRuntimeOptions(options: CliRuntimeOptions): void {
@@ -25,6 +41,7 @@ export function parseRuntimeOptionsFromArgv(
 }
 
 export function getRuntimeOptions(): CliRuntimeOptions {
+  const cachedOptions = readCachedOptions();
   if (!cachedOptions) {
     return {};
   }
@@ -33,5 +50,5 @@ export function getRuntimeOptions(): CliRuntimeOptions {
 }
 
 export function resetRuntimeOptionsCache(): void {
-  cachedOptions = null;
+  writeCachedOptions(null);
 }
