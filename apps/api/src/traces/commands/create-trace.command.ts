@@ -1,3 +1,4 @@
+import { ICommand } from '@nestjs/cqrs';
 import type { TraceDto } from "../dto/trace.dto";
 
 export type TraceStatus = TraceDto["status"];
@@ -10,6 +11,6 @@ export interface CreateTraceInput {
   metadata?: TraceDto["metadata"];
 }
 
-export class CreateTraceCommand {
+export class CreateTraceCommand implements ICommand {
   constructor(public readonly input: CreateTraceInput) {}
 }
