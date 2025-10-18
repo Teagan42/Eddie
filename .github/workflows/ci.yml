@@ -27,9 +27,18 @@ jobs:
         with:
           node-version: 20.x
 
+      - name: Extract head commit message
+        id: commitmsg
+        run: |
+          set -euo pipefail
+          MSG="$(git log -1 --pretty=%B || true)"
+          # Trim to a single line fallback to avoid YAML/Expression surprises
+          ONE="$(printf "%s" "$MSG" | head -n1)"
+          echo "msg=$ONE" >> "$GITHUB_OUTPUT"
+
       - name: Cache npm dependencies
         uses: actions/cache@v4
-        if: ${{ !contains(github.event.pull_request.title || github.event.head_commit.message || '', 'skip-cache') }}
+        if: ${{ !contains(steps.commitmsg.outputs.msg || '', 'skip-cache') }}
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node-20.x-${{ hashFiles('package-lock.json') }}
@@ -71,9 +80,18 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Extract head commit message
+        id: commitmsg
+        run: |
+          set -euo pipefail
+          MSG="$(git log -1 --pretty=%B || true)"
+          # Trim to a single line fallback to avoid YAML/Expression surprises
+          ONE="$(printf "%s" "$MSG" | head -n1)"
+          echo "msg=$ONE" >> "$GITHUB_OUTPUT"
+
       - name: Cache npm dependencies
         uses: actions/cache@v4
-        if: ${{ !contains(github.event.pull_request.title || github.event.head_commit.message || '', 'skip-cache') }}
+        if: ${{ !contains(steps.commitmsg.outputs.msg || '', 'skip-cache') }}
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
@@ -108,9 +126,18 @@ jobs:
         with:
           node-version: 20.x
 
+      - name: Extract head commit message
+        id: commitmsg
+        run: |
+          set -euo pipefail
+          MSG="$(git log -1 --pretty=%B || true)"
+          # Trim to a single line fallback to avoid YAML/Expression surprises
+          ONE="$(printf "%s" "$MSG" | head -n1)"
+          echo "msg=$ONE" >> "$GITHUB_OUTPUT"
+
       - name: Cache npm dependencies
         uses: actions/cache@v4
-        if: ${{ !contains(github.event.pull_request.title || github.event.head_commit.message || '', 'skip-cache') }}
+        if: ${{ !contains(steps.commitmsg.outputs.msg || '', 'skip-cache') }}
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node-20.x-${{ hashFiles('package-lock.json') }}
@@ -160,9 +187,18 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Extract head commit message
+        id: commitmsg
+        run: |
+          set -euo pipefail
+          MSG="$(git log -1 --pretty=%B || true)"
+          # Trim to a single line fallback to avoid YAML/Expression surprises
+          ONE="$(printf "%s" "$MSG" | head -n1)"
+          echo "msg=$ONE" >> "$GITHUB_OUTPUT"
+
       - name: Cache npm dependencies
         uses: actions/cache@v4
-        if: ${{ !contains(github.event.pull_request.title || github.event.head_commit.message || '', 'skip-cache') }}
+        if: ${{ !contains(steps.commitmsg.outputs.msg || '', 'skip-cache') }}
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
@@ -220,9 +256,18 @@ jobs:
         with:
           node-version: 20.x
 
+      - name: Extract head commit message
+        id: commitmsg
+        run: |
+          set -euo pipefail
+          MSG="$(git log -1 --pretty=%B || true)"
+          # Trim to a single line fallback to avoid YAML/Expression surprises
+          ONE="$(printf "%s" "$MSG" | head -n1)"
+          echo "msg=$ONE" >> "$GITHUB_OUTPUT"
+
       - name: Cache npm dependencies
         uses: actions/cache@v4
-        if: ${{ !contains(github.event.pull_request.title || github.event.head_commit.message || '', 'skip-cache') }}
+        if: ${{ !contains(steps.commitmsg.outputs.msg || '', 'skip-cache') }}
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node-20.x-${{ hashFiles('package-lock.json') }}
