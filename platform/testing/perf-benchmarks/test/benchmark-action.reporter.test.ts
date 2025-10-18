@@ -166,6 +166,74 @@ describe("buildBenchmarkEntries", () => {
     delete process.env.BENCHMARK_OUTPUT_PATH;
   });
 
+  it("falls back to registered entries when vitest stats omit benchmark samples", async () => {
+    const files = [
+      {
+        filepath: "/workspace/foo.bench.ts",
+        tasks: [
+          {
+            type: "suite",
+            name: "Context pack",
+            tasks: [
+              {
+                type: "test",
+                name: "pack small",
+                meta: { benchmark: true },
+                result: {
+                  state: "run",
+                  benchmark: {
+                    name: "pack small",
+                    samples: [],
+                    rank: 1,
+                    rme: 0,
+                  },
+                },
+              },
+            ],
+            result: { state: "run" },
+          },
+        ],
+      },
+    ];
+
+    const tmpRoot = mkdtempSync(join(tmpdir(), "bench-reporter-"));
+    const targetPath = join(tmpRoot, "benchmark-results.json");
+    const reporter = new BenchmarkActionReporter({ outputFile: "fallback.json" });
+    const ctx = {
+      config: { root: tmpRoot },
+      logger: { log: () => {}, warn: () => {} },
+      state: { getFiles: () => files },
+    } as const;
+
+    const registrySymbol = Symbol.for("eddie.benchmarkActionEntries");
+    (globalThis as Record<symbol, unknown>)[registrySymbol] = {
+      entries: [
+        {
+          name: "Context pack › pack small",
+          unit: "ms",
+          value: 123.456,
+        },
+      ],
+    } satisfies { entries: unknown };
+
+    process.env.BENCHMARK_OUTPUT_PATH = targetPath;
+
+    reporter.onInit(ctx as never);
+    await reporter.onFinished(files as never);
+
+    const written = JSON.parse(readFileSync(targetPath, "utf-8"));
+    expect(written).toEqual([
+      {
+        name: "Context pack › pack small",
+        unit: "ms",
+        value: 123.456,
+      },
+    ]);
+
+    delete process.env.BENCHMARK_OUTPUT_PATH;
+    delete (globalThis as Record<symbol, unknown>)[registrySymbol];
+  });
+
   it("exposes the reporter class as the default export", () => {
     expect(ReporterModule).toBe(BenchmarkActionReporter);
   });
