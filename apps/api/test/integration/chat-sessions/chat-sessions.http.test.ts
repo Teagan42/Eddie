@@ -39,7 +39,6 @@ describe("ChatSessionsController HTTP", () => {
   let app: INestApplication;
   let service: ChatSessionsService;
   let eventBus: EventBus;
-  let toolsGateway: ToolsGateway;
   let commandBus: CommandBus;
 
   beforeEach(async () => {
@@ -94,7 +93,6 @@ describe("ChatSessionsController HTTP", () => {
     await app.init();
     service = app.get(ChatSessionsService);
     eventBus = app.get(EventBus);
-    toolsGateway = app.get(ToolsGateway);
     commandBus = app.get(CommandBus);
   });
 

@@ -1,4 +1,5 @@
-import { BroadcastChannel, type MessageEvent } from "node:worker_threads";
+import { BroadcastChannel } from "node:worker_threads";
+import type { MessageEvent } from "undici-types";
 
 import type { BenchmarkActionEntry } from "./benchmark-action.reporter";
 

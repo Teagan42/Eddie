@@ -3,6 +3,7 @@ import {
   resetRuntimeOptionsCache,
   setRuntimeOptionsFromArgv,
 } from "../../../src/runtime-options";
+import { CliRuntimeOptions } from '@eddie/config';
 
 const hoisted = vi.hoisted(() => {
   const loadMock = vi.fn();
@@ -57,7 +58,6 @@ const hoisted = vi.hoisted(() => {
 
 const {
   stubs,
-  ConfigServiceStub,
   ConfigStoreStub,
   LoggerServiceStub,
   HttpLoggerMiddlewareStub,
@@ -105,7 +105,6 @@ vi.mock(
     LoggerService: LoggerServiceStub,
     createLoggerProviders: () => [],
   }),
-  { virtual: true },
 );
 
 vi.mock("../../../src/middleware/http-logger.middleware", () => ({
@@ -218,7 +217,7 @@ describe("bootstrap runtime options", () => {
     const runtimeOverrides = {
       config: "/tmp/eddie.yaml",
       context: ["src", "docs"],
-    } satisfies Parameters<typeof setRuntimeOptionsFromArgv>[0];
+    } satisfies CliRuntimeOptions
 
     stubs.apiForRootMock.mockReset();
     const moduleRef = Symbol("api-module");

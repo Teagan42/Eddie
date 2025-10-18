@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 
@@ -7,6 +7,8 @@ import { afterAll, beforeAll, bench, suite, vi } from 'vitest';
 
 import { OpenAIAdapter } from '@eddie/providers';
 import type { StreamEvent, StreamOptions } from '@eddie/types';
+
+import { createSafeBench } from './bench.runtime';
 
 const { streamMock, openAIConstructor } = vi.hoisted(() => {
   const stream = vi.fn();
@@ -23,8 +25,9 @@ vi.mock('openai', () => ({
 }));
 
 const FIXTURE_ROOT = fileURLToPath(
-  new URL('../fixtures/providers/', import.meta.url),
+  new URL(resolve(__dirname, '../fixtures/providers/'), 'file://'),
 );
+
 
 const REGRESSION_THRESHOLD_PERCENT = 25;
 
@@ -238,32 +241,28 @@ const emitScenarioReport = () => {
   console.log(JSON.stringify(report));
 };
 
-const vitestState = (import.meta as unknown as {
-  vitest?: { mode?: string };
-}).vitest;
+const registerBench = createSafeBench(bench);
 
-if (vitestState?.mode === 'benchmark') {
-  suite('OpenAIAdapter.stream recorded scenarios', () => {
-    beforeAll(() => {
-      streamMock.mockReset();
-      openAIConstructor.mockClear();
-    });
-
-    afterAll(() => {
-      emitScenarioReport();
-    });
-
-    for (const fixture of fixtureCache) {
-      bench(`${fixture.label} (cold + warm)`, async () => {
-        const measurement = await measureProviderStreamScenario(fixture);
-        const series = ensureScenarioSeries(fixture);
-        series.coldStartDurations.push(measurement.coldStart.durationMs);
-        series.warmStreamDurations.push(measurement.warmStream.durationMs);
-        series.lastEvents = {
-          cold: measurement.coldStart.events,
-          warm: measurement.warmStream.events,
-        };
-      });
-    }
+suite('OpenAIAdapter.stream recorded scenarios', () => {
+  beforeAll(() => {
+    streamMock.mockReset();
+    openAIConstructor.mockClear();
   });
-}
+
+  afterAll(() => {
+    emitScenarioReport();
+  });
+
+  for (const fixture of fixtureCache) {
+    registerBench(`${fixture.label} (cold + warm)`, async () => {
+      const measurement = await measureProviderStreamScenario(fixture);
+      const series = ensureScenarioSeries(fixture);
+      series.coldStartDurations.push(measurement.coldStart.durationMs);
+      series.warmStreamDurations.push(measurement.warmStream.durationMs);
+      series.lastEvents = {
+        cold: measurement.coldStart.events,
+        warm: measurement.warmStream.events,
+      };
+    });
+  }
+});

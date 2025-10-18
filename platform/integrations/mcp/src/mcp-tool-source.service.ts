@@ -1,7 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { Buffer } from "buffer";
 import { performance } from "node:perf_hooks";
-import { URL } from "node:url";
 import type {
   MCPAuthConfig,
   MCPToolSourceConfig,
@@ -26,7 +25,7 @@ import type {
   ToolResult,
   ToolCallArguments,
 } from "@eddie/types";
-import type { CallToolResult, ContentBlock } from "@modelcontextprotocol/sdk/types";
+import { CallToolResult, ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 
 interface CachedSessionInfo {
   sessionId?: string;
