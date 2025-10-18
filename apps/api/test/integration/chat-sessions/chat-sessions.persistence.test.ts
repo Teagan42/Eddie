@@ -129,7 +129,12 @@ describe("ChatSessionsRepository persistence", () => {
         CHAT_SESSIONS_REPOSITORY_PROVIDER,
         ChatSessionsService,
       ],
-    }).overrideProvider(ConfigStore).useValue({ getSnapshot }).overrideProvider(ConfigService).useValue({ load }).compile();
+    })
+      .overrideProvider(ConfigStore)
+      .useValue({ getSnapshot })
+      .overrideProvider(ConfigService)
+      .useValue({ load })
+      .compile();
 
     const database = moduleRef.get<Knex | undefined>(KNEX_INSTANCE, {
       strict: false,
