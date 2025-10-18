@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Test } from "@nestjs/testing";
+import { Test, type TestingModule } from "@nestjs/testing";
 import type { EddieConfig } from "@eddie/config";
 import { ConfigStore, DEFAULT_CONFIG } from "@eddie/config";
-import type { Knex } from "knex";
 
 import { DatabaseModule } from "../../../src/persistence/database.module";
 import {
@@ -45,9 +44,9 @@ describe("DatabaseModule", () => {
       .compile();
 
     try {
-      moduleRef.init();
+      await moduleRef.init();
 
-      const database = moduleRef.get(DatabaseService, { strict: false });
+      const database = resolveDatabaseService(moduleRef);
       const knex = database.getClient();
 
       expect(getSnapshot).toHaveBeenCalledTimes(1);
@@ -86,3 +85,7 @@ describe("DatabaseModule", () => {
     ).resolves.not.toThrow();
   });
 });
+
+function resolveDatabaseService(moduleRef: TestingModule): DatabaseService {
+  return moduleRef.select(DatabaseModule).get(DatabaseService);
+}
