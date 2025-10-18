@@ -8,6 +8,10 @@ import ReporterModule, {
   BenchmarkActionReporter,
   buildBenchmarkEntries,
 } from "../src/benchmark-action.reporter";
+import {
+  drainBenchmarkActionEntries,
+  registerBenchmarkActionEntry,
+} from "../src/benchmark-action.registry";
 
 describe("buildBenchmarkEntries", () => {
   it("converts vitest benchmark stats into benchmark-action entries", () => {
@@ -205,16 +209,12 @@ describe("buildBenchmarkEntries", () => {
       state: { getFiles: () => files },
     } as const;
 
-    const registrySymbol = Symbol.for("eddie.benchmarkActionEntries");
-    (globalThis as Record<symbol, unknown>)[registrySymbol] = {
-      entries: [
-        {
-          name: "Context pack › pack small",
-          unit: "ms",
-          value: 123.456,
-        },
-      ],
-    } satisfies { entries: unknown };
+    drainBenchmarkActionEntries();
+    registerBenchmarkActionEntry({
+      name: "Context pack › pack small",
+      unit: "ms",
+      value: 123.456,
+    });
 
     process.env.BENCHMARK_OUTPUT_PATH = targetPath;
 
@@ -231,7 +231,6 @@ describe("buildBenchmarkEntries", () => {
     ]);
 
     delete process.env.BENCHMARK_OUTPUT_PATH;
-    delete (globalThis as Record<symbol, unknown>)[registrySymbol];
   });
 
   it("exposes the reporter class as the default export", () => {

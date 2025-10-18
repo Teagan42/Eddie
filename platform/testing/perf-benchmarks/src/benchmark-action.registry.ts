@@ -1,39 +1,43 @@
+import { BroadcastChannel, type MessageEvent } from "node:worker_threads";
+
 import type { BenchmarkActionEntry } from "./benchmark-action.reporter";
 
-const BENCHMARK_ACTION_REGISTRY_SYMBOL = Symbol.for("eddie.benchmarkActionEntries");
-
-type GlobalBenchmarkRegistry = typeof globalThis & {
-  [BENCHMARK_ACTION_REGISTRY_SYMBOL]?: BenchmarkActionRegistry;
-};
-
 interface BenchmarkActionRegistry {
-  entries: BenchmarkActionEntry[];
+  readonly entries: BenchmarkActionEntry[];
 }
 
-function getGlobalRegistry(): BenchmarkActionRegistry | undefined {
-  return (globalThis as GlobalBenchmarkRegistry)[BENCHMARK_ACTION_REGISTRY_SYMBOL];
+interface BenchmarkRegistryMessage {
+  readonly type: "register";
+  readonly entry: BenchmarkActionEntry;
 }
 
-function ensureGlobalRegistry(): BenchmarkActionRegistry {
-  const globalScope = globalThis as GlobalBenchmarkRegistry;
-  const existing = globalScope[BENCHMARK_ACTION_REGISTRY_SYMBOL];
-  if (existing) {
-    return existing;
-  }
+const BENCHMARK_ACTION_CHANNEL = "eddie.benchmarkActionEntries";
 
-  const created: BenchmarkActionRegistry = { entries: [] };
-  globalScope[BENCHMARK_ACTION_REGISTRY_SYMBOL] = created;
-  return created;
+const registry: BenchmarkActionRegistry = { entries: [] };
+
+let broadcastChannel: BroadcastChannel | undefined;
+
+try {
+  broadcastChannel = new BroadcastChannel(BENCHMARK_ACTION_CHANNEL);
+  broadcastChannel.onmessage = (event: MessageEvent) => {
+    const message = event.data as BenchmarkRegistryMessage | undefined;
+    if (!message || message.type !== "register") {
+      return;
+    }
+
+    registry.entries.push(message.entry);
+  };
+} catch {
+  // Ignore environments where BroadcastChannel is unavailable (e.g. Node < 15).
 }
 
 export function registerBenchmarkActionEntry(entry: BenchmarkActionEntry): void {
-  const registry = ensureGlobalRegistry();
   registry.entries.push(entry);
+  broadcastChannel?.postMessage({ type: "register", entry });
 }
 
 export function drainBenchmarkActionEntries(): BenchmarkActionEntry[] {
-  const registry = getGlobalRegistry();
-  if (!registry || registry.entries.length === 0) {
+  if (registry.entries.length === 0) {
     return [];
   }
 
