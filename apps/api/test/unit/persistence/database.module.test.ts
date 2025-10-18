@@ -37,6 +37,7 @@ describe("DatabaseModule", () => {
       .overrideProvider(ConfigStore)
       .useValue({ getSnapshot })
       .compile();
+    moduleRef.init();
 
     const database = moduleRef.get(DatabaseService);
     const knex = database.getClient();
