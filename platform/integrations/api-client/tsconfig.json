@@ -11,5 +11,9 @@
     "moduleResolution": "Bundler"
   },
   "include": ["src/**/*.ts"],
-  "references": []
+  "references": [
+    {
+      "path": "../../core/types"
+    }
+  ]
 }

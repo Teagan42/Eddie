@@ -1,3 +1,4 @@
+import type { ExecutionTreeState } from "@eddie/types";
 import { createRealtimeChannel, type RealtimeChannel } from "./realtime";
 import { OpenAPI } from "./generated/core/OpenAPI";
 import { ChatSessionsService } from "./generated/services/ChatSessionsService";
@@ -230,6 +231,11 @@ export interface ChatSessionsSocket {
     onAgentActivity(
         handler: (activity: AgentActivityEventDto) => void
     ): Unsubscribe;
+    onExecutionTreeUpdated(
+        handler: (
+            payload: { sessionId: string; state: ExecutionTreeState }
+        ) => void
+    ): Unsubscribe;
     emitMessage(sessionId: string, payload: CreateChatMessageDto): void;
 }
 
@@ -430,6 +436,27 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     return null;
   };
 
+  const coerceExecutionTreeUpdate = (
+    payload: unknown
+  ): { sessionId: string; state: ExecutionTreeState } | null => {
+    if (
+      payload &&
+      typeof payload === "object" &&
+      "sessionId" in (payload as { sessionId?: unknown }) &&
+      typeof (payload as { sessionId?: unknown }).sessionId === "string" &&
+      "state" in (payload as { state?: unknown }) &&
+      (payload as { state?: unknown }).state !== null &&
+      typeof (payload as { state?: unknown }).state === "object"
+    ) {
+      return {
+        sessionId: (payload as { sessionId: string }).sessionId,
+        state: (payload as { state: ExecutionTreeState }).state,
+      };
+    }
+
+    return null;
+  };
+
   const chatSessionsSocket: ChatSessionsSocket = {
     onSessionCreated(handler) {
       return chatChannel.on("session.created", handler);
@@ -453,6 +480,17 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     },
     onAgentActivity(handler) {
       return chatChannel.on("agent.activity", handler);
+    },
+    onExecutionTreeUpdated(handler) {
+      return chatChannel.on(
+        "execution-tree.updated",
+        (payload: unknown) => {
+          const update = coerceExecutionTreeUpdate(payload);
+          if (update) {
+            handler(update);
+          }
+        }
+      );
     },
     emitMessage(sessionId, payload) {
       chatChannel.emit("message.send", { sessionId, message: payload });
