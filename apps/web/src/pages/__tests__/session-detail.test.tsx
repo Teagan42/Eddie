@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react";
+import { render, waitFor, within } from "@testing-library/react";
 import { vi } from "vitest";
 import type { ChatMessageDto, ChatSessionDto } from "@eddie/api-client";
 import { SessionDetail } from "../components";
@@ -34,6 +34,46 @@ describe("SessionDetail", () => {
       ...partial,
     };
   }
+
+  it("renders completed messages as individual cards with agent headings", () => {
+    const session = createSession();
+    const messages = [
+      createMessage({
+        id: "message-1",
+        role: "assistant",
+        name: "Orchestrator",
+        content: "Working on it…",
+        event: "delta",
+      } as ChatMessageDto & { event?: string }),
+      createMessage({
+        id: "message-1",
+        role: "assistant",
+        name: "Orchestrator",
+        content: "Task complete",
+        event: "end",
+      } as ChatMessageDto & { event?: string }),
+      createMessage({
+        id: "message-2",
+        role: "assistant",
+        name: "Delegate",
+        content: "Providing support",
+        event: "end",
+      } as ChatMessageDto & { event?: string }),
+    ];
+
+    const { queryByText, getAllByTestId } = render(
+      <SessionDetail session={session} isLoading={false} messages={messages} />
+    );
+
+    expect(queryByText("Working on it…")).not.toBeInTheDocument();
+
+    const cards = getAllByTestId("message-card");
+    expect(cards).toHaveLength(2);
+    expect(within(cards[0]!).getByText(/Orchestrator/i)).toBeInTheDocument();
+    expect(within(cards[0]!).getByText("Task complete")).toBeInTheDocument();
+    expect(within(cards[1]!).getByText(/Delegate/i)).toBeInTheDocument();
+    expect(within(cards[1]!).getByText("Providing support")).toBeInTheDocument();
+  });
 
   it("scrolls the latest message into view when new messages arrive", async () => {
     const original = HTMLElement.prototype.scrollIntoView;
