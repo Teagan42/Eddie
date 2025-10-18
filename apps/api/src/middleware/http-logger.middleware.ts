@@ -14,14 +14,9 @@ export class HttpLoggerMiddleware implements NestMiddleware {
     onFinished(res, () => {
       const durationNs = process.hrtime.bigint() - startNs;
 
-      // Keep precision safely for any realistic request duration
-      const ms = Number(durationNs) / 1_000_000; // fine unless your API naps for >150 min
-      // If you're paranoid:
-      // const ms = Number(durationNs) < Number.MAX_SAFE_INTEGER
-      //   ? Number(durationNs) / 1_000_000
-      //   : Number((durationNs / 1_000n) /* μs as bigint */) / 1_000;
-
-      const durationMs = Math.round(ms * 1000) / 1000;
+      // Keep precision safely by truncating to the nearest microsecond
+      const durationUs = durationNs / 1_000n;
+      const durationMs = Number(durationUs) / 1_000;
 
       // content-length may be undefined or inaccurate with compression
       const rawContentLength =
@@ -40,19 +35,21 @@ export class HttpLoggerMiddleware implements NestMiddleware {
           : numericContentLength;
       })();
 
-      this.logger.info(
-        {
-          method: req.method,
-          url: req.originalUrl ?? req.url,
-          statusCode: res.statusCode,
-          contentLength,
-          durationMs,
-          userAgent: req.get?.('user-agent'),
-          // add your correlation/request id here if you have one
-          // requestId: req.id,
-        },
-        'HTTP request completed'
-      );
+      const url = req.originalUrl ?? req.url;
+      const userAgent = req.get?.('user-agent');
+
+      const payload = {
+        method: req.method,
+        url,
+        statusCode: res.statusCode,
+        ...(contentLength === undefined ? {} : { contentLength }),
+        durationMs,
+        userAgent,
+        // add your correlation/request id here if you have one
+        // requestId: req.id,
+      };
+
+      this.logger.info(payload, 'HTTP request completed');
     });
 
     next();

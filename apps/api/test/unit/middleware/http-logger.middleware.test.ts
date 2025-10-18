@@ -68,7 +68,7 @@ describe("HttpLoggerMiddleware", () => {
     (process.hrtime as unknown as { bigint: () => bigint }).bigint = vi
       .fn()
       .mockReturnValueOnce(0n)
-      .mockReturnValueOnce(5_000_000n);
+      .mockReturnValueOnce(5_678_901n);
 
     const middleware = new HttpLoggerMiddleware(logger as unknown as Logger);
     const req = {
@@ -91,12 +91,12 @@ describe("HttpLoggerMiddleware", () => {
       url: "/health",
       statusCode: 200,
       contentLength: 123,
-      durationMs: 5,
+      durationMs: 5.678,
       userAgent: "vitest",
     });
   });
 
-  it("logs only after the response emits finish", () => {
+  it("logs only after the response emits finish", async () => {
     const logger = createLogger();
 
     const middleware = new HttpLoggerMiddleware(logger as unknown as Logger);
@@ -115,7 +115,7 @@ describe("HttpLoggerMiddleware", () => {
 
     res.emit("finish");
 
-    return expectRequestLogged(
+    await expectRequestLogged(
       logger,
       expect.objectContaining({
         method: "POST",
@@ -123,5 +123,13 @@ describe("HttpLoggerMiddleware", () => {
         statusCode: 202,
       })
     );
+
+    const lastCall = logger.info.mock.calls.at(-1);
+
+    expect(lastCall).toBeDefined();
+
+    const [payload] = lastCall as [Record<string, unknown>, string];
+
+    expect(payload).not.toHaveProperty("contentLength");
   });
 });
