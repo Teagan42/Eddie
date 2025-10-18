@@ -176,4 +176,22 @@ describe('SessionSelector', () => {
 
     expect(screen.getByLabelText('Delete Session 1')).toHaveStyle('align-self: stretch');
   });
+
+  it('renders a compact edit control without visible text while remaining accessible', () => {
+    render(
+      <SessionSelector
+        sessions={baseSessions}
+        selectedSessionId="session-1"
+        onSelectSession={vi.fn()}
+        onRenameSession={vi.fn()}
+        onDeleteSession={vi.fn()}
+        onCreateSession={vi.fn()}
+        isCreatePending={false}
+      />,
+    );
+
+    const editControl = screen.getByRole('button', { name: 'Edit Session 1' });
+    expect(editControl).toHaveAttribute('title', 'Edit Session 1');
+    expect(editControl).toHaveTextContent(/^\s*$/);
+  });
 });
