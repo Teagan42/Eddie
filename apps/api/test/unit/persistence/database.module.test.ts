@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { INestApplicationContext } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import type { EddieConfig } from "@eddie/config";
 import { ConfigStore, DEFAULT_CONFIG } from "@eddie/config";
@@ -41,7 +42,7 @@ describe("DatabaseModule", () => {
     try {
       await moduleRef.init();
 
-      const database = resolveDatabaseService(moduleRef);
+      const database = await resolveDatabaseService(moduleRef);
       const knex = database.getClient();
 
       expect(getSnapshot).toHaveBeenCalledTimes(1);
@@ -74,7 +75,7 @@ describe("DatabaseModule", () => {
           throw new Error("module context unavailable");
         });
 
-      const database = resolveDatabaseService(moduleRef);
+      const database = await resolveDatabaseService(moduleRef);
 
       expect(selectSpy).toHaveBeenCalledWith(DatabaseModule);
       expect(database).toBeInstanceOf(DatabaseService);
@@ -112,16 +113,46 @@ async function createDatabaseTestingModule(
     .compile();
 }
 
-function resolveDatabaseService(moduleRef: TestingModule): DatabaseService {
-  try {
-    return moduleRef
-      .select(DatabaseModule)
-      .get(DatabaseService, { strict: false });
-  } catch (selectError) {
+async function resolveDatabaseService(
+  moduleRef: TestingModule
+): Promise<DatabaseService> {
+  let lastError: unknown;
+
+  const contextFactories: Array<() => INestApplicationContext> = [
+    () => moduleRef.select(DatabaseModule),
+    () => moduleRef,
+  ];
+
+  const availableContexts: INestApplicationContext[] = [];
+
+  for (const getContext of contextFactories) {
     try {
-      return moduleRef.get(DatabaseService, { strict: false });
-    } catch {
-      throw selectError;
+      const context = getContext();
+      availableContexts.push(context);
+
+      try {
+        return context.get(DatabaseService, { strict: false });
+      } catch (getError) {
+        lastError = getError;
+      }
+    } catch (contextError) {
+      lastError = contextError;
     }
   }
+
+  for (const context of availableContexts) {
+    try {
+      return await context.resolve(DatabaseService, undefined, {
+        strict: false,
+      });
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastError instanceof Error) {
+    throw lastError;
+  }
+
+  throw new Error("DatabaseService provider could not be resolved.");
 }

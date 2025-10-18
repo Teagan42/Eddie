@@ -7,17 +7,23 @@ import type { ToolCallState } from "./tool-call.store";
 @Injectable()
 @EventsHandler(ToolCallStarted, ToolCallUpdated, ToolCallCompleted)
 export class ToolCallsGatewayEventsHandler implements IEventHandler<ToolCallLifecycleEvent> {
+  private readonly completedEventName = ToolCallCompleted.name;
+
   constructor(@Inject(ToolsGateway) private readonly gateway: ToolsGateway) {}
 
   handle(event: ToolCallLifecycleEvent): void {
     const payload = this.createPayload(event.state);
 
-    if (event instanceof ToolCallCompleted) {
+    if (event instanceof ToolCallCompleted || this.isLegacyCompletedEvent(event)) {
       this.gateway.emitToolResult(payload);
       return;
     }
 
     this.gateway.emitToolCall(payload);
+  }
+
+  private isLegacyCompletedEvent(event: ToolCallLifecycleEvent): boolean {
+    return event?.constructor?.name === this.completedEventName;
   }
 
   private createPayload(state: ToolCallState): Record<string, unknown> {

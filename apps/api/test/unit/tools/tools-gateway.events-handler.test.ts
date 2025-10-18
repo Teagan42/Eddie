@@ -1,5 +1,11 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { ToolCallStarted, ToolCallUpdated, ToolCallCompleted } from "../../../src/tools/events/tool-call.events";
+import {
+  ToolCallStarted,
+  ToolCallUpdated,
+  ToolCallCompleted,
+  type ToolCallLifecycleEvent,
+} from "../../../src/tools/events/tool-call.events";
+import type { ToolCallState } from "../../../src/tools/tool-call.store";
 
 vi.mock("../../../src/websocket/utils", () => ({
   emitEvent: vi.fn(),
@@ -82,5 +88,47 @@ describe("ToolCallsGatewayEventsHandler", () => {
         agentId: "agent-77",
       })
     );
+  });
+
+  it("emits tool results for completed events from previous module instances", () => {
+    class LegacyToolCallCompleted {
+      constructor(public readonly state: ToolCallState) {}
+    }
+
+    Object.defineProperty(LegacyToolCallCompleted, "name", {
+      value: "ToolCallCompleted",
+    });
+
+    const gateway = {
+      emitToolCall: vi.fn(),
+      emitToolResult: vi.fn(),
+    } as unknown as ToolsGateway;
+    const handler = new ToolCallsGatewayEventsHandler(gateway);
+
+    const baseState: ToolCallState = {
+      sessionId: "s-42",
+      toolCallId: "t-9",
+      name: "summarise",
+      arguments: { query: "hello" },
+      result: { summary: "hi" },
+      status: "completed",
+      startedAt: "2024-01-01T00:00:00.000Z",
+      updatedAt: "2024-01-01T00:05:00.000Z",
+      agentId: "agent-123",
+    };
+
+    const legacyEvent = new LegacyToolCallCompleted(baseState);
+
+    handler.handle(legacyEvent as unknown as ToolCallLifecycleEvent);
+
+    expect(gateway.emitToolResult).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "s-42",
+        id: "t-9",
+        name: "summarise",
+        agentId: "agent-123",
+      }),
+    );
+    expect(gateway.emitToolCall).not.toHaveBeenCalled();
   });
 });
