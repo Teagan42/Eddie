@@ -66,7 +66,7 @@ describe("ChatSessionsController", () => {
     ) as { pipes?: unknown[] } | undefined;
   };
 
-  it.skip("renames a session via the service and returns the DTO", async () => {
+  it("renames a session via the service and returns the DTO", async () => {
     const dto: UpdateChatSessionDto = { title: "Updated" };
     const updated: ChatSessionDto = {
       id: "a3b54e59-6c07-4e92-b918-7a6f8503a3fa",
@@ -98,7 +98,7 @@ describe("ChatSessionsController", () => {
     expect(idParam?.pipes ?? []).toContain(ParseUUIDPipe);
   });
 
-  it.skip("deletes a session through the service", async () => {
+  it("deletes a session through the service", async () => {
     const id = "7e664c1f-690b-4b47-9ce3-03a4f418b226";
     const { controller, commandBus } = createController();
     (commandBus.execute as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
@@ -140,7 +140,7 @@ describe("ChatSessionsController", () => {
     expect(idParam?.pipes ?? []).toContain(ParseUUIDPipe);
   });
 
-  it.skip("archives a session through the command bus", async () => {
+  it("archives a session through the command bus", async () => {
     const archived: ChatSessionDto = {
       id: "f29990d4-675b-4b30-a533-a11b7d1d0a71",
       title: "Session",
@@ -164,7 +164,7 @@ describe("ChatSessionsController", () => {
     expect(command).toMatchObject({ sessionId: archived.id });
   });
 
-  it.skip("creates a session through the command bus", async () => {
+  it("creates a session through the command bus", async () => {
     const dto: CreateChatSessionDto = { title: "New session" };
     const created: ChatSessionDto = {
       id: "9c9c7f25-5b8f-49f3-9f10-2c0cbfdd8b31",
@@ -213,7 +213,7 @@ describe("ChatSessionsController", () => {
     expect(query?.constructor?.name).toBe("ListChatSessionsQuery");
   });
 
-  it.skip("fetches a session via the query bus", async () => {
+  it("fetches a session via the query bus", async () => {
     const session: ChatSessionDto = {
       id: "f6f12f17-2d45-4331-9bd4-52d90d7c4c81",
       title: "Session",
@@ -236,7 +236,7 @@ describe("ChatSessionsController", () => {
     expect(query).toMatchObject({ sessionId: session.id });
   });
 
-  it.skip("lists session messages via the query bus", async () => {
+  it("lists session messages via the query bus", async () => {
     const messages = [];
     const sessionId = "5f4d2d47-8a64-4a6d-b58a-dc06fd44f4b1";
 
@@ -254,7 +254,7 @@ describe("ChatSessionsController", () => {
     expect(query).toMatchObject({ sessionId });
   });
 
-  it.skip("creates a message through the command bus", async () => {
+  it("creates a message through the command bus", async () => {
     const sessionId = "c8bc8a73-1d27-4f5c-b9c6-4d2a1aa946e1";
     const dto: CreateChatMessageDto = { role: "user", content: "hello" };
     const message = {
