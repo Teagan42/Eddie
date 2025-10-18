@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
 import { afterAll, bench, describe, suite } from 'vitest';
+
+import { createSafeBench, type BenchRegistration } from './bench.runtime';
 import knex, { type Knex } from 'knex';
 
 import { KnexChatSessionsRepository } from '@eddie/api/src/chat-sessions/chat-sessions.repository';
@@ -470,7 +472,7 @@ const emitBenchmarkReport = () => {
 interface ChatSessionsBenchmarkRegistrationContext {
   readonly suite: typeof suite;
   readonly describe: typeof describe;
-  readonly bench: typeof bench;
+  readonly bench: BenchRegistration;
   readonly loadDrivers?: () => Promise<ChatSessionsPersistenceDriver[]>;
   readonly measureScenario?: (
     instance: ChatSessionsPersistenceDriverInstance,
@@ -528,17 +530,20 @@ export async function defineChatSessionsPersistenceBenchmarks({
     }
   });
 }
-if (process.env.BENCHMARK) {
-  if (process.env.MARIADB_URL || process.env.MYSQL_URL || process.env.POSTGRES_URL || true) {
-    await defineChatSessionsPersistenceBenchmarks({
-      suite,
-      describe,
-      bench,
-      loadDrivers: loadChatSessionsPersistenceDrivers,
-      measureScenario: measureChatSessionsPersistenceScenario,
-      scenarioOptions: DEFAULT_BENCH_OPTIONS,
-    }).catch((error) => {
-      console.error('Failed to register chat session persistence benchmarks', error);
-    });
-  }
+
+const safeBench = createSafeBench(bench);
+
+if (process.env.MARIADB_URL || process.env.MYSQL_URL || process.env.POSTGRES_URL || true) {
+  await defineChatSessionsPersistenceBenchmarks({
+    suite,
+    describe,
+    bench: safeBench,
+    loadDrivers: loadChatSessionsPersistenceDrivers,
+    measureScenario: measureChatSessionsPersistenceScenario,
+    scenarioOptions: DEFAULT_BENCH_OPTIONS,
+  }).catch((error) => {
+    console.error('Failed to register chat session persistence benchmarks', error);
+  });
 }
+
+

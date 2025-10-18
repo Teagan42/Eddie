@@ -5,6 +5,8 @@ import { basename, dirname, join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { afterAll, beforeAll, bench, suite } from 'vitest';
 
+import { createSafeBench } from './bench.runtime';
+
 import type { ContextConfig, ContextResourceBundleConfig } from '@eddie/config';
 import { ContextService } from '@eddie/context';
 import { LoggerService } from '@eddie/io';
@@ -99,8 +101,37 @@ if (process.env.BENCHMARK) {
       }
     });
 
-    afterAll(async () => {
-      emitStructuredReport(datasetContexts);
+const registerBench = createSafeBench(bench);
+
+suite('ContextService.pack benchmarks', () => {
+  const datasetContexts = new Map<string, DatasetBenchContext>();
+  let contextService: ContextService;
+  let temporaryRoot = '';
+
+  beforeAll(async () => {
+    temporaryRoot = await mkdtemp(join(tmpdir(), 'context-pack-bench-'));
+    const datasets = await prepareContextPackDatasets(temporaryRoot);
+
+    const loggerService = new LoggerService();
+    loggerService.configure({ level: 'silent' });
+    const templateRenderer = new TemplateRendererService();
+    const templateRuntime = new TemplateRuntimeService(
+      templateRenderer,
+      loggerService.getLogger('engine:templates')
+    );
+    contextService = new ContextService(loggerService, templateRuntime);
+
+    for (const dataset of datasets) {
+      datasetContexts.set(dataset.name, {
+        dataset,
+        config: createContextConfig(dataset),
+        durations: [],
+      });
+    }
+  });
+
+  afterAll(async () => {
+    emitStructuredReport(datasetContexts);
 
       if (temporaryRoot) {
         await rm(temporaryRoot, { recursive: true, force: true });
@@ -121,7 +152,22 @@ if (process.env.BENCHMARK) {
       }, PACK_BENCH_OPTIONS);
     }
   });
-}
+
+  for (const datasetName of DATASET_NAMES) {
+    registerBench(`pack ${datasetName}`, async () => {
+      const context = datasetContexts.get(datasetName);
+      if (!context) {
+        throw new Error(`Dataset context for ${datasetName} was not prepared.`);
+      }
+
+      const start = performance.now();
+      await contextService.pack(context.config);
+      const durationMs = performance.now() - start;
+      context.durations.push(durationMs);
+    }, PACK_BENCH_OPTIONS);
+  }
+});
+
 function emitStructuredReport(datasetContexts: Map<string, DatasetBenchContext>): void {
   const scenarios = Array.from(datasetContexts.values())
     .filter((entry) => entry.durations.length > 0)
