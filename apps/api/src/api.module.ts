@@ -36,6 +36,10 @@ const { ConfigurableModuleClass } = new ConfigurableModuleBuilder<CliRuntimeOpti
   moduleName: "EddieApiModule",
 }).build();
 
+type ConfigModuleAsyncOptions = Parameters<
+  typeof ConfigurableModuleClass["registerAsync"]
+>[0];
+
 @Module({
   imports: [
     ContextModule,
@@ -82,29 +86,33 @@ const { ConfigurableModuleClass } = new ConfigurableModuleBuilder<CliRuntimeOpti
   ],
 })
 export class ApiModule extends ConfigurableModuleClass {
+  private static withConfigRegistration(
+    dynamicModule: DynamicModule,
+    configImport: DynamicModule,
+  ): DynamicModule {
+    const imports = dynamicModule.imports ?? [];
+
+    return {
+      ...dynamicModule,
+      imports: [...imports, configImport],
+    };
+  }
+
   static forRoot(
     options: CliRuntimeOptions,
   ): DynamicModule {
     const dynamicModule = super.register(options);
-    return {
-      ...dynamicModule,
-      imports: [
-        ...(dynamicModule.imports ?? []),
-        ConfigModule.register(options),
-      ],
-    };
+    const configRegistration = ConfigModule.register(options);
+
+    return this.withConfigRegistration(dynamicModule, configRegistration);
   }
 
   static forRootAsync(
-    options: Parameters<typeof ConfigurableModuleClass["registerAsync"]>[0],
+    options: ConfigModuleAsyncOptions,
   ): DynamicModule {
     const dynamicModule = super.registerAsync(options);
-    return {
-      ...dynamicModule,
-      imports: [
-        ...(dynamicModule.imports ?? []),
-        ConfigModule.registerAsync(options),
-      ],
-    };
+    const configRegistration = ConfigModule.registerAsync(options);
+
+    return this.withConfigRegistration(dynamicModule, configRegistration);
   }
 }
