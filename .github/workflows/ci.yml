@@ -29,16 +29,31 @@ jobs:
 
       - name: Extract head commit message
         id: commitmsg
+        env:
+          GH_PR_TITLE: ${{ github.event.pull_request.title || '' }}
+          GH_PR_BODY: ${{ github.event.pull_request.body || '' }}
+          GH_HEAD_MSG: ${{ github.event.head_commit.message || '' }}
         run: |
           set -euo pipefail
-          MSG="$(git log -1 --pretty=%B || true)"
-          # Trim to a single line fallback to avoid YAML/Expression surprises
-          ONE="$(printf "%s" "$MSG" | head -n1)"
+          # Collect possible message sources across event types
+          HEAD="${GH_HEAD_MSG:-}"
+          TITLE="${GH_PR_TITLE:-}"
+          BODY="${GH_PR_BODY:-}"
+          # Concatenate and normalize
+          ALL="$(printf "%s\n%s\n%s\n" "$HEAD" "$TITLE" "$BODY" | tr -d '\r')"
+          # Fallback to git when event payloads are empty (e.g., checkout merge commit)
+          if [ -z "$ALL" ]; then
+            GIT_MSG="$(git log -1 --pretty=%B || true)"
+            ALL="${GIT_MSG}"
+          fi
+          # Safe single-line variant
+          ONE="$(printf "%s" "$ALL" | head -n1)"
           echo "msg=$ONE" >> "$GITHUB_OUTPUT"
+          echo "all=$ALL" >> "$GITHUB_OUTPUT"
 
       - name: Cache npm dependencies
         uses: actions/cache@v4
-        if: ${{ !contains(steps.commitmsg.outputs.msg || '', 'skip-cache') }}
+        if: ${{ !contains(steps.commitmsg.outputs.all, 'skip-cache') }}
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node-20.x-${{ hashFiles('package-lock.json') }}
@@ -82,16 +97,31 @@ jobs:
 
       - name: Extract head commit message
         id: commitmsg
+        env:
+          GH_PR_TITLE: ${{ github.event.pull_request.title || '' }}
+          GH_PR_BODY: ${{ github.event.pull_request.body || '' }}
+          GH_HEAD_MSG: ${{ github.event.head_commit.message || '' }}
         run: |
           set -euo pipefail
-          MSG="$(git log -1 --pretty=%B || true)"
-          # Trim to a single line fallback to avoid YAML/Expression surprises
-          ONE="$(printf "%s" "$MSG" | head -n1)"
+          # Collect possible message sources across event types
+          HEAD="${GH_HEAD_MSG:-}"
+          TITLE="${GH_PR_TITLE:-}"
+          BODY="${GH_PR_BODY:-}"
+          # Concatenate and normalize
+          ALL="$(printf "%s\n%s\n%s\n" "$HEAD" "$TITLE" "$BODY" | tr -d '\r')"
+          # Fallback to git when event payloads are empty (e.g., checkout merge commit)
+          if [ -z "$ALL" ]; then
+            GIT_MSG="$(git log -1 --pretty=%B || true)"
+            ALL="${GIT_MSG}"
+          fi
+          # Safe single-line variant
+          ONE="$(printf "%s" "$ALL" | head -n1)"
           echo "msg=$ONE" >> "$GITHUB_OUTPUT"
+          echo "all=$ALL" >> "$GITHUB_OUTPUT"
 
       - name: Cache npm dependencies
         uses: actions/cache@v4
-        if: ${{ !contains(steps.commitmsg.outputs.msg || '', 'skip-cache') }}
+        if: ${{ !contains(steps.commitmsg.outputs.all, 'skip-cache') }}
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
@@ -128,16 +158,31 @@ jobs:
 
       - name: Extract head commit message
         id: commitmsg
+        env:
+          GH_PR_TITLE: ${{ github.event.pull_request.title || '' }}
+          GH_PR_BODY: ${{ github.event.pull_request.body || '' }}
+          GH_HEAD_MSG: ${{ github.event.head_commit.message || '' }}
         run: |
           set -euo pipefail
-          MSG="$(git log -1 --pretty=%B || true)"
-          # Trim to a single line fallback to avoid YAML/Expression surprises
-          ONE="$(printf "%s" "$MSG" | head -n1)"
+          # Collect possible message sources across event types
+          HEAD="${GH_HEAD_MSG:-}"
+          TITLE="${GH_PR_TITLE:-}"
+          BODY="${GH_PR_BODY:-}"
+          # Concatenate and normalize
+          ALL="$(printf "%s\n%s\n%s\n" "$HEAD" "$TITLE" "$BODY" | tr -d '\r')"
+          # Fallback to git when event payloads are empty (e.g., checkout merge commit)
+          if [ -z "$ALL" ]; then
+            GIT_MSG="$(git log -1 --pretty=%B || true)"
+            ALL="${GIT_MSG}"
+          fi
+          # Safe single-line variant
+          ONE="$(printf "%s" "$ALL" | head -n1)"
           echo "msg=$ONE" >> "$GITHUB_OUTPUT"
+          echo "all=$ALL" >> "$GITHUB_OUTPUT"
 
       - name: Cache npm dependencies
         uses: actions/cache@v4
-        if: ${{ !contains(steps.commitmsg.outputs.msg || '', 'skip-cache') }}
+        if: ${{ !contains(steps.commitmsg.outputs.all, 'skip-cache') }}
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node-20.x-${{ hashFiles('package-lock.json') }}
@@ -189,16 +234,31 @@ jobs:
 
       - name: Extract head commit message
         id: commitmsg
+        env:
+          GH_PR_TITLE: ${{ github.event.pull_request.title || '' }}
+          GH_PR_BODY: ${{ github.event.pull_request.body || '' }}
+          GH_HEAD_MSG: ${{ github.event.head_commit.message || '' }}
         run: |
           set -euo pipefail
-          MSG="$(git log -1 --pretty=%B || true)"
-          # Trim to a single line fallback to avoid YAML/Expression surprises
-          ONE="$(printf "%s" "$MSG" | head -n1)"
+          # Collect possible message sources across event types
+          HEAD="${GH_HEAD_MSG:-}"
+          TITLE="${GH_PR_TITLE:-}"
+          BODY="${GH_PR_BODY:-}"
+          # Concatenate and normalize
+          ALL="$(printf "%s\n%s\n%s\n" "$HEAD" "$TITLE" "$BODY" | tr -d '\r')"
+          # Fallback to git when event payloads are empty (e.g., checkout merge commit)
+          if [ -z "$ALL" ]; then
+            GIT_MSG="$(git log -1 --pretty=%B || true)"
+            ALL="${GIT_MSG}"
+          fi
+          # Safe single-line variant
+          ONE="$(printf "%s" "$ALL" | head -n1)"
           echo "msg=$ONE" >> "$GITHUB_OUTPUT"
+          echo "all=$ALL" >> "$GITHUB_OUTPUT"
 
       - name: Cache npm dependencies
         uses: actions/cache@v4
-        if: ${{ !contains(steps.commitmsg.outputs.msg || '', 'skip-cache') }}
+        if: ${{ !contains(steps.commitmsg.outputs.all, 'skip-cache') }}
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
@@ -258,16 +318,31 @@ jobs:
 
       - name: Extract head commit message
         id: commitmsg
+        env:
+          GH_PR_TITLE: ${{ github.event.pull_request.title || '' }}
+          GH_PR_BODY: ${{ github.event.pull_request.body || '' }}
+          GH_HEAD_MSG: ${{ github.event.head_commit.message || '' }}
         run: |
           set -euo pipefail
-          MSG="$(git log -1 --pretty=%B || true)"
-          # Trim to a single line fallback to avoid YAML/Expression surprises
-          ONE="$(printf "%s" "$MSG" | head -n1)"
+          # Collect possible message sources across event types
+          HEAD="${GH_HEAD_MSG:-}"
+          TITLE="${GH_PR_TITLE:-}"
+          BODY="${GH_PR_BODY:-}"
+          # Concatenate and normalize
+          ALL="$(printf "%s\n%s\n%s\n" "$HEAD" "$TITLE" "$BODY" | tr -d '\r')"
+          # Fallback to git when event payloads are empty (e.g., checkout merge commit)
+          if [ -z "$ALL" ]; then
+            GIT_MSG="$(git log -1 --pretty=%B || true)"
+            ALL="${GIT_MSG}"
+          fi
+          # Safe single-line variant
+          ONE="$(printf "%s" "$ALL" | head -n1)"
           echo "msg=$ONE" >> "$GITHUB_OUTPUT"
+          echo "all=$ALL" >> "$GITHUB_OUTPUT"
 
       - name: Cache npm dependencies
         uses: actions/cache@v4
-        if: ${{ !contains(steps.commitmsg.outputs.msg || '', 'skip-cache') }}
+        if: ${{ !contains(steps.commitmsg.outputs.all, 'skip-cache') }}
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node-20.x-${{ hashFiles('package-lock.json') }}
