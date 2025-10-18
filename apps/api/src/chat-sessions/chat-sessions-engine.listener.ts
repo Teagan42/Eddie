@@ -22,18 +22,18 @@ import { ChatMessageCreatedEvent } from "@eddie/types";
 const DEFAULT_ENGINE_FAILURE_MESSAGE =
     "Engine failed to respond. Check server logs for details.";
 
-@Injectable()
 @EventsHandler(ChatMessageCreatedEvent)
+@Injectable()
 export class ChatSessionsEngineListener
 implements IEventHandler<ChatMessageCreatedEvent> {
   private readonly logger = new Logger(ChatSessionsEngineListener.name);
 
   constructor(
-        private readonly chatSessions: ChatSessionsService,
-        private readonly engine: EngineService,
-        private readonly commandBus: CommandBus,
-        private readonly logs: LogsService,
-        private readonly streamRenderer: ChatSessionStreamRendererService
+    private readonly chatSessions: ChatSessionsService,
+    private readonly engine: EngineService,
+    private readonly commandBus: CommandBus,
+    private readonly logs: LogsService,
+    private readonly streamRenderer: ChatSessionStreamRendererService
   ) {}
 
   async handle(event: ChatMessageCreatedEvent): Promise<void> {
@@ -56,7 +56,7 @@ implements IEventHandler<ChatMessageCreatedEvent> {
   private shouldInvokeEngine(message: ChatMessageDto): boolean {
     return (
       message.role === ChatMessageRole.User ||
-            message.role === ChatMessageRole.System
+      message.role === ChatMessageRole.System
     );
   }
 

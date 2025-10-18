@@ -7,12 +7,14 @@ const emitEventSpy = vi.spyOn(websocketUtils, "emitEvent");
 
 describe("TracesGateway", () => {
   let gateway: TracesGateway;
+  let server: unknown;
 
   beforeEach(() => {
     gateway = new TracesGateway();
-    (gateway as unknown as { server: unknown }).server = {
+    server = {
       clients: new Set(),
     } as unknown;
+    (gateway as unknown as { server: unknown }).server = server;
 
     emitEventSpy.mockClear();
   });
@@ -22,7 +24,7 @@ describe("TracesGateway", () => {
     expect("onModuleDestroy" in gateway).toBe(false);
   });
 
-  it.skip("emits websocket events for created traces", () => {
+  it("emits websocket events for created traces", () => {
     const trace: TraceDto = {
       id: "trace-id",
       name: "trace",
@@ -31,14 +33,12 @@ describe("TracesGateway", () => {
       updatedAt: new Date().toISOString(),
     };
 
-    const server = (gateway as unknown as { server: unknown }).server;
-
     gateway.emitTraceCreated(trace);
 
     expect(emitEventSpy).toHaveBeenCalledWith(server, "trace.created", trace);
   });
 
-  it.skip("emits websocket events for updated traces", () => {
+  it("emits websocket events for updated traces", () => {
     const trace: TraceDto = {
       id: "trace-id",
       name: "trace",
@@ -46,8 +46,6 @@ describe("TracesGateway", () => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-
-    const server = (gateway as unknown as { server: unknown }).server;
 
     gateway.emitTraceUpdated(trace);
 

@@ -43,6 +43,11 @@ const SECTION_TOGGLE_BUTTON_CLASS =
 
 const TOOL_PREVIEW_LIMIT = 120;
 
+const TOOL_DETAILS_BUTTON_CLASS =
+  'inline-flex items-center gap-1 rounded-md border border-accent/40 bg-accent/5 px-2 py-1 text-xs font-medium text-accent transition hover:bg-accent/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
+
+const TRANSITION_REGION_CLASS = 'transition-all duration-300 ease-out';
+
 export interface AgentExecutionTreeProps {
   state: ExecutionTreeState | null | undefined;
   selectedAgentId: string | null;
@@ -235,6 +240,10 @@ export function AgentExecutionTree({
             return null;
           }
 
+          const orderedEntries = [...entries].sort(
+            (a, b) => resolveInvocationTimestamp(b) - resolveInvocationTimestamp(a),
+          );
+
           const key: ToolGroupKey = `${agent.id}:${status}`;
           const isExpanded = expandedGroups.has(key);
           const regionId = `${key}:region`;
@@ -266,13 +275,19 @@ export function AgentExecutionTree({
                   role="region"
                   id={regionId}
                   aria-label={`${TOOL_STATUS_LABELS[status].toLowerCase()} for ${agent.name}`}
-                  className="mt-2 rounded-lg border border-white/10 bg-slate-950/70"
+                  className={cn(
+                    'mt-2 rounded-lg border border-white/10 bg-slate-950/70',
+                    TRANSITION_REGION_CLASS,
+                  )}
                 >
                   <ul className="divide-y divide-white/5">
-                    {entries.map((entry) => {
+                    {orderedEntries.map((entry) => {
                       const metadataInspector = renderInvocationMetadata(entry);
                       return (
-                        <li key={entry.id} className="p-3 space-y-3">
+                        <li
+                          key={entry.id}
+                          className={cn('p-3 space-y-3', TRANSITION_REGION_CLASS)}
+                        >
                           <Flex align="center" justify="between" gap="3">
                             <Box className="min-w-0">
                               <Text weight="medium" className="truncate text-white/90">
@@ -291,7 +306,7 @@ export function AgentExecutionTree({
                               onClick={() =>
                                 setDetailsTarget({ agentId: agent.id, invocationId: entry.id })
                               }
-                              className="inline-flex items-center gap-1 rounded-md border border-accent/40 px-2 py-1 text-xs font-medium text-accent transition hover:bg-accent/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                              className={TOOL_DETAILS_BUTTON_CLASS}
                               aria-label="View full tool invocation details"
                             >
                               View details
@@ -350,7 +365,10 @@ export function AgentExecutionTree({
             role="region"
             id={regionId}
             aria-label={`context bundles for ${_agent.name}`}
-            className="mt-2 space-y-2 rounded-lg border border-white/10 bg-slate-950/70 p-3"
+            className={cn(
+              'mt-2 space-y-2 rounded-lg border border-white/10 bg-slate-950/70 p-3',
+              TRANSITION_REGION_CLASS,
+            )}
           >
             {bundles.map((bundle) => (
               <Box key={bundle.id} className="space-y-1">
@@ -419,7 +437,7 @@ export function AgentExecutionTree({
             role="region"
             id={regionId}
             aria-label={`spawned agents for ${agent.name}`}
-            className="mt-3 border-l border-dashed border-white/10 pl-3"
+            className={cn('mt-3 border-l border-dashed border-white/10 pl-3', TRANSITION_REGION_CLASS)}
           >
             {renderAgents(agent.children, (agent.depth ?? 0) + 1)}
           </Box>
@@ -440,7 +458,13 @@ export function AgentExecutionTree({
     return (
       <ul className="space-y-3" data-depth={depth}>
         {nodes.map((node) => (
-          <li key={node.id} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+          <li
+            key={node.id}
+            className={cn(
+              'rounded-2xl border border-white/10 bg-slate-950/60 p-4',
+              TRANSITION_REGION_CLASS,
+            )}
+          >
             <Flex direction="column" gap="3">
               <button
                 type="button"
@@ -583,6 +607,20 @@ function resolveInvocationPreviewSource(
   const primary = isTerminal ? entry.result : entry.args;
   const secondary = isTerminal ? entry.args : entry.result;
   return primary ?? secondary ?? null;
+}
+
+function resolveInvocationTimestamp(entry: ToolInvocationNode): number {
+  const updated = entry.updatedAt ? Date.parse(entry.updatedAt) : Number.NaN;
+  if (!Number.isNaN(updated)) {
+    return updated;
+  }
+
+  const created = entry.createdAt ? Date.parse(entry.createdAt) : Number.NaN;
+  if (!Number.isNaN(created)) {
+    return created;
+  }
+
+  return Number.NEGATIVE_INFINITY;
 }
 
 function collectExpandableAgentIds(nodes: AgentHierarchyNode[]): Set<string> {

@@ -127,6 +127,12 @@ describe("bootstrap runtime options", () => {
   const originalEnv = { ...process.env };
   const originalArgv = process.argv.slice();
 
+  function clearBootstrapMocks(): void {
+    stubs.apiForRootMock.mockClear();
+    stubs.createMock.mockClear();
+    stubs.listenMock.mockClear();
+  }
+
   beforeEach(() => {
     process.env = { ...originalEnv };
     process.argv = originalArgv.slice(0, 2);
@@ -169,12 +175,10 @@ describe("bootstrap runtime options", () => {
     vi.clearAllMocks();
   });
 
-  it.skip("does not call ConfigService.load when runtime overrides provided", async () => {
+  it("does not call ConfigService.load when runtime overrides provided", async () => {
     stubs.listenMock.mockResolvedValue(undefined);
 
-    process.argv = [
-      "node",
-      "main.js",
+    const cliArgs = [
       "--config",
       "/tmp/eddie.yaml",
       "--context",
@@ -202,7 +206,7 @@ describe("bootstrap runtime options", () => {
       "claude-3",
     ];
 
-    setRuntimeOptionsFromArgv(process.argv.slice(2));
+    setRuntimeOptionsFromArgv(cliArgs);
 
     const { bootstrap } = await import("../../../src/main");
 
@@ -211,9 +215,26 @@ describe("bootstrap runtime options", () => {
     expect(stubs.loadMock).not.toHaveBeenCalled();
     expect(stubs.createMock).toHaveBeenCalledTimes(2);
     expect(stubs.listenMock).toHaveBeenCalledTimes(2);
+
+    const lastCall = stubs.apiForRootMock.mock.calls.at(-1);
+    expect(lastCall?.[0]).toMatchObject({
+      config: "/tmp/eddie.yaml",
+      context: ["src", "docs", "tests"],
+      tools: ["lint", "format"],
+      disabledTools: ["write"],
+      jsonlTrace: "trace.jsonl",
+      logLevel: "debug",
+      logFile: "eddie.log",
+      agentMode: "router",
+      disableSubagents: true,
+      autoApprove: true,
+      nonInteractive: true,
+      provider: "anthropic",
+      model: "claude-3",
+    });
   });
 
-  it.skip("uses ApiModule.forRoot when creating the application", async () => {
+  it("uses ApiModule.forRoot when creating the application", async () => {
     const runtimeOverrides = {
       config: "/tmp/eddie.yaml",
       context: ["src", "docs"],
@@ -225,31 +246,16 @@ describe("bootstrap runtime options", () => {
       .mockReturnValueOnce({})
       .mockReturnValueOnce(moduleRef);
 
-    process.argv = [
-      "node",
-      "main.js",
-      "--config",
-      runtimeOverrides.config!,
-      "--context",
-      runtimeOverrides.context![0]!,
-      "--context",
-      runtimeOverrides.context![1]!,
-    ];
-
     const runtimeOptionsModule = await import("../../../src/runtime-options");
-    const getRuntimeOptionsSpy = vi
-      .spyOn(runtimeOptionsModule, "getRuntimeOptions")
-      .mockReturnValueOnce({})
-      .mockReturnValueOnce({
-        config: runtimeOverrides.config,
-        context: runtimeOverrides.context,
-      });
+    runtimeOptionsModule.setRuntimeOptions(runtimeOverrides);
 
     const { bootstrap } = await import("../../../src/main");
 
+    clearBootstrapMocks();
+
     await bootstrap();
 
-    expect(stubs.apiForRootMock).toHaveBeenCalledTimes(2);
+    expect(stubs.apiForRootMock).toHaveBeenCalledTimes(1);
     const lastCall = stubs.apiForRootMock.mock.calls.at(-1);
     expect(lastCall?.[0]).toEqual({
       config: runtimeOverrides.config,
@@ -258,20 +264,16 @@ describe("bootstrap runtime options", () => {
 
     const createArgs = stubs.createMock.mock.calls.at(-1);
     expect(createArgs?.[0]).toBe(moduleRef);
-
-    getRuntimeOptionsSpy.mockRestore();
   });
 
-  it.skip("merges CLI arguments with environment overrides before bootstrap", async () => {
+  it("merges CLI arguments with environment overrides before bootstrap", async () => {
     stubs.listenMock.mockResolvedValue(undefined);
 
     process.env.EDDIE_CLI_TOOLS = "lint,format";
     process.env.EDDIE_CLI_LOG_LEVEL = "info";
     process.env.EDDIE_CLI_MODEL = "env-model";
 
-    process.argv = [
-      "node",
-      "main.js",
+    const cliArgs = [
       "--model",
       "cli-model",
       "--context",
@@ -282,7 +284,11 @@ describe("bootstrap runtime options", () => {
       "debug",
     ];
 
+    setRuntimeOptionsFromArgv(cliArgs);
+
     const { bootstrap } = await import("../../../src/main");
+
+    clearBootstrapMocks();
 
     await bootstrap();
 

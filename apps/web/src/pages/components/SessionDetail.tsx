@@ -1,6 +1,6 @@
 import { Badge, Flex, Heading, ScrollArea, Text } from "@radix-ui/themes";
 import type { ChatMessageDto, ChatSessionDto } from "@eddie/api-client";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 const timeFormatOptions: Intl.DateTimeFormatOptions = {
   hour: "2-digit",
@@ -35,9 +35,46 @@ export function SessionDetail({ session, messages, isLoading }: SessionDetailPro
   );
 }
 
+type StreamAwareMessage = ChatMessageDto & { event?: string | null };
+
+function deriveCompletedMessages(messages: ChatMessageDto[]): StreamAwareMessage[] {
+  const completed: StreamAwareMessage[] = [];
+  const partials = new Map<string, StreamAwareMessage>();
+
+  for (const candidate of messages as StreamAwareMessage[]) {
+    const eventType = typeof candidate.event === "string" ? candidate.event : null;
+
+    if (eventType && eventType !== "end") {
+      const previous = partials.get(candidate.id);
+      partials.set(candidate.id, previous ? { ...previous, ...candidate } : { ...candidate });
+      continue;
+    }
+
+    if (eventType === "end") {
+      const base = partials.get(candidate.id);
+      const merged: StreamAwareMessage = { ...(base ?? {}), ...candidate };
+      if (!merged.content && base?.content) {
+        merged.content = base.content;
+      }
+      completed.push(merged);
+      partials.delete(candidate.id);
+      continue;
+    }
+
+    completed.push(candidate);
+  }
+
+  return completed;
+}
+
 function MessagesList({ messages }: { messages: ChatMessageDto[] }): JSX.Element {
+  const completedMessages = useMemo(
+    () => deriveCompletedMessages(messages),
+    [messages]
+  );
   const lastMessageMarkerRef = useRef<HTMLDivElement | null>(null);
-  const lastMessage = messages.length > 0 ? messages[messages.length - 1]! : null;
+  const lastMessage =
+    completedMessages.length > 0 ? completedMessages[completedMessages.length - 1]! : null;
   const lastMessageId = lastMessage?.id ?? null;
   const lastMessageContent = lastMessage?.content ?? null;
 
@@ -65,7 +102,7 @@ function MessagesList({ messages }: { messages: ChatMessageDto[] }): JSX.Element
         aria-hidden
       />
       <Flex direction="column" gap="3" className="relative z-10">
-        {messages.length === 0 ? (
+        {completedMessages.length === 0 ? (
           <Text size="2" color="gray">
             No messages yet. Send the first message to kick off the session.
           </Text>
