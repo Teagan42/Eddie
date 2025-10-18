@@ -264,18 +264,5 @@ suite('OpenAIAdapter.stream recorded scenarios', () => {
         warm: measurement.warmStream.events,
       };
     });
-
-    for (const fixture of fixtureCache) {
-      bench(`${fixture.label} (cold + warm)`, async () => {
-        const measurement = await measureProviderStreamScenario(fixture);
-        const series = ensureScenarioSeries(fixture);
-        series.coldStartDurations.push(measurement.coldStart.durationMs);
-        series.warmStreamDurations.push(measurement.warmStream.durationMs);
-        series.lastEvents = {
-          cold: measurement.coldStart.events,
-          warm: measurement.warmStream.events,
-        };
-      });
-    }
-  });
-}
+  }
+});
