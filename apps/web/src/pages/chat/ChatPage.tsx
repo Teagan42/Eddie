@@ -77,6 +77,14 @@ const MESSAGE_CONTAINER_CLASS =
 
 const ORCHESTRATOR_METADATA_QUERY_KEY = 'orchestrator-metadata' as const;
 
+const safelyTeardown = (teardown?: () => void): void => {
+  try {
+    teardown?.();
+  } catch {
+    // Swallow teardown errors to keep realtime resilient.
+  }
+};
+
 const getOrchestratorMetadataQueryKey = (sessionId: string | null) =>
   [ORCHESTRATOR_METADATA_QUERY_KEY, sessionId] as const;
 
@@ -368,6 +376,47 @@ export function ChatPage(): JSX.Element {
     [setSessionContext],
   );
 
+  const handleExecutionTreeUpdated = useCallback(
+    (payload: unknown) => {
+      if (!payload || typeof payload !== 'object') {
+        return;
+      }
+
+      const candidate = payload as {
+        sessionId?: unknown;
+        state?: unknown;
+      };
+      const sessionId = typeof candidate.sessionId === 'string' ? candidate.sessionId : null;
+      if (!sessionId) {
+        return;
+      }
+
+      if (!candidate.state || typeof candidate.state !== 'object') {
+        return;
+      }
+
+      const nextState = candidate.state as ExecutionTreeState;
+      if (
+        !Array.isArray(nextState.agentHierarchy) ||
+        !Array.isArray(nextState.toolInvocations) ||
+        !Array.isArray(nextState.contextBundles)
+      ) {
+        return;
+      }
+
+      const clonedTree = cloneExecutionTreeState(nextState);
+      const capturedAt =
+        typeof nextState.updatedAt === 'string' ? nextState.updatedAt : undefined;
+
+      setSessionContext(sessionId, {
+        sessionId,
+        executionTree: clonedTree,
+        capturedAt,
+      });
+    },
+    [setSessionContext],
+  );
+
   useEffect(() => {
     const tools = api.sockets.tools;
     if (!tools) {
@@ -381,14 +430,29 @@ export function ChatPage(): JSX.Element {
 
     return () => {
       unsubscribes.forEach((unsubscribe) => {
-        try {
-          unsubscribe?.();
-        } catch {
-          // Swallow teardown errors to keep realtime resilient.
-        }
+        safelyTeardown(unsubscribe);
       });
     };
   }, [api, handleToolLifecycleEvent]);
+
+  useEffect(() => {
+    const chatSessions = api.sockets.chatSessions;
+    if (!chatSessions?.onExecutionTreeUpdated) {
+      return;
+    }
+
+    const unsubscribe = chatSessions.onExecutionTreeUpdated((payload) => {
+      try {
+        handleExecutionTreeUpdated(payload);
+      } catch {
+        // Ignore handler errors to keep realtime resilient.
+      }
+    });
+
+    return () => {
+      safelyTeardown(unsubscribe);
+    };
+  }, [api, handleExecutionTreeUpdated]);
 
   const getMessageCacheLength = useCallback(
     (sessionId: string): number | undefined => {

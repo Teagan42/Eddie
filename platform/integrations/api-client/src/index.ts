@@ -228,6 +228,7 @@ export interface ChatSessionsSocket {
     onAgentActivity(
         handler: (activity: AgentActivityEventDto) => void
     ): Unsubscribe;
+    onExecutionTreeUpdated(handler: (payload: unknown) => void): Unsubscribe;
     emitMessage(sessionId: string, payload: CreateChatMessageDto): void;
 }
 
@@ -451,6 +452,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     },
     onAgentActivity(handler) {
       return chatChannel.on("agent.activity", handler);
+    },
+    onExecutionTreeUpdated(handler) {
+      return chatChannel.on("execution-tree.updated", handler);
     },
     emitMessage(sessionId, payload) {
       chatChannel.emit("message.send", { sessionId, message: payload });

@@ -3,7 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { composeExecutionTreeState } from './execution-tree-state';
 import { createChatPageRenderer } from './test-utils';
+import type { ExecutionTreeState } from '@eddie/types';
 
 const listSessionsMock = vi.fn();
 const listMessagesMock = vi.fn();
@@ -12,6 +14,7 @@ const catalogMock = vi.fn();
 
 const toolCallHandlers: Array<(payload: unknown) => void> = [];
 const toolResultHandlers: Array<(payload: unknown) => void> = [];
+const executionTreeHandlers: Array<(payload: unknown) => void> = [];
 
 class ResizeObserverMock {
   observe(): void {}
@@ -70,6 +73,15 @@ vi.mock('@/api/api-provider', () => ({
         onMessageCreated: vi.fn().mockReturnValue(() => {}),
         onMessageUpdated: vi.fn().mockReturnValue(() => {}),
         onAgentActivity: vi.fn().mockReturnValue(() => {}),
+        onExecutionTreeUpdated: vi.fn((handler: (payload: unknown) => void) => {
+          executionTreeHandlers.push(handler);
+          return () => {
+            const index = executionTreeHandlers.indexOf(handler);
+            if (index >= 0) {
+              executionTreeHandlers.splice(index, 1);
+            }
+          };
+        }),
       },
       tools: {
         onToolCall: vi.fn((handler: (payload: unknown) => void) => {
@@ -111,6 +123,7 @@ describe('ChatPage execution tree realtime updates', () => {
     vi.clearAllMocks();
     toolCallHandlers.length = 0;
     toolResultHandlers.length = 0;
+    executionTreeHandlers.length = 0;
 
     const now = new Date().toISOString();
 
@@ -263,6 +276,110 @@ describe('ChatPage execution tree realtime updates', () => {
     ).toBeInTheDocument();
     expect(
       within(completedRegion).getByText(/done/i),
+    ).toBeInTheDocument();
+  }, 20000);
+
+  it('synchronizes execution tree state from realtime updates', async () => {
+    const user = userEvent.setup();
+    const { client } = renderChatPage();
+
+    await waitFor(() => {
+      expect(executionTreeHandlers.length).toBeGreaterThan(0);
+    });
+
+    await waitFor(() => {
+      expect(getMetadataMock).toHaveBeenCalled();
+    });
+
+    const executionTreeUpdate: ExecutionTreeState = composeExecutionTreeState(
+      [
+        {
+          id: 'session-1',
+          name: 'Session 1',
+          provider: 'orchestrator',
+          model: 'delegator',
+          depth: 0,
+          lineage: ['session-1'],
+          children: [
+            {
+              id: 'delegate-agent',
+              name: 'Delegate agent',
+              provider: 'openai',
+              model: 'gpt-4o',
+              depth: 1,
+              lineage: ['session-1', 'delegate-agent'],
+              children: [],
+            },
+          ],
+        },
+      ],
+      [
+        {
+          id: 'call-42',
+          name: 'delegate_search',
+          status: 'running',
+          agentId: 'delegate-agent',
+          createdAt: '2024-05-01T12:05:00.000Z',
+          updatedAt: '2024-05-01T12:05:00.000Z',
+          metadata: {
+            args: { query: 'status report' },
+          },
+          children: [],
+        },
+      ],
+      [],
+      {
+        createdAt: '2024-05-01T12:05:00.000Z',
+        updatedAt: '2024-05-01T12:05:00.000Z',
+      },
+    );
+
+    await act(async () => {
+      executionTreeHandlers.forEach((handler) =>
+        handler({ sessionId: 'session-1', state: executionTreeUpdate }),
+      );
+    });
+
+    await waitFor(() => {
+      const snapshot = client.getQueryData<{
+        executionTree?: ExecutionTreeState | null;
+      }>(['orchestrator-metadata', 'session-1']);
+      expect(snapshot?.executionTree?.updatedAt).toBe(
+        '2024-05-01T12:05:00.000Z',
+      );
+      expect(snapshot?.executionTree?.toolInvocations).toHaveLength(1);
+    });
+
+    const spawnedAgentsToggle = await screen.findByRole('button', {
+      name: /toggle spawned agents for session 1/i,
+    });
+
+    if (spawnedAgentsToggle.getAttribute('aria-expanded') !== 'true') {
+      await user.click(spawnedAgentsToggle);
+    }
+
+    const spawnedAgentsRegion = await screen.findByRole('region', {
+      name: /spawned agents for session 1/i,
+    });
+
+    expect(
+      within(spawnedAgentsRegion).getByText(/delegate agent/i),
+    ).toBeInTheDocument();
+
+    const runningToggle = await screen.findByRole('button', {
+      name: /running tool invocations/i,
+    });
+    await user.click(runningToggle);
+
+    const runningRegion = await screen.findByRole('region', {
+      name: /running tool invocations for delegate agent/i,
+    });
+
+    expect(
+      within(runningRegion).getByText(/delegate_search/i),
+    ).toBeInTheDocument();
+    expect(
+      within(runningRegion).getByText(/status report/i),
     ).toBeInTheDocument();
   }, 20000);
 });

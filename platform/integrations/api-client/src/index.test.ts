@@ -241,6 +241,45 @@ describe("createApiClient", () => {
     client.dispose();
   });
 
+  it("registers execution tree updates on the chat channel", () => {
+    const client = createApiClient({
+      baseUrl: "https://example.test/api/",
+      websocketUrl: "ws://example.test/ws/",
+    });
+
+    const chatChannel = createdChannels[ 0 ]!;
+    const handler = vi.fn();
+    const chatSessionsSocket = client.sockets.chatSessions as typeof client.sockets.chatSessions & {
+      onExecutionTreeUpdated: (handler: (payload: unknown) => void) => () => void;
+    };
+
+    const unsubscribe = chatSessionsSocket.onExecutionTreeUpdated(handler);
+
+    expect(chatChannel.on).toHaveBeenCalledWith(
+      "execution-tree.updated",
+      expect.any(Function)
+    );
+
+    const treeHandlers = chatChannel.handlers.get("execution-tree.updated");
+    expect(treeHandlers?.size).toBe(1);
+
+    const [ registeredHandler ] = [ ...(treeHandlers ?? []) ];
+    const payload = {
+      sessionId: "session-1",
+      state: { agentHierarchy: [], toolInvocations: [], contextBundles: [] },
+    };
+
+    registeredHandler?.(payload);
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith(payload);
+
+    unsubscribe();
+    expect(chatChannel.handlers.get("execution-tree.updated")?.size ?? 0).toBe(0);
+
+    client.dispose();
+  });
+
   it("passes pagination parameters to the logs HTTP client", () => {
     const logsService = LogsService as unknown as Record<string, unknown>;
     const listMock = vi.fn().mockResolvedValue([]);
