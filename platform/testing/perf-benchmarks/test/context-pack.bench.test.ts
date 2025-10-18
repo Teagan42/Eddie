@@ -8,8 +8,18 @@ type BenchRegistration = {
   readonly options: Record<string, unknown> | undefined;
 };
 
+type AsyncFactoryRegistration = (
+  name: string,
+  factory: () => unknown | Promise<unknown>,
+) => void;
+
+type AsyncBenchRegistration = (
+  name: string,
+  handler: () => unknown | Promise<unknown>,
+  options?: Record<string, unknown>,
+) => void;
+
 const benchRegistrations: BenchRegistration[] = [];
-const beforeAllRegistrations: BenchHandler[] = [];
 const afterAllRegistrations: BenchHandler[] = [];
 
 const registryMocks = vi.hoisted(() => ({
@@ -29,9 +39,6 @@ vi.mock('vitest', async () => {
     suite: (_name: string, factory: () => void) => {
       factory();
     },
-    beforeAll: (callback: BenchHandler) => {
-      beforeAllRegistrations.push(callback);
-    },
     afterAll: (callback: BenchHandler) => {
       afterAllRegistrations.push(callback);
     },
@@ -41,16 +48,24 @@ vi.mock('vitest', async () => {
 describe('context-pack benchmarks', () => {
   beforeEach(() => {
     benchRegistrations.length = 0;
-    beforeAllRegistrations.length = 0;
     afterAllRegistrations.length = 0;
     registryMocks.registerBenchmarkActionEntry.mockReset();
     vi.resetModules();
   });
 
   it('configures pack benches with multiple iterations to stabilise results', async () => {
-    await import('../src/context-pack.bench');
+    const { defineContextPackBenchmarks } = await import('../src/context-pack.bench');
 
-    expect(beforeAllRegistrations).not.toHaveLength(0);
+    await defineContextPackBenchmarks({
+      suite: (name, factory) => {
+        expect(name).toBe('ContextService.pack benchmarks');
+        factory();
+      },
+      bench: (name, handler, options) => {
+        benchRegistrations.push({ name, handler, options });
+      },
+    });
+
     expect(afterAllRegistrations).not.toHaveLength(0);
     expect(benchRegistrations).toHaveLength(3);
 
@@ -123,11 +138,16 @@ describe('context-pack benchmarks', () => {
       .spyOn(performance, 'now')
       .mockImplementation(() => (clock += 5));
 
-    await import('../src/context-pack.bench');
+    const { defineContextPackBenchmarks } = await import('../src/context-pack.bench');
 
-    for (const setup of beforeAllRegistrations) {
-      await setup();
-    }
+    await defineContextPackBenchmarks({
+      suite: (_name, factory) => {
+        factory();
+      },
+      bench: (name, handler, options) => {
+        benchRegistrations.push({ name, handler, options });
+      },
+    });
 
     for (const registration of benchRegistrations) {
       await registration.handler();
@@ -158,5 +178,95 @@ describe('context-pack benchmarks', () => {
     });
 
     nowSpy.mockRestore();
+  });
+
+  it('awaits dataset preparation before registering pack benches', async () => {
+    const benchRegistrations: BenchRegistration[] = [];
+
+    const registerSuite = vi.fn<AsyncFactoryRegistration>((name, factory) => {
+      expect(name).toBe('ContextService.pack benchmarks');
+      factory();
+    });
+    const registerBench = vi.fn<AsyncBenchRegistration>((name, handler, options) => {
+      benchRegistrations.push({ name, handler, options });
+    });
+
+    const deferredDatasets = (() => {
+      let resolve: ((value: readonly BenchDatasetMock[]) => void) | undefined;
+      const promise = new Promise<readonly BenchDatasetMock[]>((res) => {
+        resolve = res;
+      });
+      return { promise, resolve: resolve! };
+    })();
+
+    type BenchDatasetMock = {
+      readonly name: string;
+      readonly description: string;
+      readonly root: string;
+      readonly totalBytes: number;
+      readonly fileCount: number;
+      readonly resourceBundles: readonly [];
+    };
+
+    const datasetMocks: readonly BenchDatasetMock[] = (
+      ['10x1KB', '100x10KB', '500x100KB'] as const
+    ).map((name, index) => ({
+      name,
+      description: `Dataset ${index}`,
+      root: `/tmp/${name}`,
+      totalBytes: 1024 * (index + 1),
+      fileCount: 10 * (index + 1),
+      resourceBundles: [],
+    }));
+
+    const contextServicePack = vi.fn().mockResolvedValue(undefined);
+
+    vi.doMock('../src/context-pack.fixtures', () => ({
+      prepareContextPackDatasets: vi.fn(() => deferredDatasets.promise),
+    }));
+    vi.doMock('@eddie/context', () => ({
+      ContextService: class {
+        async pack(config: unknown) {
+          contextServicePack(config);
+        }
+      },
+    }));
+    vi.doMock('@eddie/io', () => ({
+      LoggerService: class {
+        configure() {}
+        getLogger() {
+          return {};
+        }
+      },
+    }));
+    vi.doMock('@eddie/templates', () => ({
+      TemplateRendererService: class {},
+      TemplateRuntimeService: class {
+        constructor() {}
+      },
+    }));
+
+    const { defineContextPackBenchmarks } = await import('../src/context-pack.bench');
+
+    const registrationPromise = defineContextPackBenchmarks({
+      suite: registerSuite,
+      bench: registerBench,
+    });
+
+    await Promise.resolve();
+    expect(registerSuite).not.toHaveBeenCalled();
+    expect(benchRegistrations).toHaveLength(0);
+
+    deferredDatasets.resolve(datasetMocks);
+    await registrationPromise;
+
+    expect(registerSuite).toHaveBeenCalledTimes(1);
+    expect(benchRegistrations).toHaveLength(datasetMocks.length);
+
+    for (const registration of benchRegistrations) {
+      await registration.handler();
+    }
+
+    expect(contextServicePack).toHaveBeenCalledTimes(datasetMocks.length);
   });
 });

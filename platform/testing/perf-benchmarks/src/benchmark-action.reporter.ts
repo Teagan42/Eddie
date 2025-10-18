@@ -1,5 +1,5 @@
 import { promises as fs } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
 
 import type { Reporter, Vitest } from "vitest";
 
@@ -47,6 +47,8 @@ const round = (value: number): number => Math.round(value * 1000) / 1000;
 interface ReporterOptions {
   readonly outputFile?: string;
 }
+
+const DEFAULT_OUTPUT_FILE = "benchmark-results.json";
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
@@ -116,12 +118,17 @@ export class BenchmarkActionReporter implements Reporter {
       return undefined;
     }
 
-    const outputTarget = process.env.BENCHMARK_OUTPUT_PATH ?? this.options.outputFile;
-    if (!outputTarget) {
-      return undefined;
+    const configuredTarget =
+      process.env.BENCHMARK_OUTPUT_PATH ??
+      this.options.outputFile ??
+      DEFAULT_OUTPUT_FILE;
+
+    if (isAbsolute(configuredTarget)) {
+      return configuredTarget;
     }
 
-    return resolve(this.ctx.config.root, outputTarget);
+    const baseDir = this.ctx.config.workspaceRoot ?? this.ctx.config.root;
+    return resolve(baseDir, configuredTarget);
   }
 
   async onFinished(files?: readonly FileTaskLike[]): Promise<void> {

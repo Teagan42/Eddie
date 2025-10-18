@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -228,6 +228,111 @@ describe("buildBenchmarkEntries", () => {
           samples: 30,
         },
       },
+    ]);
+
+    delete process.env.BENCHMARK_OUTPUT_PATH;
+  });
+
+  it("writes benchmark results to benchmark-results.json by default", async () => {
+    const files = [
+      {
+        filepath: "/workspace/foo.bench.ts",
+        tasks: [
+          {
+            type: "suite",
+            name: "Renderer",
+            tasks: [
+              {
+                type: "test",
+                name: "render inline",
+                meta: { benchmark: true },
+                result: {
+                  state: "pass",
+                  benchmark: {
+                    name: "render inline",
+                    mean: 8.6159,
+                  },
+                },
+              },
+            ],
+            result: { state: "pass" },
+          },
+        ],
+      },
+    ];
+
+    const workspaceRoot = mkdtempSync(join(tmpdir(), "bench-reporter-default-"));
+    const packageRoot = join(workspaceRoot, "packages", "perf-benchmarks");
+    mkdirSync(packageRoot, { recursive: true });
+
+    const reporter = new BenchmarkActionReporter();
+    const ctx = {
+      config: { root: packageRoot, workspaceRoot },
+      logger: { log: () => {}, warn: () => {} },
+      state: { getFiles: () => files },
+    } as const;
+
+    reporter.onInit(ctx as never);
+    await reporter.onFinished(files as never);
+
+    const targetPath = join(workspaceRoot, "benchmark-results.json");
+    const written = JSON.parse(readFileSync(targetPath, "utf-8"));
+
+    expect(written).toEqual([
+      { name: "Renderer › render inline", unit: "ms", value: 8615.9 },
+    ]);
+  });
+
+  it("resolves BENCHMARK_OUTPUT_PATH relative to the workspace root", async () => {
+    const files = [
+      {
+        filepath: "/workspace/foo.bench.ts",
+        tasks: [
+          {
+            type: "suite",
+            name: "Renderer",
+            tasks: [
+              {
+                type: "test",
+                name: "render inline",
+                meta: { benchmark: true },
+                result: {
+                  state: "pass",
+                  benchmark: {
+                    name: "render inline",
+                    mean: 8.6159,
+                  },
+                },
+              },
+            ],
+            result: { state: "pass" },
+          },
+        ],
+      },
+    ];
+
+    const workspaceRoot = mkdtempSync(join(tmpdir(), "bench-reporter-relative-"));
+    const packageRoot = join(workspaceRoot, "packages", "perf-benchmarks");
+    mkdirSync(packageRoot, { recursive: true });
+
+    const reporter = new BenchmarkActionReporter();
+    const ctx = {
+      config: { root: packageRoot, workspaceRoot },
+      logger: { log: () => {}, warn: () => {} },
+      state: { getFiles: () => files },
+    } as const;
+
+    const relativeTarget = "platform/testing/perf-benchmarks/output.json";
+    process.env.BENCHMARK_OUTPUT_PATH = relativeTarget;
+
+    reporter.onInit(ctx as never);
+    await reporter.onFinished(files as never);
+
+    const resolvedPath = join(workspaceRoot, relativeTarget);
+    const written = JSON.parse(readFileSync(resolvedPath, "utf-8"));
+
+    expect(written).toEqual([
+      { name: "Renderer › render inline", unit: "ms", value: 8615.9 },
     ]);
 
     delete process.env.BENCHMARK_OUTPUT_PATH;

@@ -1,9 +1,8 @@
-import { rm } from 'node:fs/promises';
-import { mkdtemp } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { performance } from 'node:perf_hooks';
-import { afterAll, beforeAll, bench, suite } from 'vitest';
+import { afterAll, bench, suite } from 'vitest';
 
 import type { ContextConfig, ContextResourceBundleConfig } from '@eddie/config';
 import { ContextService } from '@eddie/context';
@@ -72,56 +71,6 @@ function createContextConfig(dataset: ContextPackDataset): ContextConfig {
   } satisfies ContextConfig;
 }
 
-suite('ContextService.pack benchmarks', () => {
-  const datasetContexts = new Map<string, DatasetBenchContext>();
-  let contextService: ContextService;
-  let temporaryRoot = '';
-
-  beforeAll(async () => {
-    temporaryRoot = await mkdtemp(join(tmpdir(), 'context-pack-bench-'));
-    const datasets = await prepareContextPackDatasets(temporaryRoot);
-
-    const loggerService = new LoggerService();
-    loggerService.configure({ level: 'silent' });
-    const templateRenderer = new TemplateRendererService();
-    const templateRuntime = new TemplateRuntimeService(
-      templateRenderer,
-      loggerService.getLogger('engine:templates')
-    );
-    contextService = new ContextService(loggerService, templateRuntime);
-
-    for (const dataset of datasets) {
-      datasetContexts.set(dataset.name, {
-        dataset,
-        config: createContextConfig(dataset),
-        durations: [],
-      });
-    }
-  });
-
-  afterAll(async () => {
-    emitStructuredReport(datasetContexts);
-
-    if (temporaryRoot) {
-      await rm(temporaryRoot, { recursive: true, force: true });
-    }
-  });
-
-  for (const datasetName of DATASET_NAMES) {
-    bench(`pack ${datasetName}`, async () => {
-      const context = datasetContexts.get(datasetName);
-      if (!context) {
-        throw new Error(`Dataset context for ${datasetName} was not prepared.`);
-      }
-
-      const start = performance.now();
-      await contextService.pack(context.config);
-      const durationMs = performance.now() - start;
-      context.durations.push(durationMs);
-    }, PACK_BENCH_OPTIONS);
-  }
-});
-
 function emitStructuredReport(datasetContexts: Map<string, DatasetBenchContext>): void {
   const scenarios = Array.from(datasetContexts.values())
     .filter((entry) => entry.durations.length > 0)
@@ -148,4 +97,89 @@ function emitStructuredReport(datasetContexts: Map<string, DatasetBenchContext>)
   });
 
   console.log(JSON.stringify(report));
+}
+
+interface BenchmarkEnvironment {
+  readonly datasetContexts: Map<string, DatasetBenchContext>;
+  readonly contextService: ContextService;
+  readonly cleanup: () => void;
+}
+
+async function createBenchmarkEnvironment(): Promise<BenchmarkEnvironment> {
+  const temporaryRoot = await mkdtemp(join(tmpdir(), 'context-pack-bench-'));
+  const datasets = await prepareContextPackDatasets(temporaryRoot);
+
+  const loggerService = new LoggerService();
+  loggerService.configure({ level: 'silent' });
+  const templateRenderer = new TemplateRendererService();
+  const templateRuntime = new TemplateRuntimeService(
+    templateRenderer,
+    loggerService.getLogger('engine:templates')
+  );
+  const contextService = new ContextService(loggerService, templateRuntime);
+
+  const datasetContexts = new Map<string, DatasetBenchContext>();
+  for (const dataset of datasets) {
+    datasetContexts.set(dataset.name, {
+      dataset,
+      config: createContextConfig(dataset),
+      durations: [],
+    });
+  }
+
+  const cleanup = async (): Promise<void> => {
+    await rm(temporaryRoot, { recursive: true, force: true });
+  };
+
+  return { datasetContexts, contextService, cleanup };
+}
+
+export interface ContextPackBenchmarkRegistrationContext {
+  readonly suite: typeof suite;
+  readonly bench: typeof bench;
+}
+
+export async function defineContextPackBenchmarks({
+  suite: registerSuite,
+  bench: registerBench,
+}: ContextPackBenchmarkRegistrationContext): Promise<void> {
+  const { datasetContexts, contextService, cleanup } = await createBenchmarkEnvironment();
+
+  registerSuite('ContextService.pack benchmarks', () => {
+    afterAll(() => {
+      emitStructuredReport(datasetContexts);
+      void cleanup().catch(() => {});
+    });
+
+    for (const datasetName of DATASET_NAMES) {
+      registerBench(
+        `pack ${datasetName}`,
+        async () => {
+          const context = datasetContexts.get(datasetName);
+          if (!context) {
+            throw new Error(`Dataset context for ${datasetName} was not prepared.`);
+          }
+
+          const start = performance.now();
+          await contextService.pack(context.config);
+          const durationMs = performance.now() - start;
+          context.durations.push(durationMs);
+        },
+        PACK_BENCH_OPTIONS
+      );
+    }
+  });
+}
+
+const vitestState = (import.meta as unknown as {
+  vitest?: { mode?: string };
+}).vitest;
+
+const isVitestEnvironment = typeof process !== 'undefined' && process.env.VITEST;
+const vitestMode = vitestState?.mode ?? (isVitestEnvironment ? 'test' : 'benchmark');
+
+if (vitestMode === 'benchmark') {
+  void defineContextPackBenchmarks({ suite, bench }).catch((error) => {
+    console.error('Failed to register context pack benchmarks', error);
+  });
 }
