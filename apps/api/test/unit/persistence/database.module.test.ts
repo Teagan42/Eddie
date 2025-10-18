@@ -47,7 +47,7 @@ describe("DatabaseModule", () => {
     try {
       moduleRef.init();
 
-      const database = moduleRef.get(DatabaseService);
+      const database = moduleRef.get(DatabaseService, { strict: false });
       const knex = database.getClient();
 
       expect(getSnapshot).toHaveBeenCalledTimes(1);
