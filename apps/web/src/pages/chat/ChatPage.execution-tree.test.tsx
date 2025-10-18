@@ -187,19 +187,17 @@ describe('ChatPage execution tree realtime updates', () => {
       expect(snapshot?.executionTree?.toolInvocations?.length ?? 0).toBeGreaterThan(0);
     });
 
-    await waitFor(() => {
-      expect(
-        screen.getAllByRole('button', {
-          name: /toggle spawned agents for session 1/i,
-        }),
-      ).not.toHaveLength(0);
-    });
-    const spawnedAgentsToggle = screen.getAllByRole('button', {
+    const spawnedAgentsToggle = await screen.findByRole('button', {
       name: /toggle spawned agents for session 1/i,
-    })[0];
-    if (spawnedAgentsToggle.getAttribute('aria-expanded') !== 'true') {
-      await user.click(spawnedAgentsToggle);
-    }
+      timeout: 5000,
+    });
+    const expandIfCollapsed = async (button: HTMLElement) => {
+      if (button.getAttribute('aria-expanded') !== 'true') {
+        await user.click(button);
+      }
+    };
+
+    await expandIfCollapsed(spawnedAgentsToggle);
 
     const spawnedAgentsRegion = await screen.findByRole('region', {
       name: /spawned agents for session 1/i,
