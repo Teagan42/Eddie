@@ -24,10 +24,21 @@ export class HttpLoggerMiddleware implements NestMiddleware {
       const durationMs = Math.round(ms * 1000) / 1000;
 
       // content-length may be undefined or inaccurate with compression
-      const contentLength =
+      const rawContentLength =
         res.getHeader?.('content-length') ??
         (res as any).get?.('content-length') ??
         undefined;
+      const contentLength = (() => {
+        if (typeof rawContentLength !== 'string') {
+          return rawContentLength;
+        }
+
+        const numericContentLength = Number(rawContentLength);
+
+        return Number.isNaN(numericContentLength)
+          ? rawContentLength
+          : numericContentLength;
+      })();
 
       this.logger.info(
         {
