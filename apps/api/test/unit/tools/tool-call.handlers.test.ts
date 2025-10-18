@@ -95,6 +95,18 @@ describe("Tool call CQRS", () => {
       updatedAt: "2024-01-01T00:00:20.000Z",
     });
 
+    if (
+      toolCall.arguments &&
+      typeof toolCall.arguments === "object" &&
+      !Array.isArray(toolCall.arguments)
+    ) {
+      (toolCall.arguments as Record<string, unknown>).page = 99;
+    }
+
+    const [ reloaded ] = await queryHandler.execute(
+      new GetToolCallsQuery({ sessionId: "s1" })
+    );
+
     expect(events[0]).toBeInstanceOf(ToolCallStarted);
     expect(events[1]).toBeInstanceOf(ToolCallUpdated);
     expect(events[2]).toBeInstanceOf(ToolCallCompleted);
@@ -117,5 +129,7 @@ describe("Tool call CQRS", () => {
     expect(persistence.recordComplete).toHaveBeenCalledWith(
       expect.objectContaining({ agentId: "agent-007" })
     );
+
+    expect(reloaded.arguments).toEqual({ query: "docs", page: 2 });
   });
 });
