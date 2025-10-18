@@ -3,7 +3,7 @@ import {
   WebSocketServer,
 } from "@nestjs/websockets";
 import type { Server } from "ws";
-import { emitEvent } from "../websocket/utils";
+import * as websocketUtils from "../websocket/utils";
 import { TraceDto } from "./dto/trace.dto";
 
 @WebSocketGateway({
@@ -14,11 +14,19 @@ export class TracesGateway {
   private server!: Server;
 
   emitTraceCreated(trace: TraceDto): void {
-    emitEvent(this.server, TracesGateway.TRACE_CREATED_EVENT, trace);
+    websocketUtils.emitEvent(
+      this.server,
+      TracesGateway.TRACE_CREATED_EVENT,
+      trace
+    );
   }
 
   emitTraceUpdated(trace: TraceDto): void {
-    emitEvent(this.server, TracesGateway.TRACE_UPDATED_EVENT, trace);
+    websocketUtils.emitEvent(
+      this.server,
+      TracesGateway.TRACE_UPDATED_EVENT,
+      trace
+    );
   }
 
   private static readonly TRACE_CREATED_EVENT = "trace.created" as const;
