@@ -46,7 +46,8 @@ export class ToolsGateway implements OnModuleInit, OnModuleDestroy {
 
     private emitSafely(event: 'tool.call' | 'tool.result', payload: unknown): void {
       try {
-        emitEvent(this.server, event, this.preparePayload(payload));
+        const server = this.server ?? null;
+        emitEvent(server, event, this.preparePayload(payload));
       } catch {
         // swallow errors
       }

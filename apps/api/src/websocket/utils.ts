@@ -7,7 +7,7 @@ interface OutboundEvent<T = unknown> {
 }
 
 export function emitEvent<T>(
-  server: Server | undefined,
+  server: Server | null | undefined,
   event: string,
   payload: T
 ): void {
