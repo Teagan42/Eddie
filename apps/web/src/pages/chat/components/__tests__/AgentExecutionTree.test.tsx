@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import type { OrchestratorMetadataDto } from '@eddie/api-client';
+import type { ExecutionContextBundle, ExecutionTreeState } from '@eddie/types';
 
 import { AgentExecutionTree } from '../AgentExecutionTree';
 import { createExecutionTreeStateFromMetadata } from '../../execution-tree-state';
@@ -9,7 +10,49 @@ import { createExecutionTreeStateFromMetadata } from '../../execution-tree-state
 describe('AgentExecutionTree', () => {
   it('groups tool invocations under each agent with previews and a details CTA', async () => {
     const user = userEvent.setup();
-    const metadata = {
+    const completedInvocation: ExecutionTreeState['toolInvocations'][number] = {
+      id: 'tool-1',
+      agentId: 'root-agent',
+      name: 'browse-web',
+      status: 'completed',
+      createdAt: '2024-05-01T12:00:00.000Z',
+      updatedAt: '2024-05-01T12:01:00.000Z',
+      metadata: {
+        args: { query: 'latest weather updates near San Francisco, CA with details' },
+        result: {
+          output:
+            'Partly cloudy with highs of 72°F. Expect light winds from the northwest and clear skies overnight.',
+        },
+      },
+      children: [],
+    };
+    const pendingInvocation: ExecutionTreeState['toolInvocations'][number] = {
+      id: 'tool-2',
+      agentId: 'root-agent',
+      name: 'fetch-weather',
+      status: 'pending',
+      createdAt: '2024-05-01T12:02:00.000Z',
+      updatedAt: '2024-05-01T12:02:00.000Z',
+      metadata: { args: { location: 'San Francisco, CA' } },
+      children: [],
+    };
+    const contextBundle: ExecutionContextBundle = {
+      id: 'bundle-1',
+      label: 'User Profile',
+      summary: 'Preferred travel destinations and preferences',
+      sizeBytes: 128,
+      fileCount: 1,
+      files: [
+        {
+          path: 'preferences.json',
+          sizeBytes: 128,
+          preview: '{"preferredCity":"San Francisco"}',
+        },
+      ],
+      source: { type: 'tool_result', agentId: 'root-agent', toolCallId: 'tool-1' },
+    };
+
+    const executionTree: ExecutionTreeState = {
       agentHierarchy: [
         {
           id: 'root-agent',
@@ -17,51 +60,29 @@ describe('AgentExecutionTree', () => {
           provider: 'openai',
           model: 'gpt-4o',
           depth: 0,
-          metadata: { messageCount: 3 },
+          lineage: ['root-agent'],
           children: [],
         },
       ],
-      toolInvocations: [
-        {
-          id: 'tool-1',
-          name: 'browse-web',
-          status: 'completed',
-          createdAt: '2024-05-01T12:00:00.000Z',
-          updatedAt: '2024-05-01T12:01:00.000Z',
-          args: { query: 'latest weather updates near San Francisco, CA with details' },
-          result: {
-            output:
-              'Partly cloudy with highs of 72°F. Expect light winds from the northwest and clear skies overnight.',
-          },
-          metadata: { agentId: 'root-agent' },
+      toolInvocations: [completedInvocation, pendingInvocation],
+      contextBundles: [contextBundle],
+      agentLineageById: { 'root-agent': ['root-agent'] },
+      toolGroupsByAgentId: {
+        'root-agent': {
+          pending: [pendingInvocation],
+          running: [],
+          completed: [completedInvocation],
+          failed: [],
         },
-        {
-          id: 'tool-2',
-          name: 'fetch-weather',
-          status: 'pending',
-          createdAt: '2024-05-01T12:02:00.000Z',
-          updatedAt: '2024-05-01T12:02:00.000Z',
-          args: { location: 'San Francisco, CA' },
-          metadata: { agentId: 'root-agent' },
-        },
-      ],
-      contextBundles: [
-        {
-          id: 'bundle-1',
-          title: 'User Profile',
-          source: 'system',
-          createdAt: '2024-05-01T11:55:00.000Z',
-          metadata: { tags: ['beta-tester'] },
-          files: [
-            {
-              id: 'file-1',
-              name: 'preferences.json',
-              size: 128,
-              metadata: { mediaType: 'application/json' },
-            },
-          ],
-        },
-      ],
+      },
+      contextBundlesByAgentId: { 'root-agent': [contextBundle] },
+      contextBundlesByToolCallId: { 'tool-1': [contextBundle] },
+      createdAt: '2024-05-01T12:00:00.000Z',
+      updatedAt: '2024-05-01T12:02:00.000Z',
+    };
+
+    const metadata = {
+      executionTree,
     } as unknown as OrchestratorMetadataDto;
 
     const tree = (
@@ -102,7 +123,7 @@ describe('AgentExecutionTree', () => {
   });
 
   it('auto-expands agents with children on initial render', () => {
-    const metadata = {
+    const executionTree: ExecutionTreeState = {
       agentHierarchy: [
         {
           id: 'root-agent',
@@ -110,7 +131,7 @@ describe('AgentExecutionTree', () => {
           provider: 'openai',
           model: 'gpt-4o',
           depth: 0,
-          metadata: { messageCount: 1 },
+          lineage: ['root-agent'],
           children: [
             {
               id: 'child-agent',
@@ -118,7 +139,7 @@ describe('AgentExecutionTree', () => {
               provider: 'anthropic',
               model: 'claude-3',
               depth: 1,
-              metadata: { messageCount: 0 },
+              lineage: ['root-agent', 'child-agent'],
               children: [
                 {
                   id: 'grandchild-agent',
@@ -126,7 +147,7 @@ describe('AgentExecutionTree', () => {
                   provider: 'openai',
                   model: 'gpt-4o-mini',
                   depth: 2,
-                  metadata: { messageCount: 0 },
+                  lineage: ['root-agent', 'child-agent', 'grandchild-agent'],
                   children: [],
                 },
               ],
@@ -136,6 +157,20 @@ describe('AgentExecutionTree', () => {
       ],
       toolInvocations: [],
       contextBundles: [],
+      agentLineageById: {
+        'root-agent': ['root-agent'],
+        'child-agent': ['root-agent', 'child-agent'],
+        'grandchild-agent': ['root-agent', 'child-agent', 'grandchild-agent'],
+      },
+      toolGroupsByAgentId: {},
+      contextBundlesByAgentId: {},
+      contextBundlesByToolCallId: {},
+      createdAt: '2024-05-01T12:00:00.000Z',
+      updatedAt: '2024-05-01T12:00:00.000Z',
+    };
+
+    const metadata = {
+      executionTree,
     } as unknown as OrchestratorMetadataDto;
 
     render(
