@@ -21,7 +21,7 @@ describe("HttpLoggerMiddleware", () => {
     (process.hrtime as unknown as { bigint: () => bigint }).bigint = originalHrtime;
   });
 
-  it.skip("logs request metadata once the response finishes", () => {
+  it("logs request metadata once the response finishes", () => {
     const logger = { info: vi.fn() };
 
     (process.hrtime as unknown as { bigint: () => bigint }).bigint = vi
@@ -49,7 +49,7 @@ describe("HttpLoggerMiddleware", () => {
         method: "GET",
         url: "/health",
         statusCode: 200,
-        contentLength: "123",
+        contentLength: 123,
         durationMs: 5,
         userAgent: "vitest",
       },
