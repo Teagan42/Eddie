@@ -27,6 +27,11 @@ const TOOL_STATUS_ORDER: ToolCallStatus[] = ['pending', 'running', 'completed', 
 const UNIX_EPOCH = new Date(0).toISOString();
 const UNKNOWN_AGENT_ID = 'unknown';
 
+type MutableToolInvocationNode = ExecutionToolInvocationNode & {
+  args?: unknown;
+  result?: unknown;
+};
+
 type DerivedExecutionTreeFields = Partial<
   Pick<
     ExecutionTreeState,
@@ -108,6 +113,7 @@ export function applyToolCallEvent(
 
   const next = cloneExecutionTreeState(current);
   const target = ensureInvocation(next.toolInvocations, payload.id);
+  const mutableTarget = target as MutableToolInvocationNode;
   target.name = typeof payload.name === 'string' && payload.name.trim().length > 0 ? payload.name : target.name;
   target.status = 'running';
   target.agentId = normalizeAgentId(payload.agentId) ?? target.agentId ?? UNKNOWN_AGENT_ID;
@@ -116,6 +122,7 @@ export function applyToolCallEvent(
     ...(target.metadata ?? {}),
     args: parsedArgs,
   };
+  mutableTarget.args = parsedArgs;
   if (payload.timestamp) {
     target.updatedAt = payload.timestamp;
     target.createdAt = target.createdAt ?? payload.timestamp;
@@ -136,6 +143,7 @@ export function applyToolResultEvent(
 
   const next = cloneExecutionTreeState(current);
   const target = ensureInvocation(next.toolInvocations, payload.id);
+  const mutableTarget = target as MutableToolInvocationNode;
   target.name = typeof payload.name === 'string' && payload.name.trim().length > 0 ? payload.name : target.name;
   target.status = 'completed';
   const parsedResult = parseEventValue(payload.result);
@@ -143,6 +151,7 @@ export function applyToolResultEvent(
     ...(target.metadata ?? {}),
     result: parsedResult,
   };
+  mutableTarget.result = parsedResult;
   target.agentId = normalizeAgentId(payload.agentId) ?? target.agentId ?? UNKNOWN_AGENT_ID;
   if (payload.timestamp) {
     target.updatedAt = payload.timestamp;
@@ -476,16 +485,26 @@ function cloneContextBundleCollection(entries: ExecutionContextBundle[]): Execut
 function normalizeInvocationNode(node: OrchestratorToolCallNodeDto): ExecutionToolInvocationNode {
   const children = (node.children ?? []).map((child) => normalizeInvocationNode(child));
   const normalizedAgentId = normalizeAgentId((node.metadata as { agentId?: string | null } | undefined)?.agentId);
-  return {
+  const metadataClone = node.metadata ? { ...node.metadata } : undefined;
+  const normalized = {
     id: node.id,
     name: node.name,
     status: node.status as ToolCallStatus,
     agentId: normalizedAgentId ?? UNKNOWN_AGENT_ID,
     createdAt: (node.metadata as { createdAt?: string } | undefined)?.createdAt,
     updatedAt: (node.metadata as { updatedAt?: string } | undefined)?.updatedAt,
-    metadata: node.metadata ? { ...node.metadata } : undefined,
+    metadata: metadataClone,
     children,
   } satisfies ExecutionToolInvocationNode;
+
+  if (metadataClone && 'args' in metadataClone) {
+    (normalized as MutableToolInvocationNode).args = (metadataClone as { args?: unknown }).args;
+  }
+  if (metadataClone && 'result' in metadataClone) {
+    (normalized as MutableToolInvocationNode).result = (metadataClone as { result?: unknown }).result;
+  }
+
+  return normalized;
 }
 
 function ensureInvocation(
@@ -497,7 +516,7 @@ function ensureInvocation(
     return existing;
   }
 
-  const next: ExecutionToolInvocationNode = {
+  const next: MutableToolInvocationNode = {
     id,
     name: 'tool',
     status: 'running',
