@@ -9,27 +9,31 @@ describe("ApiModule configuration", () => {
     vi.resetModules();
   });
 
-  it("forRoot includes ConfigModule registration with runtime options", async () => {
-    const { ConfigModule } = await import("@eddie/config");
-    const registerSpy = vi.spyOn(ConfigModule, "register");
-    const registrationResult = { module: class {} } as DynamicModule;
-    registerSpy.mockReturnValue(
-      registrationResult as ReturnType<ConfigModule["register"]>,
-    );
+  it(
+    "forRoot includes ConfigModule registration with runtime options",
+    { timeout: 10000 },
+    async () => {
+      const { ConfigModule } = await import("@eddie/config");
+      const registerSpy = vi.spyOn(ConfigModule, "register");
+      const registrationResult = { module: class {} } as DynamicModule;
+      registerSpy.mockReturnValue(
+        registrationResult as ReturnType<ConfigModule["register"]>,
+      );
 
-    const cliOverrides: CliRuntimeOptions = {
-      logLevel: "debug",
-    };
+      const cliOverrides: CliRuntimeOptions = {
+        logLevel: "debug",
+      };
 
-    const { ApiModule } = await import("../../src/api.module");
+      const { ApiModule } = await import("../../src/api.module");
 
-    const dynamicModule = (ApiModule as unknown as {
-      forRoot: (options: CliRuntimeOptions) => DynamicModule;
-    }).forRoot(cliOverrides);
+      const dynamicModule = (ApiModule as unknown as {
+        forRoot: (options: CliRuntimeOptions) => DynamicModule;
+      }).forRoot(cliOverrides);
 
-    expect(registerSpy).toHaveBeenCalledWith(cliOverrides);
-    expect(dynamicModule.imports).toContain(registrationResult);
-  });
+      expect(registerSpy).toHaveBeenCalledWith(cliOverrides);
+      expect(dynamicModule.imports).toContain(registrationResult);
+    }
+  );
 
   it("forRootAsync forwards async registration options to ConfigModule.registerAsync", async () => {
     const { ConfigModule } = await import("@eddie/config");

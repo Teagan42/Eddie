@@ -46,6 +46,10 @@ const createRunnerDependencies = () => {
   return { traceWriterDelegate, toolCallHandler, runLoop };
 };
 
+const createExecutionTreeTrackerFactory = () => ({
+  create: vi.fn(),
+});
+
 describe("AgentOrchestratorService", () => {
   it("delegates invocation execution to the agent runner", async () => {
     const agentDefinition = {
@@ -130,6 +134,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      createExecutionTreeTrackerFactory(),
     );
 
     const runSpy = vi
@@ -233,6 +238,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      createExecutionTreeTrackerFactory(),
     );
 
     const runSpy = vi
@@ -262,6 +268,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      createExecutionTreeTrackerFactory(),
     );
 
     expect("setStreamRenderer" in orchestrator).toBe(false);
@@ -277,6 +284,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      createExecutionTreeTrackerFactory(),
     );
 
     const runtime = {
@@ -509,6 +517,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      createExecutionTreeTrackerFactory(),
     );
 
     const runSpy = vi
@@ -616,6 +625,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      createExecutionTreeTrackerFactory(),
     );
 
     const runtime = {
@@ -699,6 +709,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      createExecutionTreeTrackerFactory(),
     );
 
     const createInvocation = (
@@ -752,6 +763,63 @@ describe("AgentOrchestratorService", () => {
     }
   });
 
+  it("creates execution tree trackers via runtime factories when available", () => {
+    const runnerDeps = createRunnerDependencies();
+    const executionTreeTracker = {
+      registerAgent: vi.fn(),
+      recordAgentCompletion: vi.fn(),
+    };
+    const executionTreeTrackerFactory = vi
+      .fn()
+      .mockReturnValue(executionTreeTracker);
+
+    const orchestrator = new AgentOrchestratorService(
+      { create: vi.fn() } as any,
+      { render: vi.fn(), flush: vi.fn() } as any,
+      { publish: vi.fn() } as any,
+      { write: vi.fn() } as any,
+      runnerDeps.runLoop,
+      runnerDeps.toolCallHandler,
+      runnerDeps.traceWriterDelegate,
+      { create: executionTreeTrackerFactory } as any
+    );
+
+    const runtime = {
+      catalog: {
+        enableSubagents: true,
+        getAgent: vi.fn(),
+        getSubagent: vi.fn(),
+        listSubagents: vi.fn().mockReturnValue([]),
+      },
+      hooks: { emitAsync: vi.fn().mockResolvedValue({ results: [] }) },
+      confirm: vi.fn(),
+      cwd: process.cwd(),
+      logger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      traceAppend: true,
+      tracePath: undefined,
+      metrics: createMetrics(),
+      sessionId: "session-123",
+      executionTreeTrackerFactory,
+    } as unknown as Parameters<
+      AgentOrchestratorService["runAgent"]
+    >[1];
+
+    const tracker = (
+      orchestrator as unknown as {
+        ensureExecutionTreeTracker(
+          runtime: Parameters<AgentOrchestratorService["runAgent"]>[1]
+        ): unknown;
+      }
+    ).ensureExecutionTreeTracker(runtime);
+
+    expect(executionTreeTrackerFactory).toHaveBeenCalledTimes(1);
+    expect(executionTreeTrackerFactory).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: "session-123" })
+    );
+    expect(tracker).toBe(executionTreeTracker);
+    expect(runtime.executionTreeTracker).toBe(executionTreeTracker);
+  });
+
   it("delegates transcript compaction to the runtime workflow", async () => {
     const runnerDeps = createRunnerDependencies();
     const orchestrator = new AgentOrchestratorService(
@@ -762,6 +830,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      createExecutionTreeTrackerFactory(),
     );
 
     const invocation = {
@@ -844,6 +913,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      createExecutionTreeTrackerFactory(),
     );
 
     const metrics = createMetrics();

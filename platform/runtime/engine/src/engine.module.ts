@@ -18,6 +18,7 @@ import { AgentOrchestratorService } from "./agents/agent-orchestrator.service";
 import { MCPModule } from "@eddie/mcp";
 import { TranscriptCompactionService } from "./transcript/transcript-compaction.service";
 import { transcriptCompactorFactoryProvider } from "./transcript/transcript-compactor.factory";
+import { ExecutionTreeModule } from "./execution-tree/execution-tree.module";
 import { MetricsModule } from "./telemetry/metrics.module";
 import {
   AgentRunLoop,
@@ -38,6 +39,7 @@ import {
     ToolsModule,
     MCPModule,
     MetricsModule,
+    ExecutionTreeModule,
   ],
   providers: [
     ...templateRuntimeProviders,
@@ -61,6 +63,7 @@ import {
     TokenizersModule,
     ToolsModule,
     transcriptCompactorFactoryProvider,
+    ExecutionTreeModule,
   ],
 })
 export class EngineModule {}

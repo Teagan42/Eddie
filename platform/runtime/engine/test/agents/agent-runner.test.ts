@@ -5,7 +5,8 @@ import {
   HOOK_EVENTS,
 } from "@eddie/types";
 import { describe, expect, it, vi } from "vitest";
-import { AgentRunner, ExecutionTreeStateTracker } from "../../src/agents/agent-runner";
+import { AgentRunner } from "../../src/agents/agent-runner";
+import { ExecutionTreeStateTracker } from "../../src/execution-tree/execution-tree-tracker.service";
 import {
   createAgentRunnerTestContext,
   createDescriptor,
@@ -357,11 +358,11 @@ describe("AgentRunner", () => {
 
     const publish = vi.fn();
     const eventBus = { publish } as EventBusLike;
-    const tracker = new ExecutionTreeStateTracker({
-      sessionId: "session-1",
+    const tracker = new ExecutionTreeStateTracker(
       eventBus,
-      now: () => new Date("2024-01-01T00:00:00.000Z"),
-    });
+      () => new Date("2024-01-01T00:00:00.000Z"),
+      { sessionId: "session-1" }
+    );
 
     const { runner } = createAgentRunnerTestContext({
       invocation,
@@ -415,11 +416,11 @@ describe("AgentRunner", () => {
 
     const publish = vi.fn();
     const eventBus = { publish } as EventBusLike;
-    const tracker = new ExecutionTreeStateTracker({
-      sessionId: "session-1",
+    const tracker = new ExecutionTreeStateTracker(
       eventBus,
-      now: () => new Date("2024-01-01T00:00:00.000Z"),
-    });
+      () => new Date("2024-01-01T00:00:00.000Z"),
+      { sessionId: "session-1" }
+    );
 
     const spawnResult: ToolResult = {
       schema: AgentRunner.SPAWN_TOOL_RESULT_SCHEMA,
