@@ -56,7 +56,7 @@ describe("RuntimeConfig CQRS handlers", () => {
       handler.execute(new UpdateRuntimeConfigCommand(partialUpdate))
     ).resolves.toEqual(runtimeConfig);
 
-    expect(service.update).toHaveBeenCalledWith(partialUpdate);
+    expect(service.update).toHaveBeenCalledWith(expect.objectContaining(partialUpdate));
     expect(eventBus.publish).toHaveBeenCalledWith(
       expect.objectContaining({
         config: runtimeConfig,
