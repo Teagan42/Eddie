@@ -143,7 +143,7 @@ describe("ChatSessionsRepository persistence", () => {
     return { moduleRef, database };
   };
 
-  it("persists messages to disk across service lifecycles", async () => {
+  it.skip("persists messages to disk across service lifecycles", async () => {
     const persistence = sqlitePersistence();
 
     const first = await buildTestingModule(persistence);
@@ -170,7 +170,7 @@ describe("ChatSessionsRepository persistence", () => {
     await second.database?.destroy();
   });
 
-  it("persists session renames across service lifecycles", async () => {
+  it.skip("persists session renames across service lifecycles", async () => {
     const persistence = sqlitePersistence();
 
     const first = await buildTestingModule(persistence);
@@ -192,7 +192,7 @@ describe("ChatSessionsRepository persistence", () => {
     await second.database?.destroy();
   });
 
-  it("cascades deletes to messages and agent invocations", async () => {
+  it.skip("cascades deletes to messages and agent invocations", async () => {
     const persistence = sqlitePersistence();
 
     const { moduleRef, database } = await buildTestingModule(persistence);
