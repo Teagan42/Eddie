@@ -8,8 +8,14 @@ import {
 import type { Request } from "express";
 import { Test } from "@nestjs/testing";
 import { WsAdapter } from "@nestjs/platform-ws";
+import { Reflector } from "@nestjs/core";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { ConfigService, type EddieConfig } from "@eddie/config";
+import {
+  ConfigService,
+  ConfigStore,
+  type CliRuntimeOptions,
+  type EddieConfig,
+} from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { LoggerService } from "@eddie/io";
 import { Subject } from "rxjs";
@@ -129,10 +135,7 @@ describe("ApiModule integration", () => {
     onModuleInit: ReturnType<typeof vi.fn>;
     catch: ReturnType<typeof vi.fn>;
   };
-  let guardStub: {
-    onModuleInit: ReturnType<typeof vi.fn>;
-    canActivate: ReturnType<typeof vi.fn>;
-  };
+  let guardOnModuleInitSpy: ReturnType<typeof vi.spyOn>;
   let requestLoggingInterceptorStub: {
     onModuleInit: ReturnType<typeof vi.fn>;
     intercept: ReturnType<typeof vi.fn>;
@@ -151,6 +154,7 @@ describe("ApiModule integration", () => {
   let runtimeConfigServiceStub: RuntimeConfigService;
   let runtimeConfigGatewayStub: RuntimeConfigGateway;
   let runtimeConfigChanges: Subject<RuntimeConfigDto>;
+  let configStoreStub: ConfigStore;
 
   const createLoggerStub = () => {
     const stub = {
@@ -165,6 +169,18 @@ describe("ApiModule integration", () => {
   };
 
   let loggerStubs: Record<string, ReturnType<typeof createLoggerStub>>;
+
+  const attachGuardDependencies = (
+    guard: ApiKeyGuard,
+    application: INestApplication
+  ): void => {
+    const target = guard as unknown as Record<string, unknown>;
+    Reflect.set(target, "configStore", configStoreStub);
+    Reflect.set(target, "logger", loggerStubs["api:auth"]);
+    Reflect.set(target, "reflector", application.get(Reflector));
+  };
+
+  const runtimeOptions: CliRuntimeOptions = {};
 
   const config: EddieConfig = {
     logLevel: "debug",
@@ -236,10 +252,6 @@ describe("ApiModule integration", () => {
     exceptionFilterStub = {
       onModuleInit: vi.fn().mockResolvedValue(undefined),
       catch: vi.fn(),
-    };
-    guardStub = {
-      onModuleInit: vi.fn().mockResolvedValue(undefined),
-      canActivate: vi.fn().mockResolvedValue(true),
     };
     requestLoggingInterceptorStub = {
       onModuleInit: vi.fn().mockResolvedValue(undefined),
@@ -370,9 +382,16 @@ describe("ApiModule integration", () => {
       emitConfigUpdated: vi.fn(),
     } as unknown as RuntimeConfigGateway;
 
+    configStoreStub = new ConfigStore(config);
+
     const moduleRef = await Test.createTestingModule({
-      imports: [ApiModuleRef],
-      exports: [ApiModuleRef],
+      imports: [ApiModuleRef.forRoot(runtimeOptions)],
+      providers: [
+        {
+          provide: ConfigStore,
+          useValue: configStoreStub,
+        },
+      ],
     })
       .overrideProvider(ConfigService)
       .useValue(configServiceMock)
@@ -384,8 +403,6 @@ describe("ApiModule integration", () => {
       .useValue(validationPipeStub as unknown as ApiValidationPipe)
       .overrideProvider(ApiHttpExceptionFilter)
       .useValue(exceptionFilterStub as unknown as ApiHttpExceptionFilter)
-      .overrideProvider(ApiKeyGuard)
-      .useValue(guardStub as unknown as ApiKeyGuard)
       .overrideProvider(RequestLoggingInterceptor)
       .useValue(requestLoggingInterceptorStub as unknown as RequestLoggingInterceptor)
       .overrideProvider(ApiCacheInterceptor)
@@ -407,10 +424,16 @@ describe("ApiModule integration", () => {
       .compile();
 
     app = moduleRef.createNestApplication();
+    const guardInstance = app.get(ApiKeyGuard);
+    attachGuardDependencies(guardInstance, app);
     app.useWebSocketAdapter(new WsAdapter(app));
 
     configService = configServiceMock;
     contextService = contextServiceMock;
+
+    guardOnModuleInitSpy = vi.spyOn(ApiKeyGuard.prototype, "onModuleInit");
+
+    await app.init();
   });
 
   afterEach(() => {
@@ -423,7 +446,7 @@ describe("ApiModule integration", () => {
     await app?.close();
   });
 
-  it.skip("boots the API module with mocked dependencies", () => {
+  it("boots the API module with mocked dependencies", () => {
     const controller = app.get(HealthController);
     expect(controller.check()).toEqual({ status: "ok" });
 
@@ -434,10 +457,14 @@ describe("ApiModule integration", () => {
     );
     expect(app.get(ApiCacheInterceptor)).toBe(cacheInterceptorStub);
     expect(app.get(HttpLoggerMiddleware)).toBe(httpLoggerMiddlewareStub);
+
+    expect(validationPipeStub.onModuleInit).toHaveBeenCalled();
+    expect(exceptionFilterStub.onModuleInit).toHaveBeenCalled();
+    expect(guardOnModuleInitSpy).toHaveBeenCalled();
   });
 
-  it.skip("allows the API key guard to validate configured keys", async () => {
-    const guard = app.get(ApiKeyGuard) as unknown as typeof guardStub;
+  it("allows the API key guard to validate configured keys", async () => {
+    const guard = app.get(ApiKeyGuard);
     const request = {
       method: "GET",
       originalUrl: "/secure",
@@ -449,8 +476,6 @@ describe("ApiModule integration", () => {
     await expect(
       guard.canActivate(createExecutionContext(request))
     ).resolves.toBe(true);
-    expect(guard.canActivate).toHaveBeenCalledWith(
-      expect.objectContaining({ switchToHttp: expect.any(Function) })
-    );
+    expect(request.get).toHaveBeenCalledWith("x-api-key");
   });
 });
