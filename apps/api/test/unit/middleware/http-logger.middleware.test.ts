@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("on-finished", () => ({
+  __esModule: true,
   default: (_res: Response, callback: () => void) => {
     callback();
   },
