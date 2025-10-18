@@ -29,6 +29,8 @@ export class HttpLoggerMiddleware implements NestMiddleware {
         (res as any).get?.('content-length') ??
         undefined;
 
+      const requestId = this.resolveRequestId(req);
+
       this.logger.info(
         {
           method: req.method,
@@ -37,6 +39,7 @@ export class HttpLoggerMiddleware implements NestMiddleware {
           contentLength,
           durationMs,
           userAgent: req.get?.('user-agent'),
+          requestId,
           // add your correlation/request id here if you have one
           // requestId: req.id,
         },
@@ -45,5 +48,30 @@ export class HttpLoggerMiddleware implements NestMiddleware {
     });
 
     next();
+  }
+
+  private resolveRequestId(req: Request): string | undefined {
+    const headerValue =
+      req.get?.('x-request-id') ?? req.headers?.['x-request-id'];
+    const candidates = Array.isArray(headerValue)
+      ? headerValue
+      : [headerValue];
+
+    for (const candidate of candidates) {
+      const normalized = this.normalizeRequestId(candidate);
+      if (normalized) {
+        return normalized;
+      }
+    }
+
+    return undefined;
+  }
+
+  private normalizeRequestId(value: unknown): string | undefined {
+    if (typeof value !== 'string') {
+      return undefined;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
   }
 }
