@@ -3,7 +3,7 @@ import {
   WebSocketServer,
 } from "@nestjs/websockets";
 import type { Server } from "ws";
-import { emitEvent } from "../websocket/utils";
+import * as websocketUtils from "../websocket/utils";
 import { RuntimeConfigDto } from "./dto/runtime-config.dto";
 
 @WebSocketGateway({
@@ -14,6 +14,6 @@ export class RuntimeConfigGateway {
   private server!: Server;
 
   emitConfigUpdated(config: RuntimeConfigDto): void {
-    emitEvent(this.server, "config.updated", config);
+    websocketUtils.emitEvent(this.server, "config.updated", config);
   }
 }

@@ -1,7 +1,7 @@
 import { OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { WebSocketGateway, WebSocketServer } from "@nestjs/websockets";
 import type { Server } from "ws";
-import { emitEvent } from "../websocket/utils";
+import * as websocketUtils from "../websocket/utils";
 
 /**
  * Lightweight gateway for streaming tool call/result events to the web UI.

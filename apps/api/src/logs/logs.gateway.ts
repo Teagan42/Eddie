@@ -4,7 +4,7 @@ import {
   WebSocketServer,
 } from "@nestjs/websockets";
 import type { Server } from "ws";
-import { emitEvent } from "../websocket/utils";
+import * as websocketUtils from "../websocket/utils";
 import { LogEntryDto } from "./dto/log-entry.dto";
 
 @WebSocketGateway({
@@ -47,6 +47,6 @@ export class LogsGateway implements OnModuleDestroy {
     }
 
     const batch = this.pending.splice(0);
-    emitEvent(this.server, "logs.created", batch);
+    websocketUtils.emitEvent(this.server, "logs.created", batch);
   }
 }
