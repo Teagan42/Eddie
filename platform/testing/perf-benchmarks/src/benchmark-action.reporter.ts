@@ -61,7 +61,7 @@ const buildExtras = (stats: BenchmarkStats): Record<string, number> | undefined 
     samples: stats.sampleCount,
   }).filter(([, value]) => isFiniteNumber(value));
 
-  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+  return entries.length > 0 ? Object.fromEntries(entries) as Record<string, number> : undefined;
 };
 
 export function buildBenchmarkEntries(files: readonly FileTaskLike[]): BenchmarkActionEntry[] {

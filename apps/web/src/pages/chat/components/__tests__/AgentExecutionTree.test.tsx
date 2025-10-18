@@ -202,20 +202,32 @@ describe('AgentExecutionTree', () => {
     expect(nestedRegion).toBeInTheDocument();
   });
 
-  it('renders a collapsed args inspector for pending tool invocations', async () => {
+  it("shows only the selected agent's context bundles when expanded", async () => {
     const user = userEvent.setup();
-    const pendingInvocation: ExecutionTreeState['toolInvocations'][number] = {
-      id: 'tool-1',
-      agentId: 'root-agent',
-      name: 'fetch-weather',
-      status: 'pending',
-      createdAt: '2024-05-01T12:00:00.000Z',
-      updatedAt: '2024-05-01T12:00:00.000Z',
-      metadata: { args: { location: 'San Francisco, CA' } },
-      children: [],
-    };
 
-    const executionTree: ExecutionTreeState = {
+    const rootBundle = {
+      id: 'bundle-root',
+      label: 'Root bundle label',
+      title: 'Root agent context',
+      summary: 'Context gathered by root',
+      sizeBytes: 256,
+      fileCount: 0,
+      files: [],
+      source: 'Root tool call source',
+    } as ExecutionContextBundle & { title: string; source: string };
+
+    const delegateBundle = {
+      id: 'bundle-delegate',
+      label: 'Delegate bundle label',
+      title: 'Delegate agent context',
+      summary: 'Context gathered by delegate',
+      sizeBytes: 512,
+      fileCount: 0,
+      files: [],
+      source: 'Delegate tool call source',
+    } as ExecutionContextBundle & { title: string; source: string };
+
+    const state: ExecutionTreeState = {
       agentHierarchy: [
         {
           id: 'root-agent',
@@ -226,133 +238,64 @@ describe('AgentExecutionTree', () => {
           lineage: ['root-agent'],
           children: [],
         },
-      ],
-      toolInvocations: [pendingInvocation],
-      contextBundles: [],
-      agentLineageById: { 'root-agent': ['root-agent'] },
-      toolGroupsByAgentId: {
-        'root-agent': {
-          pending: [pendingInvocation],
-          running: [],
-          completed: [],
-          failed: [],
+        {
+          id: 'delegate-agent',
+          name: 'delegate',
+          provider: 'anthropic',
+          model: 'claude-3',
+          depth: 0,
+          lineage: ['delegate-agent'],
+          children: [],
         },
+      ],
+      toolInvocations: [],
+      contextBundles: [rootBundle, delegateBundle],
+      agentLineageById: {
+        'root-agent': ['root-agent'],
+        'delegate-agent': ['delegate-agent'],
       },
-      contextBundlesByAgentId: {},
-      contextBundlesByToolCallId: {},
+      toolGroupsByAgentId: {},
+      contextBundlesByAgentId: {
+        'root-agent': [rootBundle],
+        'delegate-agent': [delegateBundle],
+      },
+      contextBundlesByToolCallId: {
+        'tool-root': [rootBundle],
+        'tool-delegate': [delegateBundle],
+      },
       createdAt: '2024-05-01T12:00:00.000Z',
       updatedAt: '2024-05-01T12:00:00.000Z',
     };
 
-    const metadata = {
-      executionTree,
-    } as unknown as OrchestratorMetadataDto;
-
     render(
-      <AgentExecutionTree
-        state={createExecutionTreeStateFromMetadata(metadata)}
-        selectedAgentId={null}
-        onSelectAgent={() => {}}
-      />,
+      <AgentExecutionTree state={state} selectedAgentId={null} onSelectAgent={() => {}} />,
     );
 
-    const pendingGroupToggle = screen.getByRole('button', {
-      name: /toggle pending tool invocations for orchestrator/i,
+    const rootContextToggle = screen.getByRole('button', {
+      name: /toggle context bundles for orchestrator/i,
     });
+    await user.click(rootContextToggle);
 
-    await user.click(pendingGroupToggle);
-
-    const pendingRegion = screen.getByRole('region', {
-      name: /pending tool invocations for orchestrator/i,
+    const rootContextRegion = screen.getByRole('region', {
+      name: /context bundles for orchestrator/i,
     });
+    expect(
+      within(rootContextRegion).getByText(/root agent context/i),
+    ).toBeInTheDocument();
+    expect(
+      within(rootContextRegion).queryByText(/delegate agent context/i),
+    ).not.toBeInTheDocument();
 
-    const invocationItem = within(pendingRegion).getByText('fetch-weather').closest('li');
-    expect(invocationItem).not.toBeNull();
-
-    const invocation = invocationItem as HTMLLIElement;
-    expect(within(invocation).getByTestId('json-tree-view')).toBeInTheDocument();
-
-    const argsToggle = within(invocation).getByRole('button', { name: /toggle args/i });
-    expect(argsToggle).toHaveAttribute('aria-expanded', 'false');
-  });
-
-  it('renders args and result inspectors for completed tool invocations', async () => {
-    const user = userEvent.setup();
-    const completedInvocation: ExecutionTreeState['toolInvocations'][number] = {
-      id: 'tool-1',
-      agentId: 'root-agent',
-      name: 'fetch-weather',
-      status: 'completed',
-      createdAt: '2024-05-01T12:00:00.000Z',
-      updatedAt: '2024-05-01T12:02:00.000Z',
-      metadata: {
-        args: { location: 'San Francisco, CA' },
-        result: { summary: 'Partly cloudy and mild.' },
-      },
-      children: [],
-    };
-
-    const executionTree: ExecutionTreeState = {
-      agentHierarchy: [
-        {
-          id: 'root-agent',
-          name: 'orchestrator',
-          provider: 'openai',
-          model: 'gpt-4o',
-          depth: 0,
-          lineage: ['root-agent'],
-          children: [],
-        },
-      ],
-      toolInvocations: [completedInvocation],
-      contextBundles: [],
-      agentLineageById: { 'root-agent': ['root-agent'] },
-      toolGroupsByAgentId: {
-        'root-agent': {
-          pending: [],
-          running: [],
-          completed: [completedInvocation],
-          failed: [],
-        },
-      },
-      contextBundlesByAgentId: {},
-      contextBundlesByToolCallId: {},
-      createdAt: '2024-05-01T12:00:00.000Z',
-      updatedAt: '2024-05-01T12:02:00.000Z',
-    };
-
-    const metadata = {
-      executionTree,
-    } as unknown as OrchestratorMetadataDto;
-
-    render(
-      <AgentExecutionTree
-        state={createExecutionTreeStateFromMetadata(metadata)}
-        selectedAgentId={null}
-        onSelectAgent={() => {}}
-      />,
-    );
-
-    const completedGroupToggle = screen.getByRole('button', {
-      name: /toggle completed tool invocations for orchestrator/i,
+    const delegateContextToggle = screen.getByRole('button', {
+      name: /toggle context bundles for delegate/i,
     });
+    await user.click(delegateContextToggle);
 
-    await user.click(completedGroupToggle);
-
-    const completedRegion = screen.getByRole('region', {
-      name: /completed tool invocations for orchestrator/i,
+    const delegateContextRegion = screen.getByRole('region', {
+      name: /context bundles for delegate/i,
     });
-
-    const invocationItem = within(completedRegion).getByText('fetch-weather').closest('li');
-    expect(invocationItem).not.toBeNull();
-
-    const invocation = invocationItem as HTMLLIElement;
-    expect(within(invocation).getByTestId('json-tree-view')).toBeInTheDocument();
-
-    const argsToggle = within(invocation).getByRole('button', { name: /toggle args/i });
-    expect(argsToggle).toHaveAttribute('aria-expanded', 'false');
-
-    const resultToggle = within(invocation).getByRole('button', { name: /toggle result/i });
-    expect(resultToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(
+      within(delegateContextRegion).getByText(/delegate agent context/i),
+    ).toBeInTheDocument();
   });
 });

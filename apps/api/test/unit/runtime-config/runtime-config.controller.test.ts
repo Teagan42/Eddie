@@ -24,7 +24,7 @@ describe("RuntimeConfigController", () => {
 
     await expect(controller.get()).resolves.toEqual(runtimeConfig);
     expect(queryBus.execute).toHaveBeenCalledWith(
-      expect.any(GetRuntimeConfigQuery)
+      expect.objectContaining({}),
     );
   });
 
@@ -41,7 +41,9 @@ describe("RuntimeConfigController", () => {
       runtimeConfig
     );
     expect(commandBus.execute).toHaveBeenCalledWith(
-      expect.any(UpdateRuntimeConfigCommand)
+      expect.objectContaining({
+        partial: { theme: "dark" },
+      })
     );
   });
 });

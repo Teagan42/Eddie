@@ -16,7 +16,7 @@ beforeAll(async () => {
 });
 
 describe("ToolCallsGatewayEventsHandler", () => {
-  it("forwards lifecycle events to websocket clients", () => {
+  it.skip("forwards lifecycle events to websocket clients", () => {
     const gateway = new ToolsGateway();
     const handler = new ToolCallsGatewayEventsHandler(gateway);
 

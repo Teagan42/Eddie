@@ -23,9 +23,11 @@ vi.mock('vitest', async () => {
 
   return {
     ...actual,
-    bench: (name: string, handler: BenchHandler, options?: Record<string, unknown>) => {
-      benchRegistrations.push({ name, handler, options });
-    },
+    bench: vi.fn(
+      (name: string, handler: BenchHandler, options?: Record<string, unknown>) => {
+        benchRegistrations.push({ name, handler, options });
+      },
+    ),
     suite: (_name: string, factory: () => void) => {
       factory();
     },

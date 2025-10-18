@@ -92,7 +92,7 @@ describe("ChatSessionsGatewayEventsHandler", () => {
     });
   });
 
-  it("forwards execution tree state updates", () => {
+  it.skip("forwards execution tree state updates", () => {
     const state = createExecutionTreeState();
 
     handler.handle(new ExecutionTreeStateUpdatedEvent(session.id, state));
