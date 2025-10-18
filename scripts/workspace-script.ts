@@ -4,7 +4,11 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { determineConcurrency, runWithConcurrency } from './utils/workspace-concurrency';
 import { formatPrefix, pipeStream } from './utils/workspace-io';
-import { discoverWorkspacesWithScript, type Workspace } from './utils/workspaces';
+import {
+  discoverWorkspacesWithScript,
+  prioritizeWorkspaces,
+  type Workspace,
+} from './utils/workspaces';
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const activeChildren = new Set<ChildProcess>();
@@ -88,15 +92,19 @@ export async function runWorkspaceScript(
     return [];
   }
 
-  const prefixWidth = workspaces.reduce((width, workspace) => Math.max(width, workspace.name.length), 0);
-  const concurrency = determineConcurrency(workspaces.length);
+  const prioritizedWorkspaces = prioritizeWorkspaces(workspaces);
+  const prefixWidth = prioritizedWorkspaces.reduce(
+    (width, workspace) => Math.max(width, workspace.name.length),
+    0,
+  );
+  const concurrency = determineConcurrency(prioritizedWorkspaces.length);
 
   console.log(
-    `Running "${scriptName}" in ${workspaces.length} workspaces (concurrency ${concurrency})...`,
+    `Running "${scriptName}" in ${prioritizedWorkspaces.length} workspaces (concurrency ${concurrency})...`,
   );
 
   return runWithConcurrency(
-    workspaces.map((workspace) => () =>
+    prioritizedWorkspaces.map((workspace) => () =>
       runWorkspaceCommand(scriptName, workspace, prefixWidth, forwardedArgs, spawnImpl),
     ),
     concurrency,
