@@ -48,8 +48,12 @@ jobs:
           fi
           # Safe single-line variant
           ONE="$(printf "%s" "$ALL" | head -n1)"
-          echo "msg=$ONE" >> "$GITHUB_OUTPUT"
-          echo "all=$ALL" >> "$GITHUB_OUTPUT"
+          {
+            echo "msg=$ONE"
+            echo 'all<<__EDDIE_EOF__'
+            printf '%s\n' "$ALL"
+            echo '__EDDIE_EOF__'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Cache npm dependencies
         uses: actions/cache@v4
@@ -116,8 +120,12 @@ jobs:
           fi
           # Safe single-line variant
           ONE="$(printf "%s" "$ALL" | head -n1)"
-          echo "msg=$ONE" >> "$GITHUB_OUTPUT"
-          echo "all=$ALL" >> "$GITHUB_OUTPUT"
+          {
+            echo "msg=$ONE"
+            echo 'all<<__EDDIE_EOF__'
+            printf '%s\n' "$ALL"
+            echo '__EDDIE_EOF__'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Cache npm dependencies
         uses: actions/cache@v4
@@ -177,8 +185,12 @@ jobs:
           fi
           # Safe single-line variant
           ONE="$(printf "%s" "$ALL" | head -n1)"
-          echo "msg=$ONE" >> "$GITHUB_OUTPUT"
-          echo "all=$ALL" >> "$GITHUB_OUTPUT"
+          {
+            echo "msg=$ONE"
+            echo 'all<<__EDDIE_EOF__'
+            printf '%s\n' "$ALL"
+            echo '__EDDIE_EOF__'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Cache npm dependencies
         uses: actions/cache@v4
@@ -253,8 +265,12 @@ jobs:
           fi
           # Safe single-line variant
           ONE="$(printf "%s" "$ALL" | head -n1)"
-          echo "msg=$ONE" >> "$GITHUB_OUTPUT"
-          echo "all=$ALL" >> "$GITHUB_OUTPUT"
+          {
+            echo "msg=$ONE"
+            echo 'all<<__EDDIE_EOF__'
+            printf '%s\n' "$ALL"
+            echo '__EDDIE_EOF__'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Cache npm dependencies
         uses: actions/cache@v4
@@ -337,8 +353,12 @@ jobs:
           fi
           # Safe single-line variant
           ONE="$(printf "%s" "$ALL" | head -n1)"
-          echo "msg=$ONE" >> "$GITHUB_OUTPUT"
-          echo "all=$ALL" >> "$GITHUB_OUTPUT"
+          {
+            echo "msg=$ONE"
+            echo 'all<<__EDDIE_EOF__'
+            printf '%s\n' "$ALL"
+            echo '__EDDIE_EOF__'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Cache npm dependencies
         uses: actions/cache@v4
