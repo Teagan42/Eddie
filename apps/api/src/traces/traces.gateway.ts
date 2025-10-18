@@ -11,9 +11,13 @@ import { TraceDto } from "./dto/trace.dto";
 })
 export class TracesGateway {
   @WebSocketServer()
-  private server!: Server;
+  private server: Server | null = null;
 
   private emitTraceEvent(event: TraceEventName, trace: TraceDto): void {
+    if (!this.server) {
+      return;
+    }
+
     emitEvent(this.server, event, trace);
   }
 
