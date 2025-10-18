@@ -119,6 +119,7 @@ describe("AgentOrchestratorService", () => {
       toolCallHandler,
       traceWriterDelegate
     );
+    const executionTreeTrackerFactory = { create: vi.fn() };
     orchestrator = new AgentOrchestratorService(
       agentInvocationFactory,
       renderer,
@@ -126,7 +127,8 @@ describe("AgentOrchestratorService", () => {
       traceWriter,
       agentRunLoop,
       toolCallHandler,
-      traceWriterDelegate
+      traceWriterDelegate,
+      executionTreeTrackerFactory as any
     );
     loggerService = new LoggerService();
   });
@@ -578,6 +580,7 @@ describe("AgentOrchestratorService", () => {
       toolCallHandler,
       traceWriterDelegate
     );
+    const executionTreeTrackerFactory = { create: vi.fn() };
     orchestrator = new AgentOrchestratorService(
       agentInvocationFactory,
       renderer,
@@ -585,7 +588,8 @@ describe("AgentOrchestratorService", () => {
       traceWriter,
       agentRunLoop,
       toolCallHandler,
-      traceWriterDelegate
+      traceWriterDelegate,
+      executionTreeTrackerFactory as any
     );
 
     const provider = new MockProvider([

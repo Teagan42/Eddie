@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import { EventBus } from "@nestjs/cqrs";
 import type { Logger } from "pino";
 import { JsonlWriterService, StreamRendererService } from "@eddie/io";
@@ -31,7 +31,6 @@ import { AgentInvocationFactory } from "./agent-invocation.factory";
 type InvocationSpawnHandler = AgentSpawnHandler<AgentInvocation>;
 import {
   AgentRunner,
-  ExecutionTreeStateTracker,
   type AgentTraceEvent,
   type AgentRunnerDependencies,
 } from "./agent-runner";
@@ -39,6 +38,11 @@ import { AgentRunLoop, ToolCallHandler, TraceWriterDelegate } from "./runner";
 import type { TemplateVariables } from "@eddie/templates";
 import type { TranscriptCompactionWorkflow } from "../transcript/transcript-compaction.service";
 import type { MetricsService } from "../telemetry/metrics.service";
+import { ExecutionTreeStateTracker } from "../execution-tree/execution-tree-tracker.service";
+import {
+  ExecutionTreeTrackerFactory,
+  type ExecutionTreeTrackerFactoryFn,
+} from "../execution-tree/execution-tree-tracker.factory";
 export type {
   TranscriptCompactionPlan,
   TranscriptCompactionResult,
@@ -52,6 +56,10 @@ interface SpawnToolArguments {
     metadata?: Record<string, unknown>;
 }
 
+type ExecutionTreeTrackerFactoryLike =
+    | ExecutionTreeTrackerFactory
+    | ExecutionTreeTrackerFactoryFn;
+
 export interface AgentRuntimeOptions {
     catalog: AgentRuntimeCatalog;
     hooks: HookBus;
@@ -64,6 +72,7 @@ export interface AgentRuntimeOptions {
     transcriptCompaction?: TranscriptCompactionWorkflow;
     metrics: MetricsService;
     executionTreeTracker?: ExecutionTreeStateTracker;
+    executionTreeTrackerFactory?: ExecutionTreeTrackerFactoryLike;
 }
 
 export interface AgentRunRequest extends AgentInvocationOptions {
@@ -87,7 +96,9 @@ export class AgentOrchestratorService {
         private readonly traceWriter: JsonlWriterService,
         private readonly agentRunLoop: AgentRunLoop,
         private readonly toolCallHandler: ToolCallHandler,
-        private readonly traceWriterDelegate: TraceWriterDelegate
+        private readonly traceWriterDelegate: TraceWriterDelegate,
+        @Optional()
+        private readonly executionTreeTrackerFactory?: ExecutionTreeTrackerFactory
   ) {
     this.agentRunnerDependencies = {
       runLoop: agentRunLoop,
@@ -668,12 +679,45 @@ export class AgentOrchestratorService {
       return undefined;
     }
 
-    const tracker = new ExecutionTreeStateTracker({
-      sessionId: runtime.sessionId,
-      eventBus: this.eventBus,
-    });
+    const trackerFactory = this.resolveExecutionTreeTrackerFactory(runtime);
+    const tracker = trackerFactory
+      ? trackerFactory({ sessionId: runtime.sessionId })
+      : this.createDefaultExecutionTreeTracker(runtime.sessionId);
+
     runtime.executionTreeTracker = tracker;
     return tracker;
+  }
+
+  private resolveExecutionTreeTrackerFactory(
+    runtime: AgentRuntimeOptions
+  ): ExecutionTreeTrackerFactoryFn | undefined {
+    const factory =
+      runtime.executionTreeTrackerFactory ?? this.executionTreeTrackerFactory;
+    return this.normalizeExecutionTreeTrackerFactory(factory);
+  }
+
+  private createDefaultExecutionTreeTracker(
+    sessionId: string
+  ): ExecutionTreeStateTracker {
+    return new ExecutionTreeStateTracker(
+      this.eventBus,
+      () => new Date(),
+      { sessionId }
+    );
+  }
+
+  private normalizeExecutionTreeTrackerFactory(
+    factory: ExecutionTreeTrackerFactoryLike | undefined
+  ): ExecutionTreeTrackerFactoryFn | undefined {
+    if (!factory) {
+      return undefined;
+    }
+
+    if (typeof factory === "function") {
+      return factory;
+    }
+
+    return (options) => factory.create(options);
   }
 
   private async writeTrace(
