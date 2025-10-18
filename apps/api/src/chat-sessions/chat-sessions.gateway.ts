@@ -70,6 +70,7 @@ export class ChatSessionsGateway {
     @MessageBody() payload: SendChatMessagePayloadDto
   ): Promise<void> {
     const { sessionId, message } = payload;
-    await this.commandBus.execute(new SendChatMessageCommand(sessionId, message));
+    const dto = { ...message };
+    await this.commandBus.execute(new SendChatMessageCommand(sessionId, dto));
   }
 }
