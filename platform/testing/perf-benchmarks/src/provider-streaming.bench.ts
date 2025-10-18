@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 
