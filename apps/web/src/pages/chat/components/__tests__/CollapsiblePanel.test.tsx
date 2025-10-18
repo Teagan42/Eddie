@@ -28,4 +28,26 @@ describe('CollapsiblePanel', () => {
 
     expect(handleToggle).toHaveBeenCalledWith('panel-id', true);
   });
+
+  it('renders animated collapsible content when expanded', () => {
+    render(
+      <TooltipProvider>
+        <CollapsiblePanel
+          id="panel-id"
+          title="Panel Title"
+          description="Helpful description"
+          collapsed={false}
+          onToggle={vi.fn()}
+        >
+          Panel content
+        </CollapsiblePanel>
+      </TooltipProvider>,
+    );
+
+    const content = screen.getByText('Panel content').closest('[data-state]');
+
+    expect(content).toHaveAttribute('data-state', 'open');
+    expect(content).toHaveClass('data-[state=open]:animate-accordion-down');
+    expect(content).toHaveClass('data-[state=closed]:animate-accordion-up');
+  });
 });
