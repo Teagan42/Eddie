@@ -5,14 +5,20 @@ import { ConfigStore, DEFAULT_CONFIG } from "@eddie/config";
 import type { Knex } from "knex";
 
 import { DatabaseModule } from "../../../src/persistence/database.module";
-import { DatabaseService } from "../../../src/persistence/database.service";
+import {
+  API_PERSISTENCE_SKIP_MIGRATIONS_ENV,
+  DatabaseService,
+} from "../../../src/persistence/database.service";
 
 describe("DatabaseModule", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it.skip("creates a postgres knex instance from the config snapshot", async () => {
+  it("creates a postgres knex instance from the config snapshot", async () => {
+    const originalSkip = process.env[API_PERSISTENCE_SKIP_MIGRATIONS_ENV];
+    process.env[API_PERSISTENCE_SKIP_MIGRATIONS_ENV] = "true";
+
     const config: EddieConfig = structuredClone(DEFAULT_CONFIG);
     config.api = {
       ...(config.api ?? {}),
@@ -37,22 +43,26 @@ describe("DatabaseModule", () => {
       .overrideProvider(ConfigStore)
       .useValue({ getSnapshot })
       .compile();
-    moduleRef.init();
 
-    const database = moduleRef.get(DatabaseService);
-    const knex = database.getClient();
+    try {
+      moduleRef.init();
 
-    expect(getSnapshot).toHaveBeenCalledTimes(1);
-    expect(knex.client.config.client).toBe("pg");
-    expect(knex.client.config.connection).toMatchObject({
-      host: "localhost",
-      port: 5432,
-      database: "eddie",
-      user: "postgres",
-      password: "password",
-    });
+      const database = moduleRef.get(DatabaseService);
+      const knex = database.getClient();
 
-    await moduleRef.close();
+      expect(getSnapshot).toHaveBeenCalledTimes(1);
+      expect(knex.client.config.client).toBe("pg");
+      expect(knex.client.config.connection).toMatchObject({
+        host: "localhost",
+        port: 5432,
+        database: "eddie",
+        user: "postgres",
+        password: "password",
+      });
+    } finally {
+      await moduleRef.close();
+      process.env[API_PERSISTENCE_SKIP_MIGRATIONS_ENV] = originalSkip;
+    }
   });
 
   it("does not attempt to create a knex client when using the memory driver", async () => {
