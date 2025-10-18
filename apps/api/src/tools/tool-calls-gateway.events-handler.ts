@@ -21,14 +21,27 @@ export class ToolCallsGatewayEventsHandler implements IEventHandler<ToolCallLife
   }
 
   private createPayload(state: ToolCallState): Record<string, unknown> {
+    const {
+      sessionId,
+      toolCallId,
+      name,
+      arguments: args,
+      result,
+      status,
+      updatedAt,
+      startedAt,
+      agentId,
+    } = state;
+
     return {
-      sessionId: state.sessionId,
-      id: state.toolCallId,
-      name: state.name,
-      arguments: state.arguments,
-      result: state.result,
-      timestamp: state.updatedAt ?? state.startedAt,
-      agentId: state.agentId ?? null,
+      sessionId,
+      id: toolCallId,
+      name,
+      arguments: args,
+      result,
+      status,
+      timestamp: updatedAt ?? startedAt,
+      agentId: agentId ?? null,
     };
   }
 }

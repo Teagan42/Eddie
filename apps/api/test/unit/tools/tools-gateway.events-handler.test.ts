@@ -16,7 +16,7 @@ beforeAll(async () => {
 });
 
 describe("ToolCallsGatewayEventsHandler", () => {
-  it.skip("forwards lifecycle events to websocket clients", () => {
+  it("forwards lifecycle events to websocket clients", () => {
     const gateway = new ToolsGateway();
     const handler = new ToolCallsGatewayEventsHandler(gateway);
 
@@ -58,6 +58,7 @@ describe("ToolCallsGatewayEventsHandler", () => {
         id: "t1",
         name: "summarise",
         agentId: "agent-77",
+        status: "running",
       })
     );
     expect(emitEvent).toHaveBeenNthCalledWith(
@@ -69,6 +70,7 @@ describe("ToolCallsGatewayEventsHandler", () => {
         id: "t1",
         name: "summarise",
         agentId: "agent-77",
+        status: "running",
       })
     );
     expect(emitEvent).toHaveBeenNthCalledWith(
@@ -80,6 +82,7 @@ describe("ToolCallsGatewayEventsHandler", () => {
         id: "t1",
         name: "summarise",
         agentId: "agent-77",
+        status: "completed",
       })
     );
   });
