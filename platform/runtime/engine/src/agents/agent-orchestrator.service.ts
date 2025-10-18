@@ -29,7 +29,13 @@ import {
 import { AgentInvocation } from "./agent-invocation";
 import { AgentInvocationFactory } from "./agent-invocation.factory";
 type InvocationSpawnHandler = AgentSpawnHandler<AgentInvocation>;
-import { AgentRunner, ExecutionTreeStateTracker, type AgentTraceEvent } from "./agent-runner";
+import {
+  AgentRunner,
+  ExecutionTreeStateTracker,
+  type AgentTraceEvent,
+  type AgentRunnerDependencies,
+} from "./agent-runner";
+import { AgentRunLoop, ToolCallHandler, TraceWriterDelegate } from "./runner";
 import type { TemplateVariables } from "@eddie/templates";
 import type { TranscriptCompactionWorkflow } from "../transcript/transcript-compaction.service";
 import type { MetricsService } from "../telemetry/metrics.service";
@@ -72,13 +78,23 @@ export class AgentOrchestratorService {
         AgentInvocation,
         AgentRuntimeDescriptor
     >();
+  private readonly agentRunnerDependencies: AgentRunnerDependencies;
 
   constructor(
         private readonly agentInvocationFactory: AgentInvocationFactory,
         private readonly streamRenderer: StreamRendererService,
         private readonly eventBus: EventBus,
-        private readonly traceWriter: JsonlWriterService
-  ) { }
+        private readonly traceWriter: JsonlWriterService,
+        private readonly agentRunLoop: AgentRunLoop,
+        private readonly toolCallHandler: ToolCallHandler,
+        private readonly traceWriterDelegate: TraceWriterDelegate
+  ) {
+    this.agentRunnerDependencies = {
+      runLoop: agentRunLoop,
+      toolCallHandler,
+      traceWriterDelegate,
+    };
+  }
 
   async runAgent(
     request: AgentRunRequest,
@@ -636,7 +652,7 @@ export class AgentOrchestratorService {
         this.writeTrace(runtime, invocation, event, append),
       metrics: runtime.metrics,
       executionTreeTracker: this.ensureExecutionTreeTracker(runtime),
-    });
+    }, this.agentRunnerDependencies);
 
     await runner.run();
   }
