@@ -103,6 +103,69 @@ describe("buildBenchmarkEntries", () => {
     ]);
   });
 
+  it("skips vitest benchmark stats that produce non-finite means", () => {
+    const files = [
+      {
+        filepath: "/workspace/foo.bench.ts",
+        tasks: [
+          {
+            type: "suite",
+            name: "Context pack",
+            tasks: [
+              {
+                type: "test",
+                name: "pack small",
+                meta: { benchmark: true },
+                result: {
+                  state: "pass",
+                  benchmark: {
+                    name: "pack small",
+                    mean: Number.NaN,
+                  },
+                },
+              },
+              {
+                type: "test",
+                name: "pack medium",
+                meta: { benchmark: true },
+                result: {
+                  state: "pass",
+                  benchmark: {
+                    name: "pack medium",
+                    mean: Number.POSITIVE_INFINITY,
+                  },
+                },
+              },
+              {
+                type: "test",
+                name: "pack large",
+                meta: { benchmark: true },
+                result: {
+                  state: "pass",
+                  benchmark: {
+                    name: "pack large",
+                    mean: 1.234,
+                  },
+                },
+              },
+            ],
+            result: { state: "pass" },
+          },
+        ],
+      },
+    ];
+
+    const entries = buildBenchmarkEntries(files as never);
+
+    expect(entries).toEqual([
+      {
+        name: "Context pack › pack large",
+        unit: "ms",
+        value: 1234,
+      },
+    ]);
+  });
+
   it("writes benchmark results to the BENCHMARK_OUTPUT_PATH when finishing", async () => {
     const files = [
       {
