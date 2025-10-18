@@ -8,6 +8,10 @@ import ReporterModule, {
   BenchmarkActionReporter,
   buildBenchmarkEntries,
 } from "../src/benchmark-action.reporter";
+import {
+  drainBenchmarkActionEntries,
+  registerBenchmarkActionEntry,
+} from "../src/benchmark-action.registry";
 
 describe("buildBenchmarkEntries", () => {
   it("converts vitest benchmark stats into benchmark-action entries", () => {
@@ -160,6 +164,69 @@ describe("buildBenchmarkEntries", () => {
           rme: 2.9,
           samples: 30,
         },
+      },
+    ]);
+
+    delete process.env.BENCHMARK_OUTPUT_PATH;
+  });
+
+  it("falls back to registered entries when vitest stats omit benchmark samples", async () => {
+    const files = [
+      {
+        filepath: "/workspace/foo.bench.ts",
+        tasks: [
+          {
+            type: "suite",
+            name: "Context pack",
+            tasks: [
+              {
+                type: "test",
+                name: "pack small",
+                meta: { benchmark: true },
+                result: {
+                  state: "run",
+                  benchmark: {
+                    name: "pack small",
+                    samples: [],
+                    rank: 1,
+                    rme: 0,
+                  },
+                },
+              },
+            ],
+            result: { state: "run" },
+          },
+        ],
+      },
+    ];
+
+    const tmpRoot = mkdtempSync(join(tmpdir(), "bench-reporter-"));
+    const targetPath = join(tmpRoot, "benchmark-results.json");
+    const reporter = new BenchmarkActionReporter({ outputFile: "fallback.json" });
+    const ctx = {
+      config: { root: tmpRoot },
+      logger: { log: () => {}, warn: () => {} },
+      state: { getFiles: () => files },
+    } as const;
+
+    drainBenchmarkActionEntries();
+    registerBenchmarkActionEntry({
+      name: "Context pack › pack small",
+      unit: "ms",
+      value: 123.456,
+    });
+
+    process.env.BENCHMARK_OUTPUT_PATH = targetPath;
+
+    reporter.onInit(ctx as never);
+    await reporter.onFinished(files as never);
+
+    const written = JSON.parse(readFileSync(targetPath, "utf-8"));
+    expect(written).toEqual([
+      {
+        name: "Context pack › pack small",
+        unit: "ms",
+        value: 123.456,
       },
     ]);
 
