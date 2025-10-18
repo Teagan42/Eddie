@@ -10,7 +10,7 @@
   },
   "scripts": {
     "lint": "eslint --no-error-on-unmatched-pattern .",
-    "build": "echo \"Perf benchmarks have no build step\"",
+    "build": "tsc -b tsconfig.build.json",
     "bench": "vitest bench",
     "test": "vitest run"
   }
