@@ -8,7 +8,7 @@ import { ConfigModule, ConfigStore } from "@eddie/config";
 import { TracesModule } from "../traces/traces.module";
 import { LogsModule } from "../logs/logs.module";
 import { DatabaseModule } from "../persistence/database.module";
-import { KNEX_INSTANCE } from "../persistence/knex.provider";
+import { KNEX_INSTANCE, enableSqliteForeignKeys } from "../persistence/knex.provider";
 import { ChatSessionsService } from "./chat-sessions.service";
 import { ChatSessionsController } from "./chat-sessions.controller";
 import { ChatSessionsGateway } from "./chat-sessions.gateway";
@@ -62,9 +62,7 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
       }
       case "sqlite": {
         const knex = resolveKnex();
-        if (typeof knex.raw === "function") {
-          void knex.raw("PRAGMA foreign_keys = ON");
-        }
+        enableSqliteForeignKeys(knex);
         return createKnexRepository(knex);
       }
       case "postgres":

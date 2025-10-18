@@ -19,9 +19,23 @@ export const KNEX_PROVIDER: Provider = {
     }
 
     const knexConfig = createKnexConfig(persistence);
-    return knex(knexConfig);
+    const instance = knex(knexConfig);
+
+    if (persistence.driver === "sqlite") {
+      enableSqliteForeignKeys(instance);
+    }
+
+    return instance;
   },
   inject: [ ConfigStore ],
+};
+
+export const enableSqliteForeignKeys = (instance: Knex | undefined): void => {
+  if (!instance || typeof instance.raw !== "function") {
+    return;
+  }
+
+  void instance.raw("PRAGMA foreign_keys = ON");
 };
 
 export function createKnexConfig(persistence: ApiPersistenceConfig): Knex.Config {
