@@ -5,9 +5,24 @@ import { PassThrough } from 'node:stream';
 
 vi.mock('../scripts/utils/workspaces', () => ({
   discoverWorkspacesWithScript: vi.fn().mockResolvedValue([
-    { name: '@pkg/a', dir: 'platform/runtime/a' },
-    { name: '@pkg/b', dir: 'platform/runtime/b' },
+    { name: '@pkg/changed-low', dir: 'platform/runtime/changed-low', testFileCount: 2, hasChanges: true },
+    { name: '@pkg/unchanged-low', dir: 'platform/runtime/unchanged-low', testFileCount: 1, hasChanges: false },
+    { name: '@pkg/unchanged-high', dir: 'platform/runtime/unchanged-high', testFileCount: 10, hasChanges: false },
+    { name: '@pkg/changed-high', dir: 'platform/runtime/changed-high', testFileCount: 10, hasChanges: true },
+    { name: '@pkg/massive', dir: 'platform/runtime/massive', testFileCount: 30, hasChanges: false },
   ]),
+  prioritizeWorkspaces: (workspaces: Array<{ testFileCount: number; hasChanges: boolean; name: string }>) =>
+    [...workspaces].sort((a, b) => {
+      if (b.testFileCount !== a.testFileCount) {
+        return b.testFileCount - a.testFileCount;
+      }
+
+      if (a.hasChanges !== b.hasChanges) {
+        return a.hasChanges ? -1 : 1;
+      }
+
+      return a.name.localeCompare(b.name);
+    }),
 }));
 
 const runWithConcurrencyMock = vi.fn(async (tasks: Array<() => Promise<unknown>>, concurrency: number) => {
@@ -59,16 +74,21 @@ describe('workspace script runner', () => {
   it('runs each workspace script using concurrency', async () => {
     await runWorkspaceScript('lint', { forwardedArgs: ['--fix'] });
 
-    expect(determineConcurrencyMock).toHaveBeenCalledWith(2);
+    expect(determineConcurrencyMock).toHaveBeenCalledWith(5);
     expect(runWithConcurrencyMock).toHaveBeenCalled();
 
     const [tasks, concurrency] = runWithConcurrencyMock.mock.calls[0];
-    expect(tasks).toHaveLength(2);
+    expect(tasks).toHaveLength(5);
     expect(concurrency).toBe(2);
 
-    const firstCall = spawnMock.mock.calls[0];
-    expect(firstCall[0]).toBe('npm');
-    expect(firstCall[1]).toEqual(['run', 'lint', '--workspace', '@pkg/a', '--if-present', '--', '--fix']);
+    const spawnWorkspaceOrder = spawnMock.mock.calls.map((call) => call[1][3]);
+    expect(spawnWorkspaceOrder).toEqual([
+      '@pkg/massive',
+      '@pkg/changed-high',
+      '@pkg/unchanged-high',
+      '@pkg/changed-low',
+      '@pkg/unchanged-low',
+    ]);
   });
 });
 
