@@ -66,6 +66,7 @@ import {
   createEmptyExecutionTreeState,
   createExecutionTreeStateFromMetadata,
   type ExecutionTreeState,
+  isExecutionTreeState,
   type ToolEventPayload,
 } from './execution-tree-state';
 
@@ -389,6 +390,53 @@ export function ChatPage(): JSX.Element {
       });
     };
   }, [api, handleToolLifecycleEvent]);
+
+  useEffect(() => {
+    const chatSessions = api.sockets.chatSessions;
+    const subscribe = chatSessions?.onExecutionTreeUpdated;
+
+    if (!subscribe) {
+      return;
+    }
+
+    const unsubscribe = subscribe((payload) => {
+      if (!payload || typeof payload !== 'object') {
+        return;
+      }
+
+      const { sessionId, state } = payload as {
+        sessionId?: string | null;
+        state?: ExecutionTreeState | null;
+      };
+
+      if (typeof sessionId !== 'string' || sessionId.length === 0) {
+        return;
+      }
+
+      if (selectedSessionIdRef.current !== sessionId) {
+        return;
+      }
+
+      if (!state || !isExecutionTreeState(state) || !Array.isArray(state.contextBundles)) {
+        return;
+      }
+
+      const clonedTree = cloneExecutionTreeState(state);
+      setSessionContext(sessionId, {
+        sessionId,
+        executionTree: clonedTree,
+        capturedAt: state.updatedAt ?? undefined,
+      });
+    });
+
+    return () => {
+      try {
+        unsubscribe?.();
+      } catch {
+        // Ignore teardown errors to keep realtime updates resilient.
+      }
+    };
+  }, [api, setSessionContext]);
 
   const getMessageCacheLength = useCallback(
     (sessionId: string): number | undefined => {
