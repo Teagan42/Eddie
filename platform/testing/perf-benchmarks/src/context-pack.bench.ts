@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { performance } from 'node:perf_hooks';
-import { afterAll, bench, suite } from 'vitest';
+import { afterAll, beforeAll, bench, suite } from 'vitest';
 
 import type { ContextConfig, ContextResourceBundleConfig } from '@eddie/config';
 import { ContextService } from '@eddie/context';
@@ -139,22 +139,33 @@ export interface ContextPackBenchmarkRegistrationContext {
   readonly bench: typeof bench;
 }
 
-export async function defineContextPackBenchmarks({
+export function defineContextPackBenchmarks({
   suite: registerSuite,
   bench: registerBench,
-}: ContextPackBenchmarkRegistrationContext): Promise<void> {
-  const { datasetContexts, contextService, cleanup } = await createBenchmarkEnvironment();
-
+}: ContextPackBenchmarkRegistrationContext): void {
   registerSuite('ContextService.pack benchmarks', () => {
-    afterAll(() => {
+    let environmentPromise: Promise<BenchmarkEnvironment> | undefined;
+
+    const ensureEnvironment = (): Promise<BenchmarkEnvironment> => {
+      environmentPromise ??= createBenchmarkEnvironment();
+      return environmentPromise;
+    };
+
+    beforeAll(async () => {
+      await ensureEnvironment();
+    });
+
+    afterAll(async () => {
+      const { datasetContexts, cleanup } = await ensureEnvironment();
       emitStructuredReport(datasetContexts);
-      void cleanup().catch(() => {});
+      await cleanup().catch(() => {});
     });
 
     for (const datasetName of DATASET_NAMES) {
       registerBench(
         `pack ${datasetName}`,
         async () => {
+          const { datasetContexts, contextService } = await ensureEnvironment();
           const context = datasetContexts.get(datasetName);
           if (!context) {
             throw new Error(`Dataset context for ${datasetName} was not prepared.`);
