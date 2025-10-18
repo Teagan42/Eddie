@@ -9,6 +9,7 @@ import {
   type ChatSessionsDomainEvent,
 } from "./events";
 import { ChatSessionsGateway } from "./chat-sessions.gateway";
+import { ExecutionTreeStateUpdatedEvent } from "@eddie/types";
 
 @Injectable()
 @EventsHandler(
@@ -17,16 +18,20 @@ import { ChatSessionsGateway } from "./chat-sessions.gateway";
   ChatSessionDeleted,
   ChatMessageSent,
   AgentActivity,
+  ExecutionTreeStateUpdatedEvent,
 )
 export class ChatSessionsGatewayEventsHandler
-implements IEventHandler<ChatSessionsDomainEvent>
+implements
+    IEventHandler<ChatSessionsDomainEvent | ExecutionTreeStateUpdatedEvent>
 {
   constructor(
     @Inject(ChatSessionsGateway)
     private readonly gateway: ChatSessionsGateway
   ) {}
 
-  handle(event: ChatSessionsDomainEvent): void {
+  handle(
+    event: ChatSessionsDomainEvent | ExecutionTreeStateUpdatedEvent
+  ): void {
     if (event instanceof ChatSessionCreated) {
       this.gateway.emitSessionCreated(event.session);
       return;
@@ -56,6 +61,14 @@ implements IEventHandler<ChatSessionsDomainEvent>
         sessionId: event.sessionId,
         state: event.state,
         timestamp: event.timestamp,
+      });
+      return;
+    }
+
+    if (event instanceof ExecutionTreeStateUpdatedEvent) {
+      this.gateway.emitExecutionTreeUpdated({
+        sessionId: event.sessionId,
+        state: event.state,
       });
       return;
     }

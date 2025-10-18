@@ -12,6 +12,7 @@ import type { AgentActivityState } from "./chat-session.types";
 import { ChatMessageDto, ChatSessionDto } from "./dto/chat-session.dto";
 import { SendChatMessagePayloadDto } from "./dto/send-chat-message.dto";
 import { SendChatMessageCommand } from "./commands/send-chat-message.command";
+import type { ExecutionTreeState } from "@eddie/types";
 
 @WebSocketGateway({
   path: "/chat-sessions",
@@ -48,6 +49,13 @@ export class ChatSessionsGateway {
     timestamp: string;
   }): void {
     emitEvent(this.server, "agent.activity", event);
+  }
+
+  emitExecutionTreeUpdated(event: {
+    sessionId: string;
+    state: ExecutionTreeState;
+  }): void {
+    emitEvent(this.server, "execution-tree.updated", event);
   }
 
   @SubscribeMessage("message.send")

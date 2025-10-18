@@ -11,7 +11,14 @@ import {
   ToolCallStatusDto,
   AgentHierarchyNodeDto,
 } from "./dto/orchestrator-metadata.dto";
-import { ChatMessageDto } from '../chat-sessions/dto/chat-session.dto';
+import { ChatMessageDto } from "../chat-sessions/dto/chat-session.dto";
+import { ExecutionTreeStateStore } from "./execution-tree-state.store";
+import type {
+  ExecutionTreeState,
+  ExecutionAgentNode,
+  ExecutionToolInvocationNode,
+  ExecutionContextBundle,
+} from "@eddie/types";
 
 interface SpawnDetails {
   provider?: string;
@@ -25,11 +32,19 @@ export class OrchestratorMetadataService {
   private static readonly SPAWN_RESULT_SCHEMA =
     "eddie.tool.spawn_subagent.result.v1";
 
-  constructor(private readonly chatSessions: ChatSessionsService) {}
+  constructor(
+    private readonly chatSessions: ChatSessionsService,
+    private readonly executionTreeStateStore?: ExecutionTreeStateStore,
+  ) {}
 
   async getMetadata(sessionId?: string): Promise<OrchestratorMetadataDto> {
     if (!sessionId) {
       return this.createEmptySnapshot();
+    }
+
+    const cachedState = this.executionTreeStateStore?.get(sessionId);
+    if (cachedState) {
+      return this.createSnapshotFromExecutionTree(sessionId, cachedState);
     }
 
     const session = await this.chatSessions.getSession(sessionId);
@@ -66,6 +81,101 @@ export class OrchestratorMetadataService {
       toolInvocations: [],
       agentHierarchy: [],
     };
+  }
+
+  private createSnapshotFromExecutionTree(
+    sessionId: string,
+    state: ExecutionTreeState,
+  ): OrchestratorMetadataDto {
+    return {
+      sessionId,
+      capturedAt: state.updatedAt,
+      contextBundles: state.contextBundles.map((bundle) =>
+        this.mapContextBundle(bundle)
+      ),
+      toolInvocations: state.toolInvocations.map((node) =>
+        this.mapToolInvocation(node)
+      ),
+      agentHierarchy: state.agentHierarchy.map((node) =>
+        this.mapAgentHierarchy(node)
+      ),
+    };
+  }
+
+  private mapAgentHierarchy(node: ExecutionAgentNode): AgentHierarchyNodeDto {
+    const dto = new AgentHierarchyNodeDto();
+    dto.id = node.id;
+    dto.name = node.name;
+    if (node.provider) {
+      dto.provider = node.provider;
+    }
+    if (node.model) {
+      dto.model = node.model;
+    }
+    if (typeof node.depth === "number") {
+      dto.depth = node.depth;
+    }
+    dto.children = node.children.map((child) => this.mapAgentHierarchy(child));
+    return dto;
+  }
+
+  private mapToolInvocation(
+    node: ExecutionToolInvocationNode
+  ): ToolCallNodeDto {
+    const dto = new ToolCallNodeDto();
+    dto.id = node.id;
+    dto.name = node.name;
+    dto.status = this.mapToolStatus(node.status);
+    const metadata: Record<string, unknown> = {
+      ...(node.metadata ?? {}),
+    };
+    if (node.agentId) {
+      metadata.agentId = node.agentId;
+    }
+    if (node.createdAt) {
+      metadata.createdAt = node.createdAt;
+    }
+    if (node.updatedAt) {
+      metadata.updatedAt = node.updatedAt;
+    }
+    if (Object.keys(metadata).length > 0) {
+      dto.metadata = metadata;
+    }
+    dto.children = node.children.map((child) => this.mapToolInvocation(child));
+    return dto;
+  }
+
+  private mapToolStatus(status: string): ToolCallStatusDto {
+    switch (status) {
+      case "pending":
+        return ToolCallStatusDto.Pending;
+      case "running":
+        return ToolCallStatusDto.Running;
+      case "failed":
+        return ToolCallStatusDto.Failed;
+      case "completed":
+      default:
+        return ToolCallStatusDto.Completed;
+    }
+  }
+
+  private mapContextBundle(bundle: ExecutionContextBundle): ContextBundleDto {
+    const dto = new ContextBundleDto();
+    dto.id = bundle.id;
+    dto.label = bundle.label;
+    dto.sizeBytes = bundle.sizeBytes;
+    dto.fileCount = bundle.fileCount;
+    if (bundle.summary) {
+      dto.summary = bundle.summary;
+    }
+    if (bundle.files) {
+      dto.files = bundle.files.map((file) => ({
+        path: file.path,
+        sizeBytes: file.sizeBytes,
+        ...(file.preview ? { preview: file.preview } : {}),
+      }));
+    }
+    return dto;
   }
 
   private createContextBundles(
