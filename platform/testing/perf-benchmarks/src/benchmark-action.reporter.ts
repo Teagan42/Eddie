@@ -48,6 +48,22 @@ interface ReporterOptions {
   readonly outputFile?: string;
 }
 
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value);
+
+const buildExtras = (stats: BenchmarkStats): Record<string, number> | undefined => {
+  const entries = Object.entries({
+    hz: stats.hz,
+    min: stats.min,
+    max: stats.max,
+    rank: stats.rank,
+    rme: stats.rme,
+    samples: stats.sampleCount,
+  }).filter(([, value]) => isFiniteNumber(value));
+
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+};
+
 export function buildBenchmarkEntries(files: readonly FileTaskLike[]): BenchmarkActionEntry[] {
   const entries: BenchmarkActionEntry[] = [];
 
@@ -63,7 +79,7 @@ export function buildBenchmarkEntries(files: readonly FileTaskLike[]): Benchmark
         }
 
         const stats = task.result?.benchmark;
-        if (!stats || typeof stats.mean !== "number") {
+        if (!stats || !isFiniteNumber(stats.mean)) {
           continue;
         }
 
@@ -71,22 +87,13 @@ export function buildBenchmarkEntries(files: readonly FileTaskLike[]): Benchmark
           .filter((segment): segment is string => Boolean(segment && segment.length > 0))
           .join(" › ");
 
-        const extraEntries = Object.entries({
-          hz: stats.hz,
-          min: stats.min,
-          max: stats.max,
-          rank: stats.rank,
-          rme: stats.rme,
-          samples: stats.sampleCount,
-        }).filter(([, value]) => value !== undefined);
-
         const meanInMilliseconds = stats.mean * 1000;
 
         entries.push({
           name,
           unit: "ms",
           value: round(meanInMilliseconds),
-          extra: extraEntries.length > 0 ? Object.fromEntries(extraEntries) : undefined,
+          extra: buildExtras(stats),
         });
       }
     }
