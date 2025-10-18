@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { EventBus } from "@nestjs/cqrs";
+import type { EventBus, IEvent } from "@nestjs/cqrs";
 import { StartToolCallCommand } from "../../../src/tools/commands/start-tool-call.command";
 import { UpdateToolCallCommand } from "../../../src/tools/commands/update-tool-call.command";
 import { CompleteToolCallCommand } from "../../../src/tools/commands/complete-tool-call.command";
@@ -17,8 +17,8 @@ import type { ToolCallPersistenceService } from "../../../src/tools/tool-call.pe
 describe("Tool call CQRS", () => {
   it("persists state across start, update, and complete commands", async () => {
     const store = new ToolCallStore();
-    const events: unknown[] = [];
-    const publish = vi.fn((event: unknown) => {
+    const events: IEvent[] = [];
+    const publish = vi.fn((event: IEvent) => {
       events.push(event);
     });
     const eventBus = { publish } as unknown as EventBus;
