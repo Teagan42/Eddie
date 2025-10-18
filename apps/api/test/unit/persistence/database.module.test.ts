@@ -12,7 +12,7 @@ describe("DatabaseModule", () => {
     vi.restoreAllMocks();
   });
 
-  it.skip("creates a postgres knex instance from the config snapshot", async () => {
+  it("creates a postgres knex instance from the config snapshot", async () => {
     const config: EddieConfig = structuredClone(DEFAULT_CONFIG);
     config.api = {
       ...(config.api ?? {}),
@@ -25,6 +25,9 @@ describe("DatabaseModule", () => {
             database: "eddie",
             user: "postgres",
             password: "password",
+          },
+          migrations: {
+            runOnBootstrap: false,
           },
         },
       },

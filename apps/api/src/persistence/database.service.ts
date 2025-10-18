@@ -9,6 +9,8 @@ import {
 } from "@nestjs/common";
 import type { Knex } from "knex";
 
+import { ConfigStore, type ApiPersistenceConfig } from "@eddie/config";
+
 import { KNEX_INSTANCE } from "./knex.provider";
 
 @Injectable()
@@ -22,7 +24,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Optional()
     @Inject(KNEX_INSTANCE)
-    private readonly knex?: Knex
+    private readonly knex: Knex | undefined,
+    @Inject(ConfigStore)
+    private readonly configStore: ConfigStore
   ) {}
 
   getClient(): Knex {
@@ -38,6 +42,10 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     if (typeof knex === "undefined") {
       return;
     }
+    if (!this.shouldRunMigrations()) {
+      return;
+    }
+
     await this.ensureMigrationsDirectory();
     await knex.migrate.latest(this.migrationsConfig);
   }
@@ -69,4 +77,55 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       await ensureDirectory(directory);
     }
   }
+
+  private shouldRunMigrations(): boolean {
+    const knex = this.knex;
+    if (typeof knex === "undefined") {
+      return false;
+    }
+
+    const persistence = this.configStore.getSnapshot().api?.persistence;
+    if (!persistence) {
+      return false;
+    }
+
+    if (persistence.driver === "memory") {
+      return false;
+    }
+
+    const runOnBootstrap = this.getRunOnBootstrapFlag(persistence);
+    if (typeof runOnBootstrap === "boolean") {
+      return runOnBootstrap;
+    }
+
+    return true;
+  }
+
+  private getRunOnBootstrapFlag(persistence: ApiPersistenceConfig): boolean | undefined {
+    const driverConfig = this.getDriverPersistenceConfig(persistence);
+    return driverConfig?.migrations?.runOnBootstrap;
+  }
+
+  private getDriverPersistenceConfig(
+    persistence: ApiPersistenceConfig
+  ): SqlPersistenceExtras | undefined {
+    switch (persistence.driver) {
+      case "sqlite":
+        return persistence.sqlite as SqlPersistenceExtras | undefined;
+      case "postgres":
+        return persistence.postgres as SqlPersistenceExtras;
+      case "mysql":
+        return persistence.mysql as SqlPersistenceExtras;
+      case "mariadb":
+        return persistence.mariadb as SqlPersistenceExtras;
+      default:
+        return undefined;
+    }
+  }
+}
+
+interface SqlPersistenceExtras {
+  migrations?: {
+    runOnBootstrap?: boolean;
+  };
 }
