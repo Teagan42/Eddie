@@ -267,35 +267,39 @@ export function AgentExecutionTree({
                   className="mt-2 rounded-lg border border-white/10 bg-slate-950/70"
                 >
                   <ul className="divide-y divide-white/5">
-                    {entries.map((entry) => (
-                      <li key={entry.id} className="p-3">
-                        <Flex align="center" justify="between" gap="3">
-                          <Box className="min-w-0">
-                            <Text weight="medium" className="truncate text-white/90">
-                              {entry.name ?? 'Unnamed invocation'}
-                            </Text>
-                            <Text size="1" color="gray" className="mt-1 block">
-                              {summarizeObject(
-                                resolveInvocationPreviewSource(status, entry),
-                                TOOL_PREVIEW_LIMIT,
-                              ) ??
-                                'No preview available'}
-                            </Text>
-                          </Box>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setDetailsTarget({ agentId: agent.id, invocationId: entry.id })
-                            }
-                            className="inline-flex items-center gap-1 rounded-md border border-accent/40 px-2 py-1 text-xs font-medium text-accent transition hover:bg-accent/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                            aria-label="View full tool invocation details"
-                          >
-                            View details
-                            <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-                          </button>
-                        </Flex>
-                      </li>
-                    ))}
+                    {entries.map((entry) => {
+                      const metadataInspector = renderInvocationMetadata(entry);
+                      return (
+                        <li key={entry.id} className="p-3 space-y-3">
+                          <Flex align="center" justify="between" gap="3">
+                            <Box className="min-w-0">
+                              <Text weight="medium" className="truncate text-white/90">
+                                {entry.name ?? 'Unnamed invocation'}
+                              </Text>
+                              <Text size="1" color="gray" className="mt-1 block">
+                                {summarizeObject(
+                                  resolveInvocationPreviewSource(status, entry),
+                                  TOOL_PREVIEW_LIMIT,
+                                ) ??
+                                  'No preview available'}
+                              </Text>
+                            </Box>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setDetailsTarget({ agentId: agent.id, invocationId: entry.id })
+                              }
+                              className="inline-flex items-center gap-1 rounded-md border border-accent/40 px-2 py-1 text-xs font-medium text-accent transition hover:bg-accent/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                              aria-label="View full tool invocation details"
+                            >
+                              View details
+                              <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                            </button>
+                          </Flex>
+                          {metadataInspector}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </Box>
               ) : null}
@@ -539,6 +543,32 @@ export function AgentExecutionTree({
         ) : null}
       </Dialog>
     </>
+  );
+}
+
+function renderInvocationMetadata(entry: ToolInvocationNode): JSX.Element | null {
+  const metadata = entry.metadata as { args?: unknown; result?: unknown } | undefined;
+  const inspectorValue: Record<string, unknown> = {};
+
+  if (metadata && 'args' in metadata && metadata.args !== undefined) {
+    inspectorValue.args = metadata.args;
+  }
+
+  if (metadata && 'result' in metadata && metadata.result !== undefined) {
+    inspectorValue.result = metadata.result;
+  }
+
+  if (Object.keys(inspectorValue).length === 0) {
+    return null;
+  }
+
+  return (
+    <JsonTreeView
+      value={inspectorValue}
+      collapsedByDefault
+      rootLabel="Invocation metadata"
+      className="text-left text-xs"
+    />
   );
 }
 

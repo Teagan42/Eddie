@@ -201,4 +201,158 @@ describe('AgentExecutionTree', () => {
     });
     expect(nestedRegion).toBeInTheDocument();
   });
+
+  it('renders a collapsed args inspector for pending tool invocations', async () => {
+    const user = userEvent.setup();
+    const pendingInvocation: ExecutionTreeState['toolInvocations'][number] = {
+      id: 'tool-1',
+      agentId: 'root-agent',
+      name: 'fetch-weather',
+      status: 'pending',
+      createdAt: '2024-05-01T12:00:00.000Z',
+      updatedAt: '2024-05-01T12:00:00.000Z',
+      metadata: { args: { location: 'San Francisco, CA' } },
+      children: [],
+    };
+
+    const executionTree: ExecutionTreeState = {
+      agentHierarchy: [
+        {
+          id: 'root-agent',
+          name: 'orchestrator',
+          provider: 'openai',
+          model: 'gpt-4o',
+          depth: 0,
+          lineage: ['root-agent'],
+          children: [],
+        },
+      ],
+      toolInvocations: [pendingInvocation],
+      contextBundles: [],
+      agentLineageById: { 'root-agent': ['root-agent'] },
+      toolGroupsByAgentId: {
+        'root-agent': {
+          pending: [pendingInvocation],
+          running: [],
+          completed: [],
+          failed: [],
+        },
+      },
+      contextBundlesByAgentId: {},
+      contextBundlesByToolCallId: {},
+      createdAt: '2024-05-01T12:00:00.000Z',
+      updatedAt: '2024-05-01T12:00:00.000Z',
+    };
+
+    const metadata = {
+      executionTree,
+    } as unknown as OrchestratorMetadataDto;
+
+    render(
+      <AgentExecutionTree
+        state={createExecutionTreeStateFromMetadata(metadata)}
+        selectedAgentId={null}
+        onSelectAgent={() => {}}
+      />,
+    );
+
+    const pendingGroupToggle = screen.getByRole('button', {
+      name: /toggle pending tool invocations for orchestrator/i,
+    });
+
+    await user.click(pendingGroupToggle);
+
+    const pendingRegion = screen.getByRole('region', {
+      name: /pending tool invocations for orchestrator/i,
+    });
+
+    const invocationItem = within(pendingRegion).getByText('fetch-weather').closest('li');
+    expect(invocationItem).not.toBeNull();
+
+    const invocation = invocationItem as HTMLLIElement;
+    expect(within(invocation).getByTestId('json-tree-view')).toBeInTheDocument();
+
+    const argsToggle = within(invocation).getByRole('button', { name: /toggle args/i });
+    expect(argsToggle).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('renders args and result inspectors for completed tool invocations', async () => {
+    const user = userEvent.setup();
+    const completedInvocation: ExecutionTreeState['toolInvocations'][number] = {
+      id: 'tool-1',
+      agentId: 'root-agent',
+      name: 'fetch-weather',
+      status: 'completed',
+      createdAt: '2024-05-01T12:00:00.000Z',
+      updatedAt: '2024-05-01T12:02:00.000Z',
+      metadata: {
+        args: { location: 'San Francisco, CA' },
+        result: { summary: 'Partly cloudy and mild.' },
+      },
+      children: [],
+    };
+
+    const executionTree: ExecutionTreeState = {
+      agentHierarchy: [
+        {
+          id: 'root-agent',
+          name: 'orchestrator',
+          provider: 'openai',
+          model: 'gpt-4o',
+          depth: 0,
+          lineage: ['root-agent'],
+          children: [],
+        },
+      ],
+      toolInvocations: [completedInvocation],
+      contextBundles: [],
+      agentLineageById: { 'root-agent': ['root-agent'] },
+      toolGroupsByAgentId: {
+        'root-agent': {
+          pending: [],
+          running: [],
+          completed: [completedInvocation],
+          failed: [],
+        },
+      },
+      contextBundlesByAgentId: {},
+      contextBundlesByToolCallId: {},
+      createdAt: '2024-05-01T12:00:00.000Z',
+      updatedAt: '2024-05-01T12:02:00.000Z',
+    };
+
+    const metadata = {
+      executionTree,
+    } as unknown as OrchestratorMetadataDto;
+
+    render(
+      <AgentExecutionTree
+        state={createExecutionTreeStateFromMetadata(metadata)}
+        selectedAgentId={null}
+        onSelectAgent={() => {}}
+      />,
+    );
+
+    const completedGroupToggle = screen.getByRole('button', {
+      name: /toggle completed tool invocations for orchestrator/i,
+    });
+
+    await user.click(completedGroupToggle);
+
+    const completedRegion = screen.getByRole('region', {
+      name: /completed tool invocations for orchestrator/i,
+    });
+
+    const invocationItem = within(completedRegion).getByText('fetch-weather').closest('li');
+    expect(invocationItem).not.toBeNull();
+
+    const invocation = invocationItem as HTMLLIElement;
+    expect(within(invocation).getByTestId('json-tree-view')).toBeInTheDocument();
+
+    const argsToggle = within(invocation).getByRole('button', { name: /toggle args/i });
+    expect(argsToggle).toHaveAttribute('aria-expanded', 'false');
+
+    const resultToggle = within(invocation).getByRole('button', { name: /toggle result/i });
+    expect(resultToggle).toHaveAttribute('aria-expanded', 'false');
+  });
 });
