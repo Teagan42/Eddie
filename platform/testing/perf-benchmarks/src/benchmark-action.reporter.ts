@@ -3,6 +3,8 @@ import { dirname, resolve } from "node:path";
 
 import type { Reporter, Vitest } from "vitest";
 
+import { drainBenchmarkActionEntries } from "./benchmark-action.registry";
+
 export interface BenchmarkActionEntry {
   readonly name: string;
   readonly unit: string;
@@ -130,7 +132,9 @@ export class BenchmarkActionReporter implements Reporter {
     await fs.mkdir(directory, { recursive: true });
 
     const sourceFiles = (files ?? this.ctx.state.getFiles()) as readonly FileTaskLike[];
-    const entries = buildBenchmarkEntries(sourceFiles);
+    const vitestEntries = buildBenchmarkEntries(sourceFiles);
+    const fallbackEntries = drainBenchmarkActionEntries();
+    const entries = vitestEntries.length > 0 ? vitestEntries : fallbackEntries;
     await fs.writeFile(resolvedOutput, JSON.stringify(entries, null, 2), "utf-8");
 
     this.ctx.logger?.log?.(`Benchmark action results written to ${resolvedOutput}`);

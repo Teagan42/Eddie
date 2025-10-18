@@ -12,6 +12,12 @@ const benchRegistrations: BenchRegistration[] = [];
 const beforeAllRegistrations: BenchHandler[] = [];
 const afterAllRegistrations: BenchHandler[] = [];
 
+const registryMocks = vi.hoisted(() => ({
+  registerBenchmarkActionEntry: vi.fn(),
+}));
+
+vi.mock('../src/benchmark-action.registry', () => registryMocks);
+
 vi.mock('vitest', async () => {
   const actual = await vi.importActual<typeof import('vitest')>('vitest');
 
@@ -37,6 +43,7 @@ describe('context-pack benchmarks', () => {
     benchRegistrations.length = 0;
     beforeAllRegistrations.length = 0;
     afterAllRegistrations.length = 0;
+    registryMocks.registerBenchmarkActionEntry.mockReset();
     vi.resetModules();
   });
 
@@ -52,5 +59,104 @@ describe('context-pack benchmarks', () => {
       expect(typeof iterations).toBe('number');
       expect(iterations).toBeGreaterThanOrEqual(2);
     }
+  });
+
+  it('registers aggregated durations for benchmark action fallback results', async () => {
+    const datasetNames = ['10x1KB', '100x10KB', '500x100KB'] as const;
+    const datasets = datasetNames.map((name, index) => ({
+      name,
+      description: `Dataset ${index}`,
+      root: `/tmp/${name}`,
+      totalBytes: 1024 * (index + 1),
+      fileCount: 128 * (index + 1),
+      resourceBundles: [],
+    }));
+
+    const aggregatePackMetrics = vi
+      .fn()
+      .mockImplementation(({ dataset }: { dataset: { name: string } }) => {
+        const datasetIndex = datasetNames.indexOf(dataset.name as typeof datasetNames[number]);
+        const base = 120 + datasetIndex * 10;
+        return {
+          datasetName: dataset.name,
+          durationMs: base + 3.456,
+          iterations: 3,
+          meanDurationMs: base + 3.456,
+          minDurationMs: base,
+          maxDurationMs: base + 10.8,
+          filesPerSecond: 40 + datasetIndex,
+          bytesPerSecond: 2000 + datasetIndex * 100,
+          bundleBytes: 0,
+        };
+      });
+
+    vi.doMock('../src/context-pack.metrics', () => ({
+      aggregatePackMetrics,
+    }));
+    vi.doMock('../src/context-pack.fixtures', () => ({
+      prepareContextPackDatasets: vi.fn(async () => datasets),
+    }));
+    vi.doMock('@eddie/context', () => ({
+      ContextService: class {
+        async pack() {
+          // no-op for tests
+        }
+      },
+    }));
+    vi.doMock('@eddie/io', () => ({
+      LoggerService: class {
+        configure() {}
+        getLogger() {
+          return {};
+        }
+      },
+    }));
+    vi.doMock('@eddie/templates', () => ({
+      TemplateRendererService: class {},
+      TemplateRuntimeService: class {
+        constructor() {}
+      },
+    }));
+
+    let clock = 0;
+    const nowSpy = vi
+      .spyOn(performance, 'now')
+      .mockImplementation(() => (clock += 5));
+
+    await import('../src/context-pack.bench');
+
+    for (const setup of beforeAllRegistrations) {
+      await setup();
+    }
+
+    for (const registration of benchRegistrations) {
+      await registration.handler();
+    }
+
+    for (const teardown of afterAllRegistrations) {
+      await teardown();
+    }
+
+    expect(registryMocks.registerBenchmarkActionEntry).toHaveBeenCalledTimes(
+      datasetNames.length,
+    );
+
+    datasetNames.forEach((name, index) => {
+      const base = 120 + index * 10;
+      expect(registryMocks.registerBenchmarkActionEntry).toHaveBeenCalledWith({
+        name: `ContextService.pack benchmarks › pack ${name}`,
+        unit: 'ms',
+        value: base + 3.456,
+        extra: {
+          iterations: 3,
+          min: base,
+          max: base + 10.8,
+          filesPerSecond: 40 + index,
+          bytesPerSecond: 2000 + index * 100,
+        },
+      });
+    });
+
+    nowSpy.mockRestore();
   });
 });

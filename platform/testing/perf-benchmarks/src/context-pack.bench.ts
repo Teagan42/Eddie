@@ -15,6 +15,7 @@ import type { ContextPackDataset } from './context-pack.fixtures';
 import { prepareContextPackDatasets } from './context-pack.fixtures';
 import { aggregatePackMetrics } from './context-pack.metrics';
 import { createStructuredReport } from './context-pack.reporting';
+import { registerBenchmarkActionEntry } from './benchmark-action.registry';
 
 interface DatasetBenchContext {
   readonly dataset: ContextPackDataset;
@@ -39,6 +40,24 @@ function createBundleConfig(dataset: ContextPackDataset): ContextResourceBundleC
 
 function computeBundleBytes(dataset: ContextPackDataset): number {
   return dataset.resourceBundles.reduce((total, bundle) => total + bundle.bytes, 0);
+}
+
+function registerScenarioBenchmark(scenario: {
+  readonly dataset: ContextPackDataset;
+  readonly metrics: ReturnType<typeof aggregatePackMetrics>;
+}): void {
+  registerBenchmarkActionEntry({
+    name: `ContextService.pack benchmarks › pack ${scenario.dataset.name}`,
+    unit: 'ms',
+    value: scenario.metrics.meanDurationMs,
+    extra: {
+      iterations: scenario.metrics.iterations,
+      min: scenario.metrics.minDurationMs,
+      max: scenario.metrics.maxDurationMs,
+      filesPerSecond: scenario.metrics.filesPerSecond,
+      bytesPerSecond: scenario.metrics.bytesPerSecond,
+    },
+  });
 }
 
 function createContextConfig(dataset: ContextPackDataset): ContextConfig {
@@ -113,6 +132,10 @@ function emitStructuredReport(datasetContexts: Map<string, DatasetBenchContext>)
 
   if (scenarios.length === 0) {
     return;
+  }
+
+  for (const scenario of scenarios) {
+    registerScenarioBenchmark(scenario);
   }
 
   const report = createStructuredReport({
