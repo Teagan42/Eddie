@@ -1,14 +1,14 @@
 {
   "compilerOptions": {
     "composite": true,
-    "module": "esnext",
+    "module": "NodeNext",
     "rootDir": "src",
     "outDir": "dist",
     "declaration": true,
     "declarationMap": true,
     "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo",
     "target": "ES2022",
-    "moduleResolution": "Node",
+    "moduleResolution": "NodeNext",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
@@ -94,6 +94,10 @@
       "@eddie/types/*": [
         "../core/types/dist/*",
         "../core/types/src/*"
+      ],
+      "@eddie/api/*": [
+        "../../apps/api/dist/*",
+        "../../apps/api/src/*"
       ]
     }
   },
