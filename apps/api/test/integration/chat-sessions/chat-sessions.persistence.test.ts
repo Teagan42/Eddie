@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vites
 import { Test } from "@nestjs/testing";
 import knex, { type Knex } from "knex";
 import {
+  ConfigModule,
   ConfigService,
   ConfigStore,
   DEFAULT_CONFIG,
@@ -112,9 +113,10 @@ describe("ChatSessionsRepository persistence", () => {
     const getSnapshot = vi.fn().mockReturnValue(config);
 
     const moduleRef = await Test.createTestingModule({
+      imports: [
+        ConfigModule,
+      ],
       providers: [
-        { provide: ConfigService, useValue: { load } },
-        { provide: ConfigStore, useValue: { getSnapshot } },
         {
           provide: KNEX_INSTANCE,
           useFactory: () => {
@@ -127,7 +129,7 @@ describe("ChatSessionsRepository persistence", () => {
         CHAT_SESSIONS_REPOSITORY_PROVIDER,
         ChatSessionsService,
       ],
-    }).compile();
+    }).overrideProvider(ConfigStore).useValue({ getSnapshot }).overrideProvider(ConfigService).useValue({ load }).compile();
 
     const database = moduleRef.get<Knex | undefined>(KNEX_INSTANCE, {
       strict: false,
