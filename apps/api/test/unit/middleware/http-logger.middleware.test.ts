@@ -4,24 +4,27 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("on-finished", () => ({
   __esModule: true,
-  default: (res: Response & Partial<EventEmitter>, callback: () => void) => {
-    if (typeof res.once === "function") {
-      res.once("finish", callback);
-      return;
-    }
+  default: vi.fn(
+    (res: Response & Partial<EventEmitter>, callback: () => void) => {
+      if (typeof res.once === "function") {
+        res.once("finish", callback);
+        return;
+      }
 
-    callback();
-  },
+      callback();
+    }
+  ),
 }));
 
 import { HttpLoggerMiddleware } from "../../../src/middleware/http-logger.middleware";
 import type { Logger } from "pino";
+import onFinished from "on-finished";
 
 describe("HttpLoggerMiddleware", () => {
   const originalHrtime = process.hrtime.bigint;
 
   beforeEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -37,8 +40,16 @@ describe("HttpLoggerMiddleware", () => {
       get: vi.fn(() => contentLength),
     }) as unknown as Response & EventEmitter;
 
+  const createLogger = () => ({
+    info: vi.fn(),
+  });
+
+  it("uses the mocked on-finished module", () => {
+    expect(vi.isMockFunction(onFinished)).toBe(true);
+  });
+
   it("logs request metadata once the response finishes", () => {
-    const logger = { info: vi.fn() };
+    const logger = createLogger();
 
     (process.hrtime as unknown as { bigint: () => bigint }).bigint = vi
       .fn()
@@ -73,7 +84,7 @@ describe("HttpLoggerMiddleware", () => {
   });
 
   it("logs only after the response emits finish", () => {
-    const logger = { info: vi.fn() };
+    const logger = createLogger();
 
     const middleware = new HttpLoggerMiddleware(logger as unknown as Logger);
     const req = {
