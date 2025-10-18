@@ -26,7 +26,19 @@ export function SessionDetail({ session, messages, isLoading }: SessionDetailPro
   );
 }
 
-type StreamAwareMessage = ChatMessageDto & { event?: string | null };
+interface StreamMessageAgentMetadata {
+  id?: string | null;
+  name?: string | null;
+}
+
+interface StreamMessageMetadata {
+  agent?: StreamMessageAgentMetadata | null;
+}
+
+type StreamAwareMessage = ChatMessageDto & {
+  event?: string | null;
+  metadata?: StreamMessageMetadata | null;
+};
 
 function deriveCompletedMessages(messages: ChatMessageDto[]): StreamAwareMessage[] {
   const completed: StreamAwareMessage[] = [];
@@ -56,6 +68,38 @@ function deriveCompletedMessages(messages: ChatMessageDto[]): StreamAwareMessage
   }
 
   return completed;
+}
+
+function getMessageHeading(message: StreamAwareMessage): string {
+  const metadata = message.metadata;
+
+  if (metadata && typeof metadata === "object") {
+    const agent = metadata.agent;
+
+    if (agent && typeof agent === "object") {
+      const name = getNonEmptyLabel(agent.name);
+      if (name) {
+        return name;
+      }
+
+      const id = getNonEmptyLabel(agent.id);
+      if (id) {
+        return id;
+      }
+    }
+  }
+
+  const messageName = getNonEmptyLabel(message.name);
+  return messageName ?? message.role;
+}
+
+function getNonEmptyLabel(candidate: unknown): string | null {
+  if (typeof candidate !== "string") {
+    return null;
+  }
+
+  const trimmed = candidate.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 function MessagesList({ messages }: { messages: ChatMessageDto[] }): JSX.Element {
@@ -108,7 +152,7 @@ function MessagesList({ messages }: { messages: ChatMessageDto[] }): JSX.Element
               <Flex align="center" justify="between" className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">
                 <span className="inline-flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                  {message.name ?? message.role}
+                  {getMessageHeading(message)}
                 </span>
                 <span className="text-[0.7rem] text-white/70">
                   {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
