@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 
-import { afterAll, bench, describe, suite, vi } from 'vitest';
+import { afterAll, bench, describe, suite } from 'vitest';
 
 import { TemplateRendererService } from '@eddie/templates';
 import type { TemplateDescriptor, TemplateVariables } from '@eddie/templates';
