@@ -28,6 +28,14 @@ body {
   background-attachment: fixed;
 }
 
+:root.theme-transition,
+:root.theme-transition body,
+:root.theme-transition [data-radix-theme] {
+  transition-property: background-color, background, color, border-color, fill, stroke, box-shadow;
+  transition-duration: 320ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 ::selection {
   background-color: rgba(16, 185, 129, 0.35);
   color: hsl(var(--color-foreground));
