@@ -5,6 +5,8 @@ import { basename, dirname, join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { afterAll, beforeAll, bench, suite } from 'vitest';
 
+import { createSafeBench } from './bench.runtime';
+
 import type { ContextConfig, ContextResourceBundleConfig } from '@eddie/config';
 import { ContextService } from '@eddie/context';
 import { LoggerService } from '@eddie/io';
@@ -72,6 +74,8 @@ function createContextConfig(dataset: ContextPackDataset): ContextConfig {
   } satisfies ContextConfig;
 }
 
+const registerBench = createSafeBench(bench);
+
 suite('ContextService.pack benchmarks', () => {
   const datasetContexts = new Map<string, DatasetBenchContext>();
   let contextService: ContextService;
@@ -108,7 +112,7 @@ suite('ContextService.pack benchmarks', () => {
   });
 
   for (const datasetName of DATASET_NAMES) {
-    bench(`pack ${datasetName}`, async () => {
+    registerBench(`pack ${datasetName}`, async () => {
       const context = datasetContexts.get(datasetName);
       if (!context) {
         throw new Error(`Dataset context for ${datasetName} was not prepared.`);

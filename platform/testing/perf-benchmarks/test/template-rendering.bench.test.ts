@@ -62,16 +62,16 @@ describe('template-rendering benchmarks', () => {
 
   it('registers benchmark groups after fixtures are loaded', async () => {
     const suiteCallbacks: Array<() => unknown> = [];
-    const groupCallbacks: Array<() => unknown> = [];
+    const describeCallbacks: Array<() => unknown> = [];
     const benchCallbacks: Array<() => unknown> = [];
 
     const registerSuite = vi.fn<AsyncFactoryRegistration>((name, factory) => {
       expect(name).toContain('TemplateRendererService');
       suiteCallbacks.push(factory);
     });
-    const registerGroup = vi.fn<AsyncFactoryRegistration>((name, factory) => {
+    const registerDescribe = vi.fn<AsyncFactoryRegistration>((name, factory) => {
       expect(name).toMatch(/inline|descriptor/);
-      groupCallbacks.push(factory);
+      describeCallbacks.push(factory);
     });
     const registerBench = vi.fn<AsyncBenchRegistration>((name, handler) => {
       expect(name).toMatch(/inline|descriptor/);
@@ -84,22 +84,22 @@ describe('template-rendering benchmarks', () => {
 
     await defineTemplateRenderingBenchmarks({
       suite: registerSuite,
-      group: registerGroup,
+      describe: registerDescribe,
       bench: registerBench,
       loadFixtures: loadTemplateRenderingFixtures,
     });
 
     expect(registerSuite).toHaveBeenCalled();
-    expect(registerGroup).not.toHaveBeenCalled();
+    expect(registerDescribe).not.toHaveBeenCalled();
     expect(registerBench).not.toHaveBeenCalled();
 
     for (const suiteFactory of suiteCallbacks) {
       await suiteFactory();
     }
 
-    expect(registerGroup).toHaveBeenCalled();
+    expect(registerDescribe).toHaveBeenCalled();
 
-    for (const groupFactory of groupCallbacks) {
+    for (const groupFactory of describeCallbacks) {
       await groupFactory();
     }
 

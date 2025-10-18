@@ -8,6 +8,8 @@ import { afterAll, bench, describe, suite } from 'vitest';
 import { TemplateRendererService } from '@eddie/templates';
 import type { TemplateDescriptor, TemplateVariables } from '@eddie/templates';
 
+import { createSafeBench, type BenchRegistration } from './bench.runtime';
+
 const FIXTURE_ROOT = fileURLToPath(
   new URL(resolve(__dirname, '../fixtures/templates/'), "file://"),
 );
@@ -302,7 +304,7 @@ const emitScenarioReport = () => {
 export interface TemplateBenchmarkRegistrationContext {
   readonly suite: typeof suite;
   readonly describe: typeof describe;
-  readonly bench: typeof bench;
+  readonly bench: BenchRegistration;
   readonly loadFixtures?: () => Promise<TemplateRenderingFixture[]>;
 }
 
@@ -339,7 +341,7 @@ export async function defineTemplateRenderingBenchmarks({
 await defineTemplateRenderingBenchmarks({
   suite,
   describe,
-  bench,
+  bench: createSafeBench(bench),
   loadFixtures: loadTemplateRenderingFixtures,
 }).catch((error) => {
   console.error('Failed to register template rendering benchmarks', error);

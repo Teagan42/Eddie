@@ -8,6 +8,8 @@ import { afterAll, beforeAll, bench, suite, vi } from 'vitest';
 import { OpenAIAdapter } from '@eddie/providers';
 import type { StreamEvent, StreamOptions } from '@eddie/types';
 
+import { createSafeBench } from './bench.runtime';
+
 const { streamMock, openAIConstructor } = vi.hoisted(() => {
   const stream = vi.fn();
   const ctor = vi.fn().mockImplementation(() => ({
@@ -23,7 +25,7 @@ vi.mock('openai', () => ({
 }));
 
 const FIXTURE_ROOT = fileURLToPath(
-  new URL(resolve(__dirname, '../fixtures/templates/'), "file://"),
+  new URL(resolve(__dirname, '../fixtures/providers/'), 'file://'),
 );
 
 
@@ -239,6 +241,8 @@ const emitScenarioReport = () => {
   console.log(JSON.stringify(report));
 };
 
+const registerBench = createSafeBench(bench);
+
 suite('OpenAIAdapter.stream recorded scenarios', () => {
   beforeAll(() => {
     streamMock.mockReset();
@@ -250,7 +254,7 @@ suite('OpenAIAdapter.stream recorded scenarios', () => {
   });
 
   for (const fixture of fixtureCache) {
-    bench(`${fixture.label} (cold + warm)`, async () => {
+    registerBench(`${fixture.label} (cold + warm)`, async () => {
       const measurement = await measureProviderStreamScenario(fixture);
       const series = ensureScenarioSeries(fixture);
       series.coldStartDurations.push(measurement.coldStart.durationMs);
