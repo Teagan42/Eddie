@@ -75,6 +75,41 @@ describe("SessionDetail", () => {
     expect(within(cards[1]!).getByText("Providing support")).toBeInTheDocument();
   });
 
+  it("uses agent metadata for message headings when available", () => {
+    const session = createSession();
+    const messages = [
+      createMessage({
+        id: "message-1",
+        role: "assistant",
+        content: "Drafting response",
+        event: "delta",
+        metadata: { agent: { id: "manager", name: "Manager" } },
+      } as ChatMessageDto & { event?: string; metadata?: unknown }),
+      createMessage({
+        id: "message-1",
+        role: "assistant",
+        content: "Final response",
+        event: "end",
+      } as ChatMessageDto & { event?: string; metadata?: unknown }),
+      createMessage({
+        id: "message-2",
+        role: "assistant",
+        content: "Delegate reply",
+        event: "end",
+        metadata: { agent: { id: "delegate", name: "Delegate" } },
+      } as ChatMessageDto & { event?: string; metadata?: unknown }),
+    ];
+
+    const { getAllByTestId } = render(
+      <SessionDetail session={session} isLoading={false} messages={messages} />
+    );
+
+    const cards = getAllByTestId("message-card");
+    expect(cards).toHaveLength(2);
+    expect(within(cards[0]!).getByText(/^Manager$/i)).toBeInTheDocument();
+    expect(within(cards[1]!).getByText(/^Delegate$/i)).toBeInTheDocument();
+  });
+
   it("scrolls the latest message into view when new messages arrive", async () => {
     const original = HTMLElement.prototype.scrollIntoView;
     const scrollIntoView = vi.fn();
