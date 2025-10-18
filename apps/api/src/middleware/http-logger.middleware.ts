@@ -3,6 +3,7 @@ import type { Request, Response, NextFunction } from 'express';
 import onFinished from 'on-finished'; // ensure esModuleInterop=true
 import { InjectLogger } from '@eddie/io';
 import type { Logger } from 'pino';
+import type { Socket } from 'net';
 
 @Injectable()
 export class HttpLoggerMiddleware implements NestMiddleware {
@@ -76,9 +77,12 @@ export class HttpLoggerMiddleware implements NestMiddleware {
       return forwarded;
     }
 
-    const socketValue =
-      req.socket?.remoteAddress ?? (req as Record<string, unknown>)?.connection?.remoteAddress;
-    return this.normalizeIpCandidate(socketValue);
+    const socket = this.normalizeIpCandidate(req.socket?.remoteAddress);
+    if (socket) {
+      return socket;
+    }
+
+    return this.extractConnectionRemoteAddress(req.connection);
   }
 
   private normalizeIpCandidate(value: unknown): string | undefined {
@@ -88,5 +92,11 @@ export class HttpLoggerMiddleware implements NestMiddleware {
 
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  private extractConnectionRemoteAddress(connection: Socket | undefined): string | undefined {
+    const remoteAddress = typeof connection?.remoteAddress === 'string' ? connection.remoteAddress : undefined;
+
+    return this.normalizeIpCandidate(remoteAddress);
   }
 }
