@@ -147,6 +147,28 @@ describe("createApiClient", () => {
       messageUpdated
     );
 
+    const executionTreeUpdated = vi.fn();
+    const unsubscribeExecutionTreeUpdated =
+            client.sockets.chatSessions.onExecutionTreeUpdated(
+              executionTreeUpdated
+            );
+    const executionTreeUpdatedCalls = chatChannel.on.mock.calls.filter(
+      (call) => call[ 0 ] === "execution-tree.updated"
+    );
+    expect(executionTreeUpdatedCalls).toHaveLength(1);
+    const [, executionTreeHandler] = executionTreeUpdatedCalls[ 0 ]!;
+    expect(typeof executionTreeHandler).toBe("function");
+
+    executionTreeHandler?.({
+      sessionId: "session-1",
+      state: { nodes: [] },
+    });
+
+    expect(executionTreeUpdated).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      state: { nodes: [] },
+    });
+
     chatChannel.emit.mockClear();
     client.sockets.chatSessions.emitMessage("session-1", {
       role: CreateChatMessageDto.role.USER,
@@ -183,6 +205,10 @@ describe("createApiClient", () => {
     expect(chatChannel.handlers.get("message.created")?.size ?? 0).toBe(0);
     unsubscribeMessageUpdated();
     expect(chatChannel.handlers.get("message.updated")?.size ?? 0).toBe(0);
+    unsubscribeExecutionTreeUpdated();
+    expect(
+      chatChannel.handlers.get("execution-tree.updated")?.size ?? 0
+    ).toBe(0);
     unsubscribePartial();
     expect(
       chatMessagesChannel.handlers.get("message.partial")?.size ?? 0

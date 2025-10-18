@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { createExecutionTreeStateFromMetadata } from './execution-tree-state';
 import { createChatPageRenderer } from './test-utils';
 
 const listSessionsMock = vi.fn();
@@ -12,6 +13,17 @@ const catalogMock = vi.fn();
 
 const toolCallHandlers: Array<(payload: unknown) => void> = [];
 const toolResultHandlers: Array<(payload: unknown) => void> = [];
+const executionTreeHandlers: Array<(payload: unknown) => void> = [];
+const executionTreeUnsubscribes: Array<ReturnType<typeof vi.fn>> = [];
+
+const onExecutionTreeUpdatedMock = vi.fn(
+  (handler: (payload: unknown) => void) => {
+    executionTreeHandlers.push(handler);
+    const unsubscribe = vi.fn();
+    executionTreeUnsubscribes.push(unsubscribe);
+    return unsubscribe;
+  },
+);
 
 class ResizeObserverMock {
   observe(): void {}
@@ -70,6 +82,7 @@ vi.mock('@/api/api-provider', () => ({
         onMessageCreated: vi.fn().mockReturnValue(() => {}),
         onMessageUpdated: vi.fn().mockReturnValue(() => {}),
         onAgentActivity: vi.fn().mockReturnValue(() => {}),
+        onExecutionTreeUpdated: onExecutionTreeUpdatedMock,
       },
       tools: {
         onToolCall: vi.fn((handler: (payload: unknown) => void) => {
@@ -111,6 +124,9 @@ describe('ChatPage execution tree realtime updates', () => {
     vi.clearAllMocks();
     toolCallHandlers.length = 0;
     toolResultHandlers.length = 0;
+    executionTreeHandlers.length = 0;
+    executionTreeUnsubscribes.length = 0;
+    onExecutionTreeUpdatedMock.mockClear();
 
     const now = new Date().toISOString();
 
@@ -151,6 +167,75 @@ describe('ChatPage execution tree realtime updates', () => {
           ],
         },
       ],
+    });
+  });
+
+  it('syncs execution tree snapshots from websocket events for the selected session', async () => {
+    const { client, unmount } = renderChatPage();
+
+    await waitFor(() => {
+      expect(onExecutionTreeUpdatedMock).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(getMetadataMock).toHaveBeenCalled();
+    });
+
+    await act(async () => {
+      executionTreeHandlers.forEach((handler) =>
+        handler({
+          sessionId: 'session-2',
+          state: createExecutionTreeStateFromMetadata({
+            sessionId: 'session-2',
+            capturedAt: '2024-05-01T12:00:00.000Z',
+            contextBundles: [],
+            toolInvocations: [],
+            agentHierarchy: [],
+          }),
+        }),
+      );
+    });
+
+    expect(
+      client.getQueryData([
+        'orchestrator-metadata',
+        'session-2',
+      ]),
+    ).toBeUndefined();
+
+    const updatedTree = createExecutionTreeStateFromMetadata({
+      sessionId: 'session-1',
+      capturedAt: '2024-05-01T12:30:00.000Z',
+      contextBundles: [],
+      toolInvocations: [],
+      agentHierarchy: [],
+    });
+
+    await act(async () => {
+      executionTreeHandlers.forEach((handler) =>
+        handler({
+          sessionId: 'session-1',
+          state: updatedTree,
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      const snapshot = client.getQueryData([
+        'orchestrator-metadata',
+        'session-1',
+      ]) as { executionTree: unknown; capturedAt?: string } | undefined;
+      expect(snapshot).toMatchObject({
+        capturedAt: updatedTree.updatedAt,
+      });
+      expect(snapshot?.executionTree).toEqual(updatedTree);
+      expect(snapshot?.executionTree).not.toBe(updatedTree);
+    });
+
+    unmount();
+
+    executionTreeUnsubscribes.forEach((unsubscribe) => {
+      expect(unsubscribe).toHaveBeenCalled();
     });
   });
 

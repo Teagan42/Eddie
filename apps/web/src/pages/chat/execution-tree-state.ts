@@ -213,7 +213,7 @@ export function composeExecutionTreeState(
   };
 }
 
-function isExecutionTreeState(value: unknown): value is ExecutionTreeState {
+export function isExecutionTreeState(value: unknown): value is ExecutionTreeState {
   if (!value || typeof value !== 'object') {
     return false;
   }
