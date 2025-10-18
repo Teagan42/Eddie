@@ -82,19 +82,19 @@ describe('ChatSessionsModule', () => {
     }
   });
 
-  it.skip('imports the DatabaseModule to expose shared persistence providers', () => {
+  it('imports the DatabaseModule to expose shared persistence providers', () => {
     const imports = getImports();
 
     expect(imports).toEqual(expect.arrayContaining([DatabaseModule]));
   });
 
-  it.skip('injects the config store and module reference for the repository provider', () => {
+  it('injects the config store and module reference for the repository provider', () => {
     const provider = getRepositoryProvider();
 
     expect(provider.inject).toEqual([ConfigStore, ModuleRef]);
   });
 
-  it.skip('returns an in-memory repository when the persistence driver is memory', () => {
+  it('returns an in-memory repository when the persistence driver is memory', () => {
     const provider = getRepositoryProvider();
     const moduleRef = createModuleRef(undefined);
     const repository = provider.useFactory(
@@ -108,7 +108,7 @@ describe('ChatSessionsModule', () => {
     expect(moduleRef.get).not.toHaveBeenCalled();
   });
 
-  it.skip('uses the shared knex instance for sqlite persistence', async () => {
+  it('uses the shared knex instance for sqlite persistence', async () => {
     const provider = getRepositoryProvider();
     const configStore = createConfigStore({
       api: { persistence: { driver: 'sqlite', sqlite: { filename: ':memory:' } } },
@@ -134,7 +134,7 @@ describe('ChatSessionsModule', () => {
     }
   });
 
-  it.skip('supports other sql drivers by using the shared knex instance', () => {
+  it('supports other sql drivers by using the shared knex instance', () => {
     const provider = getRepositoryProvider();
     const knexInstance = createKnexStub('pg');
     const moduleRef = createModuleRef(knexInstance);
@@ -149,7 +149,7 @@ describe('ChatSessionsModule', () => {
     expect(moduleRef.get).toHaveBeenCalledWith(KNEX_INSTANCE, { strict: false });
   });
 
-  it.skip('throws a descriptive error for unknown drivers', () => {
+  it('throws a descriptive error for unknown drivers', () => {
     const provider = getRepositoryProvider();
     const moduleRef = createModuleRef(undefined);
 
