@@ -56,6 +56,9 @@ describe("OrchestratorMetadataService", () => {
         children: [],
       }),
     ]);
+    expect((metadata as { executionTree?: ExecutionTreeState }).executionTree).toEqual(
+      cachedState,
+    );
     expect(store.get).toHaveBeenCalledWith(sessionId);
     expect(chatSessions.listMessages).not.toHaveBeenCalled();
     expect(chatSessions.listAgentInvocations).not.toHaveBeenCalled();

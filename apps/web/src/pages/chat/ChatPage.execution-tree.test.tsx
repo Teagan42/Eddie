@@ -4,6 +4,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createChatPageRenderer } from './test-utils';
+import type { ExecutionTreeState } from '@eddie/types';
 
 const listSessionsMock = vi.fn();
 const listMessagesMock = vi.fn();
@@ -106,6 +107,43 @@ const renderChatPage = createChatPageRenderer(
     }),
 );
 
+function createExecutionTreeSnapshot(timestamp: string): ExecutionTreeState {
+  return {
+    agentHierarchy: [
+      {
+        id: 'session-1',
+        name: 'Session 1',
+        provider: 'orchestrator',
+        model: 'delegator',
+        depth: 0,
+        lineage: [],
+        children: [
+          {
+            id: 'agent-primary',
+            name: 'Primary agent',
+            provider: 'openai',
+            model: 'gpt-4o',
+            depth: 1,
+            lineage: ['session-1'],
+            children: [],
+          },
+        ],
+      },
+    ],
+    toolInvocations: [],
+    contextBundles: [],
+    agentLineageById: {
+      'session-1': [],
+      'agent-primary': ['session-1'],
+    },
+    toolGroupsByAgentId: {},
+    contextBundlesByAgentId: {},
+    contextBundlesByToolCallId: {},
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
 describe('ChatPage execution tree realtime updates', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -126,6 +164,8 @@ describe('ChatPage execution tree realtime updates', () => {
       },
     ]);
     listMessagesMock.mockResolvedValue([]);
+    const executionTree = createExecutionTreeSnapshot(now);
+
     getMetadataMock.mockResolvedValue({
       sessionId: 'session-1',
       contextBundles: [],
@@ -151,6 +191,7 @@ describe('ChatPage execution tree realtime updates', () => {
           ],
         },
       ],
+      executionTree,
     });
   });
 

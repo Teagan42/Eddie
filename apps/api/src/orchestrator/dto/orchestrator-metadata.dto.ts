@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
 } from "class-validator";
+import type { ExecutionTreeState } from "@eddie/types";
 
 export enum ToolCallStatusDto {
   Pending = "pending",
@@ -134,6 +135,11 @@ export class OrchestratorMetadataDto {
   @ApiProperty({ type: () => [AgentHierarchyNodeDto] })
   @IsArray()
     agentHierarchy: AgentHierarchyNodeDto[] = [];
+
+  @ApiPropertyOptional({ description: "Full execution tree snapshot" })
+  @IsObject()
+  @IsOptional()
+    executionTree?: ExecutionTreeState;
 
   @ApiPropertyOptional({ description: "Associated session identifier" })
   @IsString()

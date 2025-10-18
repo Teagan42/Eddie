@@ -13,6 +13,7 @@ import type { LogEntryDto } from "./generated/models/LogEntryDto";
 import type { RuntimeConfigDto } from "./generated/models/RuntimeConfigDto";
 import type { UpdateRuntimeConfigDto } from "./generated/models/UpdateRuntimeConfigDto";
 import type { UpdateChatSessionDto } from "./generated/models/UpdateChatSessionDto";
+import type { ExecutionTreeState } from "@eddie/types";
 
 export type {
   ChatSessionDto,
@@ -199,6 +200,7 @@ export interface OrchestratorMetadataDto {
     contextBundles: OrchestratorContextBundleDto[];
     toolInvocations: OrchestratorToolCallNodeDto[];
     agentHierarchy: OrchestratorAgentNodeDto[];
+    executionTree?: ExecutionTreeState;
     sessionId?: string;
     capturedAt?: string;
 }

@@ -11,5 +11,7 @@
   },
   "include": ["src/**/*.ts"],
   "exclude": ["dist", "test", "**/*.spec.ts"],
-  "references": []
+  "references": [
+    { "path": "../../core/types/tsconfig.build.json" }
+  ]
 }

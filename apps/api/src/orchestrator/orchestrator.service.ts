@@ -99,7 +99,16 @@ export class OrchestratorMetadataService {
       agentHierarchy: state.agentHierarchy.map((node) =>
         this.mapAgentHierarchy(node)
       ),
+      executionTree: this.cloneExecutionTree(state),
     };
+  }
+
+  private cloneExecutionTree(state: ExecutionTreeState): ExecutionTreeState {
+    if (typeof globalThis.structuredClone === "function") {
+      return globalThis.structuredClone(state) as ExecutionTreeState;
+    }
+
+    return JSON.parse(JSON.stringify(state)) as ExecutionTreeState;
   }
 
   private mapAgentHierarchy(node: ExecutionAgentNode): AgentHierarchyNodeDto {
