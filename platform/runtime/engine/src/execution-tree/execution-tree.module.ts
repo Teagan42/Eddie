@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { CqrsModule } from "@nestjs/cqrs";
 import {
   EXECUTION_TREE_CLOCK,
   type ExecutionTreeClock,
@@ -8,6 +9,7 @@ import {
 const defaultClock: ExecutionTreeClock = () => new Date();
 
 @Module({
+  imports: [CqrsModule],
   providers: [
     ExecutionTreeTrackerFactory,
     {
