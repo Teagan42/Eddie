@@ -1,9 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "CommonJS",
-    "moduleResolution": "Node",
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
@@ -11,21 +8,50 @@
     "skipLibCheck": true,
     "strict": true,
     "composite": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
   "references": [
-    { "path": "../../platform/core/types" },
-    { "path": "../../platform/core/templates" },
-    { "path": "../../platform/core/config" },
-    { "path": "../../platform/runtime/io" },
-    { "path": "../../platform/runtime/context" },
-    { "path": "../../platform/integrations/providers" },
-    { "path": "../../platform/runtime/hooks" },
-    { "path": "../../platform/runtime/tools" },
-    { "path": "../../platform/core/tokenizers" },
-    { "path": "../../platform/integrations/mcp" },
-    { "path": "../../platform/runtime/engine" }
+    {
+      "path": "../../platform/core/types"
+    },
+    {
+      "path": "../../platform/core/templates"
+    },
+    {
+      "path": "../../platform/core/config"
+    },
+    {
+      "path": "../../platform/runtime/io"
+    },
+    {
+      "path": "../../platform/runtime/context"
+    },
+    {
+      "path": "../../platform/integrations/providers"
+    },
+    {
+      "path": "../../platform/runtime/hooks"
+    },
+    {
+      "path": "../../platform/runtime/tools"
+    },
+    {
+      "path": "../../platform/core/tokenizers"
+    },
+    {
+      "path": "../../platform/integrations/mcp"
+    },
+    {
+      "path": "../../platform/runtime/engine"
+    }
   ],
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }
