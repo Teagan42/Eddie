@@ -29,7 +29,7 @@ const visuallyHiddenStyles: CSSProperties = {
   width: 1,
 };
 
-const deleteButtonStyles: CSSProperties = { alignSelf: 'stretch' };
+const actionButtonStyles: CSSProperties = { alignSelf: 'stretch' };
 
 function createMetricsSignature(metrics: SessionSelectorMetricsSummary | undefined): string {
   if (!metrics) {
@@ -221,7 +221,7 @@ export function SessionSelector({
                 data-selected={selectedState}
               >
                 <Button
-                  size="2"
+                  size="1"
                   variant={isSelected ? 'solid' : 'soft'}
                   color={isSelected ? 'jade' : 'gray'}
                   onClick={() => onSelectSession(session.id)}
@@ -251,7 +251,7 @@ export function SessionSelector({
                         ) : null}
                         <Flex
                           align="center"
-                          gap="2"
+                          gap="1"
                           wrap="wrap"
                           aria-hidden="true"
                           data-highlighted={isHighlighted ? 'true' : undefined}
@@ -276,26 +276,24 @@ export function SessionSelector({
                     ) : null}
                   </Flex>
                 </Button>
-                <Button
+                <IconButton
                   variant="ghost"
                   color="gray"
-                  size="2"
+                  size="1"
                   aria-label={editLabel}
                   title={editLabel}
                   onClick={() => onRenameSession(session.id)}
+                  style={actionButtonStyles}
                 >
-                  <Flex align="center" gap="1">
-                    <Pencil1Icon aria-hidden="true" />
-                    <span>Edit</span>
-                  </Flex>
-                </Button>
+                  <Pencil1Icon />
+                </IconButton>
                 <IconButton
                   variant="ghost"
                   color="ruby"
-                  size="2"
+                  size="1"
                   aria-label={`Delete ${session.title}`}
                   onClick={() => onDeleteSession(session.id)}
-                  style={deleteButtonStyles}
+                  style={actionButtonStyles}
                 >
                   <TrashIcon />
                 </IconButton>
