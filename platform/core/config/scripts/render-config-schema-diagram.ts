@@ -122,7 +122,8 @@ function formatMermaidLabel(label: string): string {
     return label;
   }
 
-  const escaped = label.replace(/"/g, '\\"');
+  // First escape backslashes, then escape quotes
+  const escaped = label.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   return needsQuotes ? `"${escaped}"` : escaped;
 }
 
