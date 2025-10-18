@@ -77,13 +77,19 @@ export function createExecutionTreeStateFromMetadata(
 }
 
 export function cloneExecutionTreeState(state: ExecutionTreeState): ExecutionTreeState {
+  const clonedToolInvocations = cloneToolInvocations(state.toolInvocations);
+  const toolInvocationLookup = indexToolInvocationsById(clonedToolInvocations);
+
   return composeExecutionTreeState(
     cloneAgentHierarchy(state.agentHierarchy),
-    cloneToolInvocations(state.toolInvocations),
+    clonedToolInvocations,
     cloneContextBundles(state.contextBundles),
     {
       agentLineageById: cloneAgentLineageMap(state.agentLineageById),
-      toolGroupsByAgentId: cloneToolGroupsByAgentId(state.toolGroupsByAgentId),
+      toolGroupsByAgentId: cloneToolGroupsByAgentId(
+        state.toolGroupsByAgentId,
+        toolInvocationLookup,
+      ),
       contextBundlesByAgentId: cloneBundlesByAgentId(state.contextBundlesByAgentId),
       contextBundlesByToolCallId: cloneBundlesByToolCallId(state.contextBundlesByToolCallId),
       createdAt: state.createdAt,
@@ -170,8 +176,11 @@ export function composeExecutionTreeState(
   derived?: DerivedExecutionTreeFields,
 ): ExecutionTreeState {
   const agentLineageById = derived?.agentLineageById ?? buildAgentLineageMap(hierarchy);
+  const toolInvocationLookup = derived?.toolGroupsByAgentId
+    ? indexToolInvocationsById(toolInvocations)
+    : null;
   const toolGroupsByAgentId = derived?.toolGroupsByAgentId
-    ? cloneToolGroupsByAgentId(derived.toolGroupsByAgentId)
+    ? cloneToolGroupsByAgentId(derived.toolGroupsByAgentId, toolInvocationLookup ?? undefined)
     : groupToolInvocations(toolInvocations);
   const contextBundlesByAgentId = derived?.contextBundlesByAgentId
     ? cloneBundlesByAgentId(derived.contextBundlesByAgentId)
@@ -250,7 +259,7 @@ function convertContextBundles(
     summary: bundle.summary,
     sizeBytes: bundle.sizeBytes,
     fileCount: bundle.fileCount,
-    files: mapContextBundleFiles(bundle.files),
+    files: normalizeContextBundleFiles(bundle.files),
     source: {
       type: 'tool_call',
       agentId: UNKNOWN_AGENT_ID,
@@ -273,12 +282,56 @@ function cloneAgentHierarchy(nodes: ExecutionTreeState['agentHierarchy']): Execu
   }));
 }
 
-function cloneToolInvocations(nodes: ExecutionTreeState['toolInvocations']): ExecutionTreeState['toolInvocations'] {
-  return nodes.map((node) => ({
-    ...node,
-    metadata: node.metadata ? { ...node.metadata } : undefined,
-    children: cloneToolInvocations(node.children ?? []),
-  }));
+function cloneToolInvocations(
+  nodes: ExecutionTreeState['toolInvocations'],
+): ExecutionTreeState['toolInvocations'] {
+  return nodes.map((node) => {
+    const descriptors = Object.getOwnPropertyDescriptors(node);
+    const metadataClone = node.metadata ? { ...node.metadata } : undefined;
+    descriptors.metadata = {
+      value: metadataClone,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    };
+    descriptors.children = {
+      value: cloneToolInvocations(node.children ?? []),
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    };
+    if (!descriptors.args) {
+      descriptors.args = {
+        value: (metadataClone as { args?: unknown } | undefined)?.args,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      };
+    }
+    if (!descriptors.result) {
+      descriptors.result = {
+        value: (metadataClone as { result?: unknown } | undefined)?.result,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      };
+    }
+
+    return Object.defineProperties({}, descriptors) as ExecutionToolInvocationNode;
+  });
+}
+
+function indexToolInvocationsById(
+  nodes: ExecutionTreeState['toolInvocations'],
+  lookup: Map<string, ExecutionToolInvocationNode> = new Map(),
+): Map<string, ExecutionToolInvocationNode> {
+  for (const node of nodes) {
+    lookup.set(node.id, node);
+    if (node.children?.length) {
+      indexToolInvocationsById(node.children, lookup);
+    }
+  }
+  return lookup;
 }
 
 function cloneContextBundles(bundles: ExecutionContextBundle[]): ExecutionContextBundle[] {
@@ -286,14 +339,70 @@ function cloneContextBundles(bundles: ExecutionContextBundle[]): ExecutionContex
 }
 
 function cloneContextBundleEntry(bundle: ExecutionContextBundle): ExecutionContextBundle {
-  return {
-    ...bundle,
-    files: mapContextBundleFiles(bundle.files),
-    source: normalizeContextBundleSource(bundle),
+  const descriptors = Object.getOwnPropertyDescriptors(bundle);
+  const clonedFiles = cloneContextBundleFiles(bundle.files);
+  if (Array.isArray(clonedFiles)) {
+    clonedFiles.forEach((file, index) => {
+      const record = file as Record<string, unknown>;
+      if (record.id == null) {
+        Object.defineProperty(file, 'id', {
+          value: `${bundle.id}:file:${index}`,
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        });
+      }
+      if (record.name == null) {
+        const fallbackName = typeof record.path === 'string' ? (record.path as string) : `File ${index + 1}`;
+        Object.defineProperty(file, 'name', {
+          value: fallbackName,
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        });
+      }
+    });
+  }
+  descriptors.files = {
+    value: clonedFiles,
+    writable: true,
+    enumerable: true,
+    configurable: true,
   };
+  descriptors.source = {
+    value: normalizeContextBundleSource(bundle),
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  };
+  if (bundle.metadata !== undefined) {
+    descriptors.metadata = {
+      value: typeof bundle.metadata === 'object' && bundle.metadata !== null
+        ? { ...(bundle.metadata as Record<string, unknown>) }
+        : bundle.metadata,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    };
+  }
+
+  return Object.defineProperties({}, descriptors) as ExecutionContextBundle;
 }
 
-function mapContextBundleFiles(
+function cloneContextBundleFiles(
+  files: ExecutionContextBundle['files'],
+): ExecutionContextBundle['files'] {
+  if (!Array.isArray(files)) {
+    return files;
+  }
+
+  return files.map((file) => {
+    const descriptors = Object.getOwnPropertyDescriptors(file);
+    return Object.defineProperties({}, descriptors);
+  });
+}
+
+function normalizeContextBundleFiles(
   files: ExecutionContextBundle['files'],
 ): ExecutionContextBundle['files'] {
   if (!Array.isArray(files)) {
@@ -313,14 +422,27 @@ function cloneAgentLineageMap(map: ExecutionAgentLineageMap): ExecutionAgentLine
 
 function cloneToolGroupsByAgentId(
   groups: ExecutionToolInvocationGroupsByAgentId,
+  lookup?: Map<string, ExecutionToolInvocationNode>,
 ): ExecutionToolInvocationGroupsByAgentId {
   const cloned: ExecutionToolInvocationGroupsByAgentId = {};
   for (const [agentId, statuses] of Object.entries(groups)) {
     cloned[agentId] = {} as ExecutionToolInvocationGroupsByAgentId[string];
+    const agentGroups = cloned[agentId];
     for (const status of TOOL_STATUS_ORDER) {
       const entries = statuses[status];
-      if (entries) {
-        cloned[agentId][status] = entries.map((entry) => entry);
+      if (entries && entries.length > 0) {
+        agentGroups[status] = entries
+          .map((entry) => (lookup ? lookup.get(entry.id) ?? null : entry))
+          .filter((entry): entry is ExecutionToolInvocationNode => entry !== null);
+      }
+    }
+    for (const status of Object.keys(statuses) as ToolCallStatus[]) {
+      if (agentGroups[status]) {
+        continue;
+      }
+      const entries = statuses[status];
+      if (entries && entries.length > 0) {
+        agentGroups[status] = entries.map((entry) => (lookup ? lookup.get(entry.id) ?? entry : entry));
       }
     }
   }
