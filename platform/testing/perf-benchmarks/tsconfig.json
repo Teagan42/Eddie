@@ -112,7 +112,7 @@
       "path": "../../integrations/providers"
     },
     {
-      "path": "../../../apps/api"
+      "path": "../../../apps/api/tsconfig.build.json"
     }
   ],
   "include": [
