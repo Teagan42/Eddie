@@ -11,6 +11,9 @@ import type { Knex } from "knex";
 
 import { KNEX_INSTANCE } from "./knex.provider";
 
+export const API_PERSISTENCE_SKIP_MIGRATIONS_ENV =
+  "API_PERSISTENCE_SKIP_MIGRATIONS" as const;
+
 @Injectable()
 export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   private readonly migrationsConfig: Knex.MigratorConfig = {
@@ -35,7 +38,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit(): Promise<void> {
     const knex = this.knex;
-    if (typeof knex === "undefined") {
+    if (typeof knex === "undefined" || !this.shouldRunMigrations()) {
       return;
     }
     await this.ensureMigrationsDirectory();
@@ -68,5 +71,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     if (typeof directory === "string") {
       await ensureDirectory(directory);
     }
+  }
+
+  private shouldRunMigrations(): boolean {
+    return process.env[API_PERSISTENCE_SKIP_MIGRATIONS_ENV] !== "true";
   }
 }
