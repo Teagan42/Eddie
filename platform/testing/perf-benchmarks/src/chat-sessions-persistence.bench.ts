@@ -529,18 +529,15 @@ export async function defineChatSessionsPersistenceBenchmarks({
   });
 }
 
-const vitestState = (import.meta as unknown as { vitest?: { mode?: string } }).vitest;
+await defineChatSessionsPersistenceBenchmarks({
+  suite,
+  describe,
+  bench,
+  loadDrivers: loadChatSessionsPersistenceDrivers,
+  measureScenario: measureChatSessionsPersistenceScenario,
+  scenarioOptions: DEFAULT_BENCH_OPTIONS,
+}).catch((error) => {
+  console.error('Failed to register chat session persistence benchmarks', error);
+});
 
-if (vitestState?.mode === 'benchmark') {
-  void defineChatSessionsPersistenceBenchmarks({
-    suite,
-    describe,
-    bench,
-    loadDrivers: loadChatSessionsPersistenceDrivers,
-    measureScenario: measureChatSessionsPersistenceScenario,
-    scenarioOptions: DEFAULT_BENCH_OPTIONS,
-  }).catch((error) => {
-    console.error('Failed to register chat session persistence benchmarks', error);
-  });
-}
 
