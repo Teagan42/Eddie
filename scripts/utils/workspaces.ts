@@ -41,6 +41,23 @@ type WorkspaceBase = {
   dir: string;
 };
 
+type PackageMetadata = {
+  name?: string;
+  scripts?: Record<string, string>;
+  workspaces?: string[];
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+};
+
+const DEPENDENCY_FIELDS = [
+  'dependencies',
+  'devDependencies',
+  'peerDependencies',
+  'optionalDependencies',
+] as const;
+
 const toPosixPath = (value: string): string => value.replace(/\\/g, '/');
 
 const isTestFile = (filePath: string): boolean => {
@@ -151,13 +168,95 @@ const parseChangedPath = (line: string): string | undefined => {
   return content;
 };
 
+const buildDependentsByDependency = async (
+  workspaces: WorkspaceBase[],
+): Promise<Map<string, Set<string>>> => {
+  const dependentsByDependency = new Map<string, Set<string>>();
+
+  await Promise.all(
+    workspaces.map(async (workspace) => {
+      try {
+        const packageJson = await readPackageJson(
+          join(rootDir, workspace.dir, 'package.json'),
+        );
+
+        for (const field of DEPENDENCY_FIELDS) {
+          const dependencies = packageJson[field];
+
+          if (!dependencies) {
+            continue;
+          }
+
+          for (const dependencyName of Object.keys(dependencies)) {
+            let dependents = dependentsByDependency.get(dependencyName);
+
+            if (!dependents) {
+              dependents = new Set<string>();
+              dependentsByDependency.set(dependencyName, dependents);
+            }
+
+            dependents.add(workspace.name);
+          }
+        }
+      } catch {
+        // Ignore missing package metadata when building dependency graph
+      }
+    }),
+  );
+
+  return dependentsByDependency;
+};
+
+const expandChangedWorkspaces = async (
+  workspaces: WorkspaceBase[],
+  initial: Set<string>,
+): Promise<Set<string>> => {
+  if (initial.size === 0) {
+    return new Set();
+  }
+
+  const result = new Set(initial);
+  const dependentsByDependency = await buildDependentsByDependency(workspaces);
+
+  if (dependentsByDependency.size === 0) {
+    return result;
+  }
+
+  const queue = [...result];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+
+    if (!current) {
+      continue;
+    }
+
+    const dependents = dependentsByDependency.get(current);
+
+    if (!dependents) {
+      continue;
+    }
+
+    for (const dependent of dependents) {
+      if (result.has(dependent)) {
+        continue;
+      }
+
+      result.add(dependent);
+      queue.push(dependent);
+    }
+  }
+
+  return result;
+};
+
 const discoverChangedWorkspaces = async (
   workspaces: WorkspaceBase[],
 ): Promise<Set<string>> => {
   const fromEnv = parseChangedWorkspaceEnv();
 
   if (fromEnv) {
-    return fromEnv;
+    return expandChangedWorkspaces(workspaces, fromEnv);
   }
 
   try {
@@ -192,7 +291,11 @@ const discoverChangedWorkspaces = async (
       }
     }
 
-    return changedWorkspaces;
+    if (changedWorkspaces.size === 0) {
+      return changedWorkspaces;
+    }
+
+    return expandChangedWorkspaces(workspaces, changedWorkspaces);
   } catch {
     return new Set();
   }
@@ -213,7 +316,7 @@ export const prioritizeWorkspaces = (workspaces: Workspace[]): Workspace[] =>
 
 async function readPackageJson(path: string) {
   const content = await fs.readFile(path, 'utf8');
-  return JSON.parse(content) as { name?: string; scripts?: Record<string, string>; workspaces?: string[] };
+  return JSON.parse(content) as PackageMetadata;
 }
 
 async function resolveWorkspaceDirs(pattern: string): Promise<string[]> {
