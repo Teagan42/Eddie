@@ -14,7 +14,7 @@ import { CompleteToolCallCommand } from "../../../src/tools/commands/complete-to
 describe("ChatSessionEventsService", () => {
   const sampleMessage = { id: "m1" } as unknown as ChatMessageDto;
 
-  it.skip("forwards partial events to the chat messages gateway", () => {
+  it("forwards partial events to the chat messages gateway", () => {
     const gateway = { emitPartial: vi.fn() } as unknown as ChatMessagesGateway;
     const events = new ChatSessionEventsService(gateway);
 
@@ -23,9 +23,19 @@ describe("ChatSessionEventsService", () => {
     expect((gateway.emitPartial as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(sampleMessage);
   });
 
-  it.skip("dispatches tool commands for tool events", () => {
+  it("dispatches tool commands for tool events", () => {
     const gateway = { emitPartial: vi.fn() } as unknown as ChatMessagesGateway;
-    const execute = vi.fn();
+    let catchAccessed = false;
+    const execute = vi.fn(() => {
+      const result: Record<string, unknown> = {};
+      Object.defineProperty(result, "catch", {
+        get() {
+          catchAccessed = true;
+          throw new Error("should not access catch on non-promise");
+        },
+      });
+      return result;
+    });
     const commandBus = { execute } as unknown as CommandBus;
     const events = new ChatSessionEventsService(gateway, commandBus);
 
@@ -70,6 +80,8 @@ describe("ChatSessionEventsService", () => {
       timestamp: "2024-01-01T00:00:00.000Z",
       agentId: "agent-42",
     });
+
+    expect(catchAccessed).toBe(false);
   });
 
   it("does not throw when no command bus is provided", () => {

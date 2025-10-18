@@ -78,11 +78,16 @@ implements
   private dispatchCommand(command: StartToolCallCommand | CompleteToolCallCommand): void {
     if (!this.commandBus) return;
     try {
-      void this.commandBus.execute(command).catch(() => {
-        // Ignore command bus failures to keep event pipeline resilient.
-      });
+      const result = this.commandBus.execute(command);
+      this.ignoreRejection(result);
     } catch {
       // Ignore command bus failures to keep event pipeline resilient.
     }
+  }
+
+  private ignoreRejection(result: unknown): void {
+    void Promise.resolve(result).catch(() => {
+      // Ignore command bus failures to keep event pipeline resilient.
+    });
   }
 }
