@@ -63,7 +63,7 @@ export class ChatSessionStreamRendererService {
       }
     });
 
-    await Promise.all(state.pending);
+    await this.settlePending(state);
 
     return { result, error, state };
   }
@@ -87,9 +87,15 @@ export class ChatSessionStreamRendererService {
         : Promise.resolve();
     const task = previous.then(handler);
     state.pending.push(task);
-    task.finally(() => {
-      state.pending = state.pending.filter((current) => current !== task);
-    });
+  }
+
+  private async settlePending(state: StreamState): Promise<void> {
+    if (state.pending.length === 0) {
+      return;
+    }
+
+    await Promise.all(state.pending);
+    state.pending = [];
   }
 
   private async handleEvent(

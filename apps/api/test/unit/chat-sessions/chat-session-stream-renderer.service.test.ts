@@ -99,6 +99,20 @@ describe("ChatSessionStreamRendererService", () => {
     expect(messages[0]?.content).toBe("Partial");
   });
 
+  it("propagates failures from pending render tasks", async () => {
+    publish.mockImplementation((event: unknown) => {
+      if (event instanceof ChatMessagePartialEvent) {
+        throw new Error("publish failed");
+      }
+    });
+
+    await expect(
+      renderer.capture(sessionId, async () => {
+        renderer.render({ type: "delta", text: "Hello" });
+      })
+    ).rejects.toThrowError("publish failed");
+  });
+
   it("publishes partial events for assistant responses", async () => {
     await renderer.capture(sessionId, async () => {
       renderer.render({ type: "delta", text: "Hello" });
