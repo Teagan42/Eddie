@@ -34,6 +34,7 @@ const TOOL_STATUS_BADGE: Record<ToolCallStatusDto, 'gray' | 'blue' | 'green' | '
 const EMPTY_AGENT_HIERARCHY = [] as ExecutionTreeState['agentHierarchy'];
 const EMPTY_TOOL_INVOCATIONS = [] as ExecutionTreeState['toolInvocations'];
 const EMPTY_CONTEXT_BUNDLES = [] as ExecutionTreeState['contextBundles'];
+const EMPTY_CONTEXT_BUNDLES_BY_AGENT = {} as ExecutionTreeState['contextBundlesByAgentId'];
 const EMPTY_TOOL_GROUPS = {} as ExecutionTreeState['toolGroupsByAgentId'];
 const EMPTY_AGENT_LINEAGE = {} as ExecutionTreeState['agentLineageById'];
 
@@ -65,6 +66,7 @@ export function AgentExecutionTree({
   const agentHierarchy = state?.agentHierarchy ?? EMPTY_AGENT_HIERARCHY;
   const toolInvocations = state?.toolInvocations ?? EMPTY_TOOL_INVOCATIONS;
   const contextBundles = state?.contextBundles ?? EMPTY_CONTEXT_BUNDLES;
+  const contextBundlesByAgentId = state?.contextBundlesByAgentId ?? EMPTY_CONTEXT_BUNDLES_BY_AGENT;
   const toolGroupsByAgentId = state?.toolGroupsByAgentId ?? EMPTY_TOOL_GROUPS;
   const agentLineageById = state?.agentLineageById ?? EMPTY_AGENT_LINEAGE;
 
@@ -307,7 +309,8 @@ export function AgentExecutionTree({
   }
 
   function renderContextBundles(_agent: AgentHierarchyNode): JSX.Element | null {
-    if (contextBundles.length === 0) {
+    const bundles = contextBundlesByAgentId[_agent.id] ?? [];
+    if (bundles.length === 0) {
       return null;
     }
 
@@ -334,7 +337,7 @@ export function AgentExecutionTree({
             <Text className="text-white/90">Context bundles</Text>
           </Flex>
           <Badge variant="soft" color="blue">
-            {contextBundles.length}
+            {bundles.length}
           </Badge>
         </button>
 
@@ -345,7 +348,7 @@ export function AgentExecutionTree({
             aria-label={`context bundles for ${_agent.name}`}
             className="mt-2 space-y-2 rounded-lg border border-white/10 bg-slate-950/70 p-3"
           >
-            {contextBundles.map((bundle) => (
+            {bundles.map((bundle) => (
               <Box key={bundle.id} className="space-y-1">
                 <Text weight="medium" className="text-white/90">
                   {bundle.title}

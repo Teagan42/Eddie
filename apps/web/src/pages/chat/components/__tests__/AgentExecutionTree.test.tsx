@@ -201,4 +201,101 @@ describe('AgentExecutionTree', () => {
     });
     expect(nestedRegion).toBeInTheDocument();
   });
+
+  it("shows only the selected agent's context bundles when expanded", async () => {
+    const user = userEvent.setup();
+
+    const rootBundle = {
+      id: 'bundle-root',
+      label: 'Root bundle label',
+      title: 'Root agent context',
+      summary: 'Context gathered by root',
+      sizeBytes: 256,
+      fileCount: 0,
+      files: [],
+      source: 'Root tool call source',
+    } as ExecutionContextBundle & { title: string; source: string };
+
+    const delegateBundle = {
+      id: 'bundle-delegate',
+      label: 'Delegate bundle label',
+      title: 'Delegate agent context',
+      summary: 'Context gathered by delegate',
+      sizeBytes: 512,
+      fileCount: 0,
+      files: [],
+      source: 'Delegate tool call source',
+    } as ExecutionContextBundle & { title: string; source: string };
+
+    const state: ExecutionTreeState = {
+      agentHierarchy: [
+        {
+          id: 'root-agent',
+          name: 'orchestrator',
+          provider: 'openai',
+          model: 'gpt-4o',
+          depth: 0,
+          lineage: ['root-agent'],
+          children: [],
+        },
+        {
+          id: 'delegate-agent',
+          name: 'delegate',
+          provider: 'anthropic',
+          model: 'claude-3',
+          depth: 0,
+          lineage: ['delegate-agent'],
+          children: [],
+        },
+      ],
+      toolInvocations: [],
+      contextBundles: [rootBundle, delegateBundle],
+      agentLineageById: {
+        'root-agent': ['root-agent'],
+        'delegate-agent': ['delegate-agent'],
+      },
+      toolGroupsByAgentId: {},
+      contextBundlesByAgentId: {
+        'root-agent': [rootBundle],
+        'delegate-agent': [delegateBundle],
+      },
+      contextBundlesByToolCallId: {
+        'tool-root': [rootBundle],
+        'tool-delegate': [delegateBundle],
+      },
+      createdAt: '2024-05-01T12:00:00.000Z',
+      updatedAt: '2024-05-01T12:00:00.000Z',
+    };
+
+    render(
+      <AgentExecutionTree state={state} selectedAgentId={null} onSelectAgent={() => {}} />,
+    );
+
+    const rootContextToggle = screen.getByRole('button', {
+      name: /toggle context bundles for orchestrator/i,
+    });
+    await user.click(rootContextToggle);
+
+    const rootContextRegion = screen.getByRole('region', {
+      name: /context bundles for orchestrator/i,
+    });
+    expect(
+      within(rootContextRegion).getByText(/root agent context/i),
+    ).toBeInTheDocument();
+    expect(
+      within(rootContextRegion).queryByText(/delegate agent context/i),
+    ).not.toBeInTheDocument();
+
+    const delegateContextToggle = screen.getByRole('button', {
+      name: /toggle context bundles for delegate/i,
+    });
+    await user.click(delegateContextToggle);
+
+    const delegateContextRegion = screen.getByRole('region', {
+      name: /context bundles for delegate/i,
+    });
+    expect(
+      within(delegateContextRegion).getByText(/delegate agent context/i),
+    ).toBeInTheDocument();
+  });
 });
