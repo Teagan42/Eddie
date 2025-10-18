@@ -12,6 +12,7 @@ import type { LogsService } from "../../../src/logs/logs.service";
 import type { TraceDto } from "../../../src/traces/dto/trace.dto";
 import { CreateTraceCommand, UpdateTraceCommand } from "../../../src/traces/commands";
 import { ChatMessageCreatedEvent } from "@eddie/types";
+import { Type } from '@nestjs/common';
 
 const createChatMessage = (
   overrides: Partial<ChatMessageDto> = {}
@@ -93,7 +94,7 @@ describe("ChatSessionsEngineListener", () => {
     );
   });
 
-  const findCommand = <T>(CommandType: new (...args: unknown[]) => T): T | undefined =>
+  const findCommand = <T, TCtor extends Type<T> = Type<T>>(CommandType: TCtor): T | undefined =>
     commandExecute.mock.calls
       .map(([command]) => command)
       .find((command): command is T => command instanceof CommandType);
@@ -191,7 +192,7 @@ describe("ChatSessionsEngineListener", () => {
       "Next steps"
     );
 
-    const createCommand = findCommand(CreateTraceCommand);
+    const createCommand: CreateTraceCommand | undefined = findCommand(CreateTraceCommand);
     expect(createCommand).toBeInstanceOf(CreateTraceCommand);
     expect(createCommand?.input).toEqual({
       sessionId: "session-1",
@@ -200,7 +201,7 @@ describe("ChatSessionsEngineListener", () => {
       metadata: { messageId: "m-3" },
     });
 
-    const updateCommand = findCommand(UpdateTraceCommand);
+    const updateCommand: UpdateTraceCommand | undefined = findCommand(UpdateTraceCommand);
     expect(updateCommand).toBeInstanceOf(UpdateTraceCommand);
     expect(updateCommand?.id).toBe("trace-success");
     expect(updateCommand?.input).toMatchObject({
@@ -323,7 +324,7 @@ describe("ChatSessionsEngineListener", () => {
 
     expect(saveAgentInvocations).not.toHaveBeenCalled();
 
-    const updateCommand = findCommand(UpdateTraceCommand);
+    const updateCommand: UpdateTraceCommand | undefined = findCommand(UpdateTraceCommand);
     expect(updateCommand).toBeInstanceOf(UpdateTraceCommand);
     expect(updateCommand?.id).toBe("trace-1");
     expect(updateCommand?.input).toMatchObject({

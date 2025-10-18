@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { NotFoundException } from "@nestjs/common";
+import { FactoryProvider, NotFoundException } from "@nestjs/common";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Test } from "@nestjs/testing";
 import knex, { type Knex } from "knex";
@@ -273,7 +273,7 @@ describe("ChatSessionsRepository persistence", () => {
       });
 
       const repository = moduleRef.get(
-        CHAT_SESSIONS_REPOSITORY_PROVIDER.provide
+        (CHAT_SESSIONS_REPOSITORY_PROVIDER as FactoryProvider).provide
       );
 
       expect(repository).toBeInstanceOf(KnexChatSessionsRepository);
@@ -307,7 +307,7 @@ describe("ChatSessionsRepository persistence", () => {
       });
 
       const repository = moduleRef.get(
-        CHAT_SESSIONS_REPOSITORY_PROVIDER.provide
+        (CHAT_SESSIONS_REPOSITORY_PROVIDER as FactoryProvider).provide
       );
 
       expect(repository).toBeInstanceOf(KnexChatSessionsRepository);
@@ -342,7 +342,7 @@ describe("ChatSessionsRepository persistence", () => {
       });
 
       const repository = moduleRef.get(
-        CHAT_SESSIONS_REPOSITORY_PROVIDER.provide
+        (CHAT_SESSIONS_REPOSITORY_PROVIDER as FactoryProvider).provide
       );
 
       expect(repository).toBeInstanceOf(KnexChatSessionsRepository);
