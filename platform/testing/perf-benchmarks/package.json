@@ -11,7 +11,7 @@
   "scripts": {
     "lint": "eslint --no-error-on-unmatched-pattern .",
     "build": "tsc -b tsconfig.build.json",
-    "bench": "vitest bench",
+    "bench": "vitest bench --run",
     "test": "vitest run"
   }
 }

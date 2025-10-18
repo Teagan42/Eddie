@@ -3,13 +3,13 @@ import { join, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 
-import { afterAll, bench, group, suite } from 'vitest';
+import { afterAll, bench, describe, suite, vi } from 'vitest';
 
 import { TemplateRendererService } from '@eddie/templates';
 import type { TemplateDescriptor, TemplateVariables } from '@eddie/templates';
 
 const FIXTURE_ROOT = fileURLToPath(
-  new URL('../fixtures/templates/', import.meta.url),
+  new URL(resolve(__dirname, '../fixtures/templates/'), "file://"),
 );
 
 interface TemplateFixtureDefinition {
@@ -301,14 +301,14 @@ const emitScenarioReport = () => {
 
 export interface TemplateBenchmarkRegistrationContext {
   readonly suite: typeof suite;
-  readonly group: typeof group;
+  readonly describe: typeof describe;
   readonly bench: typeof bench;
   readonly loadFixtures?: () => Promise<TemplateRenderingFixture[]>;
 }
 
 export async function defineTemplateRenderingBenchmarks({
   suite: registerSuite,
-  group: registerGroup,
+  describe: registerdescribe,
   bench: registerBench,
   loadFixtures: loadFixturesFn = loadTemplateRenderingFixtures,
 }: TemplateBenchmarkRegistrationContext): Promise<void> {
@@ -321,7 +321,7 @@ export async function defineTemplateRenderingBenchmarks({
 
     for (const fixture of fixtures) {
       for (const mode of ['descriptor', 'inline'] as const) {
-        registerGroup(`${fixture.label} (${mode})`, () => {
+        registerdescribe(`${fixture.label} (${mode})`, () => {
           registerBench(`${fixture.id} ${mode}`, async () => {
             const measurement = await measureTemplateRenderingScenario(
               fixture,
@@ -336,17 +336,12 @@ export async function defineTemplateRenderingBenchmarks({
   });
 }
 
-const vitestState = (import.meta as unknown as {
-  vitest?: { mode?: string };
-}).vitest;
+await defineTemplateRenderingBenchmarks({
+  suite,
+  describe,
+  bench,
+  loadFixtures: loadTemplateRenderingFixtures,
+}).catch((error) => {
+  console.error('Failed to register template rendering benchmarks', error);
+});
 
-if (vitestState?.mode === 'benchmark') {
-  void defineTemplateRenderingBenchmarks({
-    suite,
-    group,
-    bench,
-    loadFixtures: loadTemplateRenderingFixtures,
-  }).catch((error) => {
-    console.error('Failed to register template rendering benchmarks', error);
-  });
-}

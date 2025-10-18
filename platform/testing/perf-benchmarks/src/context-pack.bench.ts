@@ -3,7 +3,7 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { performance } from 'node:perf_hooks';
-import { afterAll, beforeAll, bench, suite } from 'vitest';
+import { afterAll, beforeAll, bench, describe, suite } from 'vitest';
 
 import type { ContextConfig, ContextResourceBundleConfig } from '@eddie/config';
 import { ContextService } from '@eddie/context';
