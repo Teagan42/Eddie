@@ -122,6 +122,239 @@ describe('AgentExecutionTree', () => {
     expect(screen.getByText(/preferences.json/)).toBeInTheDocument();
   });
 
+  it('orders tool invocations in each status group with newest entries first', async () => {
+    const user = userEvent.setup();
+    const olderInvocation: ExecutionTreeState['toolInvocations'][number] = {
+      id: 'tool-old',
+      agentId: 'root-agent',
+      name: 'fetch-weather',
+      status: 'completed',
+      createdAt: '2024-05-01T11:59:00.000Z',
+      updatedAt: '2024-05-01T12:00:00.000Z',
+      metadata: { args: { query: 'weather' } },
+      children: [],
+    };
+    const newerInvocation: ExecutionTreeState['toolInvocations'][number] = {
+      id: 'tool-new',
+      agentId: 'root-agent',
+      name: 'browse-web',
+      status: 'completed',
+      createdAt: '2024-05-01T12:01:00.000Z',
+      updatedAt: '2024-05-01T12:02:00.000Z',
+      metadata: { args: { query: 'latest headlines' } },
+      children: [],
+    };
+
+    const executionTree: ExecutionTreeState = {
+      agentHierarchy: [
+        {
+          id: 'root-agent',
+          name: 'orchestrator',
+          provider: 'openai',
+          model: 'gpt-4o',
+          depth: 0,
+          lineage: ['root-agent'],
+          children: [],
+        },
+      ],
+      toolInvocations: [olderInvocation, newerInvocation],
+      contextBundles: [],
+      agentLineageById: { 'root-agent': ['root-agent'] },
+      toolGroupsByAgentId: {
+        'root-agent': {
+          pending: [],
+          running: [],
+          completed: [olderInvocation, newerInvocation],
+          failed: [],
+        },
+      },
+      contextBundlesByAgentId: { 'root-agent': [] },
+      contextBundlesByToolCallId: {},
+      createdAt: '2024-05-01T11:59:00.000Z',
+      updatedAt: '2024-05-01T12:02:00.000Z',
+    };
+
+    const metadata = {
+      executionTree,
+    } as unknown as OrchestratorMetadataDto;
+
+    render(
+      <AgentExecutionTree
+        state={createExecutionTreeStateFromMetadata(metadata)}
+        selectedAgentId={null}
+        onSelectAgent={() => {}}
+      />,
+    );
+
+    const completedToggle = screen.getByRole('button', {
+      name: /toggle completed tool invocations for orchestrator/i,
+    });
+    await user.click(completedToggle);
+
+    const completedList = screen.getByRole('region', {
+      name: /completed tool invocations for orchestrator/i,
+    });
+
+    const items = completedList.querySelectorAll(':scope > ul > li');
+    expect(items).toHaveLength(2);
+    expect(within(items[0] as HTMLElement).getByText(/browse-web/i)).toBeInTheDocument();
+    expect(within(items[1] as HTMLElement).getByText(/fetch-weather/i)).toBeInTheDocument();
+  });
+
+  it('styles the tool invocation details button with a tinted background', async () => {
+    const user = userEvent.setup();
+    const invocation: ExecutionTreeState['toolInvocations'][number] = {
+      id: 'tool-cta',
+      agentId: 'root-agent',
+      name: 'fetch-weather',
+      status: 'pending',
+      createdAt: '2024-05-01T12:00:00.000Z',
+      updatedAt: '2024-05-01T12:00:00.000Z',
+      metadata: { args: { query: 'San Francisco' } },
+      children: [],
+    };
+
+    const executionTree: ExecutionTreeState = {
+      agentHierarchy: [
+        {
+          id: 'root-agent',
+          name: 'orchestrator',
+          provider: 'openai',
+          model: 'gpt-4o',
+          depth: 0,
+          lineage: ['root-agent'],
+          children: [],
+        },
+      ],
+      toolInvocations: [invocation],
+      contextBundles: [],
+      agentLineageById: { 'root-agent': ['root-agent'] },
+      toolGroupsByAgentId: {
+        'root-agent': {
+          pending: [invocation],
+          running: [],
+          completed: [],
+          failed: [],
+        },
+      },
+      contextBundlesByAgentId: { 'root-agent': [] },
+      contextBundlesByToolCallId: {},
+      createdAt: '2024-05-01T12:00:00.000Z',
+      updatedAt: '2024-05-01T12:00:00.000Z',
+    };
+
+    const metadata = {
+      executionTree,
+    } as unknown as OrchestratorMetadataDto;
+
+    render(
+      <AgentExecutionTree
+        state={createExecutionTreeStateFromMetadata(metadata)}
+        selectedAgentId={null}
+        onSelectAgent={() => {}}
+      />,
+    );
+
+    const pendingToggle = screen.getByRole('button', {
+      name: /toggle pending tool invocations for orchestrator/i,
+    });
+    await user.click(pendingToggle);
+
+    const pendingList = screen.getByRole('region', {
+      name: /pending tool invocations for orchestrator/i,
+    });
+
+    const detailsButton = within(pendingList).getByRole('button', {
+      name: /view full tool invocation details/i,
+    });
+
+    expect(detailsButton).toHaveClass('bg-accent/5');
+  });
+
+  it('applies transition classes for smooth agent and tool animations', async () => {
+    const user = userEvent.setup();
+    const invocation: ExecutionTreeState['toolInvocations'][number] = {
+      id: 'tool-animate',
+      agentId: 'root-agent',
+      name: 'summarize',
+      status: 'completed',
+      createdAt: '2024-05-01T12:00:00.000Z',
+      updatedAt: '2024-05-01T12:01:00.000Z',
+      metadata: { result: { summary: 'Done' } },
+      children: [],
+    };
+
+    const executionTree: ExecutionTreeState = {
+      agentHierarchy: [
+        {
+          id: 'root-agent',
+          name: 'orchestrator',
+          provider: 'openai',
+          model: 'gpt-4o',
+          depth: 0,
+          lineage: ['root-agent'],
+          children: [
+            {
+              id: 'child-agent',
+              name: 'delegate',
+              provider: 'anthropic',
+              model: 'claude-3',
+              depth: 1,
+              lineage: ['root-agent', 'child-agent'],
+              children: [],
+            },
+          ],
+        },
+      ],
+      toolInvocations: [invocation],
+      contextBundles: [],
+      agentLineageById: {
+        'root-agent': ['root-agent'],
+        'child-agent': ['root-agent', 'child-agent'],
+      },
+      toolGroupsByAgentId: {
+        'root-agent': {
+          pending: [],
+          running: [],
+          completed: [invocation],
+          failed: [],
+        },
+      },
+      contextBundlesByAgentId: { 'root-agent': [] },
+      contextBundlesByToolCallId: {},
+      createdAt: '2024-05-01T12:00:00.000Z',
+      updatedAt: '2024-05-01T12:01:00.000Z',
+    };
+
+    const metadata = {
+      executionTree,
+    } as unknown as OrchestratorMetadataDto;
+
+    render(
+      <AgentExecutionTree
+        state={createExecutionTreeStateFromMetadata(metadata)}
+        selectedAgentId={null}
+        onSelectAgent={() => {}}
+      />,
+    );
+
+    const agentCard = screen.getByRole('button', { name: /select orchestrator agent/i }).closest('li');
+    expect(agentCard).toHaveClass('transition-all');
+
+    const completedToggle = screen.getByRole('button', {
+      name: /toggle completed tool invocations for orchestrator/i,
+    });
+    await user.click(completedToggle);
+
+    const completedRegion = screen.getByRole('region', {
+      name: /completed tool invocations for orchestrator/i,
+    });
+    expect(completedRegion).toHaveClass('transition-all');
+
+    const toolItems = completedRegion.querySelectorAll(':scope > ul > li');
+    expect(toolItems[0]).toHaveClass('transition-all');
+  });
+
   it('auto-expands agents with children on initial render', () => {
     const executionTree: ExecutionTreeState = {
       agentHierarchy: [
