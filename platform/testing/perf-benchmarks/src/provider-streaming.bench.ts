@@ -25,9 +25,8 @@ vi.mock('openai', () => ({
 }));
 
 const FIXTURE_ROOT = fileURLToPath(
-  new URL(resolve(__dirname, '../fixtures/providers/'), 'file://'),
+  new URL('../fixtures/providers/', import.meta.url),
 );
-
 
 const REGRESSION_THRESHOLD_PERCENT = 25;
 

@@ -11,7 +11,7 @@ import type { TemplateDescriptor, TemplateVariables } from '@eddie/templates';
 import { createSafeBench, type BenchRegistration } from './bench.runtime';
 
 const FIXTURE_ROOT = fileURLToPath(
-  new URL(resolve(__dirname, '../fixtures/templates/'), "file://"),
+  new URL('../fixtures/providers/', import.meta.url),
 );
 
 interface TemplateFixtureDefinition {
