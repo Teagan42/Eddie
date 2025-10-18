@@ -67,11 +67,13 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    include: ["test/**/*.test.ts"],
+    include: ["./**/*.test.ts"],
     environment: "node",
     pool: "threads",
     coverage: {
       reporter: ["text", "html"],
+      include: ["./**/*.ts"],
+	    extension: ["*.ts"],
       statements: 90,
       branches: 85,
       functions: 90,
