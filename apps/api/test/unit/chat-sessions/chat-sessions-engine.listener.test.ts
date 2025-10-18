@@ -99,7 +99,7 @@ describe("ChatSessionsEngineListener", () => {
       .map(([command]) => command)
       .find((command): command is T => command instanceof CommandType);
 
-  it.skip("subscribes to ChatMessageCreatedEvent", () => {
+  it("subscribes to ChatMessageCreatedEvent", () => {
     const events =
       Reflect.getMetadata(
         EVENTS_HANDLER_METADATA,
