@@ -5,6 +5,15 @@ import * as websocketUtils from "../../../src/websocket/utils";
 
 const emitEventSpy = vi.spyOn(websocketUtils, "emitEvent");
 
+const buildTrace = (overrides: Partial<TraceDto> = {}): TraceDto => ({
+  id: "trace-id",
+  name: "trace",
+  status: "pending",
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  ...overrides,
+});
+
 describe("TracesGateway", () => {
   let gateway: TracesGateway;
 
@@ -22,14 +31,8 @@ describe("TracesGateway", () => {
     expect("onModuleDestroy" in gateway).toBe(false);
   });
 
-  it.skip("emits websocket events for created traces", () => {
-    const trace: TraceDto = {
-      id: "trace-id",
-      name: "trace",
-      status: "pending",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  it("emits websocket events for created traces", () => {
+    const trace = buildTrace();
 
     const server = (gateway as unknown as { server: unknown }).server;
 
@@ -38,14 +41,8 @@ describe("TracesGateway", () => {
     expect(emitEventSpy).toHaveBeenCalledWith(server, "trace.created", trace);
   });
 
-  it.skip("emits websocket events for updated traces", () => {
-    const trace: TraceDto = {
-      id: "trace-id",
-      name: "trace",
-      status: "running",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  it("emits websocket events for updated traces", () => {
+    const trace = buildTrace({ status: "running" });
 
     const server = (gateway as unknown as { server: unknown }).server;
 

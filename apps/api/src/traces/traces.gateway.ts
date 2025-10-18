@@ -13,17 +13,15 @@ export class TracesGateway {
   @WebSocketServer()
   private server!: Server;
 
-  private emitTraceEvent(event: TraceEventName, trace: TraceDto): void {
-    emitEvent(this.server, event, trace);
-  }
-
   emitTraceCreated(trace: TraceDto): void {
-    this.emitTraceEvent("trace.created", trace);
+    emitEvent(this.server, TracesGateway.TRACE_CREATED_EVENT, trace);
   }
 
   emitTraceUpdated(trace: TraceDto): void {
-    this.emitTraceEvent("trace.updated", trace);
+    emitEvent(this.server, TracesGateway.TRACE_UPDATED_EVENT, trace);
   }
-}
 
-type TraceEventName = "trace.created" | "trace.updated";
+  private static readonly TRACE_CREATED_EVENT = "trace.created" as const;
+
+  private static readonly TRACE_UPDATED_EVENT = "trace.updated" as const;
+}
