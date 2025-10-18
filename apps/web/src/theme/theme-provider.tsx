@@ -1,4 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Theme } from "@radix-ui/themes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { RuntimeConfigDto } from "@eddie/api-client";
@@ -14,6 +23,9 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function syncDocumentTheme(theme: RuntimeConfigDto["theme"]): void {
+  if (typeof document === "undefined") {
+    return;
+  }
   const root = document.documentElement;
   if (theme === "dark") {
     root.classList.add("dark");
@@ -21,6 +33,9 @@ function syncDocumentTheme(theme: RuntimeConfigDto["theme"]): void {
     root.classList.remove("dark");
   }
 }
+
+const THEME_TRANSITION_CLASS = "theme-transition";
+const THEME_TRANSITION_MS = 320;
 
 export function ThemeProvider({ children }: { children: ReactNode }): JSX.Element {
   const api = useApi();
@@ -30,7 +45,53 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
     queryFn: () => api.http.config.get(),
   });
 
-  const theme = (configQuery.data?.theme ?? "dark") as RuntimeConfigDto["theme"];
+  const [theme, setThemeState] = useState<RuntimeConfigDto["theme"]>(() => {
+    return (configQuery.data?.theme ?? "dark") as RuntimeConfigDto["theme"];
+  });
+  const userOverrideRef = useRef(false);
+  const transitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearThemeTransition = useCallback(() => {
+    if (transitionTimeoutRef.current) {
+      clearTimeout(transitionTimeoutRef.current);
+      transitionTimeoutRef.current = null;
+    }
+    if (typeof document !== "undefined") {
+      document.documentElement.classList.remove(THEME_TRANSITION_CLASS);
+    }
+  }, []);
+
+  const beginThemeTransition = useCallback(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    clearThemeTransition();
+    const root = document.documentElement;
+    root.classList.add(THEME_TRANSITION_CLASS);
+    transitionTimeoutRef.current = setTimeout(() => {
+      root.classList.remove(THEME_TRANSITION_CLASS);
+      transitionTimeoutRef.current = null;
+    }, THEME_TRANSITION_MS);
+  }, [clearThemeTransition]);
+
+  useEffect(() => () => clearThemeTransition(), [clearThemeTransition]);
+
+  useEffect(() => {
+    const serverTheme = configQuery.data?.theme as RuntimeConfigDto["theme"] | undefined;
+    if (!serverTheme) {
+      return;
+    }
+
+    if (serverTheme === theme) {
+      userOverrideRef.current = false;
+      return;
+    }
+
+    if (!userOverrideRef.current) {
+      beginThemeTransition();
+      setThemeState(serverTheme);
+    }
+  }, [beginThemeTransition, configQuery.data?.theme, theme]);
 
   useEffect(() => {
     syncDocumentTheme(theme);
@@ -38,19 +99,19 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
 
   const setTheme = useCallback(
     (nextTheme: RuntimeConfigDto["theme"]) => {
+      userOverrideRef.current = true;
+      beginThemeTransition();
+      setThemeState(nextTheme);
       syncDocumentTheme(nextTheme);
       queryClient.setQueryData<RuntimeConfigDto | undefined>(CONFIG_QUERY_KEY, (current) => {
         if (current) {
           return { ...current, theme: nextTheme };
         }
-        if (configQuery.data) {
-          return { ...configQuery.data, theme: nextTheme };
-        }
         return current;
       });
       void api.http.config.update({ theme: nextTheme });
     },
-    [api, configQuery.data, queryClient]
+    [api, beginThemeTransition, queryClient]
   );
 
   const value = useMemo<ThemeContextValue>(() => ({ theme, setTheme }), [theme, setTheme]);
