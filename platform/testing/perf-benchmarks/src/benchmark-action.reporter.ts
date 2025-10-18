@@ -1,5 +1,5 @@
 import { promises as fs } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
 
 import type { Reporter, Vitest } from "vitest";
 
@@ -121,7 +121,12 @@ export class BenchmarkActionReporter implements Reporter {
       return undefined;
     }
 
-    return resolve(this.ctx.config.root, outputTarget);
+    if (isAbsolute(outputTarget)) {
+      return outputTarget;
+    }
+
+    const baseDir = process.env.INIT_CWD ?? this.ctx.config.root;
+    return resolve(baseDir, outputTarget);
   }
 
   async onFinished(files?: readonly FileTaskLike[]): Promise<void> {

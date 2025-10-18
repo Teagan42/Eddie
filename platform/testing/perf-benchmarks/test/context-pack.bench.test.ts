@@ -133,13 +133,13 @@ describe('context-pack benchmarks', () => {
       await registration.handler();
     }
 
-    for (const teardown of afterAllRegistrations) {
-      await teardown();
-    }
-
     expect(registryMocks.registerBenchmarkActionEntry).toHaveBeenCalledTimes(
       datasetNames.length,
     );
+
+    for (const teardown of afterAllRegistrations) {
+      await teardown();
+    }
 
     datasetNames.forEach((name, index) => {
       const base = 120 + index * 10;

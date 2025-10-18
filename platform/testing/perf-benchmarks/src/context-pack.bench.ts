@@ -13,6 +13,7 @@ import { TemplateRuntimeService } from '@eddie/templates';
 
 import type { ContextPackDataset } from './context-pack.fixtures';
 import { prepareContextPackDatasets } from './context-pack.fixtures';
+import type { AggregatedPackMetrics } from './context-pack.metrics';
 import { aggregatePackMetrics } from './context-pack.metrics';
 import { createStructuredReport } from './context-pack.reporting';
 import { registerBenchmarkActionEntry } from './benchmark-action.registry';
@@ -21,6 +22,8 @@ interface DatasetBenchContext {
   readonly dataset: ContextPackDataset;
   readonly config: ContextConfig;
   readonly durations: number[];
+  metrics?: AggregatedPackMetrics;
+  registeredSampleCount: number;
 }
 
 const BENCHMARK_NAME = 'context-pack.pack';
@@ -60,6 +63,20 @@ function registerScenarioBenchmark(scenario: {
   });
 }
 
+function registerScenarioMetrics(context: DatasetBenchContext): AggregatedPackMetrics {
+  const sampleCount = context.durations.length;
+
+  if (context.metrics && context.registeredSampleCount === sampleCount) {
+    return context.metrics;
+  }
+
+  const metrics = aggregatePackMetrics({ dataset: context.dataset, durationsMs: context.durations });
+  context.metrics = metrics;
+  context.registeredSampleCount = sampleCount;
+  registerScenarioBenchmark({ dataset: context.dataset, metrics });
+  return metrics;
+}
+
 function createContextConfig(dataset: ContextPackDataset): ContextConfig {
   const bundleBytes = computeBundleBytes(dataset);
   return {
@@ -95,6 +112,7 @@ suite('ContextService.pack benchmarks', () => {
         dataset,
         config: createContextConfig(dataset),
         durations: [],
+        registeredSampleCount: 0,
       });
     }
   });
@@ -118,17 +136,20 @@ suite('ContextService.pack benchmarks', () => {
       await contextService.pack(context.config);
       const durationMs = performance.now() - start;
       context.durations.push(durationMs);
+      registerScenarioMetrics(context);
     }, PACK_BENCH_OPTIONS);
   }
 });
 
 function emitStructuredReport(datasetContexts: Map<string, DatasetBenchContext>): void {
-  const scenarios = Array.from(datasetContexts.values())
-    .filter((entry) => entry.durations.length > 0)
-    .map((entry) => ({
-      dataset: entry.dataset,
-      metrics: aggregatePackMetrics({ dataset: entry.dataset, durationsMs: entry.durations }),
-    }));
+  const scenarios = Array.from(datasetContexts.values()).flatMap((entry) => {
+    if (entry.durations.length === 0) {
+      return [];
+    }
+
+    const metrics = registerScenarioMetrics(entry);
+    return [{ dataset: entry.dataset, metrics }];
+  });
 
   if (scenarios.length === 0) {
     return;

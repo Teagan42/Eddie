@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -294,6 +294,37 @@ describe("buildBenchmarkEntries", () => {
     ]);
 
     delete process.env.BENCHMARK_OUTPUT_PATH;
+  });
+
+  it("resolves BENCHMARK_OUTPUT_PATH relative to INIT_CWD when provided", async () => {
+    const tmpRoot = mkdtempSync(join(tmpdir(), "bench-reporter-"));
+    const workspaceRoot = join(tmpRoot, "platform", "testing", "perf-benchmarks");
+    mkdirSync(workspaceRoot, { recursive: true });
+    const relativePath = join(
+      "platform",
+      "testing",
+      "perf-benchmarks",
+      "benchmark-results.json"
+    );
+
+    const reporter = new BenchmarkActionReporter();
+    const ctx = {
+      config: { root: workspaceRoot },
+      logger: { log: () => {}, warn: () => {} },
+      state: { getFiles: () => [] },
+    } as const;
+
+    process.env.INIT_CWD = tmpRoot;
+    process.env.BENCHMARK_OUTPUT_PATH = relativePath;
+
+    reporter.onInit(ctx as never);
+    await reporter.onFinished([] as never);
+
+    const targetPath = join(workspaceRoot, "benchmark-results.json");
+    expect(readFileSync(targetPath, "utf-8")).toBe("[]");
+
+    delete process.env.BENCHMARK_OUTPUT_PATH;
+    delete process.env.INIT_CWD;
   });
 
   it("exposes the reporter class as the default export", () => {

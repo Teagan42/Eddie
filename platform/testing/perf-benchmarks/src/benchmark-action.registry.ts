@@ -2,10 +2,6 @@ import { BroadcastChannel, type MessageEvent } from "node:worker_threads";
 
 import type { BenchmarkActionEntry } from "./benchmark-action.reporter";
 
-interface BenchmarkActionRegistry {
-  readonly entries: BenchmarkActionEntry[];
-}
-
 interface BenchmarkRegistryMessage {
   readonly type: "register";
   readonly entry: BenchmarkActionEntry;
@@ -13,7 +9,18 @@ interface BenchmarkRegistryMessage {
 
 const BENCHMARK_ACTION_CHANNEL = "eddie.benchmarkActionEntries";
 
-const registry: BenchmarkActionRegistry = { entries: [] };
+const registry: { readonly entries: BenchmarkActionEntry[] } = { entries: [] };
+
+function upsertEntry(entry: BenchmarkActionEntry): void {
+  const existingIndex = registry.entries.findIndex((candidate) => candidate.name === entry.name);
+
+  if (existingIndex >= 0) {
+    registry.entries.splice(existingIndex, 1, entry);
+    return;
+  }
+
+  registry.entries.push(entry);
+}
 
 let broadcastChannel: BroadcastChannel | undefined;
 
@@ -25,14 +32,14 @@ try {
       return;
     }
 
-    registry.entries.push(message.entry);
+    upsertEntry(message.entry);
   };
 } catch {
   // Ignore environments where BroadcastChannel is unavailable (e.g. Node < 15).
 }
 
 export function registerBenchmarkActionEntry(entry: BenchmarkActionEntry): void {
-  registry.entries.push(entry);
+  upsertEntry(entry);
   broadcastChannel?.postMessage({ type: "register", entry });
 }
 
