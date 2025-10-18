@@ -237,6 +237,39 @@ describe("ChatSessionsRepository persistence", () => {
     await database?.destroy();
   });
 
+  it("awaits sqlite foreign key pragma before repositories use the connection", async () => {
+    const persistence = sqlitePersistence();
+
+    let rawAwaited = false;
+    const raw = vi.fn(
+      () =>
+        ({
+          then: (resolve: () => void) => {
+            rawAwaited = true;
+            resolve();
+            return Promise.resolve();
+          },
+        }) satisfies PromiseLike<void>
+    );
+
+    const { moduleRef, database } = await buildTestingModule(persistence, {
+      createKnex: (config) => {
+        const instance = createFakeKnex(config);
+        const schema = instance.schema as unknown as Record<string, unknown>;
+        schema.hasColumn = vi.fn().mockResolvedValue(true);
+        schema.alterTable = vi.fn();
+        (instance as unknown as { raw: () => PromiseLike<void> }).raw = raw as never;
+        return instance;
+      },
+    });
+
+    expect(raw).toHaveBeenCalledWith("PRAGMA foreign_keys = ON");
+    expect(rawAwaited).toBe(true);
+
+    await moduleRef.close();
+    await database?.destroy();
+  });
+
   const buildSqlPersistence = (
     driver: SqlDriver,
     overrides: Partial<ApiPersistenceConfig[typeof driver]> = {}

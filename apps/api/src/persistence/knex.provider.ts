@@ -10,7 +10,7 @@ export const KNEX_INSTANCE = "KNEX_INSTANCE" as const;
 
 export const KNEX_PROVIDER: Provider = {
   provide: KNEX_INSTANCE,
-  useFactory: (configStore: ConfigStore) => {
+  useFactory: async (configStore: ConfigStore) => {
     const config = configStore.getSnapshot();
     const persistence = config.api?.persistence;
 
@@ -22,7 +22,7 @@ export const KNEX_PROVIDER: Provider = {
     const instance = knex(knexConfig);
 
     if (persistence.driver === "sqlite") {
-      enableSqliteForeignKeys(instance);
+      await enableSqliteForeignKeys(instance);
     }
 
     return instance;
@@ -30,12 +30,14 @@ export const KNEX_PROVIDER: Provider = {
   inject: [ ConfigStore ],
 };
 
-export const enableSqliteForeignKeys = (instance: Knex | undefined): void => {
+export const enableSqliteForeignKeys = async (
+  instance: Knex | undefined
+): Promise<void> => {
   if (!instance || typeof instance.raw !== "function") {
     return;
   }
 
-  void instance.raw("PRAGMA foreign_keys = ON");
+  await instance.raw("PRAGMA foreign_keys = ON");
 };
 
 export function createKnexConfig(persistence: ApiPersistenceConfig): Knex.Config {

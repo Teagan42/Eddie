@@ -36,7 +36,7 @@ const createUnsupportedDriverError = (driver: unknown): Error =>
 
 export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
   provide: CHAT_SESSIONS_REPOSITORY,
-  useFactory: (configStore: ConfigStore, moduleRef: ModuleRef) => {
+  useFactory: async (configStore: ConfigStore, moduleRef: ModuleRef) => {
     const config = configStore.getSnapshot();
     const persistence = config.api?.persistence;
     const driver =
@@ -62,7 +62,7 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
       }
       case "sqlite": {
         const knex = resolveKnex();
-        enableSqliteForeignKeys(knex);
+        await enableSqliteForeignKeys(knex);
         return createKnexRepository(knex);
       }
       case "postgres":
