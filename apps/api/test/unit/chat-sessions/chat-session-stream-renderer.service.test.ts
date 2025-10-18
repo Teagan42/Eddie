@@ -60,7 +60,7 @@ describe("ChatSessionStreamRendererService", () => {
     expect(messages[0]?.content).toBe("Hello world");
   });
 
-  it.skip("avoids emitting duplicate partial events when ending with unchanged content", async () => {
+  it("avoids emitting duplicate partial events when ending with unchanged content", async () => {
     await renderer.capture(sessionId, async () => {
       renderer.render({ type: "delta", text: "Hello" });
       renderer.render({ type: "delta", text: " world" });
@@ -99,7 +99,7 @@ describe("ChatSessionStreamRendererService", () => {
     expect(messages[0]?.content).toBe("Partial");
   });
 
-  it.skip("publishes partial events for assistant responses", async () => {
+  it("publishes partial events for assistant responses", async () => {
     await renderer.capture(sessionId, async () => {
       renderer.render({ type: "delta", text: "Hello" });
       renderer.render({ type: "delta", text: " world" });
@@ -112,7 +112,7 @@ describe("ChatSessionStreamRendererService", () => {
     expect(second.message.content).toBe("Hello world");
   });
 
-  it.skip("publishes tool call and result events", async () => {
+  it("publishes tool call and result events", async () => {
     const toolCall: StreamEvent = {
       type: "tool_call",
       name: "echo",
@@ -162,7 +162,7 @@ describe("ChatSessionStreamRendererService", () => {
     });
   });
 
-  it.skip("annotates tool events with consistent timestamps", async () => {
+  it("annotates tool events with consistent timestamps", async () => {
     vi.useFakeTimers();
     const now = new Date("2024-01-01T00:00:00.000Z");
     vi.setSystemTime(now);
@@ -182,8 +182,11 @@ describe("ChatSessionStreamRendererService", () => {
       agentId: "agent-bravo",
     };
 
+    const expectedTimestamp = now.toISOString();
+
     await renderer.capture(sessionId, async () => {
       renderer.render(toolCall);
+      vi.advanceTimersByTime(1);
       renderer.render(toolResult);
     });
 
@@ -197,9 +200,9 @@ describe("ChatSessionStreamRendererService", () => {
         event instanceof ChatSessionToolResultEvent
     )!;
 
-    expect(callEvent.timestamp).toBe(now.toISOString());
+    expect(callEvent.timestamp).toBe(expectedTimestamp);
     expect(callEvent).toHaveProperty("agentId", "agent-bravo");
-    expect(resultEvent.timestamp).toBe(now.toISOString());
+    expect(resultEvent.timestamp).toBe(expectedTimestamp);
     expect(resultEvent).toHaveProperty("agentId", "agent-bravo");
 
     vi.useRealTimers();

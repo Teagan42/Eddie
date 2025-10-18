@@ -18,7 +18,11 @@ interface StreamState {
   messageId?: string;
   activity: AgentActivityState;
   pending: Promise<void>[];
-  lastEmittedContent?: string;
+  lastPartial?: {
+    messageId: string;
+    content: string;
+  };
+  toolTimestamps: Map<string, string>;
 }
 
 export interface StreamCaptureResult<T> {
@@ -45,6 +49,7 @@ export class ChatSessionStreamRendererService {
       buffer: "",
       activity: "idle",
       pending: [],
+      toolTimestamps: new Map<string, string>(),
     };
     let result: T | undefined;
     let error: unknown;
@@ -67,14 +72,24 @@ export class ChatSessionStreamRendererService {
     const state = this.storage.getStore();
 
     if (state) {
-      const previous =
-        state.pending.length > 0
-          ? state.pending[state.pending.length - 1]
-          : Promise.resolve();
-      const task = previous.then(() => this.handleEvent(state, event));
-      state.pending.push(task);
+      if (event.type === "tool_call" || event.type === "tool_result") {
+        this.getOrCreateToolTimestamp(state, event.id ?? null);
+      }
+      this.enqueue(state, () => this.handleEvent(state, event));
     }
 
+  }
+
+  private enqueue(state: StreamState, handler: () => Promise<void>): void {
+    const previous =
+      state.pending.length > 0
+        ? state.pending[state.pending.length - 1]
+        : Promise.resolve();
+    const task = previous.then(handler);
+    state.pending.push(task);
+    task.finally(() => {
+      state.pending = state.pending.filter((current) => current !== task);
+    });
   }
 
   private async handleEvent(
@@ -157,24 +172,33 @@ export class ChatSessionStreamRendererService {
     if (!message) {
       return;
     }
-    if (message.content === state.lastEmittedContent) {
+
+    const last = state.lastPartial;
+    const next = { messageId: message.id, content: message.content };
+    if (
+      last &&
+      last.messageId === next.messageId &&
+      last.content === next.content
+    ) {
       return;
     }
-    state.lastEmittedContent = message.content;
-    this.eventBus.publish(new ChatMessagePartialEvent(message));
+
+    state.lastPartial = next;
+    this.eventBus.publish(new ChatMessagePartialEvent({ ...message }));
   }
 
   private emitToolCallEvent(
     state: StreamState,
     event: Extract<StreamEvent, { type: "tool_call" }>,
   ): void {
+    const timestamp = this.getOrCreateToolTimestamp(state, event.id ?? null);
     this.eventBus.publish(
       new ChatSessionToolCallEvent(
         state.sessionId,
         event.id ?? undefined,
         event.name,
-        event.arguments ?? null,
-        new Date().toISOString(),
+        this.clonePayload(event.arguments ?? null),
+        timestamp,
         event.agentId ?? null,
       )
     );
@@ -184,16 +208,64 @@ export class ChatSessionStreamRendererService {
     state: StreamState,
     event: Extract<StreamEvent, { type: "tool_result" }>,
   ): void {
+    const timestamp = this.consumeToolTimestamp(state, event.id ?? null);
     this.eventBus.publish(
       new ChatSessionToolResultEvent(
         state.sessionId,
         event.id ?? undefined,
         event.name,
-        event.result ?? null,
-        new Date().toISOString(),
+        this.clonePayload(event.result ?? null),
+        timestamp,
         event.agentId ?? null,
       )
     );
+  }
+
+  private getOrCreateToolTimestamp(
+    state: StreamState,
+    id: string | null
+  ): string {
+    if (!id) {
+      return new Date().toISOString();
+    }
+
+    const existing = state.toolTimestamps.get(id);
+    if (existing) {
+      return existing;
+    }
+
+    const timestamp = new Date().toISOString();
+    state.toolTimestamps.set(id, timestamp);
+    return timestamp;
+  }
+
+  private consumeToolTimestamp(state: StreamState, id: string | null): string {
+    if (!id) {
+      return new Date().toISOString();
+    }
+
+    const existing = state.toolTimestamps.get(id);
+    if (existing) {
+      state.toolTimestamps.delete(id);
+      return existing;
+    }
+
+    const timestamp = new Date().toISOString();
+    state.toolTimestamps.set(id, timestamp);
+    return timestamp;
+  }
+
+  private clonePayload<T>(value: T): T {
+    if (value === null || value === undefined) {
+      return value;
+    }
+    if (typeof value !== "object") {
+      return value;
+    }
+    if (typeof globalThis.structuredClone === "function") {
+      return globalThis.structuredClone(value);
+    }
+    return JSON.parse(JSON.stringify(value)) as T;
   }
 
   private async updateActivity(
