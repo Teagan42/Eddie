@@ -1,6 +1,9 @@
 import {
   AgentInvocationFactory,
   AgentOrchestratorService,
+  AgentRunLoop,
+  ToolCallHandler,
+  TraceWriterDelegate,
   type AgentRuntimeOptions,
   type MetricsService,
   type TranscriptCompactionWorkflow,
@@ -110,11 +113,20 @@ describe("AgentOrchestratorService", () => {
     renderer = new RecordingStreamRendererService();
     eventBus = new RecordingEventBus();
     const traceWriter = new JsonlWriterService();
+    const traceWriterDelegate = new TraceWriterDelegate();
+    const toolCallHandler = new ToolCallHandler(traceWriterDelegate);
+    const agentRunLoop = new AgentRunLoop(
+      toolCallHandler,
+      traceWriterDelegate
+    );
     orchestrator = new AgentOrchestratorService(
       agentInvocationFactory,
       renderer,
       eventBus as unknown as { publish: (event: AgentStreamEvent) => void },
-      traceWriter
+      traceWriter,
+      agentRunLoop,
+      toolCallHandler,
+      traceWriterDelegate
     );
     loggerService = new LoggerService();
   });
@@ -560,11 +572,20 @@ describe("AgentOrchestratorService", () => {
   it("writes trace records for agent phases with metadata", async () => {
     const traceWriter = new RecordingJsonlWriterService();
     eventBus = new RecordingEventBus();
+    const traceWriterDelegate = new TraceWriterDelegate();
+    const toolCallHandler = new ToolCallHandler(traceWriterDelegate);
+    const agentRunLoop = new AgentRunLoop(
+      toolCallHandler,
+      traceWriterDelegate
+    );
     orchestrator = new AgentOrchestratorService(
       agentInvocationFactory,
       renderer,
       eventBus as unknown as { publish: (event: AgentStreamEvent) => void },
-      traceWriter
+      traceWriter,
+      agentRunLoop,
+      toolCallHandler,
+      traceWriterDelegate
     );
 
     const provider = new MockProvider([

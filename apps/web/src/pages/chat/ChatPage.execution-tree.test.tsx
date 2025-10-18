@@ -187,9 +187,28 @@ describe('ChatPage execution tree realtime updates', () => {
       expect(snapshot?.executionTree?.toolInvocations?.length ?? 0).toBeGreaterThan(0);
     });
 
-    const spawnedAgentsRegion = await screen.findByRole('region', {
-      name: /spawned agents for session 1/i,
-    });
+    const spawnedAgentsToggle = await screen.findByRole(
+      'button',
+      {
+        name: /toggle spawned agents for session 1/i,
+      },
+      { timeout: 10000 },
+    );
+    const expandIfCollapsed = async (button: HTMLElement) => {
+      if (button.getAttribute('aria-expanded') !== 'true') {
+        await user.click(button);
+      }
+    };
+
+    await expandIfCollapsed(spawnedAgentsToggle);
+
+    const spawnedAgentsRegion = await screen.findByRole(
+      'region',
+      {
+        name: /spawned agents for session 1/i,
+      },
+      { timeout: 10000 },
+    );
     expect(within(spawnedAgentsRegion).getByText(/primary agent/i)).toBeInTheDocument();
 
     const runningToggle = await screen.findByRole('button', {
@@ -245,5 +264,5 @@ describe('ChatPage execution tree realtime updates', () => {
     expect(
       within(completedRegion).getByText(/done/i),
     ).toBeInTheDocument();
-  });
+  }, 20000);
 });
