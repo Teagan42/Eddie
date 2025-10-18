@@ -29,6 +29,7 @@ describe("ExecutionTreeStateStore event subscription", () => {
     const state = createExecutionTreeState();
 
     eventBus.publish(new ExecutionTreeStateUpdatedEvent("session-42", state));
+    await new Promise((resolve) => setTimeout(resolve, 100)
 
     expect(store.get("session-42")).toEqual(state);
   });

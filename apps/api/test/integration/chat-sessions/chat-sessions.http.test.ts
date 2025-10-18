@@ -97,7 +97,7 @@ describe("ChatSessionsController HTTP", () => {
   });
 
   afterEach(async () => {
-    await app.close();
+    await app?.close();
   });
 
   it("renames sessions via PATCH /chat-sessions/:id", async () => {

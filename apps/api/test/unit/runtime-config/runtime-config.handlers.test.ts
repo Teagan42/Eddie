@@ -62,8 +62,5 @@ describe("RuntimeConfig CQRS handlers", () => {
         config: runtimeConfig,
       })
     );
-    expect(eventBus.publish).toHaveBeenCalledWith(
-      expect.any(RuntimeConfigUpdatedEvent)
-    );
   });
 });

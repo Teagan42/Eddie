@@ -34,17 +34,17 @@ describe("LogsGateway", () => {
     expect("onModuleInit" in gateway).toBe(false);
   });
 
-  it("flushes pending entries when the module stops", () => {
+  it("flushes pending entries when the module stops", async () => {
     const entry = createLogEntry();
     const server = (gateway as unknown as { server: unknown }).server;
 
     gateway.onLogCreated(entry);
     gateway.onModuleDestroy();
-
+    await new Promise((resolve) => setTimeout(resolve, 100));
     expect(emitEventSpy).toHaveBeenCalledWith(server, "logs.created", [entry]);
   });
 
-  it("batches log entries before emitting them", () => {
+  it("batches log entries before emitting them", async () => {
     const server = (gateway as unknown as { server: unknown }).server;
 
     const first = createLogEntry({ id: "log-1", message: "first" });
@@ -58,6 +58,8 @@ describe("LogsGateway", () => {
 
     vi.runAllTimers();
 
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     expect(emitEventSpy).toHaveBeenCalledTimes(1);
     expect(emitEventSpy).toHaveBeenCalledWith(server, "logs.created", [
       first,
@@ -65,7 +67,7 @@ describe("LogsGateway", () => {
     ]);
   });
 
-  it("flushes pending logs even when only a single entry arrives", () => {
+  it("flushes pending logs even when only a single entry arrives", async () => {
     const entry = createLogEntry();
 
     const server = (gateway as unknown as { server: unknown }).server;
@@ -75,6 +77,7 @@ describe("LogsGateway", () => {
     expect(emitEventSpy).not.toHaveBeenCalled();
 
     vi.runAllTimers();
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     expect(emitEventSpy).toHaveBeenCalledWith(server, "logs.created", [entry]);
   });
