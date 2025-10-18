@@ -63,7 +63,7 @@ describe("HttpLoggerMiddleware", () => {
   });
 
   it("logs request metadata once the response finishes", () => {
-    const logger = createLogger();
+    const logger = { info: vi.fn() };
 
     (process.hrtime as unknown as { bigint: () => bigint }).bigint = vi
       .fn()
@@ -74,6 +74,7 @@ describe("HttpLoggerMiddleware", () => {
     const req = {
       method: "GET",
       originalUrl: "/health",
+      ip: "127.0.0.1",
       get: vi.fn((header: string) => (header === "user-agent" ? "vitest" : undefined)),
     } as unknown as Request;
     const res = createResponse(200, "123");
@@ -111,17 +112,17 @@ describe("HttpLoggerMiddleware", () => {
     middleware.use(req, res, next);
 
     expect(next).toHaveBeenCalledTimes(1);
-    expect(logger.info).not.toHaveBeenCalled();
-
-    res.emit("finish");
-
-    await expectRequestLogged(
-      logger,
-      expect.objectContaining({
-        method: "POST",
-        url: "/jobs",
-        statusCode: 202,
-      })
+    expect(logger.info).toHaveBeenCalledWith(
+      {
+        method: "GET",
+        url: "/health",
+        statusCode: 200,
+        contentLength: "123",
+        durationMs: 5,
+        userAgent: "vitest",
+        ip: "127.0.0.1",
+      },
+      "HTTP request completed"
     );
 
     const lastCall = logger.info.mock.calls.at(-1);

@@ -35,6 +35,7 @@ export class HttpLoggerMiddleware implements NestMiddleware {
           : numericContentLength;
       })();
 
+      const ip = this.resolveIp(req);
       const url = req.originalUrl ?? req.url;
       const userAgent = req.get?.('user-agent');
 
@@ -45,6 +46,7 @@ export class HttpLoggerMiddleware implements NestMiddleware {
         ...(contentLength === undefined ? {} : { contentLength }),
         durationMs,
         userAgent,
+        ip,
         // add your correlation/request id here if you have one
         // requestId: req.id,
       };
@@ -53,5 +55,38 @@ export class HttpLoggerMiddleware implements NestMiddleware {
     });
 
     next();
+  }
+
+  private resolveIp(req: Request): string | undefined {
+    const direct = this.normalizeIpCandidate(req.ip);
+    if (direct) {
+      return direct;
+    }
+
+    const forwardedHeader = req.get?.('x-forwarded-for') ?? req.headers?.['x-forwarded-for'];
+    const forwardedValue = Array.isArray(forwardedHeader)
+      ? forwardedHeader[0]
+      : forwardedHeader;
+    const forwarded = this.normalizeIpCandidate(
+      typeof forwardedValue === 'string'
+        ? forwardedValue.split(',')[0]
+        : forwardedValue,
+    );
+    if (forwarded) {
+      return forwarded;
+    }
+
+    const socketValue =
+      req.socket?.remoteAddress ?? (req as Record<string, unknown>)?.connection?.remoteAddress;
+    return this.normalizeIpCandidate(socketValue);
+  }
+
+  private normalizeIpCandidate(value: unknown): string | undefined {
+    if (typeof value !== 'string') {
+      return undefined;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
   }
 }
