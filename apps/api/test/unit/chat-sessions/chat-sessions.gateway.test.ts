@@ -5,6 +5,7 @@ import type { ChatMessageDto, ChatSessionDto } from "../../../src/chat-sessions/
 import * as websocketUtils from "../../../src/websocket/utils";
 import { SendChatMessageCommand } from "../../../src/chat-sessions/commands/send-chat-message.command";
 import { SendChatMessagePayloadDto } from "../../../src/chat-sessions/dto/send-chat-message.dto";
+import type { ExecutionTreeState } from "@eddie/types";
 
 const emitEventSpy = vi.spyOn(websocketUtils, "emitEvent");
 
@@ -115,6 +116,21 @@ describe("ChatSessionsGateway", () => {
     });
   });
 
+  it("emits websocket events for execution tree updates", () => {
+    const server = (gateway as unknown as { server: unknown }).server;
+    const state = createExecutionTreeState();
+
+    gateway.emitExecutionTreeUpdated({
+      sessionId: "session-1",
+      state,
+    });
+
+    expect(emitEventSpy).toHaveBeenCalledWith(server, "execution-tree.updated", {
+      sessionId: "session-1",
+      state,
+    });
+  });
+
   it("dispatches send message commands via the command bus", async () => {
     const payload: SendChatMessagePayloadDto = {
       sessionId: "session-1",
@@ -130,3 +146,17 @@ describe("ChatSessionsGateway", () => {
     expect(command).toMatchObject({ sessionId: payload.sessionId, dto: payload.message });
   });
 });
+
+function createExecutionTreeState(): ExecutionTreeState {
+  return {
+    agentHierarchy: [],
+    toolInvocations: [],
+    contextBundles: [],
+    agentLineageById: {},
+    toolGroupsByAgentId: {},
+    contextBundlesByAgentId: {},
+    contextBundlesByToolCallId: {},
+    createdAt: "2024-04-01T00:00:00.000Z",
+    updatedAt: "2024-04-01T00:00:00.000Z",
+  } satisfies ExecutionTreeState;
+}

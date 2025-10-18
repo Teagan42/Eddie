@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ChatSessionsService } from "../../../src/chat-sessions/chat-sessions.service";
 import type { AgentInvocationSnapshot } from "../../../src/chat-sessions/chat-sessions.service";
 import { ChatMessageRole } from "../../../src/chat-sessions/dto/create-chat-message.dto";
@@ -8,8 +8,59 @@ import type {
 } from "../../../src/chat-sessions/dto/chat-session.dto";
 import { OrchestratorMetadataService } from "../../../src/orchestrator/orchestrator.service";
 import { ToolCallStatusDto } from "../../../src/orchestrator/dto/orchestrator-metadata.dto";
+import type { ExecutionTreeState } from "@eddie/types";
+import type { ExecutionTreeStateStore } from "../../../src/orchestrator/execution-tree-state.store";
 
 describe("OrchestratorMetadataService", () => {
+  it("returns cached execution tree state when available", async () => {
+    const sessionId = "session-cached";
+    const cachedState = createExecutionTreeState({
+      updatedAt: "2024-04-01T12:00:00.000Z",
+      agentHierarchy: [
+        {
+          id: "agent-1",
+          name: "orchestrator",
+          provider: "provider",
+          model: "model",
+          depth: 0,
+          lineage: [],
+          children: [],
+        },
+      ],
+    });
+
+    const store = createStore(cachedState);
+    const chatSessions = {
+      getSession: vi.fn(),
+      listMessages: vi.fn(),
+      listAgentInvocations: vi.fn(),
+    } as unknown as ChatSessionsService;
+
+    const service = new OrchestratorMetadataService(
+      chatSessions,
+      store as unknown as ExecutionTreeStateStore,
+    );
+
+    const metadata = await service.getMetadata(sessionId);
+
+    expect(metadata.sessionId).toBe(sessionId);
+    expect(metadata.capturedAt).toBe(cachedState.updatedAt);
+    expect(metadata.contextBundles).toEqual([]);
+    expect(metadata.toolInvocations).toEqual([]);
+    expect(metadata.agentHierarchy).toEqual([
+      expect.objectContaining({
+        id: "agent-1",
+        name: "orchestrator",
+        provider: "provider",
+        model: "model",
+        children: [],
+      }),
+    ]);
+    expect(store.get).toHaveBeenCalledWith(sessionId);
+    expect(chatSessions.listMessages).not.toHaveBeenCalled();
+    expect(chatSessions.listAgentInvocations).not.toHaveBeenCalled();
+  });
+
   it("includes tool call nodes when tool messages are present", async () => {
     const session: ChatSessionDto = {
       id: "session-1",
@@ -36,13 +87,17 @@ describe("OrchestratorMetadataService", () => {
       },
     ];
 
+    const store = createStore();
     const chatSessions = {
       getSession: async () => session,
       listMessages: async () => messages,
       listAgentInvocations: async () => [],
     } as unknown as ChatSessionsService;
 
-    const service = new OrchestratorMetadataService(chatSessions);
+    const service = new OrchestratorMetadataService(
+      chatSessions,
+      store as unknown as ExecutionTreeStateStore,
+    );
 
     const metadata = await service.getMetadata(session.id);
 
@@ -74,13 +129,17 @@ describe("OrchestratorMetadataService", () => {
       toolCallId: "call-123",
     }));
 
+    const store = createStore();
     const chatSessions = {
       getSession: async () => session,
       listMessages: async () => enrichedMessages,
       listAgentInvocations: async () => [],
     } as unknown as ChatSessionsService;
 
-    const service = new OrchestratorMetadataService(chatSessions);
+    const service = new OrchestratorMetadataService(
+      chatSessions,
+      store as unknown as ExecutionTreeStateStore,
+    );
 
     const metadata = await service.getMetadata(session.id);
 
@@ -143,13 +202,17 @@ describe("OrchestratorMetadataService", () => {
       },
     ];
 
+    const store = createStore();
     const chatSessions = {
       getSession: async () => session,
       listMessages: async () => messages,
       listAgentInvocations: async () => agentInvocations,
     } as unknown as ChatSessionsService;
 
-    const service = new OrchestratorMetadataService(chatSessions);
+    const service = new OrchestratorMetadataService(
+      chatSessions,
+      store as unknown as ExecutionTreeStateStore,
+    );
 
     const metadata = await service.getMetadata(session.id);
 
@@ -189,13 +252,17 @@ describe("OrchestratorMetadataService", () => {
       },
     ];
 
+    const store = createStore();
     const chatSessions = {
       getSession: async () => session,
       listMessages: async () => [],
       listAgentInvocations: async () => agentInvocations,
     } as unknown as ChatSessionsService;
 
-    const service = new OrchestratorMetadataService(chatSessions);
+    const service = new OrchestratorMetadataService(
+      chatSessions,
+      store as unknown as ExecutionTreeStateStore,
+    );
 
     const metadata = await service.getMetadata(session.id);
     const [pendingNode] = metadata.toolInvocations;
@@ -515,3 +582,29 @@ describe("OrchestratorMetadataService", () => {
     expect(managerNode?.model).toBe("claude-3-5-sonnet");
   });
 });
+
+function createStore(state?: ExecutionTreeState) {
+  return {
+    get: vi.fn().mockReturnValue(state),
+  } satisfies Partial<ExecutionTreeStateStore> & {
+    get: ReturnType<typeof vi.fn>;
+  };
+}
+
+function createExecutionTreeState(
+  overrides: Partial<ExecutionTreeState> & {
+    agentHierarchy?: ExecutionTreeState["agentHierarchy"];
+  } = {},
+): ExecutionTreeState {
+  return {
+    agentHierarchy: overrides.agentHierarchy ?? [],
+    toolInvocations: overrides.toolInvocations ?? [],
+    contextBundles: overrides.contextBundles ?? [],
+    agentLineageById: overrides.agentLineageById ?? {},
+    toolGroupsByAgentId: overrides.toolGroupsByAgentId ?? {},
+    contextBundlesByAgentId: overrides.contextBundlesByAgentId ?? {},
+    contextBundlesByToolCallId: overrides.contextBundlesByToolCallId ?? {},
+    createdAt: overrides.createdAt ?? "2024-04-01T00:00:00.000Z",
+    updatedAt: overrides.updatedAt ?? "2024-04-01T00:00:00.000Z",
+  } satisfies ExecutionTreeState;
+}

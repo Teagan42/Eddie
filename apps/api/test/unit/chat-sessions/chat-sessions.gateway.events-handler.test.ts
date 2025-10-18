@@ -9,6 +9,10 @@ import {
   ChatSessionUpdated,
 } from "../../../src/chat-sessions/events";
 import type { ChatMessageDto, ChatSessionDto } from "../../../src/chat-sessions/dto/chat-session.dto";
+import {
+  ExecutionTreeStateUpdatedEvent,
+  type ExecutionTreeState,
+} from "@eddie/types";
 
 describe("ChatSessionsGatewayEventsHandler", () => {
   let gateway: ChatSessionsGateway;
@@ -39,6 +43,7 @@ describe("ChatSessionsGatewayEventsHandler", () => {
       emitMessageCreated: vi.fn(),
       emitMessageUpdated: vi.fn(),
       emitAgentActivity: vi.fn(),
+      emitExecutionTreeUpdated: vi.fn(),
     } as unknown as ChatSessionsGateway;
 
     handler = new ChatSessionsGatewayEventsHandler(gateway);
@@ -86,4 +91,29 @@ describe("ChatSessionsGatewayEventsHandler", () => {
       timestamp: "2024-01-01T00:00:00.000Z",
     });
   });
+
+  it("forwards execution tree state updates", () => {
+    const state = createExecutionTreeState();
+
+    handler.handle(new ExecutionTreeStateUpdatedEvent(session.id, state));
+
+    expect(gateway.emitExecutionTreeUpdated).toHaveBeenCalledWith({
+      sessionId: session.id,
+      state,
+    });
+  });
 });
+
+function createExecutionTreeState(): ExecutionTreeState {
+  return {
+    agentHierarchy: [],
+    toolInvocations: [],
+    contextBundles: [],
+    agentLineageById: {},
+    toolGroupsByAgentId: {},
+    contextBundlesByAgentId: {},
+    contextBundlesByToolCallId: {},
+    createdAt: "2024-04-01T00:00:00.000Z",
+    updatedAt: "2024-04-01T00:00:00.000Z",
+  } satisfies ExecutionTreeState;
+}
