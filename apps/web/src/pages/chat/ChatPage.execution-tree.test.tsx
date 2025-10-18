@@ -187,9 +187,19 @@ describe('ChatPage execution tree realtime updates', () => {
       expect(snapshot?.executionTree?.toolInvocations?.length ?? 0).toBeGreaterThan(0);
     });
 
-    const spawnedAgentsToggle = await screen.findByRole('button', {
+    await waitFor(
+      () => {
+        expect(
+          screen.queryByRole('button', {
+            name: /toggle spawned agents for session 1/i,
+          }),
+        ).toBeInTheDocument();
+      },
+      { timeout: 10000 },
+    );
+
+    const spawnedAgentsToggle = screen.getByRole('button', {
       name: /toggle spawned agents for session 1/i,
-      timeout: 5000,
     });
     const expandIfCollapsed = async (button: HTMLElement) => {
       if (button.getAttribute('aria-expanded') !== 'true') {
@@ -199,9 +209,19 @@ describe('ChatPage execution tree realtime updates', () => {
 
     await expandIfCollapsed(spawnedAgentsToggle);
 
-    const spawnedAgentsRegion = await screen.findByRole('region', {
+    await waitFor(
+      () => {
+        expect(
+          screen.queryByRole('region', {
+            name: /spawned agents for session 1/i,
+          }),
+        ).toBeInTheDocument();
+      },
+      { timeout: 10000 },
+    );
+
+    const spawnedAgentsRegion = screen.getByRole('region', {
       name: /spawned agents for session 1/i,
-      timeout: 5000,
     });
     expect(within(spawnedAgentsRegion).getByText(/primary agent/i)).toBeInTheDocument();
 
