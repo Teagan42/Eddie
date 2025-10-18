@@ -336,12 +336,14 @@ export async function defineTemplateRenderingBenchmarks({
   });
 }
 
-await defineTemplateRenderingBenchmarks({
-  suite,
-  describe,
-  bench,
-  loadFixtures: loadTemplateRenderingFixtures,
-}).catch((error) => {
-  console.error('Failed to register template rendering benchmarks', error);
-});
+if (process.env.BENCHMARK) {
+  await defineTemplateRenderingBenchmarks({
+    suite,
+    describe,
+    bench,
+    loadFixtures: loadTemplateRenderingFixtures,
+  }).catch((error) => {
+    console.error('Failed to register template rendering benchmarks', error);
+  });
+}
 

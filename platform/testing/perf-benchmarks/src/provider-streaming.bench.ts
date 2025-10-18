@@ -239,26 +239,28 @@ const emitScenarioReport = () => {
   console.log(JSON.stringify(report));
 };
 
-suite('OpenAIAdapter.stream recorded scenarios', () => {
-  beforeAll(() => {
-    streamMock.mockReset();
-    openAIConstructor.mockClear();
-  });
-
-  afterAll(() => {
-    emitScenarioReport();
-  });
-
-  for (const fixture of fixtureCache) {
-    bench(`${fixture.label} (cold + warm)`, async () => {
-      const measurement = await measureProviderStreamScenario(fixture);
-      const series = ensureScenarioSeries(fixture);
-      series.coldStartDurations.push(measurement.coldStart.durationMs);
-      series.warmStreamDurations.push(measurement.warmStream.durationMs);
-      series.lastEvents = {
-        cold: measurement.coldStart.events,
-        warm: measurement.warmStream.events,
-      };
+if (process.env.BENCHMARK) {
+  suite('OpenAIAdapter.stream recorded scenarios', () => {
+    beforeAll(() => {
+      streamMock.mockReset();
+      openAIConstructor.mockClear();
     });
-  }
-});
+
+    afterAll(() => {
+      emitScenarioReport();
+    });
+
+    for (const fixture of fixtureCache) {
+      bench(`${fixture.label} (cold + warm)`, async () => {
+        const measurement = await measureProviderStreamScenario(fixture);
+        const series = ensureScenarioSeries(fixture);
+        series.coldStartDurations.push(measurement.coldStart.durationMs);
+        series.warmStreamDurations.push(measurement.warmStream.durationMs);
+        series.lastEvents = {
+          cold: measurement.coldStart.events,
+          warm: measurement.warmStream.events,
+        };
+      });
+    }
+  });
+}
