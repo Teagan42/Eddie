@@ -529,15 +529,17 @@ export async function defineChatSessionsPersistenceBenchmarks({
   });
 }
 
-await defineChatSessionsPersistenceBenchmarks({
-  suite,
-  describe,
-  bench,
-  loadDrivers: loadChatSessionsPersistenceDrivers,
-  measureScenario: measureChatSessionsPersistenceScenario,
-  scenarioOptions: DEFAULT_BENCH_OPTIONS,
-}).catch((error) => {
-  console.error('Failed to register chat session persistence benchmarks', error);
-});
+if (process.env.MARIADB_URL || process.env.MYSQL_URL || process.env.POSTGRES_URL || true) {
+  await defineChatSessionsPersistenceBenchmarks({
+    suite,
+    describe,
+    bench,
+    loadDrivers: loadChatSessionsPersistenceDrivers,
+    measureScenario: measureChatSessionsPersistenceScenario,
+    scenarioOptions: DEFAULT_BENCH_OPTIONS,
+  }).catch((error) => {
+    console.error('Failed to register chat session persistence benchmarks', error);
+  });
+}
 
 
