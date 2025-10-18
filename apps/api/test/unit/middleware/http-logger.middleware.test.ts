@@ -6,12 +6,15 @@ vi.mock("on-finished", () => ({
   __esModule: true,
   default: vi.fn(
     (res: Response & Partial<EventEmitter>, callback: () => void) => {
+      const defer = () => queueMicrotask(() => callback());
+
       if (typeof res.once === "function") {
-        res.once("finish", callback);
-        return;
+        res.once("finish", defer);
+        return res;
       }
 
-      callback();
+      defer();
+      return res;
     }
   ),
 }));
@@ -44,6 +47,17 @@ describe("HttpLoggerMiddleware", () => {
     info: vi.fn(),
   });
 
+  const expectRequestLogged = (
+    logger: ReturnType<typeof createLogger>,
+    expectedPayload: unknown
+  ) =>
+    vi.waitFor(() =>
+      expect(logger.info).toHaveBeenCalledWith(
+        expectedPayload,
+        "HTTP request completed"
+      )
+    );
+
   it("uses the mocked on-finished module", () => {
     expect(vi.isMockFunction(onFinished)).toBe(true);
   });
@@ -70,17 +84,16 @@ describe("HttpLoggerMiddleware", () => {
     res.emit("finish");
 
     expect(next).toHaveBeenCalledTimes(1);
-    expect(logger.info).toHaveBeenCalledWith(
-      {
-        method: "GET",
-        url: "/health",
-        statusCode: 200,
-        contentLength: 123,
-        durationMs: 5,
-        userAgent: "vitest",
-      },
-      "HTTP request completed"
-    );
+    expect(logger.info).not.toHaveBeenCalled();
+
+    return expectRequestLogged(logger, {
+      method: "GET",
+      url: "/health",
+      statusCode: 200,
+      contentLength: 123,
+      durationMs: 5,
+      userAgent: "vitest",
+    });
   });
 
   it("logs only after the response emits finish", () => {
@@ -102,13 +115,13 @@ describe("HttpLoggerMiddleware", () => {
 
     res.emit("finish");
 
-    expect(logger.info).toHaveBeenCalledWith(
+    return expectRequestLogged(
+      logger,
       expect.objectContaining({
         method: "POST",
         url: "/jobs",
         statusCode: 202,
-      }),
-      "HTTP request completed"
+      })
     );
   });
 });
