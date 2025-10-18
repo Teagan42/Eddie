@@ -2,12 +2,57 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CommandBus } from "@nestjs/cqrs";
 import { ChatSessionsGateway } from "../../../src/chat-sessions/chat-sessions.gateway";
 import type { ChatMessageDto, ChatSessionDto } from "../../../src/chat-sessions/dto/chat-session.dto";
+import type { AgentActivityState } from "../../../src/chat-sessions/chat-session.types";
 import * as websocketUtils from "../../../src/websocket/utils";
 import { SendChatMessageCommand } from "../../../src/chat-sessions/commands/send-chat-message.command";
 import { SendChatMessagePayloadDto } from "../../../src/chat-sessions/dto/send-chat-message.dto";
 import type { ExecutionTreeState } from "@eddie/types";
 
 const emitEventSpy = vi.spyOn(websocketUtils, "emitEvent");
+
+const buildSession = (overrides: Partial<ChatSessionDto> = {}): ChatSessionDto => ({
+  id: "session-1",
+  title: "Test",
+  status: "active",
+  description: "",
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  ...overrides,
+});
+
+const getServer = (instance: ChatSessionsGateway) =>
+  (instance as unknown as { server: unknown }).server;
+
+const buildMessage = (overrides: Partial<ChatMessageDto> = {}): ChatMessageDto => ({
+  id: "message-1",
+  sessionId: "session-1",
+  role: "assistant",
+  content: "Hello",
+  createdAt: new Date().toISOString(),
+  ...overrides,
+});
+
+const buildActivity = (
+  overrides: Partial<{
+    sessionId: string;
+    state: AgentActivityState;
+    timestamp: string;
+  }> = {}
+) => ({
+  sessionId: "session-1",
+  state: "thinking" as AgentActivityState,
+  timestamp: new Date().toISOString(),
+  ...overrides,
+});
+
+const buildExecutionTreeUpdate = (
+  state: ExecutionTreeState,
+  overrides: Partial<{ sessionId: string; state: ExecutionTreeState }> = {}
+) => ({
+  sessionId: "session-1",
+  state,
+  ...overrides,
+});
 
 describe("ChatSessionsGateway", () => {
   let gateway: ChatSessionsGateway;
@@ -27,7 +72,7 @@ describe("ChatSessionsGateway", () => {
   });
 
   it("emits websocket events for deleted sessions", () => {
-    const server = (gateway as unknown as { server: unknown }).server;
+    const server = getServer(gateway);
 
     const sessionId = "session-1";
 
@@ -36,148 +81,88 @@ describe("ChatSessionsGateway", () => {
     }).emitSessionDeleted(sessionId);
 
     expect(emitEventSpy).toHaveBeenCalledWith(server, "session.deleted", {
-      sessionId,
+      id: sessionId,
     });
   });
 
-  it("emits websocket events for created sessions", () => {
-    const server = (gateway as unknown as { server: unknown }).server;
-    const session: ChatSessionDto = {
-      id: "session-1",
-      title: "Test",
-      status: "active",
-      description: "",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  it("emits raw session payloads for created sessions", () => {
+    const server = getServer(gateway);
+    const session = buildSession();
 
     gateway.emitSessionCreated(session);
-
-    const expectedPayload = { session };
 
     expect(emitEventSpy).toHaveBeenCalledWith(
       server,
       "session.created",
-      expectedPayload
+      session
     );
   });
 
-  it("emits websocket events for updated sessions", () => {
+  it("emits raw session payloads for updated sessions", () => {
     const server = (gateway as unknown as { server: unknown }).server;
-    const session: ChatSessionDto = {
-      id: "session-1",
-      title: "Test",
-      status: "active",
-      description: "",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    const session = buildSession();
 
     gateway.emitSessionUpdated(session);
-
-    const expectedPayload = { session };
 
     expect(emitEventSpy).toHaveBeenCalledWith(
       server,
       "session.updated",
-      expectedPayload
+      session
     );
   });
 
-  it("emits websocket events for created messages", () => {
+  it("emits raw message payloads for created messages", () => {
     const server = (gateway as unknown as { server: unknown }).server;
-    const message: ChatMessageDto = {
-      id: "message-1",
-      sessionId: "session-1",
-      role: "assistant",
-      content: "Hello",
-      createdAt: new Date().toISOString(),
-    };
+    const message = buildMessage();
 
     gateway.emitMessageCreated(message);
-
-    const expectedPayload = {
-      sessionId: message.sessionId,
-      message,
-    };
 
     expect(emitEventSpy).toHaveBeenCalledWith(
       server,
       "message.created",
-      expectedPayload
+      message
     );
   });
 
-  it("emits websocket events for updated messages", () => {
+  it("emits raw message payloads for updated messages", () => {
     const server = (gateway as unknown as { server: unknown }).server;
-    const message: ChatMessageDto = {
-      id: "message-1",
-      sessionId: "session-1",
-      role: "assistant",
-      content: "Hello",
-      createdAt: new Date().toISOString(),
-    };
+    const message = buildMessage();
 
     gateway.emitMessageUpdated(message);
-
-    const expectedPayload = {
-      sessionId: message.sessionId,
-      message,
-    };
 
     expect(emitEventSpy).toHaveBeenCalledWith(
       server,
       "message.updated",
-      expectedPayload
+      message
     );
   });
 
-  it("emits websocket events for agent activity", () => {
-    const server = (gateway as unknown as { server: unknown }).server;
+  it("emits raw activity payloads for agent activity", () => {
+    const server = getServer(gateway);
 
-    const activity = {
-      sessionId: "session-1",
-      state: "thinking",
-      timestamp: new Date().toISOString(),
-    };
+    const activity = buildActivity();
 
     gateway.emitAgentActivity(activity);
-
-    const expectedPayload = {
-      activity: {
-        sessionId: "session-1",
-        state: "thinking",
-        timestamp: expect.any(String),
-      },
-    };
 
     expect(emitEventSpy).toHaveBeenCalledWith(
       server,
       "agent.activity",
-      expectedPayload
+      activity
     );
   });
 
-  it("emits websocket events for execution tree updates", () => {
-    const server = (gateway as unknown as { server: unknown }).server;
+  it("emits raw update payloads for execution tree updates", () => {
+    const server = getServer(gateway);
     const state = createExecutionTreeState();
 
-    gateway.emitExecutionTreeUpdated({
-      sessionId: "session-1",
-      state,
-    });
+    const update = buildExecutionTreeUpdate(state);
 
-    const expectedPayload = {
-      update: {
-        sessionId: "session-1",
-        state,
-      },
-    };
+    gateway.emitExecutionTreeUpdated(update);
 
     expect(emitEventSpy).toHaveBeenCalledWith(
       server,
       "execution-tree.updated",
-      expectedPayload
+      update
     );
   });
 
