@@ -9,7 +9,10 @@ import {
   type ChatSessionsDomainEvent,
 } from "./events";
 import { ChatSessionsGateway } from "./chat-sessions.gateway";
-import { ExecutionTreeStateUpdatedEvent } from "@eddie/types";
+import {
+  ExecutionTreeStateUpdatedEvent,
+  type ExecutionTreeState,
+} from "@eddie/types";
 
 @Injectable()
 @EventsHandler(
@@ -65,7 +68,7 @@ implements
       return;
     }
 
-    if (event instanceof ExecutionTreeStateUpdatedEvent) {
+    if (this.isExecutionTreeUpdateEvent(event)) {
       this.gateway.emitExecutionTreeUpdated({
         sessionId: event.sessionId,
         state: event.state,
@@ -73,4 +76,27 @@ implements
       return;
     }
   }
+
+  private isExecutionTreeUpdateEvent(
+    event: ChatSessionsDomainEvent | ExecutionTreeStateUpdatedEvent
+  ): event is ExecutionTreeUpdateEventLike {
+    if (event instanceof ExecutionTreeStateUpdatedEvent) {
+      return true;
+    }
+
+    if (typeof event !== "object" || event === null) {
+      return false;
+    }
+
+    return (
+      "sessionId" in event &&
+      typeof (event as ExecutionTreeUpdateEventLike).sessionId === "string" &&
+      "state" in event
+    );
+  }
 }
+
+type ExecutionTreeUpdateEventLike = {
+  sessionId: string;
+  state: ExecutionTreeState;
+};
