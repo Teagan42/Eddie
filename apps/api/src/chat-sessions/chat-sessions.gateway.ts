@@ -24,23 +24,29 @@ export class ChatSessionsGateway {
   constructor(private readonly commandBus: CommandBus) {}
 
   emitSessionCreated(session: ChatSessionDto): void {
-    emitEvent(this.server, "session.created", session);
+    emitEvent(this.server, "session.created", { session });
   }
 
   emitSessionUpdated(session: ChatSessionDto): void {
-    emitEvent(this.server, "session.updated", session);
+    emitEvent(this.server, "session.updated", { session });
   }
 
-  emitSessionDeleted(id: string): void {
-    emitEvent(this.server, "session.deleted", { id });
+  emitSessionDeleted(sessionId: string): void {
+    emitEvent(this.server, "session.deleted", { sessionId });
   }
 
   emitMessageCreated(message: ChatMessageDto): void {
-    emitEvent(this.server, "message.created", message);
+    emitEvent(this.server, "message.created", {
+      sessionId: message.sessionId,
+      message,
+    });
   }
 
   emitMessageUpdated(message: ChatMessageDto): void {
-    emitEvent(this.server, "message.updated", message);
+    emitEvent(this.server, "message.updated", {
+      sessionId: message.sessionId,
+      message,
+    });
   }
 
   emitAgentActivity(event: {
@@ -48,14 +54,14 @@ export class ChatSessionsGateway {
     state: AgentActivityState;
     timestamp: string;
   }): void {
-    emitEvent(this.server, "agent.activity", event);
+    emitEvent(this.server, "agent.activity", { activity: event });
   }
 
   emitExecutionTreeUpdated(event: {
     sessionId: string;
     state: ExecutionTreeState;
   }): void {
-    emitEvent(this.server, "execution-tree.updated", event);
+    emitEvent(this.server, "execution-tree.updated", { update: event });
   }
 
   @SubscribeMessage("message.send")
@@ -70,6 +76,7 @@ export class ChatSessionsGateway {
     @MessageBody() payload: SendChatMessagePayloadDto
   ): Promise<void> {
     const { sessionId, message } = payload;
-    await this.commandBus.execute(new SendChatMessageCommand(sessionId, message));
+    const dto = { ...message };
+    await this.commandBus.execute(new SendChatMessageCommand(sessionId, dto));
   }
 }

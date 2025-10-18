@@ -26,19 +26,21 @@ describe("ChatSessionsGateway", () => {
     emitEventSpy.mockClear();
   });
 
-  it.skip("emits websocket events for deleted sessions", () => {
+  it("emits websocket events for deleted sessions", () => {
     const server = (gateway as unknown as { server: unknown }).server;
+
+    const sessionId = "session-1";
 
     (gateway as unknown as {
       emitSessionDeleted: (id: string) => void;
-    }).emitSessionDeleted("session-1");
+    }).emitSessionDeleted(sessionId);
 
     expect(emitEventSpy).toHaveBeenCalledWith(server, "session.deleted", {
-      id: "session-1",
+      sessionId,
     });
   });
 
-  it.skip("emits websocket events for created sessions", () => {
+  it("emits websocket events for created sessions", () => {
     const server = (gateway as unknown as { server: unknown }).server;
     const session: ChatSessionDto = {
       id: "session-1",
@@ -51,10 +53,16 @@ describe("ChatSessionsGateway", () => {
 
     gateway.emitSessionCreated(session);
 
-    expect(emitEventSpy).toHaveBeenCalledWith(server, "session.created", session);
+    const expectedPayload = { session };
+
+    expect(emitEventSpy).toHaveBeenCalledWith(
+      server,
+      "session.created",
+      expectedPayload
+    );
   });
 
-  it.skip("emits websocket events for updated sessions", () => {
+  it("emits websocket events for updated sessions", () => {
     const server = (gateway as unknown as { server: unknown }).server;
     const session: ChatSessionDto = {
       id: "session-1",
@@ -67,10 +75,16 @@ describe("ChatSessionsGateway", () => {
 
     gateway.emitSessionUpdated(session);
 
-    expect(emitEventSpy).toHaveBeenCalledWith(server, "session.updated", session);
+    const expectedPayload = { session };
+
+    expect(emitEventSpy).toHaveBeenCalledWith(
+      server,
+      "session.updated",
+      expectedPayload
+    );
   });
 
-  it.skip("emits websocket events for created messages", () => {
+  it("emits websocket events for created messages", () => {
     const server = (gateway as unknown as { server: unknown }).server;
     const message: ChatMessageDto = {
       id: "message-1",
@@ -82,10 +96,19 @@ describe("ChatSessionsGateway", () => {
 
     gateway.emitMessageCreated(message);
 
-    expect(emitEventSpy).toHaveBeenCalledWith(server, "message.created", message);
+    const expectedPayload = {
+      sessionId: message.sessionId,
+      message,
+    };
+
+    expect(emitEventSpy).toHaveBeenCalledWith(
+      server,
+      "message.created",
+      expectedPayload
+    );
   });
 
-  it.skip("emits websocket events for updated messages", () => {
+  it("emits websocket events for updated messages", () => {
     const server = (gateway as unknown as { server: unknown }).server;
     const message: ChatMessageDto = {
       id: "message-1",
@@ -97,26 +120,45 @@ describe("ChatSessionsGateway", () => {
 
     gateway.emitMessageUpdated(message);
 
-    expect(emitEventSpy).toHaveBeenCalledWith(server, "message.updated", message);
+    const expectedPayload = {
+      sessionId: message.sessionId,
+      message,
+    };
+
+    expect(emitEventSpy).toHaveBeenCalledWith(
+      server,
+      "message.updated",
+      expectedPayload
+    );
   });
 
-  it.skip("emits websocket events for agent activity", () => {
+  it("emits websocket events for agent activity", () => {
     const server = (gateway as unknown as { server: unknown }).server;
 
-    gateway.emitAgentActivity({
+    const activity = {
       sessionId: "session-1",
       state: "thinking",
       timestamp: new Date().toISOString(),
-    });
+    };
 
-    expect(emitEventSpy).toHaveBeenCalledWith(server, "agent.activity", {
-      sessionId: "session-1",
-      state: "thinking",
-      timestamp: expect.any(String),
-    });
+    gateway.emitAgentActivity(activity);
+
+    const expectedPayload = {
+      activity: {
+        sessionId: "session-1",
+        state: "thinking",
+        timestamp: expect.any(String),
+      },
+    };
+
+    expect(emitEventSpy).toHaveBeenCalledWith(
+      server,
+      "agent.activity",
+      expectedPayload
+    );
   });
 
-  it.skip("emits websocket events for execution tree updates", () => {
+  it("emits websocket events for execution tree updates", () => {
     const server = (gateway as unknown as { server: unknown }).server;
     const state = createExecutionTreeState();
 
@@ -125,13 +167,21 @@ describe("ChatSessionsGateway", () => {
       state,
     });
 
-    expect(emitEventSpy).toHaveBeenCalledWith(server, "execution-tree.updated", {
-      sessionId: "session-1",
-      state,
-    });
+    const expectedPayload = {
+      update: {
+        sessionId: "session-1",
+        state,
+      },
+    };
+
+    expect(emitEventSpy).toHaveBeenCalledWith(
+      server,
+      "execution-tree.updated",
+      expectedPayload
+    );
   });
 
-  it.skip("dispatches send message commands via the command bus", async () => {
+  it("dispatches send message commands via the command bus", async () => {
     const payload: SendChatMessagePayloadDto = {
       sessionId: "session-1",
       message: { role: "user", content: "Hi" },
@@ -140,10 +190,13 @@ describe("ChatSessionsGateway", () => {
     await gateway.handleSendMessage(payload);
 
     expect(commandBus.execute).toHaveBeenCalledTimes(1);
-    const command = (commandBus.execute as unknown as ReturnType<typeof vi.fn>).mock
-      .calls[0]?.[0];
+    const executeMock = commandBus.execute as unknown as ReturnType<typeof vi.fn>;
+    const command = executeMock.mock.calls[0]?.[0];
+
     expect(command).toBeInstanceOf(SendChatMessageCommand);
-    expect(command).toMatchObject({ sessionId: payload.sessionId, dto: payload.message });
+    expect(command).toMatchObject({ sessionId: payload.sessionId });
+    expect(command?.dto).toEqual(payload.message);
+    expect(command?.dto).not.toBe(payload.message);
   });
 });
 
