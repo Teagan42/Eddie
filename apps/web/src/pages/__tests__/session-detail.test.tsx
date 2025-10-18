@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 import type { ChatMessageDto, ChatSessionDto } from "@eddie/api-client";
 import { SessionDetail } from "../components";
@@ -89,5 +89,33 @@ describe("SessionDetail", () => {
     });
 
     HTMLElement.prototype.scrollIntoView = original;
+  });
+
+  it("renders a card for each completed message with the agent heading", () => {
+    const session = createSession();
+    const messages = [
+      createMessage({
+        id: "message-1",
+        role: "assistant",
+        name: "Agent Alpha",
+        content: "First response",
+      }),
+      createMessage({
+        id: "message-2",
+        role: "assistant",
+        name: "Agent Beta",
+        content: "Second response",
+      }),
+    ];
+
+    render(
+      <SessionDetail session={session} isLoading={false} messages={messages} />
+    );
+
+    expect(screen.getAllByTestId("session-message-card")).toHaveLength(
+      messages.length
+    );
+    expect(screen.getAllByText("Agent Alpha")).toHaveLength(1);
+    expect(screen.getByText("Agent Beta")).toBeInTheDocument();
   });
 });

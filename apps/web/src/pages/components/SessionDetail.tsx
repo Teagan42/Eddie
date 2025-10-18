@@ -2,6 +2,15 @@ import { Badge, Flex, Heading, ScrollArea, Text } from "@radix-ui/themes";
 import type { ChatMessageDto, ChatSessionDto } from "@eddie/api-client";
 import { useEffect, useRef } from "react";
 
+const timeFormatOptions: Intl.DateTimeFormatOptions = {
+  hour: "2-digit",
+  minute: "2-digit",
+};
+
+function formatMessageTimestamp(value: string): string {
+  return new Date(value).toLocaleTimeString([], timeFormatOptions);
+}
+
 export interface SessionDetailProps {
   session: ChatSessionDto | null;
   messages: ChatMessageDto[] | undefined;
@@ -61,33 +70,37 @@ function MessagesList({ messages }: { messages: ChatMessageDto[] }): JSX.Element
             No messages yet. Send the first message to kick off the session.
           </Text>
         ) : (
-          messages.map((message, index) => (
-            <Flex
-              key={message.id}
-              direction="column"
-              className="relative gap-2 rounded-2xl border border-white/15 bg-slate-900/55 p-4 shadow-[0_25px_65px_-55px_rgba(59,130,246,0.7)]"
-            >
-              <Flex align="center" justify="between" className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">
-                <span className="inline-flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                  {message.role}
-                </span>
-                <span className="text-[0.7rem] text-white/70">
-                  {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </span>
+          messages.map((message, index) => {
+            const messageHeading = message.name ?? message.role;
+            const timestampLabel = formatMessageTimestamp(message.createdAt);
+
+            return (
+              <Flex
+                key={message.id}
+                direction="column"
+                className="relative gap-2 rounded-2xl border border-white/15 bg-slate-900/55 p-4 shadow-[0_25px_65px_-55px_rgba(59,130,246,0.7)]"
+                data-testid="session-message-card"
+              >
+                <Flex align="center" justify="between" className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                    {messageHeading}
+                  </span>
+                  <span className="text-[0.7rem] text-white/70">{timestampLabel}</span>
+                </Flex>
+                <Text size="2" className="text-white/90">
+                  {message.content}
+                </Text>
+                <span
+                  className="pointer-events-none absolute -left-3 top-1/2 hidden h-12 w-12 -translate-y-1/2 rounded-full bg-emerald-500/10 blur-2xl md:block"
+                  aria-hidden
+                />
+                <Badge radius="full" variant="soft" color="grass" className="self-start text-[0.65rem] uppercase tracking-wider">
+                  #{index + 1}
+                </Badge>
               </Flex>
-              <Text size="2" className="text-white/90">
-                {message.content}
-              </Text>
-              <span
-                className="pointer-events-none absolute -left-3 top-1/2 hidden h-12 w-12 -translate-y-1/2 rounded-full bg-emerald-500/10 blur-2xl md:block"
-                aria-hidden
-              />
-              <Badge radius="full" variant="soft" color="grass" className="self-start text-[0.65rem] uppercase tracking-wider">
-                #{index + 1}
-              </Badge>
-            </Flex>
-          ))
+            );
+          })
         )}
         <div ref={lastMessageMarkerRef} aria-hidden />
       </Flex>
