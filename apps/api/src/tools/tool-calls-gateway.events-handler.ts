@@ -25,6 +25,7 @@ export class ToolCallsGatewayEventsHandler implements IEventHandler<ToolCallLife
       sessionId: state.sessionId,
       id: state.toolCallId,
       name: state.name,
+      status: state.status,
       arguments: state.arguments,
       result: state.result,
       timestamp: state.updatedAt ?? state.startedAt,

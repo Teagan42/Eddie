@@ -15,7 +15,7 @@ import { ToolCallCompleted } from "../../../src/tools/events/tool-call.events";
 import type { ToolCallPersistenceService } from "../../../src/tools/tool-call.persistence";
 
 describe("Tool call CQRS", () => {
-  it.skip("persists state across start, update, and complete commands", async () => {
+  it("persists state across start, update, and complete commands", async () => {
     const store = new ToolCallStore();
     const events: unknown[] = [];
     const publish = vi.fn((event: unknown) => {

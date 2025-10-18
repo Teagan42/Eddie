@@ -37,59 +37,46 @@ export class ToolsGateway implements OnModuleInit, OnModuleDestroy {
     }
 
     emitToolCall(payload: unknown): void {
-      try {
-        const safePayload = ((): unknown => {
-          if (!payload || typeof payload !== 'object') return payload;
-          const p = { ...(payload as Record<string, unknown>) } as Record<string, unknown>;
-          if ('arguments' in p) {
-            p.arguments = this.safeStringify(p.arguments) as unknown;
-          }
-          if ('result' in p) {
-            p.result = this.safeStringify(p.result) as unknown;
-          }
-          const agentId = this.sanitizeAgentId(p.agentId);
-          if (agentId !== undefined) {
-            p.agentId = agentId;
-          }
-          if (!('timestamp' in p) || !p.timestamp) {
-            p.timestamp = new Date().toISOString();
-          }
-          return p;
-        })();
+      this.emitSafely('tool.call', payload);
+    }
 
-        // Tool call emitted (debug logging removed in cleanup)
-        emitEvent(this.server, 'tool.call', safePayload);
+    emitToolResult(payload: unknown): void {
+      this.emitSafely('tool.result', payload);
+    }
+
+    private emitSafely(event: 'tool.call' | 'tool.result', payload: unknown): void {
+      try {
+        emitEvent(this.server, event, this.preparePayload(payload));
       } catch {
         // swallow errors
       }
     }
 
-    emitToolResult(payload: unknown): void {
-      try {
-        const safePayload = ((): unknown => {
-          if (!payload || typeof payload !== 'object') return payload;
-          const p = { ...(payload as Record<string, unknown>) } as Record<string, unknown>;
-          if ('arguments' in p) {
-            p.arguments = this.safeStringify(p.arguments) as unknown;
-          }
-          if ('result' in p) {
-            p.result = this.safeStringify(p.result) as unknown;
-          }
-          const agentId = this.sanitizeAgentId(p.agentId);
-          if (agentId !== undefined) {
-            p.agentId = agentId;
-          }
-          if (!('timestamp' in p) || !p.timestamp) {
-            p.timestamp = new Date().toISOString();
-          }
-          return p;
-        })();
-
-        // Tool result emitted (debug logging removed in cleanup)
-        emitEvent(this.server, 'tool.result', safePayload);
-      } catch {
-        // swallow errors
+    private preparePayload(payload: unknown): unknown {
+      if (!payload || typeof payload !== 'object') {
+        return payload;
       }
+
+      const prepared = { ...(payload as Record<string, unknown>) };
+
+      if ('arguments' in prepared) {
+        prepared.arguments = this.safeStringify(prepared.arguments) as unknown;
+      }
+
+      if ('result' in prepared) {
+        prepared.result = this.safeStringify(prepared.result) as unknown;
+      }
+
+      const agentId = this.sanitizeAgentId(prepared.agentId);
+      if (agentId !== undefined) {
+        prepared.agentId = agentId;
+      }
+
+      if (!('timestamp' in prepared) || !prepared.timestamp) {
+        prepared.timestamp = new Date().toISOString();
+      }
+
+      return prepared;
     }
 
     private sanitizeAgentId(value: unknown): string | null | undefined {
