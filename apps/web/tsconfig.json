@@ -3,17 +3,42 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "baseUrl": "./src",
+    "rootDir": "./src",
+    "outDir": "dist/",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
     "paths": {
-      "@/components/*": ["components/*"],
-      "@/vendor/*": ["vendor/*"],
-      "@/config": ["config/env.ts"],
-      "@/auth/*": ["auth/*"],
-      "@/api/*": ["api/*"],
-      "@/*": ["./src/*"]
+      "@/components/*": [
+        "components/*"
+      ],
+      "@/vendor/*": [
+        "vendor/*"
+      ],
+      "@/config": [
+        "config/env.ts"
+      ],
+      "@/auth/*": [
+        "auth/*"
+      ],
+      "@/api/*": [
+        "api/*"
+      ],
+      "@/*": [
+        "./src/*"
+      ]
     },
-    "types": ["vite/client", "vitest"],
+    "types": [
+      "vite/client",
+      "vitest"
+    ],
     "noEmit": true
   },
-  "include": ["src", "vitest.config.ts", "playwright.config.ts", "tailwind.config.ts"],
+  "include": [
+    "src",
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "tailwind.config.ts"
+  ],
   "references": []
 }
