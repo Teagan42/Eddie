@@ -1,5 +1,4 @@
 {
-  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
     "module": "esnext",
@@ -7,13 +6,112 @@
     "outDir": "dist",
     "declaration": true,
     "declarationMap": true,
-    "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo"
+    "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo",
+    "target": "ES2022",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": [
+      "node"
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@eddie/config": [
+        "../core/config/src"
+      ],
+      "@eddie/config/*": [
+        "../core/config/src/*"
+      ],
+      "@eddie/context": [
+        "../runtime/context/src"
+      ],
+      "@eddie/context/*": [
+        "../runtime/context/src/*"
+      ],
+      "@eddie/engine": [
+        "../runtime/engine/src"
+      ],
+      "@eddie/engine/*": [
+        "../runtime/engine/src/*"
+      ],
+      "@eddie/hooks": [
+        "../runtime/hooks/src"
+      ],
+      "@eddie/hooks/*": [
+        "../runtime/hooks/src/*"
+      ],
+      "@eddie/perf-benchmarks": [
+        "../testing/perf-benchmarks/src"
+      ],
+      "@eddie/perf-benchmarks/*": [
+        "../testing/perf-benchmarks/src/*"
+      ],
+      "@eddie/io": [
+        "../runtime/io/src"
+      ],
+      "@eddie/io/*": [
+        "../runtime/io/src/*"
+      ],
+      "@eddie/mcp": [
+        "../integrations/mcp/src"
+      ],
+      "@eddie/mcp/*": [
+        "../integrations/mcp/src/*"
+      ],
+      "@eddie/providers": [
+        "../integrations/providers/src"
+      ],
+      "@eddie/providers/*": [
+        "../integrations/providers/src/*"
+      ],
+      "@eddie/templates": [
+        "../core/templates/src"
+      ],
+      "@eddie/templates/*": [
+        "../core/templates/src/*"
+      ],
+      "@eddie/tokenizers": [
+        "../core/tokenizers/src"
+      ],
+      "@eddie/tokenizers/*": [
+        "../core/tokenizers/src/*"
+      ],
+      "@eddie/tools": [
+        "../runtime/tools/src"
+      ],
+      "@eddie/tools/*": [
+        "../runtime/tools/src/*"
+      ],
+      "@eddie/types": [
+        "../core/types/dist/index.d.ts",
+        "../core/types/src"
+      ],
+      "@eddie/types/*": [
+        "../core/types/dist/*",
+        "../core/types/src/*"
+      ]
+    }
   },
   "references": [
-    { "path": "../../runtime/context" },
-    { "path": "../../core/templates" },
-    { "path": "../../integrations/providers" },
-    { "path": "../../../apps/api" }
+    {
+      "path": "../../runtime/context"
+    },
+    {
+      "path": "../../core/templates"
+    },
+    {
+      "path": "../../integrations/providers"
+    },
+    {
+      "path": "../../../apps/api"
+    }
   ],
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/**/*.ts"
+  ]
 }
