@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { EventBus } from "@nestjs/cqrs";
+import type { EventBus, IEvent } from "@nestjs/cqrs";
 import { StartToolCallCommand } from "../../../src/tools/commands/start-tool-call.command";
 import { UpdateToolCallCommand } from "../../../src/tools/commands/update-tool-call.command";
 import { CompleteToolCallCommand } from "../../../src/tools/commands/complete-tool-call.command";
@@ -17,8 +17,8 @@ import type { ToolCallPersistenceService } from "../../../src/tools/tool-call.pe
 describe("Tool call CQRS", () => {
   it("persists state across start, update, and complete commands", async () => {
     const store = new ToolCallStore();
-    const events: unknown[] = [];
-    const publish = vi.fn((event: unknown) => {
+    const events: IEvent[] = [];
+    const publish = vi.fn((event: IEvent) => {
       events.push(event);
     });
     const eventBus = { publish } as unknown as EventBus;
@@ -95,6 +95,18 @@ describe("Tool call CQRS", () => {
       updatedAt: "2024-01-01T00:00:20.000Z",
     });
 
+    if (
+      toolCall.arguments &&
+      typeof toolCall.arguments === "object" &&
+      !Array.isArray(toolCall.arguments)
+    ) {
+      (toolCall.arguments as Record<string, unknown>).page = 99;
+    }
+
+    const [ reloaded ] = await queryHandler.execute(
+      new GetToolCallsQuery({ sessionId: "s1" })
+    );
+
     expect(events[0]).toBeInstanceOf(ToolCallStarted);
     expect(events[1]).toBeInstanceOf(ToolCallUpdated);
     expect(events[2]).toBeInstanceOf(ToolCallCompleted);
@@ -117,5 +129,7 @@ describe("Tool call CQRS", () => {
     expect(persistence.recordComplete).toHaveBeenCalledWith(
       expect.objectContaining({ agentId: "agent-007" })
     );
+
+    expect(reloaded.arguments).toEqual({ query: "docs", page: 2 });
   });
 });

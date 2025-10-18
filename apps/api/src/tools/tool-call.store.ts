@@ -27,6 +27,14 @@ export interface ToolCallCommandInput {
 @Injectable()
 export class ToolCallStore {
   private readonly calls = new Map<string, ToolCallState[]>();
+  private readonly structuredCloneFn: (<T>(value: T) => T) | null;
+
+  constructor() {
+    this.structuredCloneFn =
+      typeof globalThis.structuredClone === "function"
+        ? (<T>(value: T) => globalThis.structuredClone(value))
+        : null;
+  }
 
   start(input: ToolCallCommandInput): ToolCallState {
     const timestamp = this.resolveTimestamp(input.timestamp);
@@ -164,7 +172,41 @@ export class ToolCallStore {
   }
 
   private clone(state: ToolCallState): ToolCallState {
-    return { ...state };
+    return {
+      ...state,
+      arguments: this.cloneValue(state.arguments),
+      result: this.cloneValue(state.result),
+    };
+  }
+
+  private cloneValue<T>(value: T): T {
+    if (value === undefined || value === null) {
+      return value;
+    }
+
+    if (this.structuredCloneFn) {
+      return this.structuredCloneFn(value);
+    }
+
+    if (Array.isArray(value)) {
+      return value.map((item) => this.cloneValue(item)) as unknown as T;
+    }
+
+    if (value instanceof Date) {
+      return new Date(value.getTime()) as unknown as T;
+    }
+
+    if (typeof value === "object") {
+      const result: Record<string, unknown> = {};
+      for (const key of Object.keys(value as Record<string, unknown>)) {
+        result[key] = this.cloneValue(
+          (value as Record<string, unknown>)[key]
+        );
+      }
+      return result as T;
+    }
+
+    return value;
   }
 
   private normalizeAgentId(agentId: string | null | undefined): string | null {
