@@ -45,6 +45,14 @@ import { useAuth } from '@/auth/auth-context';
 import { useLayoutPreferences } from '@/hooks/useLayoutPreferences';
 import type { LayoutPreferencesDto } from '@eddie/api-client';
 import { Panel } from "@/components/common";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/vendor/components/ui/sheet";
 import { cn } from "@/vendor/lib/utils";
 import { toast } from '@/vendor/hooks/use-toast';
 import { ChatMessageContent } from './ChatMessageContent';
@@ -150,6 +158,11 @@ const PANEL_IDS = {
 } as const;
 
 const SCROLL_VIEWPORT_SELECTOR = '[data-radix-scroll-area-viewport]';
+
+const AGENT_TOOLS_DESCRIPTION =
+  'Inspect tool calls, context, and spawned agents for this session.';
+const AGENT_TOOLS_DRAWER_TITLE = 'Agent tools';
+const AGENT_EXECUTION_TITLE = 'Agent execution';
 
 const CHAT_SESSIONS_QUERY_KEY = ['chat-sessions'] as const;
 
@@ -1338,246 +1351,273 @@ export function ChatPage(): JSX.Element {
     setComposerRole(message.role as ComposerRole);
   }, []);
 
+  const isContextBundlesCollapsed = Boolean(collapsedPanels[PANEL_IDS.context]);
+
   return (
-    <div className={cn(getSurfaceLayoutClasses('chat'), SURFACE_CONTENT_CLASS)}>
-      <Flex direction="column" className="gap-6">
-        <Flex align="center" gap="4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/70 to-sky-500/70 shadow-[0_25px_55px_-35px_rgba(56,189,248,0.7)]">
-            <ChatBubbleIcon className="h-5 w-5 text-white" />
-          </div>
-          <Box className="space-y-1">
-            <Heading size="6" className="text-white">
-              Chat orchestrator
-            </Heading>
-            <Text size="2" color="gray" className="text-slate-200/85">
-              Orchestrate sessions across providers and watch context and tools light up in real
-              time.
-            </Text>
-          </Box>
-        </Flex>
+    <Sheet>
+      <div className={cn(getSurfaceLayoutClasses('chat'), SURFACE_CONTENT_CLASS)}>
+        <Flex direction="column" className="gap-6">
+          <Flex align="center" gap="4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/70 to-sky-500/70 shadow-[0_25px_55px_-35px_rgba(56,189,248,0.7)]">
+              <ChatBubbleIcon className="h-5 w-5 text-white" />
+            </div>
+            <Box className="space-y-1">
+              <Heading size="6" className="text-white">
+                Chat orchestrator
+              </Heading>
+              <Text size="2" color="gray" className="text-slate-200/85">
+                Orchestrate sessions across providers and watch context and tools light up in real
+                time.
+              </Text>
+            </Box>
+          </Flex>
 
-        <Panel
-          title="Sessions"
-          description={
-            sessions.length === 0
-              ? 'Create a session to begin orchestrating conversations.'
-              : undefined
-          }
-          actions={
-            <Button
-              onClick={handleCreateSession}
-              size="2"
-              variant="solid"
-              color="jade"
-              disabled={createSessionMutation.isPending}
-            >
-              <PlusIcon /> New session
-            </Button>
-          }
-        >
-          <SessionSelector
-            sessions={sessionsWithMetrics}
-            selectedSessionId={selectedSessionId ?? null}
-            onSelectSession={handleSelectSession}
-            onRenameSession={handleRenameSession}
-            onDeleteSession={handleDeleteSession}
-            onCreateSession={handleCreateSession}
-            isCreatePending={createSessionMutation.isPending}
-          />
-        </Panel>
-
-        <div className="flex flex-col gap-6 lg:flex-row">
           <Panel
-            title={
-              sessions.find((session) => session.id === selectedSessionId)?.title ??
-              'Select a session'
+            title="Sessions"
+            description={
+              sessions.length === 0
+                ? 'Create a session to begin orchestrating conversations.'
+                : undefined
             }
             actions={
-              <Flex align="center" gap="3" wrap="wrap">
-                <Select.Root
-                  value={selectedProvider}
-                  onValueChange={handleProviderChange}
-                  disabled={!selectedSessionId}
-                >
-                  <Select.Trigger placeholder="Provider" />
-                  <Select.Content>
-                    {providerOptions.map((option) => (
-                      <Select.Item key={option.value} value={option.value}>
-                        {option.label}
-                      </Select.Item>
-                    ))}
-                    {providerOptions.length > 0 ? <Select.Separator /> : null}
-                    <Select.Item value="__custom__">Custom provider…</Select.Item>
-                  </Select.Content>
-                </Select.Root>
-                <Select.Root
-                  value={selectedModel}
-                  onValueChange={handleModelChange}
-                  disabled={!selectedSessionId}
-                >
-                  <Select.Trigger placeholder="Model" />
-                  <Select.Content>
-                    {modelOptions.map((model) => (
-                      <Select.Item key={model} value={model}>
-                        {model}
-                      </Select.Item>
-                    ))}
-                    {modelOptions.length > 0 ? <Select.Separator /> : null}
-                    <Select.Item value="__custom__">Custom model…</Select.Item>
-                    {selectedModel ? (
-                      <Select.Item value="__clear__">Clear model</Select.Item>
-                    ) : null}
-                  </Select.Content>
-                </Select.Root>
-                <Select.Root
-                  value={templateSelection}
-                  onValueChange={handleTemplateSelection}
-                  disabled={Object.keys(templates).length === 0}
-                >
-                  <Select.Trigger placeholder="Load template" />
-                  <Select.Content>
-                    {Object.values(
-                      templates as Record<
-                        string,
-                        {
-                          id: string;
-                          name: string;
-                          provider: string;
-                          model?: string;
-                          prompt: string;
-                        }
-                      >,
-                    ).map((template) => (
-                      <Select.Item key={template.id} value={template.id}>
-                        {template.name}
-                      </Select.Item>
-                    ))}
-                  </Select.Content>
-                </Select.Root>
-                <Button
-                  variant="soft"
-                  size="2"
-                  onClick={handleSaveTemplate}
-                  disabled={!composerValue.trim()}
-                >
-                  <RocketIcon /> Save template
-                </Button>
-              </Flex>
+              <Button
+                onClick={handleCreateSession}
+                size="2"
+                variant="solid"
+                color="jade"
+                disabled={createSessionMutation.isPending}
+              >
+                <PlusIcon /> New session
+              </Button>
             }
           >
-            <ScrollArea
-              type="always"
-              className="h-96 rounded-xl border border-muted/40 bg-muted/10 p-4"
-            >
-              <Flex direction="column" gap="4">
-                {messages.length === 0 ? (
-                  <Text size="2" color="gray">
-                    No messages yet. Use the composer below to send your first command.
-                  </Text>
-                ) : (
-                  messages.map((message) => {
-                    const roleStyle = MESSAGE_ROLE_STYLES[message.role];
-                    const timestamp = formatTime(message.createdAt);
-                    const Icon = roleStyle.icon;
-                    const alignmentClass =
-                      roleStyle.align === 'end'
-                        ? 'ml-auto w-full max-w-2xl'
-                        : 'mr-auto w-full max-w-2xl';
-
-                    return (
-                      <Box key={message.id} className={alignmentClass}>
-                        <Box className={cn(MESSAGE_CONTAINER_CLASS, roleStyle.cardClassName)}>
-                          <Flex align="start" justify="between" gap="3">
-                            <Flex align="center" gap="2">
-                              <Box className="rounded-full bg-white/15 p-2 shadow-inner">
-                                <Icon className={`h-4 w-4 ${roleStyle.iconClassName}`} />
-                              </Box>
-                              <Badge color={roleStyle.badgeColor} variant="soft">
-                                {roleStyle.label}
-                              </Badge>
-                              {timestamp ? (
-                                <Text size="1" color="gray">
-                                  {timestamp}
-                                </Text>
-                              ) : null}
-                            </Flex>
-                            {message.role !== 'assistant' ? (
-                              <Tooltip content="Re-issue command">
-                                <IconButton
-                                  size="1"
-                                  variant="solid"
-                                  onClick={() => handleReissueCommand(message)}
-                                  aria-label="Re-issue command"
-                                >
-                                  <ReloadIcon className="h-4 w-4" />
-                                </IconButton>
-                              </Tooltip>
-                            ) : null}
-                          </Flex>
-                          <ChatMessageContent
-                            messageRole={message.role}
-                            content={message.content}
-                            className={cn('text-base text-white', roleStyle.contentClassName)}
-                          />
-                        </Box>
-                      </Box>
-                    );
-                  })
-                )}
-                <div ref={scrollAnchorRef} data-testid="chat-scroll-anchor" aria-hidden="true" />
-              </Flex>
-            </ScrollArea>
-
-            <Flex direction="column" gap="3">
-              <AgentActivityIndicator state={agentActivityState} />
-              <SegmentedControl.Root
-                value={composerRole}
-                onValueChange={(value) => setComposerRole(value as ComposerRole)}
-                disabled={composerUnavailable}
-              >
-                <SegmentedControl.Item value="user">Ask</SegmentedControl.Item>
-                <SegmentedControl.Item value="system">Run</SegmentedControl.Item>
-              </SegmentedControl.Root>
-              <TextArea
-                value={composerValue}
-                onChange={(event) => setComposerValue(event.target.value)}
-                onKeyDown={handleComposerKeyDown}
-                placeholder="Send a message to the orchestrator"
-                rows={4}
-                disabled={composerInputDisabled}
-              />
-              <Flex justify="end" gap="2">
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={composerSubmitDisabled}
-                >
-                  <PaperPlaneIcon /> Send
-                </Button>
-              </Flex>
-            </Flex>
+            <SessionSelector
+              sessions={sessionsWithMetrics}
+              selectedSessionId={selectedSessionId ?? null}
+              onSelectSession={handleSelectSession}
+              onRenameSession={handleRenameSession}
+              onDeleteSession={handleDeleteSession}
+              onCreateSession={handleCreateSession}
+              isCreatePending={createSessionMutation.isPending}
+            />
           </Panel>
 
-          <div className="flex w-full flex-col gap-4 lg:w-[22rem] xl:w-[26rem] 2xl:w-[30rem]">
+          <div className="flex flex-col gap-6">
             <Panel
-              title="Agent execution"
-              description="Inspect tool calls, context, and spawned agents for this session."
+              title={
+                sessions.find((session) => session.id === selectedSessionId)?.title ??
+                'Select a session'
+              }
+              actions={
+                <Flex align="center" gap="3" wrap="wrap">
+                  <Select.Root
+                    value={selectedProvider}
+                    onValueChange={handleProviderChange}
+                    disabled={!selectedSessionId}
+                  >
+                    <Select.Trigger placeholder="Provider" />
+                    <Select.Content>
+                      {providerOptions.map((option) => (
+                        <Select.Item key={option.value} value={option.value}>
+                          {option.label}
+                        </Select.Item>
+                      ))}
+                      {providerOptions.length > 0 ? <Select.Separator /> : null}
+                      <Select.Item value="__custom__">Custom provider…</Select.Item>
+                    </Select.Content>
+                  </Select.Root>
+                  <Select.Root
+                    value={selectedModel}
+                    onValueChange={handleModelChange}
+                    disabled={!selectedSessionId}
+                  >
+                    <Select.Trigger placeholder="Model" />
+                    <Select.Content>
+                      {modelOptions.map((model) => (
+                        <Select.Item key={model} value={model}>
+                          {model}
+                        </Select.Item>
+                      ))}
+                      {modelOptions.length > 0 ? <Select.Separator /> : null}
+                      <Select.Item value="__custom__">Custom model…</Select.Item>
+                      {selectedModel ? (
+                        <Select.Item value="__clear__">Clear model</Select.Item>
+                      ) : null}
+                    </Select.Content>
+                  </Select.Root>
+                  <Select.Root
+                    value={templateSelection}
+                    onValueChange={handleTemplateSelection}
+                    disabled={Object.keys(templates).length === 0}
+                  >
+                    <Select.Trigger placeholder="Load template" />
+                    <Select.Content>
+                      {Object.values(
+                        templates as Record<
+                          string,
+                          {
+                            id: string;
+                            name: string;
+                            provider: string;
+                            model?: string;
+                            prompt: string;
+                          }
+                        >,
+                      ).map((template) => (
+                        <Select.Item key={template.id} value={template.id}>
+                          {template.name}
+                        </Select.Item>
+                      ))}
+                    </Select.Content>
+                  </Select.Root>
+                  <Button
+                    variant="soft"
+                    size="2"
+                    onClick={handleSaveTemplate}
+                    disabled={!composerValue.trim()}
+                  >
+                    <RocketIcon /> Save template
+                  </Button>
+                  <SheetTrigger asChild>
+                    <Button variant="solid" size="2">
+                      <MagicWandIcon /> Open agent tools
+                    </Button>
+                  </SheetTrigger>
+                </Flex>
+              }
             >
+              <ScrollArea
+                type="always"
+                className="h-96 rounded-xl border border-muted/40 bg-muted/10 p-4"
+              >
+                <Flex direction="column" gap="4">
+                  {messages.length === 0 ? (
+                    <Text size="2" color="gray">
+                      No messages yet. Use the composer below to send your first command.
+                    </Text>
+                  ) : (
+                    messages.map((message) => {
+                      const roleStyle = MESSAGE_ROLE_STYLES[message.role];
+                      const timestamp = formatTime(message.createdAt);
+                      const Icon = roleStyle.icon;
+                      const alignmentClass =
+                        roleStyle.align === 'end'
+                          ? 'ml-auto w-full max-w-2xl'
+                          : 'mr-auto w-full max-w-2xl';
+
+                      return (
+                        <Box key={message.id} className={alignmentClass}>
+                          <Box className={cn(MESSAGE_CONTAINER_CLASS, roleStyle.cardClassName)}>
+                            <Flex align="start" justify="between" gap="3">
+                              <Flex align="center" gap="2">
+                                <Box className="rounded-full bg-white/15 p-2 shadow-inner">
+                                  <Icon className={`h-4 w-4 ${roleStyle.iconClassName}`} />
+                                </Box>
+                                <Badge color={roleStyle.badgeColor} variant="soft">
+                                  {roleStyle.label}
+                                </Badge>
+                                {timestamp ? (
+                                  <Text size="1" color="gray">
+                                    {timestamp}
+                                  </Text>
+                                ) : null}
+                              </Flex>
+                              {message.role !== 'assistant' ? (
+                                <Tooltip content="Re-issue command">
+                                  <IconButton
+                                    size="1"
+                                    variant="solid"
+                                    onClick={() => handleReissueCommand(message)}
+                                    aria-label="Re-issue command"
+                                  >
+                                    <ReloadIcon className="h-4 w-4" />
+                                  </IconButton>
+                                </Tooltip>
+                              ) : null}
+                            </Flex>
+                            <ChatMessageContent
+                              messageRole={message.role}
+                              content={message.content}
+                              className={cn('text-base text-white', roleStyle.contentClassName)}
+                            />
+                          </Box>
+                        </Box>
+                      );
+                    })
+                  )}
+                  <div ref={scrollAnchorRef} data-testid="chat-scroll-anchor" aria-hidden="true" />
+                </Flex>
+              </ScrollArea>
+
+              <Flex direction="column" gap="3">
+                <AgentActivityIndicator state={agentActivityState} />
+                <SegmentedControl.Root
+                  value={composerRole}
+                  onValueChange={(value) => setComposerRole(value as ComposerRole)}
+                  disabled={composerUnavailable}
+                >
+                  <SegmentedControl.Item value="user">Ask</SegmentedControl.Item>
+                  <SegmentedControl.Item value="system">Run</SegmentedControl.Item>
+                </SegmentedControl.Root>
+                <TextArea
+                  value={composerValue}
+                  onChange={(event) => setComposerValue(event.target.value)}
+                  onKeyDown={handleComposerKeyDown}
+                  placeholder="Send a message to the orchestrator"
+                  rows={4}
+                  disabled={composerInputDisabled}
+                />
+                <Flex justify="end" gap="2">
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={composerSubmitDisabled}
+                  >
+                    <PaperPlaneIcon /> Send
+                  </Button>
+                </Flex>
+              </Flex>
+            </Panel>
+          </div>
+        </Flex>
+      </div>
+
+      <SheetContent
+        side="right"
+        className="flex h-full w-full flex-col border-l border-white/10 bg-slate-950/95 text-white sm:max-w-xl md:max-w-2xl lg:max-w-3xl"
+      >
+        <SheetHeader className="space-y-2 text-left">
+          <SheetTitle className="text-2xl font-semibold text-white">
+            {AGENT_TOOLS_DRAWER_TITLE}
+          </SheetTitle>
+          <SheetDescription className="text-sm text-slate-200/80">
+            {AGENT_TOOLS_DESCRIPTION}
+          </SheetDescription>
+        </SheetHeader>
+        <ScrollArea type="always" className="flex-1 pr-4">
+          <Flex direction="column" gap="4" className="pb-6">
+            <Box className="space-y-4 rounded-3xl border border-white/10 bg-slate-900/60 p-6 shadow-[0_35px_65px_-45px_rgba(56,189,248,0.5)] backdrop-blur-xl">
+              <Heading as="h3" size="4" className="text-white">
+                {AGENT_EXECUTION_TITLE}
+              </Heading>
+              <Text size="2" color="gray" className="text-slate-200/85">
+                {AGENT_TOOLS_DESCRIPTION}
+              </Text>
               <AgentExecutionTree
                 state={executionTreeState}
                 selectedAgentId={selectedAgentId}
                 onSelectAgent={setSelectedAgentId}
               />
-            </Panel>
+            </Box>
             <ContextBundlesPanel
               id={PANEL_IDS.context}
               bundles={selectedContextBundles}
-              collapsed={Boolean(collapsedPanels[PANEL_IDS.context])}
+              collapsed={isContextBundlesCollapsed}
               onToggle={handleTogglePanel}
             />
-          </div>
-        </div>
-      </Flex>
-    </div>
+          </Flex>
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
   );
 }
 function mergeSessionList(
