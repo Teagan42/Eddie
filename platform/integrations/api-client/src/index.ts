@@ -257,6 +257,16 @@ export interface ChatSessionsSocket {
     emitMessage(sessionId: string, payload: CreateChatMessageDto): void;
 }
 
+export interface ChatMessageReasoningPayload {
+    sessionId: string;
+    messageId: string;
+    text?: string;
+    metadata?: Record<string, unknown> | undefined;
+    timestamp?: string | undefined;
+    agentId?: string | null | undefined;
+    responseId?: string | undefined;
+}
+
 export interface ChatMessagesSocket {
     onMessagePartial(handler: (message: ChatMessageDto) => void): Unsubscribe;
     onReasoningPartial(

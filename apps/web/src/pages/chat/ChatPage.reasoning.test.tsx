@@ -212,11 +212,51 @@ describe("ChatPage reasoning updates", () => {
       });
     });
 
+    const indicator = await screen.findByTestId("agent-activity-indicator");
+    expect(indicator).toHaveTextContent(/agent is thinking/i);
+
     const reasoning = await screen.findByTestId("chat-message-reasoning");
     expect(within(reasoning).getByText("Reasoning")).toBeVisible();
     expect(within(reasoning).getByText("Streaming")).toBeVisible();
-    expect(within(reasoning).getByText("Evaluating options")).toBeVisible();
-    expect(within(reasoning).getByText("Agent agent-42")).toBeVisible();
+
+    const segments = within(reasoning).getAllByTestId(
+      "chat-message-reasoning-segment"
+    );
+    expect(segments).toHaveLength(1);
+    expect(within(segments[0]!).getByText("Agent agent-42")).toBeVisible();
+    expect(
+      within(segments[0]!).getByText("Evaluating options")
+    ).toBeVisible();
+
+    const metadataUpdateTimestamp = new Date().toISOString();
+    const expectedUpdatedTime = new Date(metadataUpdateTimestamp).toLocaleTimeString(
+      [],
+      { hour: "2-digit", minute: "2-digit" }
+    );
+
+    act(() => {
+      reasoningPartialHandler?.({
+        sessionId: "session-1",
+        messageId: "message-1",
+        text: "",
+        metadata: { step: 2 },
+        timestamp: metadataUpdateTimestamp,
+        agentId: "agent-99",
+      });
+    });
+
+    await waitFor(() => {
+      const updatedSegments = within(reasoning).getAllByTestId(
+        "chat-message-reasoning-segment"
+      );
+      expect(updatedSegments).toHaveLength(1);
+      expect(
+        within(updatedSegments[0]!).getByText("Agent agent-99")
+      ).toBeVisible();
+      expect(
+        within(updatedSegments[0]!).getByText(expectedUpdatedTime)
+      ).toBeVisible();
+    });
 
     const completionTimestamp = new Date().toISOString();
 
@@ -232,11 +272,23 @@ describe("ChatPage reasoning updates", () => {
       });
     });
 
-    await waitFor(() =>
-      expect(within(reasoning).getByText("Ready to respond")).toBeVisible()
-    );
+    await waitFor(() => {
+      const updatedSegments = within(reasoning).getAllByTestId(
+        "chat-message-reasoning-segment"
+      );
+      expect(updatedSegments).toHaveLength(2);
+      expect(
+        within(updatedSegments[1]!).getByText("Ready to respond")
+      ).toBeVisible();
+    });
 
     expect(within(reasoning).getByText("Completed")).toBeVisible();
     expect(within(reasoning).queryByText("Streaming")).toBeNull();
+
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("agent-activity-indicator")
+      ).not.toBeInTheDocument();
+    });
   });
 });

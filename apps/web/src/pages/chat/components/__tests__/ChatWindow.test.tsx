@@ -21,6 +21,14 @@ type TestMessage = ChatMessageDto & {
       status?: string | null;
     } | null;
   } | null;
+  reasoning?: {
+    segments?: Array<{
+      text?: string;
+      timestamp?: string;
+      agentId?: string | null;
+    }>;
+    status?: "streaming" | "completed";
+  } | null;
 };
 
 function createMessage(partial?: Partial<TestMessage>): TestMessage {
@@ -153,6 +161,46 @@ describe('ChatWindow', () => {
     expect(within(logRegion).getByText('Browser')).toBeInTheDocument();
     expect(within(logRegion).getByText('Completed')).toBeInTheDocument();
     expect(screen.queryByText('hidden')).not.toBeInTheDocument();
+  });
+
+  it('renders reasoning transcript with agent metadata', () => {
+    const timestamp = '2024-01-01T12:34:00.000Z';
+    const expectedTime = new Date(timestamp).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const assistantMessage = createMessage({
+      id: 'assistant-1',
+      role: 'assistant',
+      content: 'final answer',
+      metadata: {
+        agent: {
+          name: 'Scout',
+          parentName: 'Lead Researcher',
+        },
+      },
+      reasoning: {
+        status: 'streaming',
+        segments: [
+          {
+            text: 'Exploring options',
+            timestamp,
+            agentId: 'agent-99',
+          },
+        ],
+      },
+    });
+
+    renderChatWindow({ messages: [assistantMessage] });
+
+    const reasoning = screen.getByTestId('chat-message-reasoning');
+    const segment = within(reasoning).getByTestId('chat-message-reasoning-segment');
+    expect(within(segment).getByText('Agent Scout')).toBeVisible();
+    expect(
+      within(segment).getByText(/Reports to Lead Researcher/)
+    ).toBeVisible();
+    expect(within(segment).getByText('Exploring options')).toBeVisible();
+    expect(within(segment).getByText(expectedTime)).toBeVisible();
   });
 
   it('opens the tool drawer when clicking a tool message', async () => {
