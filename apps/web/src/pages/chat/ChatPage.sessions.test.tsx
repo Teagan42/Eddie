@@ -148,6 +148,20 @@ describe("ChatPage session creation", () => {
     updatedAt: timestamp,
   });
 
+  async function chooseSessionMenuAction(
+    user: ReturnType<typeof userEvent.setup>,
+    sessionTitle: string,
+    actionLabel: string,
+  ): Promise<void> {
+    const menuTrigger = await screen.findByRole("button", {
+      name: `Session options for ${sessionTitle}`,
+    });
+    await user.click(menuTrigger);
+
+    const action = await screen.findByRole("menuitem", { name: actionLabel });
+    await user.click(action);
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
     sessionCreatedHandlers.length = 0;
@@ -463,10 +477,7 @@ describe("ChatPage session creation", () => {
 
       await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
 
-      const renameButton = await screen.findByRole("button", {
-        name: "Edit Session 1",
-      });
-      await user.click(renameButton);
+      await chooseSessionMenuAction(user, "Session 1", "Rename session");
 
       await waitFor(() =>
         expect(renameSessionMock).toHaveBeenCalledWith("session-1", {
@@ -496,10 +507,7 @@ describe("ChatPage session creation", () => {
 
       await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
 
-      const renameButton = await screen.findByRole("button", {
-        name: "Edit Session 1",
-      });
-      await user.click(renameButton);
+      await chooseSessionMenuAction(user, "Session 1", "Rename session");
 
       await waitFor(() => expect(renameSessionMock).toHaveBeenCalled());
 
@@ -545,10 +553,7 @@ describe("ChatPage session creation", () => {
 
       await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
 
-      const deleteButton = await screen.findByRole("button", {
-        name: "Delete Session 1",
-      });
-      await user.click(deleteButton);
+      await chooseSessionMenuAction(user, "Session 1", "Archive session");
 
       await waitFor(() => expect(deleteSessionMock).toHaveBeenCalledWith("session-1"));
 
@@ -589,10 +594,7 @@ describe("ChatPage session creation", () => {
 
       await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
 
-      const deleteButton = await screen.findByRole("button", {
-        name: "Delete Session 1",
-      });
-      await user.click(deleteButton);
+      await chooseSessionMenuAction(user, "Session 1", "Archive session");
 
       await waitFor(() => expect(deleteSessionMock).toHaveBeenCalled());
 

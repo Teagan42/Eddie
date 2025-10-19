@@ -1,20 +1,28 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { Theme } from '@radix-ui/themes';
 
-import { SessionSelector, type SessionSelectorProps } from '../SessionSelector';
+import {
+  SessionSelector,
+  type SessionSelectorProps,
+  type SessionSelectorSession,
+} from '../SessionSelector';
 
-const baseSessions: SessionSelectorProps['sessions'] = [
-  {
+function createSession(
+  partial: Partial<SessionSelectorSession> = {},
+): SessionSelectorSession {
+  return {
     id: 'session-1',
     title: 'Session 1',
     status: 'active',
-  },
-  {
-    id: 'session-2',
-    title: 'Session 2',
-    status: 'active',
-  },
+    ...partial,
+  };
+}
+
+const baseSessions: SessionSelectorProps['sessions'] = [
+  createSession(),
+  createSession({ id: 'session-2', title: 'Session 2' }),
 ];
 
 class ResizeObserverMock {
@@ -28,21 +36,30 @@ beforeAll(() => {
 });
 
 describe('SessionSelector', () => {
+  function renderSelector(overrideProps: Partial<SessionSelectorProps> = {}): void {
+    const props: SessionSelectorProps = {
+      sessions: baseSessions,
+      selectedSessionId: 'session-1',
+      onSelectSession: vi.fn(),
+      onRenameSession: vi.fn(),
+      onDeleteSession: vi.fn(),
+      onCreateSession: vi.fn(),
+      isCreatePending: false,
+      ...overrideProps,
+    };
+
+    render(
+      <Theme>
+        <SessionSelector {...props} />
+      </Theme>,
+    );
+  }
+
   it('calls onSelectSession when a session button is activated', async () => {
     const user = userEvent.setup();
     const handleSelect = vi.fn();
 
-    render(
-      <SessionSelector
-        sessions={baseSessions}
-        selectedSessionId="session-1"
-        onSelectSession={handleSelect}
-        onRenameSession={vi.fn()}
-        onDeleteSession={vi.fn()}
-        onCreateSession={vi.fn()}
-        isCreatePending={false}
-      />,
-    );
+    renderSelector({ onSelectSession: handleSelect });
 
     const selectedButton = screen.getByRole('button', { name: 'Session 1' });
     expect(selectedButton).toHaveAttribute('data-accent-color', 'jade');
@@ -53,17 +70,7 @@ describe('SessionSelector', () => {
   });
 
   it('marks the selected session for styling cues', () => {
-    render(
-      <SessionSelector
-        sessions={baseSessions}
-        selectedSessionId="session-1"
-        onSelectSession={vi.fn()}
-        onRenameSession={vi.fn()}
-        onDeleteSession={vi.fn()}
-        onCreateSession={vi.fn()}
-        isCreatePending={false}
-      />,
-    );
+    renderSelector();
 
     expect(screen.getByRole('button', { name: 'Session 1' })).toHaveAttribute(
       'data-selected',
@@ -75,47 +82,30 @@ describe('SessionSelector', () => {
   });
 
   it('renders archived status badges when present', () => {
-    render(
-      <SessionSelector
-        sessions={[
-          baseSessions[0],
-          { id: 'archived', title: 'Archived session', status: 'archived' },
-        ]}
-        selectedSessionId={null}
-        onSelectSession={vi.fn()}
-        onRenameSession={vi.fn()}
-        onDeleteSession={vi.fn()}
-        onCreateSession={vi.fn()}
-        isCreatePending={false}
-      />,
-    );
+    renderSelector({
+      sessions: [
+        baseSessions[0],
+        createSession({ id: 'archived', title: 'Archived session', status: 'archived' }),
+      ],
+      selectedSessionId: null,
+    });
 
     expect(screen.getByText('Archived')).toBeInTheDocument();
   });
 
   it('renders session metrics with accessible labelling', () => {
-    render(
-      <SessionSelector
-        sessions={[
-          {
-            id: 'session-1',
-            title: 'Session 1',
-            status: 'active',
-            metrics: {
-              messageCount: 12,
-              agentCount: 3,
-              contextBundleCount: 4,
-            },
+    renderSelector({
+      sessions: [
+        createSession({
+          metrics: {
+            messageCount: 12,
+            agentCount: 3,
+            contextBundleCount: 4,
           },
-        ] as unknown as SessionSelectorProps['sessions']}
-        selectedSessionId={null}
-        onSelectSession={vi.fn()}
-        onRenameSession={vi.fn()}
-        onDeleteSession={vi.fn()}
-        onCreateSession={vi.fn()}
-        isCreatePending={false}
-      />,
-    );
+        }),
+      ],
+      selectedSessionId: null,
+    });
 
     const button = screen.getByRole('button', { name: 'Session 1' });
     const descriptionId = button.getAttribute('aria-describedby');
@@ -140,58 +130,49 @@ describe('SessionSelector', () => {
     expect(bundleBadge.querySelector('svg')).not.toBeNull();
   });
 
-  it('renders an edit action that renames the session', async () => {
+  it('allows session actions to be triggered from a context menu', async () => {
     const user = userEvent.setup();
     const handleRename = vi.fn();
+    const handleDelete = vi.fn();
 
-    render(
-      <SessionSelector
-        sessions={baseSessions}
-        selectedSessionId="session-1"
-        onSelectSession={vi.fn()}
-        onRenameSession={handleRename}
-        onDeleteSession={vi.fn()}
-        onCreateSession={vi.fn()}
-        isCreatePending={false}
-      />,
-    );
+    renderSelector({
+      onRenameSession: handleRename,
+      onDeleteSession: handleDelete,
+    });
 
-    await user.click(screen.getByRole('button', { name: 'Edit Session 1' }));
+    await user.click(screen.getByRole('button', { name: 'Session options for Session 1' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Rename session' }));
 
     expect(handleRename).toHaveBeenCalledWith('session-1');
+
+    await user.click(screen.getByRole('button', { name: 'Session options for Session 2' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Archive session' }));
+
+    expect(handleDelete).toHaveBeenCalledWith('session-2');
   });
 
-  it('aligns the delete action with the session controls', () => {
-    render(
-      <SessionSelector
-        sessions={baseSessions}
-        selectedSessionId="session-1"
-        onSelectSession={vi.fn()}
-        onRenameSession={vi.fn()}
-        onDeleteSession={vi.fn()}
-        onCreateSession={vi.fn()}
-        isCreatePending={false}
-      />,
+  it('can be collapsed to hide the session list when not needed', async () => {
+    const user = userEvent.setup();
+
+    renderSelector();
+
+    const collapseButton = screen.getByRole('button', {
+      name: /Collapse session list \(\d+ sessions\)/,
+    });
+    expect(collapseButton).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: 'Session 1' })).toBeInTheDocument();
+
+    await user.click(collapseButton);
+
+    expect(collapseButton).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: 'Session 1' })).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expand session list \(\d+ sessions\)/,
+      }),
     );
 
-    expect(screen.getByLabelText('Delete Session 1')).toHaveStyle('align-self: stretch');
-  });
-
-  it('renders a compact edit control without visible text while remaining accessible', () => {
-    render(
-      <SessionSelector
-        sessions={baseSessions}
-        selectedSessionId="session-1"
-        onSelectSession={vi.fn()}
-        onRenameSession={vi.fn()}
-        onDeleteSession={vi.fn()}
-        onCreateSession={vi.fn()}
-        isCreatePending={false}
-      />,
-    );
-
-    const editControl = screen.getByRole('button', { name: 'Edit Session 1' });
-    expect(editControl).toHaveAttribute('title', 'Edit Session 1');
-    expect(editControl).toHaveTextContent(/^\s*$/);
+    expect(screen.getByRole('button', { name: 'Session 1' })).toBeInTheDocument();
   });
 });
