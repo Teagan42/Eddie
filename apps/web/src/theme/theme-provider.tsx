@@ -36,6 +36,7 @@ function syncDocumentTheme(theme: RuntimeConfigDto["theme"]): void {
 
 const THEME_TRANSITION_CLASS = "theme-transition";
 const THEME_TRANSITION_MS = 320;
+const STALE_REPLAY_WINDOW_MS = 1000;
 
 export function ThemeProvider({ children }: { children: ReactNode }): JSX.Element {
   const api = useApi();
@@ -49,6 +50,9 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
     return (configQuery.data?.theme ?? "dark") as RuntimeConfigDto["theme"];
   });
   const userOverrideRef = useRef(false);
+  const pendingThemeRef = useRef<RuntimeConfigDto["theme"] | null>(null);
+  const previousThemeRef = useRef<RuntimeConfigDto["theme"] | null>(null);
+  const lastAckTimestampRef = useRef<number | null>(null);
   const transitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearThemeTransition = useCallback(() => {
@@ -82,6 +86,30 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
       return;
     }
 
+    if (pendingThemeRef.current) {
+      if (serverTheme === pendingThemeRef.current) {
+        pendingThemeRef.current = null;
+        userOverrideRef.current = false;
+        lastAckTimestampRef.current = Date.now();
+      }
+      return;
+    }
+
+    const previousTheme = previousThemeRef.current;
+    const lastAck = lastAckTimestampRef.current;
+    const isStaleReplay =
+      previousTheme !== null &&
+      serverTheme === previousTheme &&
+      lastAck !== null &&
+      Date.now() - lastAck < STALE_REPLAY_WINDOW_MS;
+
+    if (isStaleReplay) {
+      return;
+    }
+
+    previousThemeRef.current = null;
+    lastAckTimestampRef.current = null;
+
     if (serverTheme === theme) {
       userOverrideRef.current = false;
       return;
@@ -90,6 +118,7 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
     if (!userOverrideRef.current) {
       beginThemeTransition();
       setThemeState(serverTheme);
+      userOverrideRef.current = false;
     }
   }, [beginThemeTransition, configQuery.data?.theme, theme]);
 
@@ -100,6 +129,9 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
   const setTheme = useCallback(
     (nextTheme: RuntimeConfigDto["theme"]) => {
       userOverrideRef.current = true;
+      previousThemeRef.current = theme;
+      pendingThemeRef.current = nextTheme;
+      lastAckTimestampRef.current = null;
       beginThemeTransition();
       setThemeState(nextTheme);
       syncDocumentTheme(nextTheme);
@@ -111,7 +143,7 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
       });
       void api.http.config.update({ theme: nextTheme });
     },
-    [api, beginThemeTransition, queryClient]
+    [api, beginThemeTransition, queryClient, theme]
   );
 
   const value = useMemo<ThemeContextValue>(() => ({ theme, setTheme }), [theme, setTheme]);

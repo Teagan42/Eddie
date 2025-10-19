@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -93,6 +93,40 @@ describe("OverviewHero", () => {
     expect(hero.className).toContain("dark:to-[hsl(var(--hero-surface-to-dark))]");
 
     await user.click(screen.getByRole("button", { name: /cycle theme/i }));
+
+    await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
+
+    queryClient.clear();
+  });
+
+  it("keeps the toggled theme when the config query replays the previous value", async () => {
+    initialTheme = "light";
+    const user = userEvent.setup();
+    const queryClient = new QueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <ThemeHarness />
+        </ThemeProvider>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(false));
+
+    await user.click(screen.getByRole("button", { name: /cycle theme/i }));
+
+    await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
+
+    act(() => {
+      queryClient.setQueryData<Pick<RuntimeConfigDto, "theme">>(["config"], { theme: "dark" });
+    });
+
+    await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
+
+    act(() => {
+      queryClient.setQueryData<Pick<RuntimeConfigDto, "theme">>(["config"], { theme: "light" });
+    });
 
     await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
 
