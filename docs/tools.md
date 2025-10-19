@@ -85,3 +85,21 @@ controls:
 
 Responses include the pagination summary described in the implementation file,
 so UI surfaces can display counts while agents fetch more entries.
+
+## Shell and mutation tools: `bash` and `file_write`
+
+Runtime surfaces reuse the same safety rails when commands or edits are
+requested programmatically. The full parameter and output breakdown lives in
+the runtime reference for [bash](../platform/runtime/tools/README.md#bash) and
+[file_write](../platform/runtime/tools/README.md#file_write), and the handlers
+are implemented in
+[`platform/runtime/tools/src/builtin/bash.ts`](../platform/runtime/tools/src/builtin/bash.ts)
+and
+[`platform/runtime/tools/src/builtin/file_write.ts`](../platform/runtime/tools/src/builtin/file_write.ts).
+
+- `bash` prompts via `ctx.confirm` before running shell commands so humans can
+  vet destructive actions, constrains `cwd` to the workspace, and clamps `maxBytes`
+  to the 512 kB stdio ceiling.
+- `file_write` also calls `ctx.confirm` before persisting changes, ensures parent
+  folders exist, and records the UTF-8 byte count returned in the runtime
+  response for auditing purposes.
