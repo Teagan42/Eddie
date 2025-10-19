@@ -1,0 +1,108 @@
+{
+  "sessions": [
+    {
+      "id": "demo-screenshot",
+      "title": "Web walkthrough",
+      "createdAt": "2024-09-01T12:00:00Z",
+      "messages": [
+        {
+          "id": "msg-001",
+          "role": "user",
+          "content": "Show me how Eddie renders the trace timeline."
+        },
+        {
+          "id": "msg-002",
+          "role": "assistant",
+          "content": "Loading the pre-recorded session for the trace timeline screenshot."
+        },
+        {
+          "id": "msg-003",
+          "role": "assistant",
+          "content": "Here is the snapshot featuring the agent invocation tree with highlighted tool calls."
+        }
+      ],
+      "agentInvocationTree": {
+        "id": "root",
+        "agent": "demo-web",
+        "status": "succeeded",
+        "children": [
+          {
+            "id": "tool-plan",
+            "agent": "planner",
+            "status": "succeeded",
+            "tool": "plan",
+            "output": "Review repository docs and collect trace artifacts."
+          },
+          {
+            "id": "tool-trace",
+            "agent": "trace-inspector",
+            "status": "succeeded",
+            "tool": "trace.read",
+            "output": "Loaded 16 streamed events for screenshot annotations."
+          }
+        ]
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "evt-plan-accepted",
+      "type": "agent.plan.accepted",
+      "timestamp": "2024-09-01T12:00:02Z",
+      "payload": {
+        "agent": "planner",
+        "plan": [
+          "Collect repository overview",
+          "Capture trace timeline callouts"
+        ]
+      }
+    },
+    {
+      "id": "evt-trace-loaded",
+      "type": "trace.streaming.completed",
+      "timestamp": "2024-09-01T12:00:05Z",
+      "payload": {
+        "items": 16,
+        "durationMs": 820,
+        "notes": "Used to render the screenshot timeline"
+      }
+    },
+    {
+      "id": "evt-summary-finished",
+      "type": "agent.run.completed",
+      "timestamp": "2024-09-01T12:00:08Z",
+      "payload": {
+        "agent": "demo-web",
+        "output": "Annotated screenshot timeline for docs."
+      }
+    }
+  ],
+  "entries": [
+    {
+      "timestamp": "2024-09-01T12:00:01Z",
+      "level": "info",
+      "message": "Seeded planner output for screenshot mode.",
+      "context": {
+        "module": "demo-web",
+        "component": "planner"
+      }
+    },
+    {
+      "timestamp": "2024-09-01T12:00:04Z",
+      "level": "debug",
+      "message": "Replayed trace streaming events for timeline view.",
+      "context": {
+        "events": 16,
+        "component": "trace-inspector"
+      }
+    },
+    {
+      "timestamp": "2024-09-01T12:00:07Z",
+      "level": "info",
+      "message": "Completed screenshot narration without external requests.",
+      "context": {
+        "component": "demo-web"
+      }
+    }
+  ]
+}
