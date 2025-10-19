@@ -257,6 +257,39 @@ export interface ChatSessionsSocket {
     emitMessage(sessionId: string, payload: CreateChatMessageDto): void;
 }
 
+export interface ChatMessageReasoningPayload {
+    sessionId: string;
+    messageId: string;
+    text?: string;
+    metadata?: Record<string, unknown> | undefined;
+    timestamp?: string | undefined;
+    agentId?: string | null | undefined;
+    responseId?: string | undefined;
+}
+
+type ChatMessageReasoningPartialEvent = {
+    sessionId: string;
+    messageId: string;
+    text: string;
+    metadata?: Record<string, unknown> | undefined;
+    timestamp?: string | undefined;
+    agentId?: string | null | undefined;
+};
+
+type ChatMessageReasoningCompleteEvent = {
+    sessionId: string;
+    messageId: string;
+    responseId?: string | undefined;
+    text?: string | undefined;
+    metadata?: Record<string, unknown> | undefined;
+    timestamp?: string | undefined;
+    agentId?: string | null | undefined;
+};
+
+type ChatMessageReasoningEvent =
+    | ChatMessageReasoningPartialEvent
+    | ChatMessageReasoningCompleteEvent;
+
 export interface ChatMessagesSocket {
     onMessagePartial(handler: (message: ChatMessageDto) => void): Unsubscribe;
     onReasoningPartial(
@@ -354,6 +387,20 @@ export interface ApiClient {
 
 function normalizeBaseUrl(url: string): string {
   return url.replace(/\/$/u, "");
+}
+
+function toReasoningPayload(
+  payload: ChatMessageReasoningEvent
+): ChatMessageReasoningPayload {
+  return {
+    sessionId: payload.sessionId,
+    messageId: payload.messageId,
+    text: payload.text,
+    metadata: payload.metadata,
+    timestamp: payload.timestamp,
+    agentId: payload.agentId,
+    responseId: "responseId" in payload ? payload.responseId : undefined,
+  };
 }
 
 export function createApiClient(options: ApiClientOptions): ApiClient {

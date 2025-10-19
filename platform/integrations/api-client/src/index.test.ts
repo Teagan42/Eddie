@@ -233,6 +233,93 @@ describe("createApiClient", () => {
     });
   });
 
+  it("wires reasoning events through the chat messages socket", () => {
+    const client = createApiClient({
+      baseUrl: "https://example.test/api/",
+      websocketUrl: "ws://example.test/ws/",
+    });
+
+    const chatMessagesChannel = createdChannels[ 1 ]!;
+    const partialHandler = vi.fn();
+    const completeHandler = vi.fn();
+
+    const unsubscribePartial = client.sockets.chatMessages.onReasoningPartial(
+      partialHandler
+    );
+    const unsubscribeComplete = client.sockets.chatMessages.onReasoningComplete(
+      completeHandler
+    );
+
+    const partialCalls = chatMessagesChannel.on.mock.calls.filter(
+      (call) => call[ 0 ] === "message.reasoning.partial"
+    );
+    expect(partialCalls).toHaveLength(1);
+    const [, partialWrapper] = partialCalls[ 0 ]!;
+    expect(typeof partialWrapper).toBe("function");
+
+    const partialPayload = {
+      sessionId: "session-1",
+      messageId: "message-1",
+      text: "thinking",
+      metadata: { stage: "analysis" },
+      timestamp: "2024-01-01T00:00:00Z",
+      agentId: "agent-1",
+    };
+
+    partialWrapper?.(partialPayload);
+
+    expect(partialHandler).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      messageId: "message-1",
+      text: "thinking",
+      metadata: { stage: "analysis" },
+      timestamp: "2024-01-01T00:00:00Z",
+      agentId: "agent-1",
+      responseId: undefined,
+    });
+
+    const completeCalls = chatMessagesChannel.on.mock.calls.filter(
+      (call) => call[ 0 ] === "message.reasoning.completed"
+    );
+    expect(completeCalls).toHaveLength(1);
+    const [, completeWrapper] = completeCalls[ 0 ]!;
+    expect(typeof completeWrapper).toBe("function");
+
+    const completePayload = {
+      sessionId: "session-1",
+      messageId: "message-1",
+      responseId: "response-1",
+      text: "done",
+      metadata: { stage: "final" },
+      timestamp: "2024-01-01T00:01:00Z",
+      agentId: "agent-2",
+    };
+
+    completeWrapper?.(completePayload);
+
+    expect(completeHandler).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      messageId: "message-1",
+      responseId: "response-1",
+      text: "done",
+      metadata: { stage: "final" },
+      timestamp: "2024-01-01T00:01:00Z",
+      agentId: "agent-2",
+    });
+
+    unsubscribePartial();
+    expect(
+      chatMessagesChannel.handlers.get("message.reasoning.partial")?.size ?? 0
+    ).toBe(0);
+
+    unsubscribeComplete();
+    expect(
+      chatMessagesChannel.handlers.get("message.reasoning.completed")?.size ?? 0
+    ).toBe(0);
+
+    client.dispose();
+  });
+
   it("fans out batched log events to the consumer", () => {
     const client = createApiClient({
       baseUrl: "https://example.test/api/",
