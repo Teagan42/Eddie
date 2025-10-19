@@ -141,6 +141,7 @@ describe("ChatSessionEventsService", () => {
       "s1",
       "m1",
       "resp-9",
+      "Thinking complete",
       { step: 2 },
       "2024-01-01T00:00:01.000Z",
       "agent-7",
@@ -148,13 +149,16 @@ describe("ChatSessionEventsService", () => {
 
     events.handle(completion);
 
-    expect((gateway.emitReasoningComplete as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith({
-      sessionId: "s1",
-      messageId: "m1",
-      responseId: "resp-9",
-      metadata: { step: 2 },
-      timestamp: "2024-01-01T00:00:01.000Z",
-      agentId: "agent-7",
-    });
+    expect((gateway.emitReasoningComplete as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "s1",
+        messageId: "m1",
+        responseId: "resp-9",
+        metadata: { step: 2 },
+        timestamp: "2024-01-01T00:00:01.000Z",
+        agentId: "agent-7",
+        text: "Thinking complete",
+      })
+    );
   });
 });

@@ -64,6 +64,7 @@ implements
         sessionId: event.sessionId,
         messageId: event.messageId,
         responseId: event.responseId,
+        text: event.text,
         metadata: event.metadata,
         timestamp: event.timestamp,
         agentId: event.agentId ?? null,
@@ -126,6 +127,7 @@ implements
     sessionId: string;
     messageId: string;
     responseId: string | undefined;
+    text: string | undefined;
     metadata: Record<string, unknown> | undefined;
     timestamp: string | undefined;
     agentId: string | null;

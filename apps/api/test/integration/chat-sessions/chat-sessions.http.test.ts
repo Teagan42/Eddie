@@ -283,6 +283,7 @@ describe("ChatSessionsController HTTP", () => {
         session.id,
         message.id,
         "resp-xyz",
+        "Thinking",
         { stage: "analysis" },
         completeTimestamp,
         "agent-999",
@@ -301,14 +302,17 @@ describe("ChatSessionsController HTTP", () => {
     );
 
     await vi.waitFor(() =>
-      expect(completeSpy).toHaveBeenCalledWith({
-        sessionId: session.id,
-        messageId: message.id,
-        responseId: "resp-xyz",
-        metadata: { stage: "analysis" },
-        timestamp: completeTimestamp,
-        agentId: "agent-999",
-      })
+      expect(completeSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionId: session.id,
+          messageId: message.id,
+          responseId: "resp-xyz",
+          metadata: { stage: "analysis" },
+          timestamp: completeTimestamp,
+          agentId: "agent-999",
+          text: "Thinking",
+        })
+      )
     );
   });
 });

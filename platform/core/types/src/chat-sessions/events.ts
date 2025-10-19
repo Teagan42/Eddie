@@ -44,6 +44,7 @@ export class ChatMessageReasoningCompleteEvent {
     public readonly sessionId: string,
     public readonly messageId: string,
     public readonly responseId: string | undefined,
+    public readonly text: string | undefined,
     public readonly metadata: Record<string, unknown> | undefined,
     public readonly timestamp: string | undefined,
     public readonly agentId: string | null | undefined,

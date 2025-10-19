@@ -223,14 +223,21 @@ export class ChatSessionStreamRendererService {
     const messageId = await this.ensureReasoningMessage(state);
     const reasoning = state.reasoning;
     const timestamp = this.now();
-    const metadata = event.metadata ?? reasoning?.metadata;
-    const agentId = event.agentId ?? reasoning?.agentId ?? null;
+    const {
+      buffer: reasoningText,
+      metadata: reasoningMetadata,
+      agentId: reasoningAgentId,
+    } = reasoning ?? { buffer: undefined, metadata: undefined, agentId: null };
+    const text = reasoningText;
+    const metadata = event.metadata ?? reasoningMetadata;
+    const agentId = event.agentId ?? reasoningAgentId ?? null;
 
     this.eventBus.publish(
       new ChatMessageReasoningCompleteEvent(
         state.sessionId,
         messageId,
         event.responseId,
+        text,
         metadata,
         timestamp,
         agentId,
