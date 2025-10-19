@@ -79,6 +79,11 @@ const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
   },
 };
 
+const REASONING_STATUS_VARIANTS = {
+  streaming: { label: 'Streaming', badge: 'blue' as BadgeColor },
+  completed: { label: 'Completed', badge: 'green' as BadgeColor },
+};
+
 type AgentMetadata = {
   id?: string | null;
   name?: string | null;
@@ -102,9 +107,21 @@ type MessageMetadata = {
   } | null;
 } | null;
 
+type MessageReasoning = {
+  text?: string;
+  metadata?: Record<string, unknown>;
+  timestamp?: string;
+  responseId?: string;
+  agentId?: string | null;
+  status?: "streaming" | "completed";
+} | null;
+
 type MessageWithMetadata = ChatMessageDto & {
   metadata?: MessageMetadata;
+  reasoning?: MessageReasoning;
 };
+
+export type MessageListItem = MessageWithMetadata;
 
 function getNonEmptyString(value: unknown): string | null {
   if (typeof value !== 'string') {
@@ -264,9 +281,26 @@ function buildToolInvocationLabel(summary: { name: string; status: ToolStatus })
   return `${summary.name} tool invocation (${statusLabel})`;
 }
 
+function getReasoningAgentLabel(
+  message: MessageWithMetadata,
+  reasoning: MessageReasoning,
+): string | null {
+  const explicit = getNonEmptyString(reasoning?.agentId);
+  if (explicit) {
+    return explicit;
+  }
+
+  const agentMetadata = message.metadata?.agent ?? null;
+  if (!agentMetadata) {
+    return null;
+  }
+
+  return firstNonEmpty(agentMetadata.name, agentMetadata.id);
+}
+
 export interface MessageListProps {
-  messages: ChatMessageDto[];
-  onReissueCommand: (message: ChatMessageDto) => void;
+  messages: MessageWithMetadata[];
+  onReissueCommand: (message: MessageListItem) => void;
   scrollAnchorRef: RefObject<HTMLDivElement>;
   onInspectToolInvocation?: (toolCallId: string | null) => void;
 }
@@ -308,6 +342,15 @@ export function MessageList({
               const toolInvocationId = isToolMessage
                 ? getToolInvocationId(messageWithMetadata)
                 : null;
+              const reasoning = messageWithMetadata.reasoning ?? null;
+              const hasReasoning = typeof reasoning?.text === 'string' && reasoning.text.trim().length > 0;
+              const reasoningStatus =
+                reasoning?.status === 'completed' ? 'completed' : 'streaming';
+              const reasoningVariant = REASONING_STATUS_VARIANTS[reasoningStatus];
+              const reasoningAgentLabel = getReasoningAgentLabel(
+                messageWithMetadata,
+                reasoning,
+              );
 
               return (
                 <Box key={message.id} className={alignmentClass}>
@@ -401,6 +444,32 @@ export function MessageList({
                         className={cn('text-base text-white', roleStyle.contentClassName)}
                       />
                     )}
+                    {hasReasoning ? (
+                      <Box
+                        className="mt-4 space-y-2 rounded-xl border border-white/10 bg-white/5 p-4"
+                        data-testid="chat-message-reasoning"
+                      >
+                        <Flex align="center" justify="between" className="flex-wrap gap-2">
+                          <Text
+                            size="1"
+                            className="text-xs font-semibold uppercase tracking-wide text-slate-200/80"
+                          >
+                            Reasoning
+                          </Text>
+                          <Badge color={reasoningVariant.badge} variant="soft">
+                            {reasoningVariant.label}
+                          </Badge>
+                        </Flex>
+                        {reasoningAgentLabel ? (
+                          <Text size="1" color="gray" className="text-xs text-slate-300">
+                            Agent {reasoningAgentLabel}
+                          </Text>
+                        ) : null}
+                        <Text size="2" className="whitespace-pre-wrap text-slate-200">
+                          {reasoning?.text ?? ''}
+                        </Text>
+                      </Box>
+                    ) : null}
                   </Box>
                 </Box>
               );
