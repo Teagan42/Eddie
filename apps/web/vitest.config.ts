@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(workspaceRoot, "src"),
+      "@eddie/ui": resolve(workspaceRoot, "../../platform/ui/src"),
     },
   },
   test: {

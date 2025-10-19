@@ -24,3 +24,8 @@ export type UiMetadata = Readonly<UiPackageMetadata>;
 export function createUiMetadata(metadata: UiPackageMetadata): UiMetadata {
   return { ...metadata };
 }
+
+export { EddieButton } from './components/eddie-button';
+export type { EddieButtonProps } from './components/eddie-button';
+export { EddieIcon } from './components/eddie-icon';
+export type { EddieIconProps } from './components/eddie-icon';

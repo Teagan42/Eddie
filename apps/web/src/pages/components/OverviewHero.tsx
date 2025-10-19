@@ -6,6 +6,7 @@ import type { OverviewStat } from "./OverviewStatsGrid";
 import { OverviewStatsGrid } from "./OverviewStatsGrid";
 import type { RuntimeConfigDto } from "@eddie/api-client";
 import { AVAILABLE_THEMES, formatThemeLabel } from "@/theme";
+import { EddieButton, EddieIcon } from "@eddie/ui";
 
 interface OverviewHeroProps {
   apiKey: string | null;
@@ -79,25 +80,12 @@ export function OverviewHero({
             Observe sessions, traces, and logs at a glance while keeping configuration and API credentials at your fingertips.
           </Text>
           <Flex gap="3" wrap="wrap">
-            <Button
-              size="3"
-              variant="solid"
-              className={cn(
-                "bg-gradient-to-r",
-                "from-[hsl(var(--hero-cta-from))] via-[hsl(var(--hero-cta-via))] to-[hsl(var(--hero-cta-to))]",
-                "text-[color:var(--hero-cta-foreground)]",
-                "shadow-[var(--hero-cta-shadow)]",
-                "dark:from-[hsl(var(--hero-cta-from-dark))] dark:via-[hsl(var(--hero-cta-via-dark))] dark:to-[hsl(var(--hero-cta-to-dark))]",
-                "dark:text-[color:var(--hero-cta-foreground-dark)]",
-                "dark:shadow-[var(--hero-cta-shadow-dark)]"
-              )}
-              asChild
-            >
+            <EddieButton>
               <Link to="/chat" className="inline-flex items-center gap-2">
                 Launch Chat Console
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
-            </Button>
+            </EddieButton>
             <Select.Root value={theme} onValueChange={onSelectTheme} disabled={isThemeSelectorDisabled}>
               <Select.Trigger
                 aria-label="Theme"
@@ -171,21 +159,7 @@ export function OverviewHero({
               </Badge>
             </Flex>
             <Flex align="center" gap="3">
-              <div
-                className={cn(
-                  "flex h-12 w-12 items-center justify-center rounded-2xl",
-                  "bg-[color:var(--hero-console-icon-bg)]",
-                  "dark:bg-[color:var(--hero-console-icon-bg-dark)]"
-                )}
-              >
-                <KeyRound
-                  className={cn(
-                    "h-6 w-6",
-                    "text-[color:var(--hero-console-icon-fg)]",
-                    "dark:text-[color:var(--hero-console-icon-fg-dark)]"
-                  )}
-                />
-              </div>
+              <EddieIcon icon={KeyRound} />
               <Flex direction="column">
                 <Text size="2" weight="medium">
                   {apiKey ? "API key ready" : "No key provided"}
