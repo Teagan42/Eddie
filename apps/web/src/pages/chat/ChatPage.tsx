@@ -53,6 +53,11 @@ import {
   type ExecutionTreeState,
   type ToolEventPayload,
 } from './execution-tree-state';
+import {
+  createProviderProfileOptions,
+  extractProviderProfiles,
+  type ProviderOption,
+} from '../shared/providerProfiles';
 
 const ORCHESTRATOR_METADATA_QUERY_KEY = 'orchestrator-metadata' as const;
 
@@ -77,43 +82,6 @@ const SCROLL_VIEWPORT_SELECTOR = '[data-radix-scroll-area-viewport]';
 
 const CHAT_SESSIONS_QUERY_KEY = ['chat-sessions'] as const;
 const CONFIG_EDITOR_QUERY_KEY = ['config', 'editor'] as const;
-
-interface ProviderProfileSnapshot {
-  provider?: {
-    name?: string;
-    [key: string]: unknown;
-  };
-  model?: string;
-  label?: string;
-  [key: string]: unknown;
-}
-
-interface ProviderOption {
-  value: string;
-  label: string;
-  providerName: string;
-  defaultModel?: string;
-}
-
-function extractProviderProfiles(
-  config: EddieConfigSourceDto['config'] | undefined | null,
-): Record<string, ProviderProfileSnapshot> {
-  if (!config || typeof config !== 'object') {
-    return {};
-  }
-
-  const candidate = (config as { providers?: unknown }).providers;
-  if (!candidate || typeof candidate !== 'object') {
-    return {};
-  }
-
-  return Object.fromEntries(
-    Object.entries(candidate).filter((entry): entry is [string, ProviderProfileSnapshot] => {
-      const [, profile] = entry;
-      return typeof profile === 'object' && profile !== null;
-    }),
-  );
-}
 
 const scrollMessageViewportToBottom = (anchor: HTMLElement): void => {
   const viewport = anchor.closest(SCROLL_VIEWPORT_SELECTOR);
@@ -1073,32 +1041,17 @@ export function ChatPage(): JSX.Element {
 
   const activeSettings = selectedSessionId ? (sessionSettings[selectedSessionId] ?? {}) : {};
 
+  const profileProviderOptions = useMemo(
+    () => createProviderProfileOptions(providerProfiles),
+    [providerProfiles],
+  );
+
   const providerOptions = useMemo<ProviderOption[]>(() => {
-    const entries = Object.entries(providerProfiles);
-    if (entries.length === 0) {
+    if (profileProviderOptions.length === 0) {
       return [];
     }
 
-    const options: ProviderOption[] = entries.reduce<ProviderOption[]>((acc, [profileId, profile]) => {
-      const providerName = profile?.provider?.name;
-      if (!providerName) {
-        return acc;
-      }
-
-      const labelCandidate =
-        typeof profile.label === 'string' ? profile.label.trim() : '';
-      const optionLabel = labelCandidate ? labelCandidate : profileId;
-
-      acc.push({
-        value: profileId,
-        label: optionLabel,
-        providerName,
-        defaultModel: typeof profile.model === 'string' ? profile.model : undefined,
-      });
-      return acc;
-    }, []);
-
-    options.sort((a, b) => a.label.localeCompare(b.label));
+    const options = [...profileProviderOptions];
 
     if (
       activeSettings.provider &&
@@ -1114,7 +1067,7 @@ export function ChatPage(): JSX.Element {
     }
 
     return options;
-  }, [activeSettings.model, activeSettings.provider, providerProfiles]);
+  }, [activeSettings.model, activeSettings.provider, profileProviderOptions]);
 
   const providerOptionsByValue = useMemo(() => {
     const map = new Map<string, ProviderOption>();
