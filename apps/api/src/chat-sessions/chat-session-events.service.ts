@@ -4,6 +4,8 @@ import { ChatMessagesGateway } from "./chat-messages.gateway";
 import type { ChatMessageDto } from "./dto/chat-session.dto";
 import {
   ChatMessagePartialEvent,
+  ChatMessageReasoningCompleteEvent,
+  ChatMessageReasoningDeltaEvent,
   ChatSessionToolCallEvent,
   ChatSessionToolResultEvent,
 } from "@eddie/types";
@@ -13,6 +15,8 @@ import { CompleteToolCallCommand } from "../tools/commands/complete-tool-call.co
 @Injectable()
 @EventsHandler(
   ChatMessagePartialEvent,
+  ChatMessageReasoningDeltaEvent,
+  ChatMessageReasoningCompleteEvent,
   ChatSessionToolCallEvent,
   ChatSessionToolResultEvent,
 )
@@ -20,6 +24,8 @@ export class ChatSessionEventsService
 implements
     IEventHandler<
       | ChatMessagePartialEvent
+      | ChatMessageReasoningDeltaEvent
+      | ChatMessageReasoningCompleteEvent
       | ChatSessionToolCallEvent
       | ChatSessionToolResultEvent
     > {
@@ -31,11 +37,37 @@ implements
   handle(
     event:
       | ChatMessagePartialEvent
+      | ChatMessageReasoningDeltaEvent
+      | ChatMessageReasoningCompleteEvent
       | ChatSessionToolCallEvent
       | ChatSessionToolResultEvent
   ): void {
     if (event instanceof ChatMessagePartialEvent) {
       this.emitPartial(event.message as ChatMessageDto);
+      return;
+    }
+
+    if (event instanceof ChatMessageReasoningDeltaEvent) {
+      this.emitReasoningPartial({
+        sessionId: event.sessionId,
+        messageId: event.messageId,
+        text: event.text,
+        metadata: event.metadata,
+        timestamp: event.timestamp,
+        agentId: event.agentId ?? null,
+      });
+      return;
+    }
+
+    if (event instanceof ChatMessageReasoningCompleteEvent) {
+      this.emitReasoningComplete({
+        sessionId: event.sessionId,
+        messageId: event.messageId,
+        responseId: event.responseId,
+        metadata: event.metadata,
+        timestamp: event.timestamp,
+        agentId: event.agentId ?? null,
+      });
       return;
     }
 
@@ -72,6 +104,36 @@ implements
       this.messagesGateway.emitPartial(message);
     } catch {
       // Ignore gateway errors to keep stream rendering resilient.
+    }
+  }
+
+  private emitReasoningPartial(payload: {
+    sessionId: string;
+    messageId: string;
+    text: string;
+    metadata: Record<string, unknown> | undefined;
+    timestamp: string | undefined;
+    agentId: string | null;
+  }): void {
+    try {
+      this.messagesGateway.emitReasoningPartial(payload);
+    } catch {
+      // Ignore gateway errors to keep stream rendering resilient.
+    }
+  }
+
+  private emitReasoningComplete(payload: {
+    sessionId: string;
+    messageId: string;
+    responseId: string | undefined;
+    metadata: Record<string, unknown> | undefined;
+    timestamp: string | undefined;
+    agentId: string | null;
+  }): void {
+    try {
+      this.messagesGateway.emitReasoningComplete(payload);
+    } catch {
+      // Ignore gateway errors to keep event pipeline resilient.
     }
   }
 
