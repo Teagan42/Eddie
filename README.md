@@ -52,6 +52,11 @@ Use the session list to rename or delete chat sessions; changes are broadcast im
   - `file_search` for filtered, paginated code and text lookups
   - `get_folder_tree_structure` for directory maps that respect dependency exclusions
   - `get_plan` for reading structured task plans maintained alongside code
+  - `agent__get_task_list` for retrieving shared task lists with optional abridged summaries
+  - `agent__new_task_list` for seeding workspace task documents with optional metadata
+  - `agent__new_task` for inserting work items with metadata, summaries, and ordering hints
+  - `agent__set_task_status` for updating workflow states with confirmation prompts
+  - `agent__delete_task` for removing completed or invalid tasks after review
   - `agent__new_task_list` for seeding workspace task documents with optional metadata
   - `update_plan` for incrementally persisting plan edits and status changes
   - `complete_task` for marking plan items finished with optional notes
@@ -83,6 +88,17 @@ or more compared to the last successful run. Alerts fail the workflow and leave
 an annotated comment on the offending commit so maintainers can respond quickly.
 See [docs/performance-benchmarks.md](docs/performance-benchmarks.md) for guidance
 on reading the charts and interpreting alert notifications.
+
+## Docker setup
+
+Run the platform without installing Node by building the workspace image and launching the API through Docker Compose:
+
+```bash
+docker compose up -d
+docker compose logs -f api
+```
+
+The compose file targets the `development` stage in the shared Dockerfile, mounts the repository into the container for live reloads, and exposes the API on port 3000. Switch to the production stage with `--profile production` to boot the API with compiled artifacts and production dependencies only. Review `docker-compose.yml` for port mappings, environment variables, and volume overrides that fit your environment.
 
 ## Web UI
 

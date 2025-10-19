@@ -5,18 +5,10 @@ import {
   insertTaskPayload,
   readTaskListDocument,
   sanitiseTaskListName,
+  formatTaskListResult,
   writeTaskListDocument,
-  type TaskListDocument,
   type TaskListTaskStatus,
 } from "./task_list";
-
-const SCHEMA_ID = TASK_LIST_RESULT_SCHEMA.$id;
-
-const buildResult = (document: TaskListDocument, content: string) => ({
-  schema: SCHEMA_ID,
-  content,
-  data: document,
-});
 
 interface AgentNewTaskArguments {
   taskListName: string;
@@ -75,10 +67,11 @@ export const agentNewTaskTool: ToolDefinition = {
     });
 
     if (!confirmation) {
-      return buildResult(
+      return formatTaskListResult({
         document,
-        `Task creation cancelled for "${taskListName}".`,
-      );
+        listName: taskListName,
+        header: `Task creation cancelled for "${taskListName}".`,
+      });
     }
 
     const { tasks, index } = insertTaskPayload({
@@ -112,6 +105,10 @@ export const agentNewTaskTool: ToolDefinition = {
 
     const content = `Added task "${inserted.title}" (status ${inserted.status}) to "${taskListName}".`;
 
-    return buildResult(updated, content);
+    return formatTaskListResult({
+      document: updated,
+      listName: taskListName,
+      header: content,
+    });
   },
 };

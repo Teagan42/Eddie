@@ -9,6 +9,7 @@ const listMessagesMock = vi.fn();
 const createSessionMock = vi.fn();
 const getMetadataMock = vi.fn();
 const getExecutionStateMock = vi.fn();
+const loadConfigMock = vi.fn();
 const useAuthMock = vi.fn();
 const updatePreferencesMock = vi.fn();
 
@@ -71,6 +72,9 @@ vi.mock("@/api/api-provider", () => ({
         getMetadata: getMetadataMock,
         getExecutionState: getExecutionStateMock,
       },
+      config: {
+        loadEddieConfig: loadConfigMock,
+      },
       providers: {
         catalog: catalogMock,
       },
@@ -110,6 +114,21 @@ describe("ChatPage authentication behaviours", () => {
 
     useAuthMock.mockReturnValue({ apiKey: "test-key", setApiKey: vi.fn() });
     catalogMock.mockResolvedValue([]);
+    loadConfigMock.mockResolvedValue({
+      path: null,
+      format: "yaml" as const,
+      content: "",
+      input: {},
+      config: {
+        providers: {
+          "profile-openai": {
+            provider: { name: "openai" },
+            model: "gpt-4.1",
+          },
+        },
+      },
+      error: null,
+    });
     listSessionsMock.mockResolvedValue([]);
     listMessagesMock.mockResolvedValue([]);
     getMetadataMock.mockResolvedValue({

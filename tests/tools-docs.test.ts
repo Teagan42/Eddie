@@ -8,6 +8,16 @@ const treeModulePath =
   'platform/runtime/tools/src/builtin/get_folder_tree_structure.ts';
 const bashModulePath = 'platform/runtime/tools/src/builtin/bash.ts';
 const fileWriteModulePath = 'platform/runtime/tools/src/builtin/file_write.ts';
+const taskListModulePath = 'platform/runtime/tools/src/builtin/task_list.ts';
+const planAndTaskListTools = [
+  'get_plan',
+  'update_plan',
+  'complete_task',
+  'agent__get_task_list',
+  'agent__new_task',
+  'agent__set_task_status',
+  'agent__delete_task',
+];
 const runtimeToolsReadmePath = 'platform/runtime/tools/README.md';
 const builtinToolNames = [
   'bash',
@@ -19,6 +29,10 @@ const builtinToolNames = [
   'complete_task',
   'update_plan',
   'agent__new_task_list',
+  'agent__get_task_list',
+  'agent__new_task',
+  'agent__set_task_status',
+  'agent__delete_task',
 ];
 
 describe('tools documentation', () => {
@@ -30,16 +44,21 @@ describe('tools documentation', () => {
     runtimeReadme = read(runtimeToolsReadmePath);
   });
 
-  it('documents plan management workflow and schemas', () => {
-    expect(doc).toContain('get_plan');
-    expect(doc).toContain('update_plan');
-    expect(doc).toContain('complete_task');
+  it('documents plan and task list workflow and schemas', () => {
+    for (const tool of planAndTaskListTools) {
+      expect(doc).toContain(tool);
+    }
     expect(doc).toContain('CONFIG_ROOT');
     expect(doc).toContain('plan.directory');
     expect(doc).toContain('PlanDocument');
     expect(doc).toContain('PlanTask');
     expect(doc).toContain('PLAN_RESULT_SCHEMA');
+    expect(doc).toContain('TASK_LIST_RESULT_SCHEMA');
+    expect(doc).toContain('.tasks/');
+    expect(doc).toMatch(/abridged/i);
+    expect(doc).toMatch(/ctx\.confirm/i);
     expect(doc).toContain(planModulePath);
+    expect(doc).toContain(taskListModulePath);
   });
 
   it('explains file_search filters, pagination, and schema reference', () => {

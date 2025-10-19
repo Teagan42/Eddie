@@ -15,6 +15,7 @@ const getMetadataMock = vi.fn();
 const getExecutionStateMock = vi.fn();
 const useAuthMock = vi.fn();
 const updatePreferencesMock = vi.fn();
+const loadConfigMock = vi.fn();
 
 class ResizeObserverMock {
   observe(): void {}
@@ -74,6 +75,9 @@ vi.mock("@/api/api-provider", () => ({
         getMetadata: getMetadataMock,
         getExecutionState: getExecutionStateMock,
       },
+      config: {
+        loadEddieConfig: loadConfigMock,
+      },
       providers: {
         catalog: catalogMock,
       },
@@ -111,6 +115,21 @@ describe("ChatPage composer interactions", () => {
     const timestamp = new Date().toISOString();
 
     catalogMock.mockResolvedValue([]);
+    loadConfigMock.mockResolvedValue({
+      path: null,
+      format: "yaml" as const,
+      content: "",
+      input: {},
+      config: {
+        providers: {
+          "profile-openai": {
+            provider: { name: "openai" },
+            model: "gpt-4.1",
+          },
+        },
+      },
+      error: null,
+    });
     listSessionsMock.mockResolvedValue([
       {
         id: "session-1",
@@ -152,5 +171,16 @@ describe("ChatPage composer interactions", () => {
       role: "user",
       content: "Hello world",
     });
+  });
+
+  it("does not render template actions", async () => {
+    renderChatPage();
+
+    await screen.findByRole("button", { name: /open agent tools/i });
+
+    expect(
+      screen.queryByRole("button", { name: /save template/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/load template/i)).not.toBeInTheDocument();
   });
 });

@@ -17,7 +17,17 @@ const isMockFunction = (value: unknown): value is MockCandidate =>
 
 export const isBenchmarkMode = (): boolean => {
   const mode = process.env.VITEST_MODE?.toLowerCase();
-  return mode ? BENCH_MODE_VALUES.has(mode) : false;
+  if (mode && BENCH_MODE_VALUES.has(mode)) {
+    return true;
+  }
+
+  const lifecycle = process.env.npm_lifecycle_script?.toLowerCase() ?? '';
+  if (lifecycle.includes('vitest bench')) {
+    return true;
+  }
+
+  const normalizedArgs = process.argv.slice(2).map((arg) => arg.toLowerCase());
+  return normalizedArgs.some((arg) => BENCH_MODE_VALUES.has(arg));
 };
 
 export function isBenchUnavailableError(error: unknown): error is Error {

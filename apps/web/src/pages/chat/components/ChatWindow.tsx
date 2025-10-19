@@ -8,12 +8,12 @@ import {
   type AgentActivityState,
 } from '../AgentActivityIndicator';
 import { MessageComposer } from '../../components/MessageComposer';
-import { MessageList } from './MessageList';
+import { MessageList, type MessageListItem } from './MessageList';
 
 export type ComposerRole = 'user' | 'system';
 
 export interface ChatWindowProps {
-  messages: ChatMessageDto[];
+  messages: MessageListItem[];
   onReissueCommand: (message: ChatMessageDto) => void;
   scrollAnchorRef: RefObject<HTMLDivElement>;
   agentActivityState: AgentActivityState;

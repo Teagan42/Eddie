@@ -3,11 +3,10 @@ import type { ToolDefinition } from "@eddie/types";
 import {
   TASK_LIST_RESULT_SCHEMA,
   readTaskListDocument,
-  renderTaskListContent,
+  formatTaskListResult,
   sanitiseTaskListName,
   sanitiseTaskId,
   writeTaskListDocument,
-  type TaskListDocument,
   type TaskListTaskPayload,
 } from "./task_list";
 
@@ -16,23 +15,6 @@ interface AgentDeleteTaskArguments {
   taskId: string;
   abridged?: boolean;
 }
-
-const SCHEMA_ID = TASK_LIST_RESULT_SCHEMA.$id;
-
-const buildResult = (
-  document: TaskListDocument,
-  listName: string,
-  abridged: boolean,
-  header: string,
-) => ({
-  schema: SCHEMA_ID,
-  content: `${header}\n${renderTaskListContent({
-    listName,
-    document,
-    abridged,
-  })}`.trim(),
-  data: document,
-});
 
 export const agentDeleteTaskTool: ToolDefinition = {
   name: "agent__delete_task",
@@ -77,12 +59,12 @@ export const agentDeleteTaskTool: ToolDefinition = {
     );
 
     if (!confirmation) {
-      return buildResult(
+      return formatTaskListResult({
         document,
-        taskListName,
-        abridgedResult,
-        `Deletion cancelled for "${taskListName}".`,
-      );
+        listName: taskListName,
+        abridged: abridgedResult,
+        header: `Deletion cancelled for "${taskListName}".`,
+      });
     }
 
     const tasks: TaskListTaskPayload[] = document.tasks
@@ -100,12 +82,12 @@ export const agentDeleteTaskTool: ToolDefinition = {
       preserveTaskUpdatedAt: true,
     });
 
-    return buildResult(
-      updated,
-      taskListName,
-      abridgedResult,
-      `Deleted task "${taskId}" from list "${taskListName}".`,
-    );
+    return formatTaskListResult({
+      document: updated,
+      listName: taskListName,
+      abridged: abridgedResult,
+      header: `Deleted task "${taskId}" from list "${taskListName}".`,
+    });
   },
 };
 

@@ -37,6 +37,22 @@ describe('code-assistant router instructions', () => {
         name: 'documents the get_folder_structure navigation tool',
         pattern: /get_folder_structure tool/i,
       },
+      {
+        name: 'documents the agent__get_task_list retrieval tool',
+        pattern: /agent__get_task_list tool/i,
+      },
+      {
+        name: 'documents the agent__new_task creation tool',
+        pattern: /agent__new_task tool/i,
+      },
+      {
+        name: 'documents the agent__set_task_status update tool',
+        pattern: /agent__set_task_status tool/i,
+      },
+      {
+        name: 'documents the agent__delete_task removal tool',
+        pattern: /agent__delete_task tool/i,
+      },
     ];
 
     it.each(conventionsExpectations)('%s', ({ pattern }) => {

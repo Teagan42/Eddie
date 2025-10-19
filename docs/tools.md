@@ -5,7 +5,7 @@ capabilities out of the box. This guide explains how the plan-aware tools work
 in tandem and how to safely invoke the file discovery helpers that power most
 code-editing loops.
 
-## Plan and task list tools: `agent__new_task_list`, `get_plan`, `update_plan`, `complete_task`
+## Plan and task list tools: `agent__new_task_list`, `agent__get_task_list`, `agent__new_task`, `agent__set_task_status`, `agent__delete_task`, `get_plan`, `update_plan`, `complete_task`
 
 Plan files live alongside your workspace so the agent can checkpoint progress
 between runs. By default the runtime stores the active document at
@@ -32,19 +32,43 @@ The workflow for the tools is:
 
 1. `agent__new_task_list` creates a `.tasks/<name>.json` document with empty
    tasks and optional metadata, returning a payload that matches
-   `TASK_LIST_RESULT_SCHEMA`.
-2. `get_plan` loads and validates the current document, returning the full
-   structure described by `PLAN_RESULT_SCHEMA`. If the plan does not exist the
-   runtime creates an empty document in the configured directory.
-3. `update_plan` accepts partial task lists and replaces the stored document,
+   `TASK_LIST_RESULT_SCHEMA`. The handler uses `ctx.confirm` to guard new
+   storage and mirrors the schema exported from
+   [`platform/runtime/tools/src/builtin/task_list.ts`](../platform/runtime/tools/src/builtin/task_list.ts).
+2. `agent__get_task_list` ensures the document exists (creating an empty file on
+   first run) and returns the same schema, with an `abridged` flag that swaps the
+   textual rendering for a summary when set to `true`.
+3. `agent__new_task` inserts a task with title, optional `summary`, `details`,
+   metadata, and an initial status. It supports positional inserts via
+   `position` or `beforeTaskId` and asks for a `ctx.confirm` approval before
+   modifying the document.
+4. `agent__set_task_status` updates an existing task to `pending`,
+   `in_progress`, or `complete`. The runtime sanitises the task identifier,
+   asks for confirmation through `ctx.confirm`, and persists the result while
+   honouring the `abridged` rendering toggle.
+5. `agent__delete_task` removes a task after a confirmation prompt, returning
+   the updated list with consistent timestamps and respecting the `abridged`
+   preference.
+6. `get_plan` loads and validates the plan document described by
+   `PLAN_RESULT_SCHEMA`. Missing plans are created in the configured directory
+   so repeated reads stabilise quickly.
+7. `update_plan` accepts partial task lists and replaces the stored document,
    allowing agents to reorder work or expand task descriptions while preserving
    metadata.
-4. `complete_task` flips the targeted entry to `complete` (and maintains the
+8. `complete_task` flips the targeted entry to `complete` (and maintains the
    `completed` boolean for backwards compatibility), optionally appending a note
    so human reviewers understand the resolution.
 
-The storage helpers sanitise names to keep writes inside the workspace root,
-ensuring hostile input cannot escape the configured directory.
+The storage helpers sanitise list names and plan filenames to keep writes inside
+the workspace root, ensuring hostile input cannot escape the configured
+directory.
+
+All task list persistence helpers live in the runtime module linked above, which
+also exposes `TASK_LIST_RESULT_SCHEMA` for tool integrations.
+
+All task list persistence helpers live in
+[`platform/runtime/tools/src/builtin/task_list.ts`](../platform/runtime/tools/src/builtin/task_list.ts),
+which exposes `TASK_LIST_RESULT_SCHEMA` for tool integrations.
 
 All task list persistence helpers live in
 [`platform/runtime/tools/src/builtin/task_list.ts`](../platform/runtime/tools/src/builtin/task_list.ts),

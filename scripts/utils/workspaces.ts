@@ -168,6 +168,56 @@ const parseChangedPath = (line: string): string | undefined => {
   return content;
 };
 
+const parseDiffChangedPath = (line: string): string | undefined => {
+  const trimmed = line.trim();
+
+  if (trimmed.length === 0) {
+    return undefined;
+  }
+
+  if (trimmed.includes(' -> ')) {
+    const segments = trimmed.split(' -> ');
+    return segments[segments.length - 1];
+  }
+
+  return trimmed;
+};
+
+const collectChangedPaths = (stdout: string, parser: (line: string) => string | undefined): string[] =>
+  stdout
+    .split('\n')
+    .map((line) => parser(line))
+    .filter((value): value is string => Boolean(value))
+    .map(toPosixPath);
+
+const gatherChangedPaths = async (diffBase?: string): Promise<Set<string>> => {
+  const changedPaths = new Set<string>();
+
+  if (diffBase) {
+    try {
+      const { stdout } = await execFileAsync('git', ['diff', '--name-only', `${diffBase}...HEAD`]);
+      for (const path of collectChangedPaths(stdout, parseDiffChangedPath)) {
+        changedPaths.add(path);
+      }
+    } catch {
+      // Ignore diff failures and fall back to status output
+    }
+  }
+
+  try {
+    const { stdout } = await execFileAsync('git', ['status', '--porcelain']);
+    for (const path of collectChangedPaths(stdout, parseChangedPath)) {
+      changedPaths.add(path);
+    }
+  } catch {
+    if (changedPaths.size === 0) {
+      return new Set();
+    }
+  }
+
+  return changedPaths;
+};
+
 const buildDependentsByDependency = async (
   workspaces: WorkspaceBase[],
 ): Promise<Map<string, Set<string>>> => {
@@ -259,46 +309,31 @@ const discoverChangedWorkspaces = async (
     return expandChangedWorkspaces(workspaces, fromEnv);
   }
 
-  try {
-    const { stdout } = await execFileAsync('git', ['status', '--porcelain']);
-    const lines = stdout
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
+  const diffBase = process.env.WORKSPACE_DIFF_BASE?.trim();
+  const changedPaths = await gatherChangedPaths(diffBase);
 
-    if (lines.length === 0) {
-      return new Set();
-    }
-
-    const changedPaths = lines
-      .map(parseChangedPath)
-      .filter((value): value is string => Boolean(value))
-      .map(toPosixPath);
-
-    const changedWorkspaces = new Set<string>();
-
-    for (const workspace of workspaces) {
-      const workspaceDir = toPosixPath(workspace.dir);
-
-      for (const changedPath of changedPaths) {
-        if (
-          changedPath === workspaceDir ||
-          changedPath.startsWith(`${workspaceDir}/`)
-        ) {
-          changedWorkspaces.add(workspace.name);
-          break;
-        }
-      }
-    }
-
-    if (changedWorkspaces.size === 0) {
-      return changedWorkspaces;
-    }
-
-    return expandChangedWorkspaces(workspaces, changedWorkspaces);
-  } catch {
+  if (changedPaths.size === 0) {
     return new Set();
   }
+
+  const changedWorkspaces = new Set<string>();
+
+  for (const workspace of workspaces) {
+    const workspaceDir = toPosixPath(workspace.dir);
+
+    for (const changedPath of changedPaths) {
+      if (changedPath === workspaceDir || changedPath.startsWith(`${workspaceDir}/`)) {
+        changedWorkspaces.add(workspace.name);
+        break;
+      }
+    }
+  }
+
+  if (changedWorkspaces.size === 0) {
+    return changedWorkspaces;
+  }
+
+  return expandChangedWorkspaces(workspaces, changedWorkspaces);
 };
 
 export const prioritizeWorkspaces = (workspaces: Workspace[]): Workspace[] =>

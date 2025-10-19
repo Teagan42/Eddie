@@ -20,6 +20,133 @@ describe("task list tools", () => {
     vi.restoreAllMocks();
   });
 
+  it("reads a task list with full and abridged output", async () => {
+    const tool = findTool("agent__get_task_list");
+
+    expect(tool).toBeDefined();
+    if (!tool) {
+      throw new Error("agent__get_task_list tool not registered");
+    }
+
+    await fs.mkdir(path.join(workspace, ".tasks"), { recursive: true });
+    const document = {
+      metadata: { sprint: "alpha" },
+      tasks: [
+        {
+          id: "alpha",
+          title: "Draft project outline",
+          status: "complete",
+          summary: "Outline project scope",
+          details: "",
+          createdAt: "2024-04-01T00:00:00.000Z",
+          updatedAt: "2024-04-02T00:00:00.000Z",
+        },
+        {
+          id: "beta",
+          title: "Review pull request",
+          status: "in_progress",
+          summary: "Collaborate with author",
+          details: "Ensure coverage improvements are sufficient",
+          createdAt: "2024-04-02T00:00:00.000Z",
+          updatedAt: "2024-04-03T00:00:00.000Z",
+        },
+        {
+          id: "gamma",
+          title: "Publish release notes",
+          status: "pending",
+          summary: "Write announcement",
+          details: "Highlight the major changes",
+          createdAt: "2024-04-03T00:00:00.000Z",
+          updatedAt: "2024-04-03T00:00:00.000Z",
+        },
+      ],
+      createdAt: "2024-04-01T00:00:00.000Z",
+      updatedAt: "2024-04-03T12:00:00.000Z",
+    } as const;
+
+    await fs.writeFile(
+      path.join(workspace, ".tasks", "daily.json"),
+      `${JSON.stringify(document, null, 2)}\n`,
+      "utf-8",
+    );
+
+    const ctx = { cwd: workspace };
+
+    const full = await tool.handler(
+      {
+        taskListName: "daily",
+      },
+      ctx,
+    );
+
+    expect(full.schema).toBe("eddie.tool.task_list.result.v1");
+    expect(full.data.tasks).toEqual(document.tasks);
+    expect(full.data.metadata).toEqual(document.metadata);
+    expect(full.content).toContain('Task list "daily"');
+    expect(full.content).toContain("Tasks: 3 total");
+    expect(full.content).toContain("1. ✓ [complete] Draft project outline — Outline project scope");
+    expect(full.content).toContain("2. … [in_progress] Review pull request — Collaborate with author");
+    expect(full.content).toContain("3. • [pending] Publish release notes — Write announcement");
+
+    const abridged = await tool.handler(
+      {
+        taskListName: "daily",
+        abridged: true,
+      },
+      ctx,
+    );
+
+    expect(abridged.schema).toBe("eddie.tool.task_list.result.v1");
+    expect(abridged.data.tasks).toEqual(document.tasks);
+    expect(abridged.content).toContain(
+      'Task list "daily" — Next task: Review pull request (in_progress).',
+    );
+    expect(abridged.content).toContain(
+      "Summary: Collaborate with author",
+    );
+    expect(abridged.content).toContain(
+      "Details: Ensure coverage improvements are sufficient",
+    );
+    expect(abridged.content).not.toContain("Outline project scope");
+    expect(abridged.content).not.toContain("Write announcement");
+  });
+
+  it("initialises a task list file when none exists", async () => {
+    const tool = findTool("agent__get_task_list");
+
+    expect(tool).toBeDefined();
+    if (!tool) {
+      throw new Error("agent__get_task_list tool not registered");
+    }
+
+    const ctx = { cwd: workspace };
+
+    const result = await tool.handler(
+      {
+        taskListName: "weekly",
+      },
+      ctx,
+    );
+
+    expect(result.schema).toBe("eddie.tool.task_list.result.v1");
+    expect(result.data.tasks).toEqual([]);
+    expect(result.data.metadata).toEqual({});
+    expect(result.content).toContain('Task list "weekly"');
+    expect(result.content).toContain("Tasks: 0 total");
+
+    const stored = JSON.parse(
+      await fs.readFile(
+        path.join(workspace, ".tasks", "weekly.json"),
+        "utf-8",
+      ),
+    );
+
+    expect(stored.tasks).toEqual([]);
+    expect(stored.metadata).toEqual({});
+    expect(typeof stored.createdAt).toBe("string");
+    expect(typeof stored.updatedAt).toBe("string");
+  });
+
   it("creates a task list file with metadata when confirmed", async () => {
     const tool = findTool("agent__new_task_list");
 

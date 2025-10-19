@@ -1,3 +1,6 @@
+import { readFileSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 type BenchHandler = () => unknown | Promise<unknown>;
@@ -17,6 +20,26 @@ const registryMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../src/benchmark-action.registry', () => registryMocks);
+
+vi.mock('@eddie/context', () => ({
+  ContextService: class {
+    async pack() {}
+  },
+}));
+vi.mock('@eddie/io', () => ({
+  LoggerService: class {
+    configure() {}
+    getLogger() {
+      return {};
+    }
+  },
+}));
+vi.mock('@eddie/templates', () => ({
+  TemplateRendererService: class {},
+  TemplateRuntimeService: class {
+    constructor() {}
+  },
+}));
 
 vi.mock('vitest', async () => {
   const actual = await vi.importActual<typeof import('vitest')>('vitest');
@@ -160,5 +183,34 @@ describe('context-pack benchmarks', () => {
     });
 
     nowSpy.mockRestore();
+  });
+
+  it('writes context pack reports to the benchmark action directory', async () => {
+    const reportRoot = mkdtempSync(join(tmpdir(), 'context-report-'));
+
+    process.env.BENCHMARK_ACTION_REPORT_DIR = reportRoot;
+
+    await import('../src/context-pack.bench');
+
+    for (const setup of beforeAllRegistrations) {
+      await setup();
+    }
+
+    for (const registration of benchRegistrations) {
+      await registration.handler();
+    }
+
+    for (const teardown of afterAllRegistrations) {
+      await teardown();
+    }
+
+    const reportPath = join(reportRoot, 'context-pack.pack.json');
+    const contents = readFileSync(reportPath, 'utf-8');
+    const parsed = JSON.parse(contents) as { benchmark: string; scenarios: unknown[] };
+
+    expect(parsed.benchmark).toBe('context-pack.pack');
+    expect(Array.isArray(parsed.scenarios)).toBe(true);
+
+    delete process.env.BENCHMARK_ACTION_REPORT_DIR;
   });
 });

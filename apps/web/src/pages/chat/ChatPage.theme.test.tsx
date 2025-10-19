@@ -18,6 +18,7 @@ const listMessagesMock = vi.fn();
 const getMetadataMock = vi.fn();
 const getExecutionStateMock = vi.fn();
 const catalogMock = vi.fn();
+const loadConfigMock = vi.fn();
 
 class ResizeObserverMock {
   observe(): void {}
@@ -55,6 +56,9 @@ vi.mock("@/api/api-provider", () => ({
       orchestrator: {
         getMetadata: getMetadataMock,
         getExecutionState: getExecutionStateMock,
+      },
+      config: {
+        loadEddieConfig: loadConfigMock,
       },
       providers: {
         catalog: catalogMock,
@@ -141,6 +145,21 @@ describe("ChatPage message surfaces", () => {
       agentHierarchy: [],
     });
     catalogMock.mockResolvedValue([]);
+    loadConfigMock.mockResolvedValue({
+      path: null,
+      format: "yaml" as const,
+      content: "",
+      input: {},
+      config: {
+        providers: {
+          "profile-openai": {
+            provider: { name: "openai" },
+            model: "gpt-4.1",
+          },
+        },
+      },
+      error: null,
+    });
   });
 
   it("renders darker, low-gradient surfaces for chat messages", async () => {
