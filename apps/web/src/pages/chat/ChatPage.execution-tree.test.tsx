@@ -239,6 +239,84 @@ describe('ChatPage execution tree realtime updates', () => {
     });
   });
 
+  it('coerces execution tree updates that omit context bundle arrays', async () => {
+    const { client } = renderChatPage();
+
+    await waitFor(() => {
+      expect(onExecutionTreeUpdatedMock).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(getMetadataMock).toHaveBeenCalled();
+    });
+
+    const baseTree = createExecutionTreeStateFromMetadata({
+      sessionId: 'session-1',
+      capturedAt: '2024-05-01T12:45:00.000Z',
+      agentHierarchy: [
+        {
+          id: 'session-1',
+          name: 'Session 1',
+          provider: 'orchestrator',
+          model: 'delegator',
+          depth: 0,
+          metadata: { messageCount: 1 },
+          children: [
+            {
+              id: 'agent-primary',
+              name: 'Primary agent',
+              provider: 'openai',
+              model: 'gpt-4o',
+              depth: 1,
+              metadata: { messageCount: 1 },
+              children: [],
+            },
+          ],
+        },
+      ],
+      toolInvocations: [
+        {
+          id: 'call-1',
+          name: 'web_search',
+          status: 'running',
+          metadata: {
+            args: { query: 'latest docs' },
+          },
+          createdAt: '2024-05-01T12:40:00.000Z',
+          updatedAt: '2024-05-01T12:41:00.000Z',
+          agentId: 'agent-primary',
+          agentModel: 'gpt-4o',
+          provider: 'openai',
+          children: [],
+        },
+      ],
+      contextBundles: [],
+    });
+
+    const eventState = { ...baseTree, contextBundles: undefined } as unknown as typeof baseTree;
+
+    await act(async () => {
+      executionTreeHandlers.forEach((handler) =>
+        handler({
+          sessionId: 'session-1',
+          state: eventState,
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      const snapshot = client.getQueryData<any>([
+        'orchestrator-metadata',
+        'session-1',
+      ]);
+      expect(
+        snapshot?.executionTree?.toolInvocations?.some(
+          (invocation: { id?: string }) => invocation?.id === 'call-1',
+        ),
+      ).toBe(true);
+    });
+  });
+
   it('updates tool status groups when tool call lifecycle events stream in', async () => {
     const user = userEvent.setup();
     const { client } = renderChatPage();

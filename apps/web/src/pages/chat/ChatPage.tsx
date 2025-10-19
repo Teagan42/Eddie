@@ -46,11 +46,11 @@ import {
   applyToolCallEvent,
   applyToolResultEvent,
   cloneExecutionTreeState,
+  coerceExecutionTreeState,
   composeExecutionTreeState,
   createEmptyExecutionTreeState,
   createExecutionTreeStateFromMetadata,
   type ExecutionTreeState,
-  isExecutionTreeState,
   type ToolEventPayload,
 } from './execution-tree-state';
 
@@ -353,15 +353,16 @@ export function ChatPage(): JSX.Element {
         return;
       }
 
-      if (!state || !isExecutionTreeState(state) || !Array.isArray(state.contextBundles)) {
+      const normalizedState = coerceExecutionTreeState(state);
+      if (!normalizedState) {
         return;
       }
 
-      const clonedTree = cloneExecutionTreeState(state);
+      const clonedTree = cloneExecutionTreeState(normalizedState);
       setSessionContext(sessionId, {
         sessionId,
         executionTree: clonedTree,
-        capturedAt: state.updatedAt ?? undefined,
+        capturedAt: normalizedState.updatedAt ?? undefined,
       });
     });
 
