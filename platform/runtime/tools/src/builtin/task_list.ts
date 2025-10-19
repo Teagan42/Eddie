@@ -105,6 +105,25 @@ const assertValidTaskListName = (listName: string): void => {
   }
 };
 
+export const sanitiseTaskListName = (value: unknown): string => {
+  if (typeof value !== "string") {
+    throw new Error("task list name must be a string");
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new Error("task list name must be provided");
+  }
+
+  try {
+    assertValidTaskListName(trimmed);
+  } catch {
+    throw new Error("task list name must not include path separators");
+  }
+
+  return trimmed;
+};
+
 const resolveTaskListDirectory = (rootDir: string): string =>
   path.join(rootDir, DEFAULT_TASK_LIST_DIRECTORY);
 

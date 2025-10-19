@@ -6,6 +6,7 @@ import { getFolderTreeStructureTool } from "./get_folder_tree_structure";
 import { getPlanTool } from "./get_plan";
 import { completeTaskTool } from "./complete_task";
 import { updatePlanTool } from "./update_plan";
+import { agentNewTaskListTool } from "./agent__new_task_list";
 
 export const builtinTools = [
   bashTool,
@@ -16,4 +17,5 @@ export const builtinTools = [
   getPlanTool,
   completeTaskTool,
   updatePlanTool,
+  agentNewTaskListTool,
 ];
