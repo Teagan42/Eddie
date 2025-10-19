@@ -1,0 +1,37 @@
+services:
+  api:
+    build:
+      context: .
+      target: development
+    command: npm run dev:api
+    ports:
+      - "3000:3000"
+      - "9229:9229"
+    environment:
+      NODE_ENV: development
+    volumes:
+      - .:/workspace
+      - /workspace/node_modules
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /workspace
+          ignore:
+            - node_modules/
+            - dist/
+    profiles:
+      - default
+      - development
+
+  api-prod:
+    build:
+      context: .
+      target: production
+    command: npm run start:api
+    environment:
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    profiles:
+      - production

@@ -89,6 +89,17 @@ an annotated comment on the offending commit so maintainers can respond quickly.
 See [docs/performance-benchmarks.md](docs/performance-benchmarks.md) for guidance
 on reading the charts and interpreting alert notifications.
 
+## Docker setup
+
+Run the platform without installing Node by building the workspace image and launching the API through Docker Compose:
+
+```bash
+docker compose up -d
+docker compose logs -f api
+```
+
+The compose file targets the `development` stage in the shared Dockerfile, mounts the repository into the container for live reloads, and exposes the API on port 3000. Switch to the production stage with `--profile production` to boot the API with compiled artifacts and production dependencies only. Review `docker-compose.yml` for port mappings, environment variables, and volume overrides that fit your environment.
+
 ## Web UI
 
 Start the full-stack experience locally by running the API and UI together:
