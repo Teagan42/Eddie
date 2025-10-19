@@ -101,23 +101,25 @@ export class ToolCallHandler {
         confirm,
       });
 
+      const { id, name, arguments: toolArguments } = event;
+
       publishWithAgent({
         type: "tool_result",
-        name: event.name,
-        id: event.id,
+        name,
+        id,
         result,
       });
 
       executionTreeTracker?.recordToolResult(
         invocation.id,
-        { type: "tool_result", id: event.id, name: event.name, result },
+        { type: "tool_result", id, name, result },
         result
       );
 
       invocation.messages.push({
         role: "tool",
-        name: event.name,
-        tool_call_id: event.id,
+        name,
+        tool_call_id: id,
         content: JSON.stringify(this.buildMessagePayload(result)),
       });
 
@@ -133,15 +135,16 @@ export class ToolCallHandler {
           phase: "tool_result",
           data: {
             iteration,
-            id: event.id,
-            name: event.name,
+            id,
+            name,
+            arguments: toolArguments,
             result,
           },
         },
       });
 
       metrics.observeToolCall({
-        name: event.name,
+        name,
         status: "success",
       });
 
