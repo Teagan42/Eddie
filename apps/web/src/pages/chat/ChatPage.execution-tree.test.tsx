@@ -272,7 +272,16 @@ describe('ChatPage execution tree realtime updates', () => {
       expect(snapshot?.executionTree?.toolInvocations?.length ?? 0).toBeGreaterThan(0);
     });
 
-    const spawnedAgentsToggle = await screen.findByRole(
+    const openDrawerButton = await screen.findByRole('button', {
+      name: /open agent tools/i,
+    });
+    await user.click(openDrawerButton);
+
+    const toolsDrawer = await screen.findByRole('dialog', {
+      name: /agent tools/i,
+    });
+
+    const spawnedAgentsToggle = await within(toolsDrawer).findByRole(
       'button',
       {
         name: /toggle spawned agents for session 1/i,
@@ -287,7 +296,7 @@ describe('ChatPage execution tree realtime updates', () => {
 
     await expandIfCollapsed(spawnedAgentsToggle);
 
-    const spawnedAgentsRegion = await screen.findByRole(
+    const spawnedAgentsRegion = await within(toolsDrawer).findByRole(
       'region',
       {
         name: /spawned agents for session 1/i,
@@ -296,13 +305,13 @@ describe('ChatPage execution tree realtime updates', () => {
     );
     expect(within(spawnedAgentsRegion).getByText(/primary agent/i)).toBeInTheDocument();
 
-    const runningToggle = await screen.findByRole('button', {
+    const runningToggle = await within(toolsDrawer).findByRole('button', {
       name: /running tool invocations/i,
     });
 
     await user.click(runningToggle);
 
-    const runningRegion = await screen.findByRole('region', {
+    const runningRegion = await within(toolsDrawer).findByRole('region', {
       name: /running tool invocations for primary agent/i,
     });
 
@@ -328,18 +337,18 @@ describe('ChatPage execution tree realtime updates', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole('button', {
+        within(toolsDrawer).getByRole('button', {
           name: /completed tool invocations/i,
         }),
       ).toBeInTheDocument();
     });
 
-    const completedToggle = screen.getByRole('button', {
+    const completedToggle = within(toolsDrawer).getByRole('button', {
       name: /completed tool invocations/i,
     });
     await user.click(completedToggle);
 
-    const completedRegion = await screen.findByRole('region', {
+    const completedRegion = await within(toolsDrawer).findByRole('region', {
       name: /completed tool invocations for primary agent/i,
     });
 

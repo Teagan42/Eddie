@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createChatPageRenderer } from "./test-utils";
 
 const catalogMock = vi.fn();
@@ -101,12 +102,46 @@ describe("ChatPage sidebar accessibility", () => {
     });
   });
 
-  it("uses solid variant collapse toggles for higher contrast", async () => {
+  it("exposes agent tools via a slide-out drawer", async () => {
+    const user = userEvent.setup();
     renderChatPage();
 
     await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
 
-    const collapseButtons = await screen.findAllByRole("button", {
+    expect(
+      screen.queryByRole("heading", { name: "Agent execution" }),
+    ).not.toBeInTheDocument();
+
+    const openDrawerButton = await screen.findByRole("button", {
+      name: /open agent tools/i,
+    });
+
+    await user.click(openDrawerButton);
+
+    const drawer = await screen.findByRole("dialog", { name: /agent tools/i });
+
+    expect(
+      within(drawer).getByRole("heading", { name: "Agent execution" }),
+    ).toBeInTheDocument();
+    expect(
+      within(drawer).getByRole("heading", { name: "Context bundles" }),
+    ).toBeInTheDocument();
+  });
+
+  it("uses solid variant collapse toggles for higher contrast", async () => {
+    const user = userEvent.setup();
+    renderChatPage();
+
+    await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
+
+    const openDrawerButton = await screen.findByRole("button", {
+      name: /open agent tools/i,
+    });
+    await user.click(openDrawerButton);
+
+    const drawer = await screen.findByRole("dialog", { name: /agent tools/i });
+
+    const collapseButtons = within(drawer).getAllByRole("button", {
       name: "Collapse panel",
     });
 
@@ -137,18 +172,16 @@ describe("ChatPage sidebar accessibility", () => {
     expect(messageContent).toHaveClass("text-base");
   });
 
-  it("scales sidebar panels responsively for larger viewports", async () => {
+  it("focuses the main chat layout until the tools drawer is opened", async () => {
     renderChatPage();
 
-    const heading = await screen.findByRole("heading", { name: "Context bundles" });
-    const column = heading.closest("section")?.parentElement;
+    await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
 
-    if (!column) {
-      throw new Error("Sidebar column container not found");
+    const chatPanels = screen.getAllByRole("heading", { level: 2 });
+
+    for (const heading of chatPanels) {
+      expect(heading).not.toHaveTextContent("Agent execution");
+      expect(heading).not.toHaveTextContent("Context bundles");
     }
-
-    expect(column).toHaveClass("lg:w-[22rem]");
-    expect(column).toHaveClass("xl:w-[26rem]");
-    expect(column).toHaveClass("2xl:w-[30rem]");
   });
 });
