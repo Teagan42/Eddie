@@ -46,7 +46,6 @@ type NormalizedToolMessage = {
   role: "tool";
   content: string;
   tool_call_id?: string;
-  name?: string;
 };
 
 type NormalizedChatMessage =
@@ -432,8 +431,9 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
   }
 
   private formatMessages(messages: StreamOptions["messages"]): NormalizedChatMessage[] {
-    const toTextSegments = (content: string): TextContentPart[] =>
-      content.length > 0 ? [{ type: "text" as const, text: content }] : [];
+    const toTextSegments = (content: string): TextContentPart[] => [
+      { type: "text" as const, text: content },
+    ];
 
     return messages.map((message) => {
       const content = typeof message.content === "string" ? message.content : "";
@@ -446,10 +446,6 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
 
         if (message.tool_call_id) {
           toolMessage.tool_call_id = message.tool_call_id;
-        }
-
-        if (message.name) {
-          toolMessage.name = message.name;
         }
 
         return toolMessage;
@@ -473,12 +469,6 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
             },
           ];
 
-          if (
-            assistant.content.length === 1 &&
-            assistant.content[0]?.text.trim().length === 0
-          ) {
-            assistant.content = [];
-          }
         } else if (message.name) {
           assistant.name = message.name;
         }
