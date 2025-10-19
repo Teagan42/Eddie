@@ -21,6 +21,7 @@ import {
   type AgentRuntimeDescriptor,
   type AgentRuntimeMetadata,
   type AgentSpawnHandler,
+  type ChatMessage,
   type PackedContext,
   type StreamEvent,
   type ToolResult,
@@ -537,6 +538,15 @@ export class AgentOrchestratorService {
 
     const child = await invocation.spawn(descriptor.definition, spawnOptions);
 
+    const cachedFullHistory = runtime.transcriptCompaction?.getFullHistoryFor(
+      child,
+      descriptor,
+    );
+
+    const fullHistory = cachedFullHistory
+      ? this.mergeFullHistorySnapshots(cachedFullHistory, child.messages)
+      : undefined;
+
     return AgentRunner.buildSubagentResult({
       child,
       descriptor,
@@ -547,6 +557,7 @@ export class AgentOrchestratorService {
         context: overrides.contextProvided ? overrides.context : undefined,
         metadata: args.metadata,
       },
+      fullHistory,
     });
   }
 
@@ -579,6 +590,38 @@ export class AgentOrchestratorService {
 
   private isPlainObject(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  private mergeFullHistorySnapshots(
+    cachedHistory: ChatMessage[],
+    liveHistory: ChatMessage[],
+  ): ChatMessage[] {
+    if (cachedHistory.length === 0) {
+      return liveHistory;
+    }
+
+    const comparableLength = Math.min(cachedHistory.length, liveHistory.length);
+
+    for (let index = 0; index < comparableLength; index += 1) {
+      if (!this.areMessagesEqual(cachedHistory[index], liveHistory[index])) {
+        return liveHistory;
+      }
+    }
+
+    if (cachedHistory.length >= liveHistory.length) {
+      return cachedHistory;
+    }
+
+    return cachedHistory.concat(liveHistory.slice(cachedHistory.length));
+  }
+
+  private areMessagesEqual(left: ChatMessage, right: ChatMessage): boolean {
+    return (
+      left.role === right.role &&
+      left.content === right.content &&
+      left.name === right.name &&
+      left.tool_call_id === right.tool_call_id
+    );
   }
 
   private applySpawnOverrides(

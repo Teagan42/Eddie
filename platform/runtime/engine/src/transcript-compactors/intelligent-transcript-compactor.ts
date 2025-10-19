@@ -115,7 +115,7 @@ export class IntelligentTranscriptCompactor implements TranscriptCompactor {
       node = {
         agentId: invocation.definition.id,
         invocation,
-        fullHistory: [...invocation.messages],
+        fullHistory: this.cloneMessages(invocation.messages),
         compactedHistory: undefined,
         summary: undefined,
         children: [],
@@ -140,6 +140,31 @@ export class IntelligentTranscriptCompactor implements TranscriptCompactor {
     return this.contextTree.get(invocation);
   }
 
+  private cloneMessages(messages: ChatMessage[]): ChatMessage[] {
+    return messages.map((message) => ({ ...message }));
+  }
+
+  private captureFullHistory(
+    node: TranscriptContextNode,
+    messages: ChatMessage[],
+  ): void {
+    if (node.compactedHistory) {
+      const baseline = node.compactedHistory.length;
+      if (messages.length > baseline) {
+        const appended = messages.slice(baseline);
+        if (appended.length > 0) {
+          node.fullHistory.push(...this.cloneMessages(appended));
+        }
+      }
+      node.compactedHistory = this.cloneMessages(messages);
+      return;
+    }
+
+    if (node.fullHistory.length === 0 || node.fullHistory.length < messages.length) {
+      node.fullHistory = this.cloneMessages(messages);
+    }
+  }
+
   private upsertSummary(
     invocation: AgentInvocation,
     summary: ParentContextStore,
@@ -158,7 +183,8 @@ export class IntelligentTranscriptCompactor implements TranscriptCompactor {
   }
 
   getFullHistory(invocation: AgentInvocation): ChatMessage[] | undefined {
-    return this.getNode(invocation)?.fullHistory;
+    const history = this.getNode(invocation)?.fullHistory;
+    return history ? this.cloneMessages(history) : undefined;
   }
 
   async plan(
@@ -168,9 +194,7 @@ export class IntelligentTranscriptCompactor implements TranscriptCompactor {
     const messageCount = invocation.messages.length;
     const threshold = this.config.minMessagesBeforeCompaction ?? 10;
     const node = this.ensureNode(invocation);
-    if (node.fullHistory.length < messageCount) {
-      node.fullHistory = [...invocation.messages];
-    }
+    this.captureFullHistory(node, invocation.messages);
 
     if (this.config.enableParentContextStorage) {
       this.extractAndStoreParentContext(invocation);
@@ -483,7 +507,7 @@ export class IntelligentTranscriptCompactor implements TranscriptCompactor {
       reason: `Compacted transcript for ${invocation.definition.id} (iteration ${iteration}): removed ${removedCount} messages, retained ${messagesToKeep.length} messages tailored for agent type`,
       apply: () => {
         const node = this.ensureNode(invocation);
-        node.compactedHistory = [...messagesToKeep];
+        node.compactedHistory = this.cloneMessages(messagesToKeep);
         invocation.messages.splice(0, invocation.messages.length, ...messagesToKeep);
         return { removedMessages: removedCount };
       },
@@ -573,9 +597,9 @@ export class IntelligentTranscriptCompactor implements TranscriptCompactor {
     const clone = (current: TranscriptContextNode): any => ({
       agentId: current.agentId,
       invocation: current.invocation,
-      fullHistory: [...current.fullHistory],
+      fullHistory: this.cloneMessages(current.fullHistory),
       compactedHistory: current.compactedHistory
-        ? [...current.compactedHistory]
+        ? this.cloneMessages(current.compactedHistory)
         : undefined,
       summary: current.summary
         ? {

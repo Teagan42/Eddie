@@ -1,5 +1,10 @@
 import { Inject, Injectable, OnModuleDestroy } from "@nestjs/common";
-import { HOOK_EVENTS, type AgentLifecyclePayload, type AgentRuntimeDescriptor } from "@eddie/types";
+import {
+  HOOK_EVENTS,
+  type AgentLifecyclePayload,
+  type AgentRuntimeDescriptor,
+  type ChatMessage,
+} from "@eddie/types";
 import type { AgentInvocation } from "../agents/agent-invocation";
 import type { HookBus } from "@eddie/hooks";
 import type { EddieConfig, TranscriptCompactorConfig } from "@eddie/types";
@@ -23,6 +28,10 @@ export interface TranscriptCompactionWorkflow {
     runtime: { hooks: HookBus; logger: Logger },
     lifecycle: AgentLifecyclePayload,
   ): Promise<void>;
+  getFullHistoryFor(
+    invocation: AgentInvocation,
+    descriptor?: AgentRuntimeDescriptor,
+  ): ChatMessage[] | undefined;
 }
 
 interface CachedCompactor {
@@ -62,22 +71,40 @@ export class TranscriptCompactionService implements OnModuleDestroy {
     const globalConfig = config.transcript?.compactor;
     const perAgentConfigs = this.collectAgentCompactorConfigs(config);
 
+    const resolveCompactor = (
+      invocation: AgentInvocation,
+      descriptor?: AgentRuntimeDescriptor,
+    ): TranscriptCompactor | null => {
+      const agentId = descriptor?.id ?? invocation.definition.id;
+      const agentConfig = perAgentConfigs.get(agentId);
+      if (agentConfig) {
+        return this.getOrCreate(agentId, agentConfig);
+      }
+
+      if (!globalConfig) {
+        return null;
+      }
+
+      return this.getOrCreate("global", globalConfig);
+    };
+
     return {
-      selectFor: (invocation, descriptor) => {
-        const agentId = descriptor?.id ?? invocation.definition.id;
-        const agentConfig = perAgentConfigs.get(agentId);
-        if (agentConfig) {
-          return this.getOrCreate(agentId, agentConfig);
-        }
-
-        if (!globalConfig) {
-          return null;
-        }
-
-        return this.getOrCreate("global", globalConfig);
-      },
+      selectFor: resolveCompactor,
       planAndApply: async (compactor, invocation, iteration, runtime, lifecycle) =>
         this.planAndApply(compactor, invocation, iteration, runtime, lifecycle),
+      getFullHistoryFor: (invocation, descriptor) => {
+        const compactor = resolveCompactor(invocation, descriptor);
+        if (!compactor || typeof compactor.getFullHistory !== "function") {
+          return undefined;
+        }
+
+        const history = compactor.getFullHistory(invocation);
+        if (!history) {
+          return undefined;
+        }
+
+        return TranscriptCompactionService.cloneMessages(history);
+      },
     };
   }
 
@@ -180,5 +207,9 @@ export class TranscriptCompactionService implements OnModuleDestroy {
       .map((key) => `${key}:${TranscriptCompactionService.stableStringify((value as Record<string, unknown>)[key])}`);
 
     return `{${entries.join(",")}}`;
+  }
+
+  private static cloneMessages(messages: ChatMessage[]): ChatMessage[] {
+    return messages.map((message) => ({ ...message }));
   }
 }

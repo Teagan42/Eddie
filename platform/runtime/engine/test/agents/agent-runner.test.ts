@@ -208,6 +208,53 @@ describe("AgentRunner", () => {
     );
   });
 
+  it("builds spawn results with the full transcript when provided", () => {
+    const truncatedHistory = [
+      { role: "system", content: "child system" },
+      { role: "user", content: "Do the task" },
+      { role: "assistant", content: "Most recent response" },
+    ];
+
+    const completeHistory = [
+      { role: "system", content: "child system" },
+      { role: "user", content: "Do the task" },
+      { role: "assistant", content: "Initial exploration" },
+      { role: "assistant", content: "tool_call:alpha", tool_call_id: "alpha" },
+      {
+        role: "tool",
+        content: "alpha result",
+        tool_call_id: "alpha",
+        name: "search",
+      },
+      { role: "assistant", content: "Most recent response" },
+    ];
+
+    const child = createInvocation({
+      id: "child-agent",
+      definition: { ...createInvocation().definition, id: "child-agent" },
+      messages: truncatedHistory,
+      isRoot: false,
+    });
+
+    const descriptor = createDescriptor({
+      id: "child-agent",
+      definition: { ...createDescriptor().definition, id: "child-agent" },
+    });
+
+    const parentDescriptor = createDescriptor({ id: "parent-agent" });
+
+    const result = AgentRunner.buildSubagentResult({
+      child,
+      descriptor,
+      parentDescriptor,
+      request: { prompt: "Do the task" },
+      fullHistory: completeHistory,
+    });
+
+    expect(result.data.history).toEqual(completeHistory);
+    expect(result.data.messageCount).toBe(completeHistory.length);
+  });
+
   it("omits the delegation prompt from spawn_subagent results", () => {
     const parentDescriptor = createDescriptor({
       id: "manager-agent",
