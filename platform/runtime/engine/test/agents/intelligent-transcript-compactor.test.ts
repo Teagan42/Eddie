@@ -113,4 +113,34 @@ describe("IntelligentTranscriptCompactor", () => {
     expect(childInvocation.messages[1]?.content).toContain("Key Decisions");
     expect(childInvocation.messages[1]?.content).toContain("Important Findings");
   });
+
+  it("does not surface child prompts through parent context", async () => {
+    const compactor = new IntelligentTranscriptCompactor({
+      minMessagesBeforeCompaction: 1,
+      enableParentContextStorage: true,
+    });
+
+    const parentInvocation = buildInvocation("manager", [
+      message("system", "manager system"),
+      message("assistant", "Ready to coordinate"),
+    ]);
+
+    await compactor.plan(parentInvocation, 1);
+
+    const childMessages = [
+      message("system", "worker system"),
+      message("user", "Please investigate the issue"),
+      message("assistant", "Plan:\n1. inspect\n2. report findings"),
+    ];
+
+    const childInvocation = buildInvocation(
+      "worker-agent",
+      childMessages,
+      parentInvocation,
+    );
+
+    await compactor.plan(childInvocation, 1);
+
+    expect(compactor.getParentContext(parentInvocation)).toBeUndefined();
+  });
 });

@@ -146,9 +146,6 @@ export class IntelligentTranscriptCompactor implements TranscriptCompactor {
   ): void {
     const node = this.ensureNode(invocation);
     node.summary = summary;
-    if (invocation.parent) {
-      this.parentContextStore.set(invocation.parent, summary);
-    }
   }
 
   getContextSubtree(
@@ -366,11 +363,6 @@ export class IntelligentTranscriptCompactor implements TranscriptCompactor {
     const indicesToKeep = new Set<number>();
     indicesToKeep.add(0);
 
-    let parentContext: ParentContextStore | undefined;
-    if (requirements.needsParentContext && invocation.parent) {
-      parentContext = this.parentContextStore.get(invocation.parent);
-    }
-
     const assistantToolCalls = new Map<string, number>();
     const toolPairs = new Map<string, [number, number]>();
     if (requirements.preserveToolPairs) {
@@ -445,12 +437,11 @@ export class IntelligentTranscriptCompactor implements TranscriptCompactor {
     let removedCount = messages.length - messagesToKeep.length;
 
     if (requirements.needsParentContext && invocation.parent) {
-      let aggregate: ParentContextStore =
-        parentContext ?? {
-          decisions: [],
-          findings: [],
-          toolUsage: [],
-        };
+      const aggregate: ParentContextStore = {
+        decisions: [],
+        findings: [],
+        toolUsage: [],
+      };
 
       const parentNode = this.getNode(invocation.parent);
       if (parentNode?.summary) {
