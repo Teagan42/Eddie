@@ -21,11 +21,17 @@ function extractJobSection(jobId: string): string {
 
 function expectAddAndCommitStep(
   jobSection: string,
-  addPath: string,
+  addPath: string | string[],
   commitMessage: string,
 ): void {
   expect(jobSection).toContain('uses: EndBug/add-and-commit@v9');
-  expect(jobSection).toContain(`add: ${addPath}`);
+  expect(jobSection).toMatch(/add:/);
+  const expectedPaths = Array.isArray(addPath)
+    ? addPath
+    : addPath.split('\n');
+  for (const expectedPath of expectedPaths) {
+    expect(jobSection).toContain(expectedPath);
+  }
   expect(jobSection).toContain(`message: "${commitMessage}"`);
   expect(jobSection).toMatch(/push: true/);
   expect(jobSection).toMatch(/skip_empty: true/);
@@ -35,12 +41,15 @@ function expectDiffDetectionStep(
   jobSection: string,
   stepName: string,
   stepId: string,
-  filePath: string,
+  filePath: string | string[],
 ): void {
   expect(jobSection).toContain(stepName);
   expect(jobSection).toContain(`id: ${stepId}`);
-  expect(jobSection).toContain(`file_path="${filePath}"`);
   expect(jobSection).toContain('git diff --quiet -- "$file_path"');
+  const expectedPaths = Array.isArray(filePath) ? filePath : [filePath];
+  for (const expectedPath of expectedPaths) {
+    expect(jobSection).toContain(expectedPath);
+  }
 }
 
 function extractJobNeeds(jobSection: string): string[] {
@@ -83,11 +92,14 @@ describe('ci workflow configuration', () => {
       jobSection,
       'Detect configuration schema changes',
       'config-schema-diff',
-      'docs/generated/config-schema-diagram.md',
+      [
+        'docs/generated/config-schema-diagram.md',
+        'docs/generated/config-schema.json',
+      ],
     );
     expectAddAndCommitStep(
       jobSection,
-      './docs/generated/config-schema-diagram.md',
+      './docs/generated/config-schema-diagram.md\n./docs/generated/config-schema.json',
       'chore: update config schema diagram',
     );
     expect(jobSection).toMatch(

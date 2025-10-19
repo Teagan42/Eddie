@@ -122,20 +122,25 @@ jobs:
         id: config-schema-diff
         run: |
           set -euo pipefail
-          file_path="docs/generated/config-schema-diagram.md"
+          changed=false
 
-          if git diff --quiet -- "$file_path"; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
+          for file_path in docs/generated/config-schema-diagram.md docs/generated/config-schema.json; do
+            if ! git diff --quiet -- "$file_path"; then
+              changed=true
+              break
+            fi
+          done
+
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
 
       - name: Commit updated diagram
         if: steps.config-schema-diff.outputs.changed == 'true'
         id: commit
         uses: EndBug/add-and-commit@v9
         with:
-          add: ./docs/generated/config-schema-diagram.md
+          add: |
+            ./docs/generated/config-schema-diagram.md
+            ./docs/generated/config-schema.json
           message: "chore: update config schema diagram"
           push: true
           skip_empty: true

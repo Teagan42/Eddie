@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 import {
   EDDIE_CONFIG_INPUT_SCHEMA_ID,
@@ -53,5 +55,16 @@ describe("EDDIE_CONFIG_SCHEMA_BUNDLE", () => {
   it("disables additional properties at the top level", () => {
     expect(EDDIE_CONFIG_SCHEMA_BUNDLE.schema.additionalProperties).toBe(false);
     expect(EDDIE_CONFIG_SCHEMA_BUNDLE.inputSchema.additionalProperties).toBe(false);
+  });
+
+  it("keeps the generated JSON schema bundle in sync", () => {
+    const schemaPath = new URL(
+      "../../../../docs/generated/config-schema.json",
+      import.meta.url,
+    );
+    const serialized = readFileSync(schemaPath, "utf8");
+    const parsed = JSON.parse(serialized);
+
+    expect(parsed).toEqual(EDDIE_CONFIG_SCHEMA_BUNDLE);
   });
 });
