@@ -358,7 +358,36 @@ export function ChatPage(): JSX.Element {
         return;
       }
 
-      const clonedTree = cloneExecutionTreeState(normalizedState);
+      const existingSnapshot = sessionContextByIdRef.current[sessionId];
+      const existingTree = existingSnapshot?.executionTree;
+
+      let mergedTree = normalizedState;
+
+      if (existingTree) {
+        const shouldMergeToolInvocations = normalizedState.toolInvocations.length === 0;
+        const shouldMergeContextBundles = normalizedState.contextBundles.length === 0;
+
+        if (shouldMergeToolInvocations || shouldMergeContextBundles) {
+          const nextToolInvocations = shouldMergeToolInvocations
+            ? existingTree.toolInvocations
+            : normalizedState.toolInvocations;
+          const nextContextBundles = shouldMergeContextBundles
+            ? existingTree.contextBundles
+            : normalizedState.contextBundles;
+
+          mergedTree = composeExecutionTreeState(
+            normalizedState.agentHierarchy,
+            nextToolInvocations,
+            nextContextBundles,
+            {
+              createdAt: normalizedState.createdAt,
+              updatedAt: normalizedState.updatedAt,
+            },
+          );
+        }
+      }
+
+      const clonedTree = cloneExecutionTreeState(mergedTree);
       setSessionContext(sessionId, {
         sessionId,
         executionTree: clonedTree,
