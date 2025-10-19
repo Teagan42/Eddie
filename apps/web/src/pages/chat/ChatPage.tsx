@@ -1109,6 +1109,10 @@ export function ChatPage(): JSX.Element {
     const baseMessages = messagesQuery.data ?? [];
     return enrichMessagesWithExecutionTree(baseMessages, executionTreeState);
   }, [executionTreeState, messagesQuery.data]);
+  const hasStreamingReasoning = useMemo(
+    () => hasStreamingReasoningForSession(messagesWithMetadata, selectedSessionId ?? null),
+    [messagesWithMetadata, selectedSessionId],
+  );
   const selectedContextBundles = useMemo(
     () => getSessionContextBundles(selectedSessionId ?? null),
     [getSessionContextBundles, selectedSessionId],
@@ -1124,8 +1128,17 @@ export function ChatPage(): JSX.Element {
       return 'error';
     }
 
+    if (hasStreamingReasoning) {
+      return 'thinking';
+    }
+
     return agentStreamActivity;
-  }, [agentStreamActivity, sendMessageMutation.isError, sendMessageMutation.isPending]);
+  }, [
+    agentStreamActivity,
+    hasStreamingReasoning,
+    sendMessageMutation.isError,
+    sendMessageMutation.isPending,
+  ]);
 
   useEffect(() => {
     if (!lastMessage) {
@@ -1495,6 +1508,36 @@ type ChatMessageWithMetadata = ChatMessageDto & {
   } | null;
 };
 
+type MessageWithReasoning = ChatMessageWithMetadata & {
+  reasoning?: {
+    text?: string | null;
+    metadata?: unknown;
+  } | null;
+};
+
+function isNonEmptyRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      Object.keys(value as Record<string, unknown>).length > 0,
+  );
+}
+
+function hasReasoningContent(
+  reasoning: MessageWithReasoning['reasoning'] | null | undefined,
+): boolean {
+  if (!reasoning) {
+    return false;
+  }
+
+  const text = typeof reasoning.text === 'string' ? reasoning.text.trim() : '';
+  if (text.length > 0) {
+    return true;
+  }
+
+  return isNonEmptyRecord(reasoning.metadata);
+}
+
 type AgentHierarchyNode = ExecutionTreeState['agentHierarchy'][number];
 type ToolInvocationNode = ExecutionTreeState['toolInvocations'][number];
 
@@ -1561,6 +1604,23 @@ function enrichMessagesWithExecutionTree(
     return mergedMetadata === message.metadata
       ? (message as ChatMessageWithMetadata)
       : { ...message, metadata: mergedMetadata };
+  });
+}
+
+function hasStreamingReasoningForSession(
+  messages: ChatMessageDto[],
+  sessionId: string | null,
+): boolean {
+  if (!sessionId) {
+    return false;
+  }
+
+  return messages.some((message) => {
+    if (message.sessionId !== sessionId) {
+      return false;
+    }
+
+    return hasReasoningContent((message as MessageWithReasoning).reasoning ?? null);
   });
 }
 

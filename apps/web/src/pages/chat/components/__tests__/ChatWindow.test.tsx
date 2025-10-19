@@ -21,6 +21,12 @@ type TestMessage = ChatMessageDto & {
       status?: string | null;
     } | null;
   } | null;
+  reasoning?: {
+    text?: string | null;
+    metadata?: Record<string, unknown> | null;
+    agentId?: string | null;
+    timestamp?: string | null;
+  } | null;
 };
 
 function createMessage(partial?: Partial<TestMessage>): TestMessage {
@@ -255,5 +261,36 @@ describe('ChatWindow', () => {
 
     expect(handleValueChange).toHaveBeenCalled();
     expect(handleSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders reasoning transcripts beneath assistant messages', () => {
+    const reasoningMessage = createMessage({
+      id: 'assistant-with-reasoning',
+      role: 'assistant',
+      content: 'Here is the answer.',
+      metadata: {
+        agent: {
+          name: 'Planner',
+          parentName: 'Orchestrator',
+        },
+      },
+      reasoning: {
+        text: 'Evaluating next best action.',
+        agentId: 'agent-7',
+        metadata: { step: 2 },
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    renderChatWindow({
+      messages: [reasoningMessage],
+      agentActivityState: 'thinking',
+    });
+
+    const transcript = screen.getByTestId('assistant-reasoning-transcript');
+    expect(transcript).toHaveTextContent('Evaluating next best action.');
+
+    const header = screen.getByTestId('assistant-reasoning-header');
+    expect(header).toHaveTextContent(/planner/i);
   });
 });

@@ -106,6 +106,70 @@ type MessageWithMetadata = ChatMessageDto & {
   metadata?: MessageMetadata;
 };
 
+type MessageReasoningState = {
+  text?: string | null;
+  metadata?: unknown;
+  agentId?: string | null;
+  timestamp?: string | null;
+};
+
+type MessageWithReasoning = MessageWithMetadata & {
+  reasoning?: MessageReasoningState | null;
+};
+
+function isNonEmptyRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      Object.keys(value as Record<string, unknown>).length > 0
+  );
+}
+
+function hasReasoningContent(
+  reasoning: MessageReasoningState | null | undefined
+): boolean {
+  const text = getReasoningText(reasoning);
+  if (text.length > 0) {
+    return true;
+  }
+
+  return isNonEmptyRecord(reasoning?.metadata);
+}
+
+function formatReasoningHeader(
+  provenance: { heading: string; subheading: string | null },
+  reasoning: MessageReasoningState | null | undefined
+): string {
+  const parts: string[] = [];
+  const heading = provenance.heading.trim();
+  if (heading.length > 0) {
+    parts.push(heading);
+  }
+
+  if (provenance.subheading && provenance.subheading.trim().length > 0) {
+    parts.push(provenance.subheading.trim());
+  } else if (reasoning?.agentId && !parts.includes(reasoning.agentId)) {
+    parts.push(reasoning.agentId);
+  }
+
+  if (parts.length === 0 && reasoning?.agentId) {
+    parts.push(reasoning.agentId);
+  }
+
+  const agentLabel = parts.length > 0 ? parts.join(" • ") : "Assistant";
+  return `Internal reasoning · ${agentLabel}`;
+}
+
+function getReasoningText(
+  reasoning: MessageReasoningState | null | undefined
+): string {
+  if (!reasoning || typeof reasoning.text !== "string") {
+    return "";
+  }
+
+  return reasoning.text.trim();
+}
+
 function getNonEmptyString(value: unknown): string | null {
   if (typeof value !== 'string') {
     return null;
@@ -301,6 +365,13 @@ export function MessageList({
                 messageWithMetadata,
                 fallbackHeading,
               );
+              const messageWithReasoning = message as MessageWithReasoning;
+              const reasoning = messageWithReasoning.reasoning ?? null;
+              const reasoningText = getReasoningText(reasoning);
+              const showReasoning =
+                message.role === "assistant" &&
+                (reasoningText.length > 0 || isNonEmptyRecord(reasoning?.metadata));
+              const provenance = { heading, subheading };
               const isToolMessage = message.role === 'tool';
               const toolSummary = isToolMessage
                 ? getToolSummary(messageWithMetadata)
@@ -395,11 +466,36 @@ export function MessageList({
                         </Badge>
                       </Flex>
                     ) : (
-                      <ChatMessageContent
-                        messageRole={message.role}
-                        content={message.content}
-                        className={cn('text-base text-white', roleStyle.contentClassName)}
-                      />
+                      <>
+                        <ChatMessageContent
+                          messageRole={message.role}
+                          content={message.content}
+                          className={cn('text-base text-white', roleStyle.contentClassName)}
+                        />
+                        {showReasoning ? (
+                          <Box className="mt-4 space-y-3 rounded-xl border border-sky-400/30 bg-sky-900/20 p-4">
+                            <Flex align="center" gap="2" className="text-xs uppercase tracking-wide text-sky-200">
+                              <MagicWandIcon className="h-3 w-3" />
+                              <Text
+                                size="1"
+                                className="text-xs font-semibold text-sky-200"
+                                data-testid="assistant-reasoning-header"
+                              >
+                                {formatReasoningHeader(provenance, reasoning)}
+                              </Text>
+                            </Flex>
+                            {reasoningText.length > 0 ? (
+                              <Text
+                                size="2"
+                                className="whitespace-pre-wrap text-slate-200/90"
+                                data-testid="assistant-reasoning-transcript"
+                              >
+                                {reasoningText}
+                              </Text>
+                            ) : null}
+                          </Box>
+                        ) : null}
+                      </>
                     )}
                   </Box>
                 </Box>

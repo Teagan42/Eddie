@@ -212,4 +212,67 @@ describe("ChatPage agent activity indicator", () => {
       screen.findByText(/agent is thinking/i, undefined, { timeout: 100 })
     ).rejects.toThrow();
   });
+
+  it("keeps the indicator in a thinking state while reasoning is streaming", async () => {
+    const handle = renderChatPage();
+
+    await waitFor(() => {
+      expect(agentActivityHandler).toBeTypeOf("function");
+    });
+
+    await waitForSessionsLoaded();
+
+    await act(async () => {
+      handle.client.setQueryData(
+        ["chat-session", "session-1", "messages"],
+        [
+          {
+            id: "message-1",
+            sessionId: "session-1",
+            role: "assistant",
+            content: "",
+            createdAt: timestamp,
+            reasoning: {
+              sessionId: "session-1",
+              messageId: "message-1",
+              text: "Thinking",
+              agentId: "agent-1",
+              timestamp,
+            },
+          },
+        ]
+      );
+      handle.rerender();
+    });
+
+    await expectIndicatorText(/agent is thinking/i);
+
+    await act(async () => {
+      agentActivityHandler?.({ sessionId: "session-1", state: "idle" });
+    });
+
+    await expectIndicatorText(/agent is thinking/i);
+
+    await act(async () => {
+      handle.client.setQueryData(
+        ["chat-session", "session-1", "messages"],
+        [
+          {
+            id: "message-1",
+            sessionId: "session-1",
+            role: "assistant",
+            content: "",
+            createdAt: timestamp,
+          },
+        ]
+      );
+      handle.rerender();
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("agent-activity-indicator")
+      ).not.toBeInTheDocument();
+    });
+  });
 });
