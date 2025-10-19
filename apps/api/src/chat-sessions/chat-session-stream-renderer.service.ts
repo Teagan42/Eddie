@@ -121,9 +121,16 @@ export class ChatSessionStreamRendererService {
         break;
       }
       case "notification": {
-        const metadata = event.metadata as { severity?: string } | undefined;
+        const metadata = event.metadata as {
+          severity?: string;
+          tool?: unknown;
+          tool_call_id?: unknown;
+        } | undefined;
         if (metadata?.severity === "error") {
-          await this.updateActivity(state, "error");
+          const isToolNotification =
+            typeof metadata.tool === "string" ||
+            typeof metadata.tool_call_id === "string";
+          await this.updateActivity(state, isToolNotification ? "tool-error" : "error");
         }
         break;
       }

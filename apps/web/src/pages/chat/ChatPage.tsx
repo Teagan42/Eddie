@@ -172,6 +172,18 @@ function removeSessionKey<T extends Record<string, unknown>>(
   return next;
 }
 
+const STREAM_ACTIVITY_STATES = new Set<Exclude<AgentActivityState, 'sending'>>([
+  'idle',
+  'thinking',
+  'tool',
+  'tool-error',
+  'error',
+]);
+
+function isStreamActivityState(value: AgentActivityState): value is Exclude<AgentActivityState, 'sending'> {
+  return STREAM_ACTIVITY_STATES.has(value as Exclude<AgentActivityState, 'sending'>);
+}
+
 export function ChatPage(): JSX.Element {
   const api = useApi();
   const { apiKey } = useAuth();
@@ -565,12 +577,7 @@ export function ChatPage(): JSX.Element {
         return;
       }
 
-      if (
-        activity.state === 'idle' ||
-        activity.state === 'thinking' ||
-        activity.state === 'tool' ||
-        activity.state === 'error'
-      ) {
+      if (isStreamActivityState(activity.state)) {
         setAgentStreamActivity(activity.state);
       }
     });

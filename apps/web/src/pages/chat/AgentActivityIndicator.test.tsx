@@ -22,4 +22,12 @@ describe("AgentActivityIndicator", () => {
       screen.getByRole("status", { name: /agent is thinking/i })
     ).toBeInTheDocument();
   });
+
+  it("renders tool error messaging", () => {
+    renderIndicator('tool-error' as AgentActivityIndicatorProps["state"]);
+
+    expect(
+      screen.getByRole("status", { name: /tool invocation failed/i })
+    ).toBeInTheDocument();
+  });
 });

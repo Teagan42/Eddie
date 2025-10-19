@@ -1,10 +1,16 @@
 import { type ComponentType } from "react";
 import { Flex, Text } from "@radix-ui/themes";
 import { PaperPlaneIcon } from "@radix-ui/react-icons";
-import { AlertTriangle, Loader2, Sparkles as SparklesIcon } from "lucide-react";
+import { AlertTriangle, Loader2, Sparkles as SparklesIcon, Wrench } from "lucide-react";
 import { cn } from "@/vendor/lib/utils";
 
-export type AgentActivityState = "idle" | "sending" | "thinking" | "tool" | "error";
+export type AgentActivityState =
+  | "idle"
+  | "sending"
+  | "thinking"
+  | "tool"
+  | "tool-error"
+  | "error";
 
 interface AgentActivityDescriptor {
   title: string;
@@ -39,6 +45,14 @@ const AGENT_ACTIVITY_VARIANTS = {
     gradient: "from-amber-400/25 via-slate-900/60 to-sky-500/20",
     iconClassName: "animate-spin text-amber-100",
     ringClassName: "animate-pulse bg-amber-400/30",
+  },
+  'tool-error': {
+    title: "Tool invocation failed",
+    subtitle: "A tool call encountered an issue",
+    icon: Wrench,
+    gradient: "from-amber-500/25 via-slate-900/60 to-rose-500/25",
+    iconClassName: "text-amber-100 animate-[pulse_1.4s_linear_infinite]",
+    ringClassName: "animate-[ping_2s_linear_infinite] bg-amber-500/25",
   },
   error: {
     title: "Agent run failed",

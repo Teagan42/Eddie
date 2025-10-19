@@ -1,1 +1,1 @@
-export type AgentActivityState = "idle" | "thinking" | "tool" | "error";
+export type AgentActivityState = "idle" | "thinking" | "tool" | "tool-error" | "error";
