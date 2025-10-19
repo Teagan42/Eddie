@@ -84,6 +84,7 @@ interface ProviderProfileSnapshot {
     [key: string]: unknown;
   };
   model?: string;
+  label?: string;
   [key: string]: unknown;
 }
 
@@ -1084,14 +1085,20 @@ export function ChatPage(): JSX.Element {
         return acc;
       }
 
+      const labelCandidate =
+        typeof profile.label === 'string' ? profile.label.trim() : '';
+      const optionLabel = labelCandidate ? labelCandidate : profileId;
+
       acc.push({
         value: profileId,
-        label: profileId,
+        label: optionLabel,
         providerName,
         defaultModel: typeof profile.model === 'string' ? profile.model : undefined,
       });
       return acc;
     }, []);
+
+    options.sort((a, b) => a.label.localeCompare(b.label));
 
     if (
       activeSettings.provider &&

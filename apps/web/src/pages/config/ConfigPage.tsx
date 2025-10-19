@@ -58,6 +58,7 @@ interface ProviderProfileSnapshot {
     [key: string]: unknown;
   };
   model?: string;
+  label?: string;
   [key: string]: unknown;
 }
 
@@ -402,14 +403,20 @@ export function ConfigPage(): JSX.Element {
         return acc;
       }
 
+      const labelCandidate =
+        typeof profile.label === "string" ? profile.label.trim() : "";
+      const optionLabel = labelCandidate ? labelCandidate : profileId;
+
       acc.push({
         value: profileId,
-        label: profileId,
+        label: optionLabel,
         providerName,
         defaultModel: typeof profile.model === 'string' ? profile.model : undefined,
       });
       return acc;
     }, []);
+
+    options.sort((a, b) => a.label.localeCompare(b.label));
 
     const seen = new Set(options.map((option) => option.providerName));
     const fallbacks: ProviderOption[] = [];
