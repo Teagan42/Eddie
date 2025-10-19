@@ -173,16 +173,7 @@ const createSqlDriver = (config: SqlDriverConfig): ChatSessionsPersistenceDriver
   },
 });
 
-const resolvePostgresConnection = (): Knex.Config['connection'] | undefined => {
-  const url =
-    process.env.CHAT_SESSIONS_BENCH_POSTGRES_URL ??
-    process.env.POSTGRES_URL ??
-    process.env.DATABASE_URL ??
-    undefined;
-  return url;
-};
-
-const resolveMysqlConnection = (
+const resolveConnectionFromEnv = (
   envKeys: readonly string[],
 ): Knex.Config['connection'] | undefined => {
   for (const key of envKeys) {
@@ -193,6 +184,23 @@ const resolveMysqlConnection = (
   }
   return undefined;
 };
+
+const POSTGRES_ENV_KEYS = [
+  'CHAT_SESSIONS_BENCH_POSTGRES_URL',
+  'POSTGRES_URL',
+  'DATABASE_URL',
+] as const;
+
+const MYSQL_ENV_KEYS = ['CHAT_SESSIONS_BENCH_MYSQL_URL', 'MYSQL_URL'] as const;
+
+const MARIADB_ENV_KEYS = ['CHAT_SESSIONS_BENCH_MARIADB_URL', 'MARIADB_URL'] as const;
+
+const resolvePostgresConnection = (): Knex.Config['connection'] | undefined =>
+  resolveConnectionFromEnv(POSTGRES_ENV_KEYS);
+
+const resolveMysqlConnection = (
+  envKeys: readonly string[],
+): Knex.Config['connection'] | undefined => resolveConnectionFromEnv(envKeys);
 
 export async function loadChatSessionsPersistenceDrivers(): Promise<ChatSessionsPersistenceDriver[]> {
   const drivers: ChatSessionsPersistenceDriver[] = [createSqliteDriver()];
@@ -211,10 +219,7 @@ export async function loadChatSessionsPersistenceDrivers(): Promise<ChatSessions
     );
   }
 
-  const mysqlConnection = resolveMysqlConnection([
-    'CHAT_SESSIONS_BENCH_MYSQL_URL',
-    'MYSQL_URL',
-  ]);
+  const mysqlConnection = resolveMysqlConnection(MYSQL_ENV_KEYS);
   if (mysqlConnection) {
     drivers.push(
       createSqlDriver({
@@ -228,10 +233,7 @@ export async function loadChatSessionsPersistenceDrivers(): Promise<ChatSessions
     );
   }
 
-  const mariadbConnection = resolveMysqlConnection([
-    'CHAT_SESSIONS_BENCH_MARIADB_URL',
-    'MARIADB_URL',
-  ]);
+  const mariadbConnection = resolveMysqlConnection(MARIADB_ENV_KEYS);
   if (mariadbConnection) {
     drivers.push(
       createSqlDriver({
@@ -533,7 +535,16 @@ export async function defineChatSessionsPersistenceBenchmarks({
 
 const safeBench = createSafeBench(bench);
 
-if (process.env.MARIADB_URL || process.env.MYSQL_URL || process.env.POSTGRES_URL || true) {
+const SQL_BENCH_ENV_KEYS = [
+  ...POSTGRES_ENV_KEYS,
+  ...MYSQL_ENV_KEYS,
+  ...MARIADB_ENV_KEYS,
+] as const;
+
+export const shouldRegisterChatSessionsPersistenceBenchmarks = (): boolean =>
+  SQL_BENCH_ENV_KEYS.some((key) => Boolean(process.env[key]));
+
+if (shouldRegisterChatSessionsPersistenceBenchmarks()) {
   await defineChatSessionsPersistenceBenchmarks({
     suite,
     describe,
@@ -544,6 +555,10 @@ if (process.env.MARIADB_URL || process.env.MYSQL_URL || process.env.POSTGRES_URL
   }).catch((error) => {
     console.error('Failed to register chat session persistence benchmarks', error);
   });
+} else {
+  console.warn(
+    'Skipping chat session persistence benchmarks because no SQL database connection is configured.',
+  );
 }
 
 

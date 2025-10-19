@@ -1,4 +1,6 @@
-import { sep } from 'node:path';
+import { readFileSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, sep } from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
@@ -112,5 +114,121 @@ describe('template-rendering benchmarks', () => {
 
     expect(registerBench).toHaveBeenCalled();
     expect(benchCallbacks).not.toHaveLength(0);
+  });
+
+  it('emits benchmark action entries for reporter consumption', async () => {
+    const registry = await import('../src/benchmark-action.registry');
+    const registerEntrySpy = vi.spyOn(registry, 'registerBenchmarkActionEntry');
+
+    const moduleExports = (await import('../src/template-rendering.bench')) as Record<string, unknown>;
+    const flushReport = moduleExports.emitTemplateRenderingBenchmarkReport as
+      | (() => void)
+      | undefined;
+
+    expect(typeof flushReport).toBe('function');
+    if (typeof flushReport !== 'function') {
+      return;
+    }
+
+    const suiteCallbacks: Array<() => unknown> = [];
+    const describeCallbacks: Array<() => unknown> = [];
+    const benchCallbacks: Array<() => Promise<unknown>> = [];
+
+    const registerSuite = vi.fn<AsyncFactoryRegistration>((_, factory) => {
+      suiteCallbacks.push(factory);
+    });
+    const registerDescribe = vi.fn<AsyncFactoryRegistration>((_, factory) => {
+      describeCallbacks.push(factory);
+    });
+    const registerBench = vi.fn<AsyncBenchRegistration>((_, handler) => {
+      benchCallbacks.push(handler);
+    });
+
+    const { defineTemplateRenderingBenchmarks } = (await import(
+      '../src/template-rendering.bench'
+    )) as typeof import('../src/template-rendering.bench');
+
+    await defineTemplateRenderingBenchmarks({
+      suite: registerSuite,
+      describe: registerDescribe,
+      bench: registerBench,
+      loadFixtures: loadTemplateRenderingFixtures,
+    });
+
+    for (const suiteFactory of suiteCallbacks) {
+      await suiteFactory();
+    }
+
+    for (const describeFactory of describeCallbacks) {
+      await describeFactory();
+    }
+
+    for (const benchHandler of benchCallbacks) {
+      await benchHandler();
+    }
+
+    flushReport();
+
+    expect(registerEntrySpy).toHaveBeenCalled();
+  });
+
+  it('writes structured reports to the benchmark action directory when configured', async () => {
+    const reportRoot = mkdtempSync(join(tmpdir(), 'template-report-'));
+
+    const moduleExports = (await import('../src/template-rendering.bench')) as Record<string, unknown>;
+    const flushReport = moduleExports.emitTemplateRenderingBenchmarkReport as (() => void) | undefined;
+    if (typeof flushReport !== 'function') {
+      throw new Error('expected emitTemplateRenderingBenchmarkReport to be available');
+    }
+
+    const suiteCallbacks: Array<() => unknown> = [];
+    const describeCallbacks: Array<() => unknown> = [];
+    const benchCallbacks: Array<() => Promise<unknown>> = [];
+
+    const registerSuite = vi.fn<AsyncFactoryRegistration>((_, factory) => {
+      suiteCallbacks.push(factory);
+    });
+    const registerDescribe = vi.fn<AsyncFactoryRegistration>((_, factory) => {
+      describeCallbacks.push(factory);
+    });
+    const registerBench = vi.fn<AsyncBenchRegistration>((_, handler) => {
+      benchCallbacks.push(handler);
+    });
+
+    const { defineTemplateRenderingBenchmarks } = (await import(
+      '../src/template-rendering.bench'
+    )) as typeof import('../src/template-rendering.bench');
+
+    process.env.BENCHMARK_ACTION_REPORT_DIR = reportRoot;
+
+    await defineTemplateRenderingBenchmarks({
+      suite: registerSuite,
+      describe: registerDescribe,
+      bench: registerBench,
+      loadFixtures: loadTemplateRenderingFixtures,
+    });
+
+    for (const suiteFactory of suiteCallbacks) {
+      await suiteFactory();
+    }
+
+    for (const describeFactory of describeCallbacks) {
+      await describeFactory();
+    }
+
+    for (const benchHandler of benchCallbacks) {
+      await benchHandler();
+    }
+
+    flushReport();
+
+    const reportPath = join(reportRoot, 'template-rendering.nunjucks.json');
+    const contents = readFileSync(reportPath, 'utf-8');
+    const parsed = JSON.parse(contents) as { benchmark: string; scenarios: unknown[] };
+
+    expect(parsed.benchmark).toBe('template-rendering.nunjucks');
+    expect(Array.isArray(parsed.scenarios)).toBe(true);
+
+    delete process.env.BENCHMARK_ACTION_REPORT_DIR;
   });
 });

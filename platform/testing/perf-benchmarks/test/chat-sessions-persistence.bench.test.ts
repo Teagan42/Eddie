@@ -79,6 +79,93 @@ describe('chat-sessions persistence benchmarks', () => {
     expect(sessionsForKey.length).toBeGreaterThan(0);
   });
 
+  it('exposes a registration guard that only enables SQL benchmarks when env vars are set', async () => {
+    const moduleExports = (await import('../src/chat-sessions-persistence.bench')) as Record<string, unknown>;
+    const guard = moduleExports.shouldRegisterChatSessionsPersistenceBenchmarks as
+      | (() => boolean)
+      | undefined;
+
+    expect(typeof guard).toBe('function');
+    if (typeof guard !== 'function') {
+      return;
+    }
+
+    const envKeys = ['MARIADB_URL', 'MYSQL_URL', 'DATABASE_URL'] as const;
+    const originalValues = envKeys.map((key) => process.env[key]);
+
+    try {
+      for (const key of envKeys) {
+        delete process.env[key];
+      }
+
+      expect(guard()).toBe(false);
+
+      process.env.DATABASE_URL = 'postgres://example.local/bench';
+
+      expect(guard()).toBe(true);
+    } finally {
+      envKeys.forEach((key, index) => {
+        const value = originalValues[index];
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      });
+    }
+  });
+
+  it('allows SQL benchmarks when only bench-specific connection URLs are present', async () => {
+    const moduleExports = (await import('../src/chat-sessions-persistence.bench')) as Record<string, unknown>;
+    const guard = moduleExports.shouldRegisterChatSessionsPersistenceBenchmarks as
+      | (() => boolean)
+      | undefined;
+
+    expect(typeof guard).toBe('function');
+    if (typeof guard !== 'function') {
+      return;
+    }
+
+    const benchSpecificKeys = [
+      'CHAT_SESSIONS_BENCH_POSTGRES_URL',
+      'CHAT_SESSIONS_BENCH_MYSQL_URL',
+      'CHAT_SESSIONS_BENCH_MARIADB_URL',
+    ] as const;
+
+    const relatedKeys = [
+      ...benchSpecificKeys,
+      'POSTGRES_URL',
+      'MYSQL_URL',
+      'MARIADB_URL',
+      'DATABASE_URL',
+    ] as const;
+
+    const originalValues = relatedKeys.map((key) => process.env[key]);
+
+    try {
+      relatedKeys.forEach((key) => {
+        delete process.env[key];
+      });
+
+      expect(guard()).toBe(false);
+
+      for (const key of benchSpecificKeys) {
+        process.env[key] = `${key.toLowerCase()}://example.local/bench`;
+        expect(guard()).toBe(true);
+        delete process.env[key];
+      }
+    } finally {
+      relatedKeys.forEach((key, index) => {
+        const value = originalValues[index];
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      });
+    }
+  });
+
   it('registers benchmark suites per driver when invoked under vitest bench mode', async () => {
     const dispose = vi.fn();
     const reset = vi.fn();

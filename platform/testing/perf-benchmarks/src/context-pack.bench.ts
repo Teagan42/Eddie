@@ -1,3 +1,4 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -150,6 +151,16 @@ function emitStructuredReport(datasetContexts: Map<string, DatasetBenchContext>)
       commit: process.env.GITHUB_SHA,
     },
   });
+
+  const reportDirectory = process.env.BENCHMARK_ACTION_REPORT_DIR;
+  if (reportDirectory) {
+    mkdirSync(reportDirectory, { recursive: true });
+    writeFileSync(
+      join(reportDirectory, `${BENCHMARK_NAME}.json`),
+      JSON.stringify(report),
+      'utf-8',
+    );
+  }
 
   console.log(JSON.stringify(report));
 }
