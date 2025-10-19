@@ -212,6 +212,25 @@ export interface AgentActivityEventDto {
     timestamp?: string;
 }
 
+export interface ChatMessageReasoningPartialPayload {
+    sessionId: string;
+    messageId: string;
+    text: string;
+    metadata?: Record<string, unknown>;
+    timestamp?: string;
+    agentId?: string | null;
+}
+
+export interface ChatMessageReasoningCompletePayload {
+    sessionId: string;
+    messageId: string;
+    responseId?: string;
+    text?: string;
+    metadata?: Record<string, unknown>;
+    timestamp?: string;
+    agentId?: string | null;
+}
+
 export interface ApiClientOptions {
     baseUrl: string;
     websocketUrl: string;
@@ -273,10 +292,10 @@ type ChatMessageReasoningEvent =
 export interface ChatMessagesSocket {
     onMessagePartial(handler: (message: ChatMessageDto) => void): Unsubscribe;
     onReasoningPartial(
-        handler: (payload: ChatMessageReasoningPayload) => void
+        handler: (payload: ChatMessageReasoningPartialPayload) => void,
     ): Unsubscribe;
     onReasoningComplete(
-        handler: (payload: ChatMessageReasoningPayload) => void
+        handler: (payload: ChatMessageReasoningCompletePayload) => void,
     ): Unsubscribe;
 }
 
@@ -511,6 +530,95 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     return null;
   };
 
+  const coercePlainRecord = (
+    value: unknown,
+  ): Record<string, unknown> | undefined => {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return value as Record<string, unknown>;
+    }
+
+    return undefined;
+  };
+
+  const coerceAgentId = (value: unknown): string | null | undefined => {
+    if (typeof value === "string") {
+      return value;
+    }
+
+    if (value === null) {
+      return null;
+    }
+
+    return undefined;
+  };
+
+  const coerceReasoningPartialPayload = (
+    payload: unknown,
+  ): ChatMessageReasoningPartialPayload | null => {
+    if (
+      payload &&
+      typeof payload === "object" &&
+      "sessionId" in (payload as { sessionId?: unknown }) &&
+      typeof (payload as { sessionId?: unknown }).sessionId === "string" &&
+      "messageId" in (payload as { messageId?: unknown }) &&
+      typeof (payload as { messageId?: unknown }).messageId === "string" &&
+      "text" in (payload as { text?: unknown }) &&
+      typeof (payload as { text?: unknown }).text === "string"
+    ) {
+      return {
+        sessionId: (payload as { sessionId: string }).sessionId,
+        messageId: (payload as { messageId: string }).messageId,
+        text: (payload as { text: string }).text,
+        metadata: coercePlainRecord(
+          (payload as { metadata?: unknown }).metadata,
+        ),
+        timestamp:
+          typeof (payload as { timestamp?: unknown }).timestamp === "string"
+            ? (payload as { timestamp: string }).timestamp
+            : undefined,
+        agentId: coerceAgentId((payload as { agentId?: unknown }).agentId),
+      };
+    }
+
+    return null;
+  };
+
+  const coerceReasoningCompletePayload = (
+    payload: unknown,
+  ): ChatMessageReasoningCompletePayload | null => {
+    if (
+      payload &&
+      typeof payload === "object" &&
+      "sessionId" in (payload as { sessionId?: unknown }) &&
+      typeof (payload as { sessionId?: unknown }).sessionId === "string" &&
+      "messageId" in (payload as { messageId?: unknown }) &&
+      typeof (payload as { messageId?: unknown }).messageId === "string"
+    ) {
+      return {
+        sessionId: (payload as { sessionId: string }).sessionId,
+        messageId: (payload as { messageId: string }).messageId,
+        responseId:
+          typeof (payload as { responseId?: unknown }).responseId === "string"
+            ? (payload as { responseId: string }).responseId
+            : undefined,
+        text:
+          typeof (payload as { text?: unknown }).text === "string"
+            ? (payload as { text: string }).text
+            : undefined,
+        metadata: coercePlainRecord(
+          (payload as { metadata?: unknown }).metadata,
+        ),
+        timestamp:
+          typeof (payload as { timestamp?: unknown }).timestamp === "string"
+            ? (payload as { timestamp: string }).timestamp
+            : undefined,
+        agentId: coerceAgentId((payload as { agentId?: unknown }).agentId),
+      };
+    }
+
+    return null;
+  };
+
   const chatSessionsSocket: ChatSessionsSocket = {
     onSessionCreated(handler) {
       return chatChannel.on("session.created", handler);
@@ -558,17 +666,23 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     onReasoningPartial(handler) {
       return chatMessagesChannel.on(
         "message.reasoning.partial",
-        (payload: ChatMessageReasoningPartialEvent) => {
-          handler(toReasoningPayload(payload));
-        }
+        (payload: unknown) => {
+          const update = coerceReasoningPartialPayload(payload);
+          if (update) {
+            handler(update);
+          }
+        },
       );
     },
     onReasoningComplete(handler) {
       return chatMessagesChannel.on(
         "message.reasoning.completed",
-        (payload: ChatMessageReasoningCompleteEvent) => {
-          handler(toReasoningPayload(payload));
-        }
+        (payload: unknown) => {
+          const update = coerceReasoningCompletePayload(payload);
+          if (update) {
+            handler(update);
+          }
+        },
       );
     },
   };
