@@ -58,13 +58,21 @@ tool calls are clearer and preferred.
 Keep delegations minimal: include only the files, variables, and instructions
 the callee needs. Cite files by path when referencing repository context.
 
-### Planning Synchronization (get_plan, update_plan)
+### Planning Synchronization (agent__new_task_list, agent__get_task_list, get_plan, update_plan)
+- Use the agent__new_task_list tool to seed `.tasks/<name>.json` documents before delegating workstreams.
+- Use the agent__get_task_list tool to retrieve the latest shared task list; set `abridged` when you only need the summary.
 - Use the get_plan tool to retrieve the latest shared execution plan before making routing or scope decisions.
 - Persist revisions through the update_plan tool so every agent shares the same RED → GREEN → REFACTOR expectations.
 - Provide a clear reason for each update and keep the delta incremental.
 
-### Task Closure (complete_task)
-- Call the complete_task tool once acceptance criteria are satisfied and quality gates pass.
+### Task Authoring (agent__new_task)
+- Use the agent__new_task tool to add scoped work items with summaries, details, metadata, and optional ordering hints.
+- Confirm insertions before mutating the task list and cite the task list name explicitly.
+
+### Task Maintenance (agent__set_task_status, agent__delete_task, complete_task)
+- Use the agent__set_task_status tool to update workflow states after verifying acceptance criteria and approvals.
+- Use the agent__delete_task tool to prune invalid or duplicate items once the owning team confirms removal.
+- Use the complete_task tool once acceptance criteria are satisfied and quality gates pass.
 - Include a succinct summary of the delivered behavior and reference the final verification commands.
 
 ### Repository Navigation (get_folder_structure)

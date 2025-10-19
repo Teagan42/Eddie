@@ -139,6 +139,74 @@
 - Task list names are sanitised to reject path separators and empty values.
 - Files are written inside the workspace-scoped `.tasks/` directory using the shared storage helpers in [`platform/runtime/tools/src/builtin/task_list.ts`](./src/builtin/task_list.ts).
 
+### `agent__get_task_list`
+#### Parameters
+- `taskListName` (required): name of the task list to load.
+- `abridged` (default `false`): renders a concise textual summary when enabled.
+
+#### Outputs
+- `metadata`, `tasks`, `createdAt`, `updatedAt`: hydrated document describing the list.
+- `content`: either the full rendering or abridged summary depending on the flag.
+- `schema`: echoes `TASK_LIST_RESULT_SCHEMA.$id` for downstream validation.
+
+#### Safety considerations
+- Task list names are sanitised before resolving the on-disk path.
+- [`platform/runtime/tools/src/builtin/task_list.ts`](./src/builtin/task_list.ts) ensures the `.tasks/` directory exists and creates empty documents on first access.
+- Responses are normalised through shared helpers so timestamps and IDs remain stable between calls.
+
+### `agent__new_task`
+#### Parameters
+- `taskListName` (required): target list that will receive the new task.
+- `title` (required): short summary of the work item.
+- `summary`, `details`: optional narrative strings persisted with the task.
+- `metadata`: arbitrary JSON object stored alongside the task.
+- `status`: initial status (`pending`, `in_progress`, `complete`).
+- `position`: zero-based insertion index.
+- `beforeTaskId`: alternative insertion hint that precedes the referenced task.
+
+#### Outputs
+- `metadata`, `tasks`, `createdAt`, `updatedAt`: updated task list document.
+- `content`: human-readable confirmation that includes the inserted task title and status.
+- `schema`: echoes `TASK_LIST_RESULT_SCHEMA.$id` for validation tooling.
+
+#### Safety considerations
+- The handler prompts with `ctx.confirm` before mutating the task list.
+- Names and insertion hints are sanitised, and `insertTaskPayload` clamps indices into a valid range.
+- Writes go through the shared helpers in [`platform/runtime/tools/src/builtin/task_list.ts`](./src/builtin/task_list.ts), which preserve existing timestamps when requested.
+
+### `agent__set_task_status`
+#### Parameters
+- `taskListName` (required): list containing the target task.
+- `taskId` (required): identifier of the task to update.
+- `status` (required): new status (`pending`, `in_progress`, `complete`).
+- `abridged` (default `false`): opt into the concise textual rendering.
+
+#### Outputs
+- `metadata`, `tasks`, `createdAt`, `updatedAt`: task list after the status update.
+- `content`: summary indicating which task changed and the resulting status.
+- `schema`: echoes `TASK_LIST_RESULT_SCHEMA.$id` for validation.
+
+#### Safety considerations
+- Task IDs and list names are sanitised; missing tasks raise structured errors before writes occur.
+- A `ctx.confirm` prompt must succeed before the status change is persisted.
+- Writes reuse the shared helpers so only the targeted task mutates and timestamps stay consistent.
+
+### `agent__delete_task`
+#### Parameters
+- `taskListName` (required): list containing the task to delete.
+- `taskId` (required): identifier of the task to remove.
+- `abridged` (default `false`): opt into the concise textual rendering.
+
+#### Outputs
+- `metadata`, `tasks`, `createdAt`, `updatedAt`: document describing the remaining tasks.
+- `content`: confirmation that the specified task was removed.
+- `schema`: echoes `TASK_LIST_RESULT_SCHEMA.$id` for validation.
+
+#### Safety considerations
+- List names and task IDs are sanitised before any filesystem access.
+- A confirmation prompt via `ctx.confirm` protects against accidental deletions.
+- Writes are delegated to [`platform/runtime/tools/src/builtin/task_list.ts`](./src/builtin/task_list.ts), which maintains workspace scoping and timestamp stability.
+
 ### `update_plan`
 #### Parameters
 - `tasks` (required unless `plan.tasks` provided): array of plan entries containing `title`, `status`, and optional `details`.
