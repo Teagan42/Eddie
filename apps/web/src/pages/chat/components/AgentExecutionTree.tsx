@@ -39,8 +39,11 @@ const EMPTY_CONTEXT_BUNDLES_BY_AGENT = {} as ExecutionTreeState['contextBundlesB
 const EMPTY_TOOL_GROUPS = {} as ExecutionTreeState['toolGroupsByAgentId'];
 const EMPTY_AGENT_LINEAGE = {} as ExecutionTreeState['agentLineageById'];
 
+const SURFACE_CARD_CLASS = 'rounded-xl border border-white/15 bg-slate-950/70';
+const CONTEXT_ENTRY_CARD_CLASS = 'rounded-lg border border-white/10 bg-slate-950/60';
+
 const SECTION_TOGGLE_BUTTON_CLASS =
-  'flex w-full items-center justify-between rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm transition hover:border-accent/50 hover:bg-slate-900/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
+  'flex w-full items-center justify-between rounded-xl border border-white/15 bg-slate-950/60 px-3.5 py-2.5 text-sm transition hover:border-accent/60 hover:bg-slate-900/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
 
 const TOOL_PREVIEW_LIMIT = 120;
 
@@ -352,7 +355,7 @@ export function AgentExecutionTree({
                           return (
                             <li
                               key={entry.id}
-                              className={cn('p-3 space-y-3', TRANSITION_REGION_CLASS)}
+                              className={cn('space-y-3 p-4', SURFACE_CARD_CLASS, TRANSITION_REGION_CLASS)}
                             >
                               <Flex align="center" justify="between" gap="3">
                                 <Box className="min-w-0">
@@ -439,15 +442,12 @@ export function AgentExecutionTree({
                 role="region"
                 id={regionId}
                 aria-label={`context bundles for ${_agent.name}`}
-                className={cn(
-                  'space-y-2 rounded-lg border border-white/10 bg-slate-950/70 p-3',
-                  TRANSITION_REGION_CLASS,
-                )}
+                className={cn('space-y-3 p-4', SURFACE_CARD_CLASS, TRANSITION_REGION_CLASS)}
               >
                 {bundles.map((bundle, index) => (
                   <Box
                     key={bundle.id}
-                    className="space-y-1"
+                    className={cn('space-y-2 p-3', CONTEXT_ENTRY_CARD_CLASS)}
                     data-testid={
                       index === 0 ? 'agent-execution-tree-context-motion' : undefined
                     }
@@ -456,7 +456,7 @@ export function AgentExecutionTree({
                     }
                   >
                     <Text weight="medium" className="text-white/90">
-                      {bundle.title}
+                      {bundle.title ?? bundle.label ?? 'Context bundle'}
                     </Text>
                     <Text size="1" color="gray">
                       {formatContextSource(bundle.source)}

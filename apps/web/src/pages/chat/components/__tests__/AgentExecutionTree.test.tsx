@@ -44,6 +44,8 @@ describe('AgentExecutionTree', () => {
       fileCount: 1,
       files: [
         {
+          id: 'file-1',
+          name: 'preferences.json',
           path: 'preferences.json',
           sizeBytes: 128,
           preview: '{"preferredCity":"San Francisco"}',
@@ -415,6 +417,107 @@ describe('AgentExecutionTree', () => {
 
     const toolItems = completedRegion.querySelectorAll(':scope > ul > li');
     expect(toolItems[0]).toHaveClass('transition-all');
+  });
+
+  it('applies refreshed spacing styles to tool and context bundle sections', async () => {
+    const user = userEvent.setup();
+
+    const completedInvocation: ExecutionTreeState['toolInvocations'][number] = {
+      id: 'tool-1',
+      agentId: 'root-agent',
+      name: 'browse-web',
+      status: 'completed',
+      createdAt: '2024-05-01T12:00:00.000Z',
+      updatedAt: '2024-05-01T12:01:00.000Z',
+      metadata: {
+        result: 'Partly cloudy with highs of 72°F.',
+      },
+      children: [],
+    };
+
+    const contextBundle: ExecutionContextBundle = {
+      id: 'bundle-1',
+      label: 'User Profile',
+      summary: 'Preferred travel destinations and preferences',
+      sizeBytes: 128,
+      fileCount: 1,
+      files: [
+        {
+          path: 'preferences.json',
+          sizeBytes: 128,
+          preview: '{"preferredCity":"San Francisco"}',
+        },
+      ],
+      source: { type: 'tool_result', agentId: 'root-agent', toolCallId: 'tool-1' },
+    };
+
+    const executionTree: ExecutionTreeState = {
+      agentHierarchy: [
+        {
+          id: 'root-agent',
+          name: 'orchestrator',
+          provider: 'openai',
+          model: 'gpt-4o-mini',
+          depth: 0,
+          lineage: ['root-agent'],
+          children: [],
+        },
+      ],
+      toolInvocations: [completedInvocation],
+      contextBundles: [contextBundle],
+      agentLineageById: { 'root-agent': ['root-agent'] },
+      toolGroupsByAgentId: {
+        'root-agent': {
+          pending: [],
+          running: [],
+          completed: [completedInvocation],
+          failed: [],
+        },
+      },
+      contextBundlesByAgentId: { 'root-agent': [contextBundle] },
+      contextBundlesByToolCallId: { 'tool-1': [contextBundle] },
+      createdAt: '2024-05-01T12:00:00.000Z',
+      updatedAt: '2024-05-01T12:01:00.000Z',
+    };
+
+    render(
+      <AgentExecutionTree state={executionTree} selectedAgentId={null} onSelectAgent={() => {}} />,
+    );
+
+    const completedToggle = screen.getByRole('button', {
+      name: /toggle completed tool invocations for orchestrator/i,
+    });
+    await user.click(completedToggle);
+
+    const completedRegion = screen.getByRole('region', {
+      name: /completed tool invocations for orchestrator/i,
+    });
+    const [toolCard] = within(completedRegion).getAllByRole('listitem');
+
+    expect(toolCard).toHaveClass('rounded-xl');
+    expect(toolCard).toHaveClass('border-white/15');
+    expect(toolCard).toHaveClass('p-4');
+
+    const contextToggle = screen.getByRole('button', {
+      name: /toggle context bundles for orchestrator/i,
+    });
+    await user.click(contextToggle);
+
+    const contextRegion = screen.getByRole('region', {
+      name: /context bundles for orchestrator/i,
+    });
+
+    expect(contextRegion).toHaveClass('space-y-3');
+    expect(contextRegion).toHaveClass('rounded-xl');
+    expect(contextRegion).toHaveClass('p-4');
+
+    const bundleHeading = within(contextRegion).getByText('User Profile');
+    const bundleCard = bundleHeading.closest('div');
+
+    expect(bundleCard).not.toBeNull();
+    expect(bundleCard).toHaveClass('space-y-2');
+    expect(bundleCard).toHaveClass('rounded-lg');
+    expect(bundleCard).toHaveClass('p-3');
   });
 
   it('auto-expands agents with children on initial render', () => {
