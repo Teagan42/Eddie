@@ -48,6 +48,19 @@ describe("cli reference documentation", () => {
     expect(cliReferenceContent).toMatch(/maxBytes/i);
   });
 
+  it("documents notification stream records and hooks", () => {
+    const patterns = [
+      /\[notification\]/i,
+      /HOOK_EVENTS\.notification/,
+      /provider notifications/i,
+      /tool (?:error|failure) handling/i,
+    ];
+
+    for (const pattern of patterns) {
+      expect(cliReferenceContent).toMatch(pattern);
+    }
+  });
+  
   it("documents the configuration wizard and positional rules for config", () => {
     expect(cliReferenceContent).toMatch(/###\s+config command/i);
     expect(cliReferenceContent).toMatch(/configuration wizard/i);
