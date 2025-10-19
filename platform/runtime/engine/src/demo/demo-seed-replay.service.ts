@@ -230,17 +230,33 @@ export class DemoSeedReplayService {
   ): void {
     switch (level) {
       case "debug":
-        context ? logger.debug(context, message) : logger.debug(message);
+        if (context) {
+          logger.debug(context, message);
+        } else {
+          logger.debug(message);
+        }
         return;
       case "warn":
-        context ? logger.warn(context, message) : logger.warn(message);
+        if (context) {
+          logger.warn(context, message);
+        } else {
+          logger.warn(message);
+        }
         return;
       case "error":
-        context ? logger.error(context, message) : logger.error(message);
+        if (context) {
+          logger.error(context, message);
+        } else {
+          logger.error(message);
+        }
         return;
       case "info":
       default:
-        context ? logger.info(context, message) : logger.info(message);
+        if (context) {
+          logger.info(context, message);
+        } else {
+          logger.info(message);
+        }
         return;
     }
   }
