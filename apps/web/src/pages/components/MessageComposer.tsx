@@ -26,6 +26,7 @@ const HINT_ACTIVE_CLASS = "font-medium tracking-wide text-[color:var(--overview-
 const HINT_DISABLED_CLASS = "font-medium tracking-wide text-[color:var(--overview-composer-hint-disabled)]";
 
 const CTA_BUTTON_CLASS = [
+  "group relative overflow-hidden rounded-full",
   "bg-gradient-to-r",
   "from-[hsl(var(--hero-cta-from))] via-[hsl(var(--hero-cta-via))] to-[hsl(var(--hero-cta-to))]",
   "text-[color:var(--hero-cta-foreground)]",

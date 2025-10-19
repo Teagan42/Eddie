@@ -27,9 +27,8 @@ export function OverviewAuthPanel({ apiKey, onApiKeyChange }: OverviewAuthPanelP
             variant="surface"
           />
           <Badge
-            color="grass"
             variant="soft"
-            className="dark:bg-[color:var(--hero-badge-bg-dark)] dark:text-[color:var(--hero-badge-fg-dark)]"
+            className="bg-[color:var(--hero-badge-bg)] text-[color:var(--hero-badge-fg)] dark:bg-[color:var(--hero-badge-bg-dark)] dark:text-[color:var(--hero-badge-fg-dark)]"
           >
             Secure & Local Only
           </Badge>
