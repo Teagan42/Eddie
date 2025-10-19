@@ -6,7 +6,7 @@ import {
   useState,
   type FormEvent,
 } from 'react';
-import { Box, Button, Flex, Heading, ScrollArea, Select, Text } from '@radix-ui/themes';
+import { Box, Button, Flex, Heading, ScrollArea, Select, Text, TextField } from '@radix-ui/themes';
 import {
   ChatBubbleIcon,
   MagicWandIcon,
@@ -1054,23 +1054,6 @@ export function ChatPage(): JSX.Element {
 
   const selectedProvider = activeSettings.provider ?? providerOptions[0]?.value ?? '';
 
-  const availableModels = useMemo(() => {
-    if (!selectedProvider) {
-      return [] as string[];
-    }
-    const entry = providerCatalog.find((item) => item.name === selectedProvider);
-    return entry?.models ?? [];
-  }, [providerCatalog, selectedProvider]);
-
-  const modelOptions = useMemo(() => {
-    const options = [...availableModels];
-    if (activeSettings.model && !options.includes(activeSettings.model)) {
-      options.unshift(activeSettings.model);
-    }
-    return options;
-  }, [activeSettings.model, availableModels]);
-
-  const selectedModel = activeSettings.model ?? modelOptions[0] ?? '';
 
   const messagesWithMetadata = useMemo(() => {
     const baseMessages = messagesQuery.data ?? [];
@@ -1241,60 +1224,6 @@ export function ChatPage(): JSX.Element {
     ],
   );
 
-  const handleModelChange = useCallback(
-    (value: string) => {
-      if (!selectedSessionId) {
-        return;
-      }
-
-      if (value === '__custom__') {
-        const next = window.prompt('Model identifier', selectedModel ?? '');
-        const manual = next?.trim() ?? '';
-        if (!manual) {
-          return;
-        }
-        applyChatUpdate((chat) => {
-          const nextSettings = { ...(chat.sessionSettings ?? {}) };
-          const current = nextSettings[selectedSessionId] ?? {};
-          nextSettings[selectedSessionId] = {
-            ...current,
-            provider: current.provider ?? selectedProvider,
-            model: manual,
-          };
-          return { ...chat, sessionSettings: nextSettings };
-        });
-        return;
-      }
-
-      if (value === '__clear__') {
-        applyChatUpdate((chat) => {
-          const nextSettings = { ...(chat.sessionSettings ?? {}) };
-          const current = nextSettings[selectedSessionId] ?? {};
-          const updated = { ...current } as { provider?: string; model?: string };
-          delete updated.model;
-          nextSettings[selectedSessionId] = updated;
-          return { ...chat, sessionSettings: nextSettings };
-        });
-        return;
-      }
-
-      applyChatUpdate((chat) => {
-        const nextSettings = { ...(chat.sessionSettings ?? {}) };
-        const current = nextSettings[selectedSessionId] ?? {};
-        const updated = {
-          ...current,
-          model: value,
-        } as { provider?: string; model?: string };
-        if (!updated.provider && selectedProvider) {
-          updated.provider = selectedProvider;
-        }
-        nextSettings[selectedSessionId] = updated;
-        return { ...chat, sessionSettings: nextSettings };
-      });
-    },
-    [applyChatUpdate, selectedModel, selectedProvider, selectedSessionId],
-  );
-
   const handleTogglePanel = useCallback(
     (panelId: string, collapsed: boolean) => {
       applyChatUpdate((chat) => {
@@ -1304,6 +1233,41 @@ export function ChatPage(): JSX.Element {
       });
     },
     [applyChatUpdate],
+  );
+
+  const handleModelInputChange = useCallback(
+    (value: string) => {
+      if (!selectedSessionId) {
+        return;
+      }
+
+      applyChatUpdate((chat) => {
+        const nextSettings = { ...(chat.sessionSettings ?? {}) };
+        const current = nextSettings[selectedSessionId] ?? {};
+        const trimmedValue = value.trim();
+        const typedCurrent = current as { provider?: string; model?: string };
+        const currentModel =
+          typeof typedCurrent.model === 'string' ? typedCurrent.model : '';
+        if (trimmedValue === currentModel) {
+          return chat;
+        }
+        const updated = { ...typedCurrent } as {
+          provider?: string;
+          model?: string;
+        };
+        if (trimmedValue) {
+          updated.model = trimmedValue;
+          if (!updated.provider && selectedProvider) {
+            updated.provider = selectedProvider;
+          }
+        } else {
+          delete updated.model;
+        }
+        nextSettings[selectedSessionId] = updated;
+        return { ...chat, sessionSettings: nextSettings };
+      });
+    },
+    [applyChatUpdate, selectedProvider, selectedSessionId],
   );
 
   const handleSaveTemplate = useCallback(() => {
@@ -1319,7 +1283,7 @@ export function ChatPage(): JSX.Element {
       id: templateId,
       name: name.trim(),
       provider: selectedProvider,
-      model: selectedModel,
+      model: activeSettings.model,
       prompt: composerValue,
       createdAt: new Date().toISOString(),
     };
@@ -1328,7 +1292,13 @@ export function ChatPage(): JSX.Element {
       nextTemplates[templateId] = template;
       return { ...chat, templates: nextTemplates };
     });
-  }, [applyChatUpdate, composerValue, selectedModel, selectedProvider, selectedSessionId]);
+  }, [
+    activeSettings.model,
+    applyChatUpdate,
+    composerValue,
+    selectedProvider,
+    selectedSessionId,
+  ]);
 
   const handleLoadTemplate = useCallback(
     (templateId: string) => {
@@ -1461,25 +1431,15 @@ export function ChatPage(): JSX.Element {
                       <Select.Item value="__custom__">Custom provider…</Select.Item>
                     </Select.Content>
                   </Select.Root>
-                  <Select.Root
-                    value={selectedModel}
-                    onValueChange={handleModelChange}
+                  <TextField.Root
+                    value={activeSettings.model ?? ''}
+                    onChange={(event) =>
+                      handleModelInputChange(event.target.value)
+                    }
+                    placeholder="Model identifier"
+                    aria-label="Model"
                     disabled={!selectedSessionId}
-                  >
-                    <Select.Trigger placeholder="Model" />
-                    <Select.Content>
-                      {modelOptions.map((model) => (
-                        <Select.Item key={model} value={model}>
-                          {model}
-                        </Select.Item>
-                      ))}
-                      {modelOptions.length > 0 ? <Select.Separator /> : null}
-                      <Select.Item value="__custom__">Custom model…</Select.Item>
-                      {selectedModel ? (
-                        <Select.Item value="__clear__">Clear model</Select.Item>
-                      ) : null}
-                    </Select.Content>
-                  </Select.Root>
+                  />
                   <Select.Root
                     value={templateSelection}
                     onValueChange={handleTemplateSelection}

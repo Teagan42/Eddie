@@ -104,12 +104,14 @@ describe("ChatPage provider catalog", () => {
     });
   });
 
-  it("displays provider and model names from the provider catalog response", async () => {
+  it("displays provider names without exposing model selection", async () => {
     renderChatPage();
 
     await waitFor(() => expect(catalogMock).toHaveBeenCalledTimes(1));
 
     expect(await screen.findByText("Provider From API")).toBeInTheDocument();
-    expect(await screen.findByText("api-model-1")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByText("api-model-1")).not.toBeInTheDocument()
+    );
   });
 });

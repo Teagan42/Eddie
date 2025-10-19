@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  waitFor,
+  waitForElementToBeRemoved,
+} from "@testing-library/react";
 import { Theme } from "@radix-ui/themes";
 import { ConfigPage } from "./ConfigPage";
 
@@ -87,11 +92,17 @@ describe("ConfigPage provider catalog", () => {
     });
   });
 
-  it("renders the model selector with catalog-driven options", async () => {
+  it("does not render a model selector when using the provider catalog", async () => {
     renderConfigPage();
 
     await waitFor(() => expect(catalogMock).toHaveBeenCalledTimes(1));
 
-    expect(await screen.findByText("api-model-2")).toBeInTheDocument();
+    await waitForElementToBeRemoved(() =>
+      screen.queryByText("Loading configuration editor…")
+    );
+
+    expect(
+      screen.queryByRole("combobox", { name: "Model" })
+    ).not.toBeInTheDocument();
   });
 });
