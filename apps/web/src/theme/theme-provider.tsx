@@ -58,6 +58,14 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
   const previousThemeRef = useRef<RuntimeConfigDto["theme"] | null>(null);
   const lastAckTimestampRef = useRef<number | null>(null);
   const transitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const staleReplayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearStaleReplayTimeout = useCallback(() => {
+    if (staleReplayTimeoutRef.current) {
+      clearTimeout(staleReplayTimeoutRef.current);
+      staleReplayTimeoutRef.current = null;
+    }
+  }, []);
 
   const clearThemeTransition = useCallback(() => {
     if (transitionTimeoutRef.current) {
@@ -82,7 +90,13 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
     }, THEME_TRANSITION_MS);
   }, [clearThemeTransition]);
 
-  useEffect(() => () => clearThemeTransition(), [clearThemeTransition]);
+  useEffect(
+    () => () => {
+      clearThemeTransition();
+      clearStaleReplayTimeout();
+    },
+    [clearStaleReplayTimeout, clearThemeTransition]
+  );
 
   useEffect(() => {
     const serverTheme = configQuery.data?.theme as RuntimeConfigDto["theme"] | undefined;
@@ -95,6 +109,7 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
         pendingThemeRef.current = null;
         userOverrideRef.current = false;
         lastAckTimestampRef.current = Date.now();
+        clearStaleReplayTimeout();
         markThemeStable();
       } else if (previousThemeRef.current && serverTheme === previousThemeRef.current) {
         markThemeStale();
@@ -112,6 +127,14 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
 
     if (isStaleReplay) {
       markThemeStale();
+      clearStaleReplayTimeout();
+      staleReplayTimeoutRef.current = setTimeout(() => {
+        staleReplayTimeoutRef.current = null;
+        previousThemeRef.current = null;
+        lastAckTimestampRef.current = null;
+        markThemeStable();
+        void queryClient.invalidateQueries({ queryKey: CONFIG_QUERY_KEY });
+      }, STALE_REPLAY_WINDOW_MS);
       return;
     }
 
@@ -130,7 +153,15 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
       setThemeState(serverTheme);
       userOverrideRef.current = false;
     }
-  }, [beginThemeTransition, configQuery.data?.theme, markThemeStable, markThemeStale, theme]);
+  }, [
+    beginThemeTransition,
+    clearStaleReplayTimeout,
+    configQuery.data?.theme,
+    markThemeStable,
+    markThemeStale,
+    queryClient,
+    theme,
+  ]);
 
   useEffect(() => {
     syncDocumentTheme(theme);
@@ -142,6 +173,7 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
       previousThemeRef.current = theme;
       pendingThemeRef.current = nextTheme;
       lastAckTimestampRef.current = null;
+      clearStaleReplayTimeout();
       beginThemeTransition();
       setThemeState(nextTheme);
       syncDocumentTheme(nextTheme);
@@ -154,7 +186,7 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
       });
       void api.http.config.update({ theme: nextTheme });
     },
-    [api, beginThemeTransition, markThemeStable, queryClient, theme]
+    [api, beginThemeTransition, clearStaleReplayTimeout, markThemeStable, queryClient, theme]
   );
 
   const value = useMemo<ThemeContextValue>(
