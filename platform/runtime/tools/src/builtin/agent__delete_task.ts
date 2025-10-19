@@ -6,31 +6,18 @@ import {
   renderTaskListContent,
   sanitiseTaskListName,
   sanitiseTaskId,
-  isTaskListTaskStatus,
   writeTaskListDocument,
   type TaskListDocument,
-  type TaskListTaskStatus,
   type TaskListTaskPayload,
 } from "./task_list";
 
-interface AgentSetTaskStatusArguments {
+interface AgentDeleteTaskArguments {
   taskListName: string;
   taskId: string;
-  status: TaskListTaskStatus;
   abridged?: boolean;
 }
 
 const SCHEMA_ID = TASK_LIST_RESULT_SCHEMA.$id;
-
-const sanitiseStatus = (value: unknown): TaskListTaskStatus => {
-  if (!isTaskListTaskStatus(value)) {
-    throw new Error(
-      "status must be one of pending, in_progress, or complete",
-    );
-  }
-
-  return value;
-};
 
 const buildResult = (
   document: TaskListDocument,
@@ -47,18 +34,17 @@ const buildResult = (
   data: document,
 });
 
-export const agentSetTaskStatusTool: ToolDefinition = {
-  name: "agent__set_task_status",
-  description: "Update the status of an existing task within a task list.",
+export const agentDeleteTaskTool: ToolDefinition = {
+  name: "agent__delete_task",
+  description: "Delete a task from a task list by id.",
   jsonSchema: {
     type: "object",
     properties: {
       taskListName: { type: "string", minLength: 1 },
       taskId: { type: "string", minLength: 1 },
-      status: { enum: ["pending", "in_progress", "complete"] },
       abridged: { type: "boolean" },
     },
-    required: ["taskListName", "taskId", "status"],
+    required: ["taskListName", "taskId"],
     additionalProperties: false,
   },
   outputSchema: TASK_LIST_RESULT_SCHEMA,
@@ -66,13 +52,11 @@ export const agentSetTaskStatusTool: ToolDefinition = {
     const {
       taskListName: taskListNameInput,
       taskId: taskIdInput,
-      status: statusInput,
       abridged,
-    } = args as unknown as AgentSetTaskStatusArguments;
+    } = args as unknown as AgentDeleteTaskArguments;
 
     const taskListName = sanitiseTaskListName(taskListNameInput);
     const taskId = sanitiseTaskId(taskIdInput);
-    const status = sanitiseStatus(statusInput);
     const abridgedResult = Boolean(abridged);
 
     const document = await readTaskListDocument({
@@ -89,7 +73,7 @@ export const agentSetTaskStatusTool: ToolDefinition = {
     }
 
     const confirmation = await ctx.confirm(
-      `Update task "${taskId}" in list "${taskListName}" to status "${status}"?`,
+      `Delete task "${taskId}" from list "${taskListName}"?`,
     );
 
     if (!confirmation) {
@@ -97,20 +81,13 @@ export const agentSetTaskStatusTool: ToolDefinition = {
         document,
         taskListName,
         abridgedResult,
-        `Status update cancelled for "${taskListName}".`,
+        `Deletion cancelled for "${taskListName}".`,
       );
     }
 
-    const tasks: TaskListTaskPayload[] = document.tasks.map((task, index) => {
-      const next: TaskListTaskPayload = { ...task };
-
-      if (index === matchedIndex) {
-        next.status = status;
-        next.updatedAt = "";
-      }
-
-      return next;
-    });
+    const tasks: TaskListTaskPayload[] = document.tasks
+      .filter((_, index) => index !== matchedIndex)
+      .map((task) => ({ ...task }));
 
     const updated = await writeTaskListDocument({
       rootDir: ctx.cwd,
@@ -127,7 +104,8 @@ export const agentSetTaskStatusTool: ToolDefinition = {
       updated,
       taskListName,
       abridgedResult,
-      `Updated task "${taskId}" to status ${status}.`,
+      `Deleted task "${taskId}" from list "${taskListName}".`,
     );
   },
 };
+

@@ -415,6 +415,186 @@ describe("task list tools", () => {
     expect(stored.tasks[0].updatedAt).toBe("2024-03-01T00:00:00.000Z");
   });
 
+  it("deletes a task by id when confirmed and cancels cleanly", async () => {
+    const tool = findTool("agent__delete_task");
+
+    expect(tool).toBeDefined();
+    if (!tool) {
+      throw new Error("agent__delete_task tool not registered");
+    }
+
+    await fs.mkdir(path.join(workspace, ".tasks"), { recursive: true });
+    const initialDocument = {
+      metadata: { owner: "agent" },
+      tasks: [
+        {
+          id: "alpha",
+          title: "Draft spec",
+          status: "pending",
+          summary: "Outline the change",
+          details: null,
+          metadata: { priority: "high" },
+          createdAt: "2024-03-01T00:00:00.000Z",
+          updatedAt: "2024-03-01T00:00:00.000Z",
+        },
+        {
+          id: "beta",
+          title: "Review pull request",
+          status: "in_progress",
+          summary: null,
+          details: "Check coverage",
+          metadata: { reviewer: "bot" },
+          createdAt: "2024-03-02T00:00:00.000Z",
+          updatedAt: "2024-03-02T12:00:00.000Z",
+        },
+        {
+          id: "gamma",
+          title: "Ship release",
+          status: "pending",
+          summary: null,
+          details: null,
+          metadata: { priority: "medium" },
+          createdAt: "2024-03-03T00:00:00.000Z",
+          updatedAt: "2024-03-03T00:00:00.000Z",
+        },
+      ],
+      createdAt: "2024-03-01T00:00:00.000Z",
+      updatedAt: "2024-03-05T00:00:00.000Z",
+    };
+
+    await fs.writeFile(
+      path.join(workspace, ".tasks", "daily.json"),
+      `${JSON.stringify(initialDocument, null, 2)}\n`,
+      "utf-8",
+    );
+
+    const confirm = vi
+      .fn()
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
+    const ctx = { cwd: workspace, confirm };
+
+    const result = await tool.handler(
+      {
+        taskListName: "daily",
+        taskId: "beta",
+      },
+      ctx,
+    );
+
+    expect(confirm).toHaveBeenNthCalledWith(
+      1,
+      'Delete task "beta" from list "daily"?',
+    );
+    expect(result.schema).toBe("eddie.tool.task_list.result.v1");
+    expect(result.data.tasks.map((task) => task.id)).toEqual([
+      "alpha",
+      "gamma",
+    ]);
+    expect(result.data.updatedAt).not.toBe(initialDocument.updatedAt);
+
+    const alpha = result.data.tasks.find((task) => task.id === "alpha");
+    const gamma = result.data.tasks.find((task) => task.id === "gamma");
+
+    expect(alpha?.createdAt).toBe("2024-03-01T00:00:00.000Z");
+    expect(alpha?.updatedAt).toBe("2024-03-01T00:00:00.000Z");
+    expect(gamma?.createdAt).toBe("2024-03-03T00:00:00.000Z");
+    expect(gamma?.updatedAt).toBe("2024-03-03T00:00:00.000Z");
+    expect(result.content).toContain("Deleted task \"beta\"");
+    expect(result.content).toContain("Next task: Draft spec (pending).");
+
+    const storedAfter = JSON.parse(
+      await fs.readFile(
+        path.join(workspace, ".tasks", "daily.json"),
+        "utf-8",
+      ),
+    );
+
+    expect(storedAfter.tasks.map((task: { id: string }) => task.id)).toEqual([
+      "alpha",
+      "gamma",
+    ]);
+    expect(storedAfter.updatedAt).toBe(result.data.updatedAt);
+
+    const cancelled = await tool.handler(
+      {
+        taskListName: "daily",
+        taskId: "alpha",
+      },
+      ctx,
+    );
+
+    expect(confirm).toHaveBeenNthCalledWith(
+      2,
+      'Delete task "alpha" from list "daily"?',
+    );
+    expect(cancelled.schema).toBe("eddie.tool.task_list.result.v1");
+    expect(cancelled.data.tasks.map((task) => task.id)).toEqual([
+      "alpha",
+      "gamma",
+    ]);
+    expect(cancelled.data.updatedAt).toBe(result.data.updatedAt);
+    expect(cancelled.content).toMatch(/cancelled/i);
+
+    const storedFinal = JSON.parse(
+      await fs.readFile(
+        path.join(workspace, ".tasks", "daily.json"),
+        "utf-8",
+      ),
+    );
+
+    expect(storedFinal).toEqual(storedAfter);
+  });
+
+  it("throws when deleting a missing task id", async () => {
+    const tool = findTool("agent__delete_task");
+
+    expect(tool).toBeDefined();
+    if (!tool) {
+      throw new Error("agent__delete_task tool not registered");
+    }
+
+    await fs.mkdir(path.join(workspace, ".tasks"), { recursive: true });
+    await fs.writeFile(
+      path.join(workspace, ".tasks", "daily.json"),
+      `${JSON.stringify(
+        {
+          metadata: {},
+          tasks: [
+            {
+              id: "alpha",
+              title: "Draft spec",
+              status: "pending",
+              summary: null,
+              details: null,
+              createdAt: "2024-03-01T00:00:00.000Z",
+              updatedAt: "2024-03-01T00:00:00.000Z",
+            },
+          ],
+          createdAt: "2024-03-01T00:00:00.000Z",
+          updatedAt: "2024-03-01T00:00:00.000Z",
+        },
+        null,
+        2,
+      )}\n`,
+      "utf-8",
+    );
+
+    const confirm = vi.fn();
+    const ctx = { cwd: workspace, confirm };
+
+    await expect(
+      tool.handler(
+        {
+          taskListName: "daily",
+          taskId: "missing",
+        },
+        ctx,
+      ),
+    ).rejects.toThrow(/could not find task with id "missing"/i);
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
   it("throws when the status is invalid", async () => {
     const tool = findTool("agent__set_task_status");
 
