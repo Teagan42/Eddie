@@ -1,12 +1,13 @@
-import { render, screen } from '@testing-library/react';
+import { createRef } from 'react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { ChatMessageDto } from '@eddie/api-client';
 
-import { ChatWindow, type ChatWindowProps } from '../ChatWindow';
+import { TooltipProvider } from '@radix-ui/react-tooltip';
 
-type RequiredProps = ChatWindowProps;
+import { ChatWindow, type ChatWindowProps } from '../ChatWindow';
 
 function createMessage(partial?: Partial<ChatMessageDto>): ChatMessageDto {
   return {
@@ -19,55 +20,103 @@ function createMessage(partial?: Partial<ChatMessageDto>): ChatMessageDto {
   } as ChatMessageDto;
 }
 
-describe('ChatWindow', () => {
-  function renderChatWindow(props?: Partial<RequiredProps>) {
-    const defaultProps: RequiredProps = {
-      messages: [createMessage()],
-      composerValue: 'Hello world',
-      onComposerChange: vi.fn(),
-      onComposerSubmit: vi.fn(),
-      onReissueCommand: vi.fn(),
-      composerSubmitDisabled: false,
-    };
-
-    return render(<ChatWindow {...defaultProps} {...props} />);
+beforeAll(() => {
+  class MockResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
   }
 
-  it('renders chat messages and the scroll anchor marker', () => {
-    renderChatWindow();
+  // @ts-expect-error jsdom does not provide ResizeObserver
+  global.ResizeObserver = MockResizeObserver;
+});
 
-    expect(screen.getByText('Test message')).toBeInTheDocument();
-    expect(screen.getByTestId('chat-scroll-anchor')).toBeInTheDocument();
-  });
+describe('ChatWindow', () => {
+  function renderChatWindow(props?: Partial<ChatWindowProps>) {
+    const defaultProps: ChatWindowProps = {
+      messages: [createMessage()],
+      onReissueCommand: vi.fn(),
+      scrollAnchorRef: createRef<HTMLDivElement>(),
+      agentActivityState: 'thinking',
+      composerRole: 'user',
+      onComposerRoleChange: vi.fn(),
+      composerRoleDisabled: false,
+      composerValue: 'Hello world',
+      onComposerValueChange: vi.fn(),
+      composerDisabled: false,
+      composerSubmitDisabled: false,
+      composerPlaceholder: 'Send a message to the orchestrator',
+      onComposerSubmit: vi.fn(),
+    };
 
-  it('submits the composer when the Send button is clicked', async () => {
-    const user = userEvent.setup();
-    const handleSubmit = vi.fn();
+    return render(
+      <TooltipProvider>
+        <ChatWindow {...defaultProps} {...props} />
+      </TooltipProvider>,
+    );
+  }
 
-    renderChatWindow({ onComposerSubmit: handleSubmit });
-
-    await user.click(screen.getByRole('button', { name: 'Send' }));
-
-    expect(handleSubmit).toHaveBeenCalledTimes(1);
-    const [event] = handleSubmit.mock.calls[0];
-    expect(event).toHaveProperty('preventDefault');
-    expect(event.target).toBeInstanceOf(HTMLFormElement);
-  });
-
-  it('allows reissuing commands via the tooltip action', async () => {
+  it('renders rich chat messages with metadata and reissue action', async () => {
     const user = userEvent.setup();
     const handleReissue = vi.fn();
-    const message = createMessage({ id: 'message-2', content: 'Retry me' });
+    const message = createMessage({
+      id: 'message-2',
+      content: 'Retry me',
+      role: 'user',
+    });
 
     renderChatWindow({
       messages: [message],
       onReissueCommand: handleReissue,
     });
 
-    await user.click(
-      screen.getByRole('button', { name: 'Re-issue command Retry me' }),
-    );
+    const logRegion = screen.getByRole('log');
+    expect(within(logRegion).getByText('User')).toBeInTheDocument();
+    expect(within(logRegion).getByText('Retry me')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-scroll-anchor')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Re-issue command' }));
 
     expect(handleReissue).toHaveBeenCalledWith(message);
+  });
+
+  it('renders the agent activity indicator and segmented role control', async () => {
+    const user = userEvent.setup();
+    const handleRoleChange = vi.fn();
+
+    renderChatWindow({
+      agentActivityState: 'sending',
+      onComposerRoleChange: handleRoleChange,
+    });
+
+    expect(
+      screen.getByRole('status', { name: 'Dispatching message…' }),
+    ).toBeInTheDocument();
+    const askOption = screen.getByRole('radio', { name: 'Ask' });
+    const runOption = screen.getByRole('radio', { name: 'Run' });
+    expect(askOption).toBeChecked();
+
+    await user.click(runOption);
+
+    expect(handleRoleChange).toHaveBeenCalledWith('system');
+  });
+
+  it('forwards composer interactions to the provided handlers', async () => {
+    const user = userEvent.setup();
+    const handleSubmit = vi.fn();
+    const handleValueChange = vi.fn();
+
+    renderChatWindow({
+      onComposerSubmit: handleSubmit,
+      onComposerValueChange: handleValueChange,
+      composerPlaceholder: 'Send a message to the orchestrator',
+    });
+
+    const textarea = screen.getByPlaceholderText('Send a message to the orchestrator');
+    await user.type(textarea, 'New command');
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+
+    expect(handleValueChange).toHaveBeenCalled();
+    expect(handleSubmit).toHaveBeenCalledTimes(1);
   });
 });
