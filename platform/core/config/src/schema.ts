@@ -21,6 +21,19 @@ const LOG_LEVEL_SCHEMA: JSONSchema7 = {
   enum: ["silent", "info", "debug"],
 };
 
+const CONFIG_EXTENSION_DESCRIPTOR_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    id: { type: "string", minLength: 1 },
+    path: { type: "string", minLength: 1 },
+  },
+  anyOf: [
+    { required: ["id"] },
+    { required: ["path"] },
+  ],
+};
+
 const STRING_OR_STRING_ARRAY_SCHEMA: JSONSchema7 = {
   oneOf: [
     { type: "string" },
@@ -689,6 +702,10 @@ export const EDDIE_CONFIG_INPUT_SCHEMA: JSONSchema7 = {
     providers: {
       type: "object",
       additionalProperties: PROVIDER_PROFILE_SCHEMA,
+    },
+    extends: {
+      type: "array",
+      items: CONFIG_EXTENSION_DESCRIPTOR_SCHEMA,
     },
     context: {
       ...CONTEXT_CONFIG_SCHEMA,

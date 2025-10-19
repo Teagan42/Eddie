@@ -19,6 +19,9 @@ import type {
   AgentsConfigInput,
   ApiConfig,
   CliRuntimeOptions,
+  ConfigExtensionDescriptor,
+  ConfigExtensionEntry,
+  ConfigExtensionReference,
   ConfigFileFormat,
   ConfigFileSnapshot,
   ContextConfig,
@@ -33,6 +36,16 @@ import type {
 } from "@eddie/types";
 
 export type { ConfigFileSnapshot };
+
+type ConfigInputWithExtends = EddieConfigInput & {
+  extends?: ConfigExtensionReference[];
+};
+
+interface ConfigCompositionContext {
+  path?: string | null;
+}
+
+const CONFIG_PRESET_NAME_SET = new Set<string>(CONFIG_PRESET_NAMES);
 
 /**
  * ConfigService resolves Eddie configuration from disk and merges it with CLI
@@ -73,7 +86,7 @@ export class ConfigService {
   async load(options: CliRuntimeOptions): Promise<EddieConfig> {
     const configPath = await resolveConfigFilePath(options);
     const fileConfig = configPath ? await this.readConfigFile(configPath) : {};
-    const config = await this.compose(fileConfig, options);
+    const config = await this.compose(fileConfig, options, { path: configPath });
     if (this.configStore) {
       this.configStore.setSnapshot(config);
       return this.configStore.getSnapshot();
@@ -83,7 +96,8 @@ export class ConfigService {
 
   async compose(
     input: EddieConfigInput,
-    options: CliRuntimeOptions = {}
+    options: CliRuntimeOptions = {},
+    context: ConfigCompositionContext = {},
   ): Promise<EddieConfig> {
     const currentVersion = CURRENT_CONFIG_VERSION;
     const candidateVersion = input.version;
@@ -119,9 +133,20 @@ export class ConfigService {
       mergedOverrides.preset,
     );
 
-    const finalConfig = this.composeLayers(
+    const { extends: extensionReferences, ...fileOverrides } =
+      migratedInput as ConfigInputWithExtends;
+
+    const normalizedContext = this.normalizeCompositionContext(context);
+
+    const defaultsWithExtensions = await this.applyConfigExtensions(
       defaultsWithPreset,
-      migratedInput,
+      extensionReferences,
+      normalizedContext,
+    );
+
+    const finalConfig = this.composeLayers(
+      defaultsWithExtensions,
+      fileOverrides as EddieConfigInput,
       mergedOverrides,
     );
 
@@ -143,6 +168,206 @@ export class ConfigService {
     const normalisedFileLayer = this.normalizeConfig(withFileLayer);
     const withCliLayer = this.applyCliOverrides(normalisedFileLayer, cliOverrides);
     return this.normalizeConfig(withCliLayer);
+  }
+
+  private normalizeCompositionContext(
+    context?: ConfigCompositionContext,
+  ): ConfigCompositionContext {
+    const candidatePath = this.isNonEmptyString(context?.path)
+      ? context?.path
+      : undefined;
+
+    const fallbackPath = this.isNonEmptyString(this.configFilePath)
+      ? this.configFilePath
+      : null;
+
+    return {
+      path: candidatePath ?? fallbackPath,
+    };
+  }
+
+  private async applyConfigExtensions(
+    base: EddieConfig,
+    references: ConfigExtensionReference[] | undefined,
+    context: ConfigCompositionContext,
+    visited: Set<string> = new Set(),
+  ): Promise<EddieConfig> {
+    const normalizedContext = this.normalizeCompositionContext(context);
+    const entries = this.normalizeExtensionReferences(references);
+    if (entries.length === 0) {
+      return base;
+    }
+
+    let current = base;
+
+    for (const entry of entries) {
+      if (entry.type === "preset") {
+        current = this.applyPreset(current, entry.id);
+        continue;
+      }
+
+      const resolvedPath = await this.resolveExtensionPath(
+        entry.path,
+        normalizedContext,
+      );
+      if (visited.has(resolvedPath)) {
+        throw new Error(
+          `Circular config extension detected at ${resolvedPath}.`,
+        );
+      }
+
+      visited.add(resolvedPath);
+
+      try {
+        const extensionInput = await this.readConfigFile(resolvedPath);
+        const { extends: nestedExtensions, ...extensionOverrides } =
+          extensionInput as ConfigInputWithExtends;
+
+        const withNested = await this.applyConfigExtensions(
+          current,
+          nestedExtensions,
+          { path: resolvedPath },
+          visited,
+        );
+
+        current = this.applyConfigFileOverrides(
+          withNested,
+          extensionOverrides as EddieConfigInput,
+        );
+      } finally {
+        visited.delete(resolvedPath);
+      }
+    }
+
+    return current;
+  }
+
+  private normalizeExtensionReferences(
+    references: ConfigExtensionReference[] | undefined,
+  ): ConfigExtensionEntry[] {
+    if (!Array.isArray(references) || references.length === 0) {
+      return [];
+    }
+
+    const entries: ConfigExtensionEntry[] = [];
+    const presetPrefix = "preset:";
+
+    for (const reference of references) {
+      if (!reference) {
+        continue;
+      }
+
+      if (typeof reference === "string") {
+        const trimmed = reference.trim();
+        if (trimmed.length === 0) {
+          this.logger.warn(
+            "[Config] Skipping empty config extension reference.",
+          );
+          continue;
+        }
+
+        if (trimmed.startsWith(presetPrefix)) {
+          const presetId = trimmed.slice(presetPrefix.length).trim();
+          if (presetId.length === 0) {
+            this.logger.warn(
+              "[Config] Skipping preset extension without an identifier.",
+            );
+            continue;
+          }
+          entries.push({ type: "preset", id: presetId });
+          continue;
+        }
+
+        if (CONFIG_PRESET_NAME_SET.has(trimmed)) {
+          entries.push({ type: "preset", id: trimmed });
+          continue;
+        }
+
+        entries.push({ type: "file", path: trimmed });
+        continue;
+      }
+
+      const descriptor = reference as ConfigExtensionDescriptor;
+
+      const presetId = this.isNonEmptyString(descriptor.id)
+        ? descriptor.id.trim()
+        : "";
+      if (presetId.length > 0) {
+        entries.push({ type: "preset", id: presetId });
+      }
+
+      const filePath = this.isNonEmptyString(descriptor.path)
+        ? descriptor.path.trim()
+        : "";
+      if (filePath.length > 0) {
+        entries.push({ type: "file", path: filePath });
+      }
+
+      if (presetId.length === 0 && filePath.length === 0) {
+        this.logger.warn(
+          "[Config] Skipping config extension without id or path.",
+        );
+      }
+    }
+
+    return entries;
+  }
+
+  private async resolveExtensionPath(
+    candidate: string,
+    context: ConfigCompositionContext,
+  ): Promise<string> {
+    const trimmed = candidate.trim();
+    if (trimmed.length === 0) {
+      throw new Error("Config extension path must be a non-empty string.");
+    }
+
+    if (path.isAbsolute(trimmed)) {
+      return trimmed;
+    }
+
+    const contextPath = this.isNonEmptyString(context.path)
+      ? context.path
+      : null;
+    let normalizedContextPath: string | null = null;
+    if (contextPath) {
+      normalizedContextPath = path.isAbsolute(contextPath)
+        ? contextPath
+        : path.resolve(process.cwd(), contextPath);
+    }
+
+    const configuredPath = this.isNonEmptyString(this.configFilePath)
+      ? this.configFilePath
+      : null;
+
+    const baseCandidates = [
+      normalizedContextPath ? path.dirname(normalizedContextPath) : null,
+      configuredPath ? path.dirname(configuredPath) : null,
+      getConfigRoot(),
+      process.cwd(),
+    ].filter((value, index, array): value is string => {
+      if (typeof value !== "string" || value.trim().length === 0) {
+        return false;
+      }
+      return array.indexOf(value) === index;
+    });
+
+    for (const baseDir of baseCandidates) {
+      const resolved = path.resolve(baseDir, trimmed);
+      try {
+        await fs.access(resolved);
+        return resolved;
+      } catch {
+        // continue searching
+      }
+    }
+
+    const fallbackBase = baseCandidates[0] ?? process.cwd();
+    return path.resolve(fallbackBase, trimmed);
+  }
+
+  private isNonEmptyString(value: unknown): value is string {
+    return typeof value === "string" && value.trim().length > 0;
   }
 
   private applyPreset(
@@ -228,7 +453,9 @@ export class ConfigService {
     let error: string | undefined;
 
     try {
-      config = await this.compose(input, this.moduleOptions);
+      config = await this.compose(input, this.moduleOptions, {
+        path: configPath ?? undefined,
+      });
     } catch (composeError) {
       error = composeError instanceof Error
         ? composeError.message
@@ -253,7 +480,7 @@ export class ConfigService {
     const destination = await this.resolveWriteDestination(format, options);
 
     const input = this.parseSource(source, format);
-    const config = await this.compose(input, options);
+    const config = await this.compose(input, options, { path: destination });
     const serialized = this.serializeInput(input, format);
 
     await fs.mkdir(path.dirname(destination), { recursive: true });

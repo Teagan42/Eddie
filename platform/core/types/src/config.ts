@@ -24,6 +24,24 @@ export interface TemplateDescriptor {
 
 export type LogLevel = "silent" | "info" | "debug" | "error";
 
+export interface ConfigExtensionDescriptor {
+  /**
+   * Named preset identifier applied before the current config file.
+   */
+  id?: string;
+  /**
+   * Relative or absolute path to another Eddie config file whose values should
+   * be merged before the current config file.
+   */
+  path?: string;
+}
+
+export type ConfigExtensionReference = string | ConfigExtensionDescriptor;
+
+export type ConfigExtensionEntry =
+  | { type: "preset"; id: string }
+  | { type: "file"; path: string };
+
 export interface ApiTelemetryConfig {
   enabled?: boolean;
   consoleExporter?: boolean;
@@ -334,6 +352,7 @@ export interface EddieConfigInput {
   agents?: AgentsConfigInput;
   transcript?: TranscriptConfig;
   metrics?: Partial<MetricsConfig>;
+  extends?: ConfigExtensionReference[];
 }
 
 export interface AgentsConfigInput {
