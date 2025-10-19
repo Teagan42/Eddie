@@ -400,6 +400,7 @@ describe("AgentOrchestratorService", () => {
       "transcriptSummary",
       "historySnippet",
       "contextBundleIds",
+      "request",
     ]);
 
     const metadataProps = metadataSchema.properties as Record<string, Record<string, unknown>>;
