@@ -1488,11 +1488,21 @@ type MessageMetadataTool = {
   status?: string | null;
 };
 
+type MessageReasoningState = {
+  text: string;
+  metadata?: Record<string, unknown>;
+  timestamp?: string;
+  responseId?: string;
+  agentId: string | null;
+  status: "streaming" | "completed";
+};
+
 type ChatMessageWithMetadata = ChatMessageDto & {
   metadata?: {
     agent?: MessageMetadataAgent | null;
     tool?: MessageMetadataTool | null;
   } | null;
+  reasoning?: MessageReasoningState | null;
 };
 
 type AgentHierarchyNode = ExecutionTreeState['agentHierarchy'][number];
