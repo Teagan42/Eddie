@@ -4,6 +4,17 @@ import type { DynamicModule } from "@nestjs/common";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("ApiModule configuration", () => {
+  const collectProviderTokens = (providers: unknown[]): unknown[] =>
+    providers.map((provider) => {
+      if (typeof provider === "function") {
+        return provider;
+      }
+      if (provider && typeof provider === "object") {
+        return (provider as { provide?: unknown }).provide ?? provider;
+      }
+      return provider;
+    });
+
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.resetModules();
@@ -62,6 +73,23 @@ describe("ApiModule configuration", () => {
 
   it("exposes MCP tooling without requiring direct SDK resolution", async () => {
     await expect(import("@eddie/mcp")).resolves.toBeDefined();
+  });
+
+  it("registers the demo data seeder", async () => {
+    const { ConfigModule } = await import("@eddie/config");
+    const registerSpy = vi.spyOn(ConfigModule, "register");
+    registerSpy.mockReturnValue({ module: class {} } as DynamicModule);
+
+    const { ApiModule } = await import("../../src/api.module");
+    const { DemoDataSeeder } = await import("../../src/demo/demo-data.seeder");
+
+    const dynamicModule = (ApiModule as unknown as {
+      forRoot: (options: CliRuntimeOptions) => DynamicModule;
+    }).forRoot({});
+
+    const providers = dynamicModule.providers ?? [];
+
+    expect(collectProviderTokens(providers)).toContain(DemoDataSeeder);
   });
 
 });
