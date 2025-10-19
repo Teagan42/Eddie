@@ -39,7 +39,9 @@ export function OverviewStatsGrid({ stats = [] }: OverviewStatsGridProps): JSX.E
                 <span
                   className={cn(
                     "flex h-10 w-10 items-center justify-center rounded-2xl",
-                    "bg-[color:var(--overview-stat-icon-bg)]"
+                    "bg-[color:var(--overview-stat-icon-bg)]",
+                    "bg-[color:var(--hero-console-icon-bg)]",
+                    "dark:bg-[color:var(--hero-console-icon-bg-dark)]"
                   )}
                 >
                   <Icon className="h-5 w-5 text-[color:var(--overview-stat-icon-fg)]" />

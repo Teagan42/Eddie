@@ -426,15 +426,18 @@ export function OverviewPage(): JSX.Element {
                 size="2"
                 className={cn(
                   'w-40 justify-between',
-                  'border',
-                  'border-[color:var(--hero-outline-border)]',
-                  'bg-[color:var(--hero-outline-bg)]',
-                  'text-[color:var(--hero-outline-foreground)]',
-                  'hover:bg-[color:var(--hero-outline-bg-hover)]',
-                  'dark:border-[color:var(--hero-outline-border-dark)]',
-                  'dark:bg-[color:var(--hero-outline-bg-dark)]',
-                  'dark:text-[color:var(--hero-outline-foreground-dark)]',
-                  'dark:hover:bg-[color:var(--hero-outline-bg-hover-dark)]'
+                  'border border-transparent',
+                  'bg-gradient-to-r',
+                  'from-[hsl(var(--hero-cta-from))]',
+                  'via-[hsl(var(--hero-cta-via))]',
+                  'to-[hsl(var(--hero-cta-to))]',
+                  'text-[color:var(--hero-cta-foreground)]',
+                  'shadow-[var(--hero-cta-shadow)]',
+                  'dark:from-[hsl(var(--hero-cta-from-dark))]',
+                  'dark:via-[hsl(var(--hero-cta-via-dark))]',
+                  'dark:to-[hsl(var(--hero-cta-to-dark))]',
+                  'dark:text-[color:var(--hero-cta-foreground-dark)]',
+                  'dark:shadow-[var(--hero-cta-shadow-dark)]'
                 )}
               >
                 Theme: {formatThemeLabel(theme)}
