@@ -19,6 +19,7 @@ const createSessionMock = vi.fn();
 const renameSessionMock = vi.fn();
 const deleteSessionMock = vi.fn();
 const getMetadataMock = vi.fn();
+const getExecutionStateMock = vi.fn();
 const { toastMock } = vi.hoisted(() => ({ toastMock: vi.fn() }));
 
 class ResizeObserverMock {
@@ -67,6 +68,7 @@ vi.mock("@/api/api-provider", () => ({
       },
       orchestrator: {
         getMetadata: getMetadataMock,
+        getExecutionState: getExecutionStateMock,
       },
       providers: {
         catalog: catalogMock,
@@ -173,6 +175,7 @@ describe("ChatPage session creation", () => {
     renameSessionMock.mockReset();
     deleteSessionMock.mockReset();
 
+    getExecutionStateMock.mockResolvedValue(null);
     const now = new Date().toISOString();
 
     catalogMock.mockResolvedValue([]);

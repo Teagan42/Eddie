@@ -16,6 +16,7 @@ type ChatMessageDto = {
 const listSessionsMock = vi.fn();
 const listMessagesMock = vi.fn();
 const getMetadataMock = vi.fn();
+const getExecutionStateMock = vi.fn();
 const catalogMock = vi.fn();
 
 class ResizeObserverMock {
@@ -53,6 +54,7 @@ vi.mock("@/api/api-provider", () => ({
       },
       orchestrator: {
         getMetadata: getMetadataMock,
+        getExecutionState: getExecutionStateMock,
       },
       providers: {
         catalog: catalogMock,
@@ -90,6 +92,7 @@ describe("ChatPage message surfaces", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    getExecutionStateMock.mockResolvedValue(null);
     Object.defineProperty(globalThis, "ResizeObserver", {
       configurable: true,
       writable: true,

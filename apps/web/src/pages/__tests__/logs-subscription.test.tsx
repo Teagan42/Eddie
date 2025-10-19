@@ -60,6 +60,7 @@ vi.mock("@/api/api-provider", () => ({
       },
       orchestrator: {
         getMetadata: vi.fn().mockResolvedValue({ tools: [], providers: [] }),
+        getExecutionState: vi.fn().mockResolvedValue(null),
       },
     },
     sockets: {

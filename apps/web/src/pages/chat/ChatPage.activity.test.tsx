@@ -6,6 +6,7 @@ import { createChatPageRenderer } from "./test-utils";
 const listSessionsMock = vi.fn();
 const listMessagesMock = vi.fn();
 const getMetadataMock = vi.fn();
+const getExecutionStateMock = vi.fn();
 const catalogMock = vi.fn();
 
 let agentActivityHandler:
@@ -56,6 +57,7 @@ vi.mock("@/api/api-provider", () => ({
       },
       orchestrator: {
         getMetadata: getMetadataMock,
+        getExecutionState: getExecutionStateMock,
       },
       providers: {
         catalog: catalogMock,
@@ -111,6 +113,7 @@ describe("ChatPage agent activity indicator", () => {
     vi.clearAllMocks();
     agentActivityHandler = null;
 
+    getExecutionStateMock.mockResolvedValue(null);
     listSessionsMock.mockResolvedValue([
       {
         id: "session-1",
