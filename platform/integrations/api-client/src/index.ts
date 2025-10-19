@@ -388,20 +388,6 @@ function normalizeBaseUrl(url: string): string {
   return url.replace(/\/$/u, "");
 }
 
-function toReasoningPayload(
-  payload: ChatMessageReasoningEvent
-): ChatMessageReasoningPayload {
-  return {
-    sessionId: payload.sessionId,
-    messageId: payload.messageId,
-    text: payload.text,
-    metadata: payload.metadata,
-    timestamp: payload.timestamp,
-    agentId: payload.agentId,
-    responseId: "responseId" in payload ? payload.responseId : undefined,
-  };
-}
-
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const httpBase = normalizeBaseUrl(options.baseUrl);
   const wsBase = normalizeBaseUrl(options.websocketUrl);
