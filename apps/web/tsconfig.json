@@ -9,9 +9,6 @@
     "declarationMap": true,
     "sourceMap": true,
     "paths": {
-      "@/components/*": [
-        "components/*"
-      ],
       "@/vendor/*": [
         "vendor/*"
       ],

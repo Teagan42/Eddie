@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Box } from "@radix-ui/themes";
-import { clsx } from "clsx";
+
+import { combineClassNames } from "../utils/class-names";
 
 const PANEL_SURFACE_CLASS = [
   "group relative overflow-hidden rounded-[2rem] border p-[1px] backdrop-blur-xl",
@@ -36,7 +37,7 @@ const PANEL_GLARE_CLASS =
   "absolute inset-0 -z-10 bg-[var(--overview-panel-glare)] opacity-0 transition-opacity duration-500 group-hover:opacity-70";
 const PANEL_BODY_CLASS = "flex-1 text-sm text-[color:var(--overview-panel-foreground)]";
 
-interface PanelProps {
+export interface PanelProps {
   title: string;
   description?: string;
   className?: string;
@@ -48,12 +49,12 @@ interface PanelProps {
 export function Panel({
   title,
   description,
-  actions,
+  actions = null,
   className,
   id,
   children,
 }: PanelProps): JSX.Element {
-  const surfaceClassName = clsx(PANEL_SURFACE_CLASS, className);
+  const surfaceClassName = combineClassNames(PANEL_SURFACE_CLASS, className);
 
   return (
     <Box asChild className={surfaceClassName}>
@@ -76,7 +77,7 @@ export function Panel({
                 </p>
               ) : null}
             </div>
-            {actions ?? null}
+            {actions}
           </header>
           <div className={PANEL_BODY_CLASS}>{children}</div>
         </div>

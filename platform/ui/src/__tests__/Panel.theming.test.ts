@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 describe("panel cinematic theming", () => {
   it("uses overview surface variables for borders, background, and shadow", () => {
-    const source = readFileSync(resolve(__dirname, "./Panel.tsx"), "utf8");
+    const source = readFileSync(resolve(__dirname, "../common/Panel.tsx"), "utf8");
 
     expect(source).toContain('border-[color:var(--overview-panel-border)]');
     expect(source).toContain('bg-[color:var(--overview-panel-bg)]');

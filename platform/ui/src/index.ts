@@ -29,3 +29,13 @@ export { EddieButton } from './components/eddie-button';
 export type { EddieButtonProps } from './components/eddie-button';
 export { EddieIcon } from './components/eddie-icon';
 export type { EddieIconProps } from './components/eddie-icon';
+export { AuroraBackground, JsonTreeView, Panel } from './common';
+export type {
+  AuroraBackgroundProps,
+  JsonTreeViewProps,
+  PanelProps,
+} from './common';
+export { AppHeader } from './layout';
+export type { AppHeaderProps } from './layout';
+export { NavigationLink } from './navigation';
+export type { NavigationLinkProps } from './navigation';

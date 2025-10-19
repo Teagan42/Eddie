@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 
-import { cn } from "@/vendor/lib/utils";
+import { combineClassNames } from "../utils/class-names";
 
 type JsonValue = unknown;
 
@@ -32,7 +32,7 @@ export function JsonTreeView({
 
   return (
     <div
-      className={cn(
+      className={combineClassNames(
         "rounded-lg border border-muted/40 bg-background/80 p-3",
         className
       )}

@@ -2,8 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { AppHeader } from "./AppHeader";
-import type { AppHeaderProps } from "./AppHeader";
+
+import { AppHeader } from "../layout/AppHeader";
+import type { AppHeaderProps } from "../layout/AppHeader";
 
 const navigation: AppHeaderProps["navigation"] = [
   { to: "/", label: "Overview" },
