@@ -1109,6 +1109,13 @@ export function ChatPage(): JSX.Element {
     const baseMessages = messagesQuery.data ?? [];
     return enrichMessagesWithExecutionTree(baseMessages, executionTreeState);
   }, [executionTreeState, messagesQuery.data]);
+  const hasStreamingReasoning = useMemo(
+    () =>
+      messagesWithMetadata.some(
+        (message) => message.reasoning?.status === "streaming"
+      ),
+    [messagesWithMetadata]
+  );
   const selectedContextBundles = useMemo(
     () => getSessionContextBundles(selectedSessionId ?? null),
     [getSessionContextBundles, selectedSessionId],
@@ -1124,8 +1131,17 @@ export function ChatPage(): JSX.Element {
       return 'error';
     }
 
+    if (hasStreamingReasoning && agentStreamActivity === 'idle') {
+      return 'thinking';
+    }
+
     return agentStreamActivity;
-  }, [agentStreamActivity, sendMessageMutation.isError, sendMessageMutation.isPending]);
+  }, [
+    agentStreamActivity,
+    hasStreamingReasoning,
+    sendMessageMutation.isError,
+    sendMessageMutation.isPending,
+  ]);
 
   useEffect(() => {
     if (!lastMessage) {
@@ -1488,12 +1504,16 @@ type MessageMetadataTool = {
   status?: string | null;
 };
 
-type MessageReasoningState = {
+type MessageReasoningSegment = {
   text: string;
   metadata?: Record<string, unknown>;
   timestamp?: string;
+  agentId?: string | null;
+};
+
+type MessageReasoningState = {
+  segments: MessageReasoningSegment[];
   responseId?: string;
-  agentId: string | null;
   status: "streaming" | "completed";
 };
 

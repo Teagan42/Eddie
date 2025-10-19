@@ -107,12 +107,16 @@ type MessageMetadata = {
   } | null;
 } | null;
 
-type MessageReasoning = {
+type MessageReasoningSegment = {
   text?: string;
   metadata?: Record<string, unknown>;
   timestamp?: string;
-  responseId?: string;
   agentId?: string | null;
+};
+
+type MessageReasoning = {
+  segments?: MessageReasoningSegment[];
+  responseId?: string;
   status?: "streaming" | "completed";
 } | null;
 
@@ -283,19 +287,52 @@ function buildToolInvocationLabel(summary: { name: string; status: ToolStatus })
 
 function getReasoningAgentLabel(
   message: MessageWithMetadata,
-  reasoning: MessageReasoning,
+  segment: MessageReasoningSegment | undefined,
 ): string | null {
-  const explicit = getNonEmptyString(reasoning?.agentId);
-  if (explicit) {
-    return explicit;
+  const agentMetadata = message.metadata?.agent ?? null;
+  const metadataLabel = agentMetadata
+    ? firstNonEmpty(agentMetadata.name, agentMetadata.id)
+    : null;
+
+  return metadataLabel ?? getNonEmptyString(segment?.agentId);
+}
+
+function getRenderableReasoningSegments(
+  reasoning: MessageReasoning,
+): Array<{ segment: MessageReasoningSegment; text: string }> {
+  if (!reasoning || !Array.isArray(reasoning.segments)) {
+    return [];
   }
 
+  const segments: Array<{ segment: MessageReasoningSegment; text: string }> = [];
+
+  for (const segment of reasoning.segments) {
+    if (!segment || typeof segment.text !== 'string') {
+      continue;
+    }
+
+    const trimmed = segment.text.trim();
+    if (trimmed.length === 0) {
+      continue;
+    }
+
+    segments.push({ segment, text: trimmed });
+  }
+
+  return segments;
+}
+
+function getReasoningAgentParentLabel(message: MessageWithMetadata): string | null {
   const agentMetadata = message.metadata?.agent ?? null;
   if (!agentMetadata) {
     return null;
   }
 
-  return firstNonEmpty(agentMetadata.name, agentMetadata.id);
+  return firstNonEmpty(
+    agentMetadata.parentName,
+    agentMetadata.parentId,
+    getParentFromLineage(agentMetadata as AgentMetadata | null | undefined),
+  );
 }
 
 export interface MessageListProps {
@@ -343,13 +380,13 @@ export function MessageList({
                 ? getToolInvocationId(messageWithMetadata)
                 : null;
               const reasoning = messageWithMetadata.reasoning ?? null;
-              const hasReasoning = typeof reasoning?.text === 'string' && reasoning.text.trim().length > 0;
+              const reasoningSegments = getRenderableReasoningSegments(reasoning);
+              const hasReasoning = reasoningSegments.length > 0;
               const reasoningStatus =
                 reasoning?.status === 'completed' ? 'completed' : 'streaming';
               const reasoningVariant = REASONING_STATUS_VARIANTS[reasoningStatus];
-              const reasoningAgentLabel = getReasoningAgentLabel(
+              const reasoningParentLabel = getReasoningAgentParentLabel(
                 messageWithMetadata,
-                reasoning,
               );
 
               return (
@@ -460,14 +497,52 @@ export function MessageList({
                             {reasoningVariant.label}
                           </Badge>
                         </Flex>
-                        {reasoningAgentLabel ? (
-                          <Text size="1" color="gray" className="text-xs text-slate-300">
-                            Agent {reasoningAgentLabel}
-                          </Text>
-                        ) : null}
-                        <Text size="2" className="whitespace-pre-wrap text-slate-200">
-                          {reasoning?.text ?? ''}
-                        </Text>
+                        <Flex direction="column" gap="2" className="mt-2">
+                          {reasoningSegments.map(({ segment, text }, index) => {
+                            const agentLabel = getReasoningAgentLabel(
+                              messageWithMetadata,
+                              segment,
+                            );
+                            const segmentTimestamp = segment.timestamp
+                              ? formatTime(segment.timestamp)
+                              : null;
+
+                            return (
+                              <Box
+                                key={`${segment.timestamp ?? index}-${message.id}`}
+                                className="rounded-lg bg-slate-950/40 p-3"
+                                data-testid="chat-message-reasoning-segment"
+                              >
+                                <Flex align="center" justify="between" className="flex-wrap gap-2">
+                                  <Flex direction="column" gap="1">
+                                    {agentLabel ? (
+                                      <Text
+                                        size="1"
+                                        color="gray"
+                                        className="text-xs uppercase tracking-wide text-slate-300"
+                                      >
+                                        Agent {agentLabel}
+                                      </Text>
+                                    ) : null}
+                                    {reasoningParentLabel ? (
+                                      <Text size="1" color="gray" className="text-xs text-slate-400">
+                                        Reports to {reasoningParentLabel}
+                                      </Text>
+                                    ) : null}
+                                  </Flex>
+                                  {segmentTimestamp ? (
+                                    <Text size="1" color="gray" className="text-xs text-slate-300">
+                                      {segmentTimestamp}
+                                    </Text>
+                                  ) : null}
+                                </Flex>
+                                <Text size="2" className="mt-2 whitespace-pre-wrap text-slate-200">
+                                  {text}
+                                </Text>
+                              </Box>
+                            );
+                          })}
+                        </Flex>
                       </Box>
                     ) : null}
                   </Box>

@@ -9,12 +9,16 @@ import type {
 } from "@eddie/api-client";
 import { sortSessions, upsertMessage } from "./chat-utils";
 
-type MessageReasoningState = {
+type MessageReasoningSegment = {
   text: string;
   metadata?: Record<string, unknown>;
   timestamp?: string;
-  responseId?: string;
   agentId: string | null;
+};
+
+type MessageReasoningState = {
+  segments: MessageReasoningSegment[];
+  responseId?: string;
   status: "streaming" | "completed";
 };
 
@@ -86,17 +90,7 @@ function applyReasoningUpdate(
     const current = (message as MessageWithReasoning).reasoning ?? null;
     const updated = updater(current);
 
-    if (
-      updated === current ||
-      (updated &&
-        current &&
-        updated.text === current.text &&
-        updated.status === current.status &&
-        updated.metadata === current.metadata &&
-        updated.timestamp === current.timestamp &&
-        updated.responseId === current.responseId &&
-        updated.agentId === current.agentId)
-    ) {
+    if (updated === current) {
       return message;
     }
 
@@ -136,18 +130,98 @@ function updateReasoningCache(
   );
 }
 
+function getLastReasoningSegment(
+  segments: MessageReasoningSegment[]
+): MessageReasoningSegment | null {
+  if (segments.length === 0) {
+    return null;
+  }
+
+  return segments[segments.length - 1] ?? null;
+}
+
+function appendReasoningSegment(
+  segments: MessageReasoningSegment[],
+  segment: MessageReasoningSegment
+): MessageReasoningSegment[] {
+  return [...segments, segment];
+}
+
+function updateLastReasoningSegment(
+  segments: MessageReasoningSegment[],
+  updates: Partial<MessageReasoningSegment>
+): MessageReasoningSegment[] {
+  const last = getLastReasoningSegment(segments);
+  if (!last) {
+    return segments;
+  }
+
+  const next = {
+    ...last,
+    ...updates,
+  } satisfies MessageReasoningSegment;
+
+  if (
+    next === last ||
+    (next.text === last.text &&
+      next.metadata === last.metadata &&
+      next.timestamp === last.timestamp &&
+      next.agentId === last.agentId)
+  ) {
+    return segments;
+  }
+
+  const copy = segments.slice();
+  copy[copy.length - 1] = next;
+  return copy;
+}
+
 function mergePartialReasoning(
   current: MessageReasoningState | null,
   payload: ChatMessageReasoningPartialPayload
 ): MessageReasoningState {
-  const agentId = resolveAgentId(current?.agentId, payload.agentId);
+  const segments = current?.segments ?? [];
+  const last = getLastReasoningSegment(segments);
+  const previousAgentId = last?.agentId ?? null;
+  const agentId = resolveAgentId(previousAgentId, payload.agentId);
+
+  const responseId = current?.responseId;
+  const normalizedText =
+    typeof payload.text === "string" ? payload.text : "";
+  const trimmed = normalizedText.trim();
+
+  if (trimmed.length === 0) {
+    if (!last) {
+      return {
+        segments,
+        responseId,
+        status: "streaming",
+      };
+    }
+
+    const nextSegments = updateLastReasoningSegment(segments, {
+      metadata: payload.metadata ?? last.metadata,
+      timestamp: payload.timestamp ?? last.timestamp,
+      agentId,
+    });
+
+    return {
+      segments: nextSegments,
+      responseId,
+      status: "streaming",
+    };
+  }
+
+  const segment: MessageReasoningSegment = {
+    text: normalizedText,
+    metadata: payload.metadata,
+    timestamp: payload.timestamp,
+    agentId,
+  };
 
   return {
-    text: payload.text,
-    metadata: payload.metadata ?? current?.metadata,
-    timestamp: payload.timestamp ?? current?.timestamp,
-    responseId: current?.responseId,
-    agentId,
+    segments: appendReasoningSegment(segments, segment),
+    responseId,
     status: "streaming",
   };
 }
@@ -156,14 +230,36 @@ function mergeCompletedReasoning(
   current: MessageReasoningState | null,
   payload: ChatMessageReasoningCompletePayload
 ): MessageReasoningState {
-  const agentId = resolveAgentId(current?.agentId, payload.agentId);
+  const segments = current?.segments ?? [];
+  const last = getLastReasoningSegment(segments);
+  const previousAgentId = last?.agentId ?? null;
+  const agentId = resolveAgentId(previousAgentId, payload.agentId);
+
+  let nextSegments = segments;
+
+  if (typeof payload.text === "string") {
+    const segment: MessageReasoningSegment = {
+      text: payload.text,
+      metadata: payload.metadata,
+      timestamp: payload.timestamp,
+      agentId,
+    };
+    nextSegments = appendReasoningSegment(segments, segment);
+  } else if (
+    payload.metadata ||
+    payload.timestamp ||
+    payload.agentId !== undefined
+  ) {
+    nextSegments = updateLastReasoningSegment(segments, {
+      metadata: payload.metadata ?? last?.metadata,
+      timestamp: payload.timestamp ?? last?.timestamp,
+      agentId,
+    });
+  }
 
   return {
-    text: payload.text ?? current?.text ?? "",
-    metadata: payload.metadata ?? current?.metadata,
-    timestamp: payload.timestamp ?? current?.timestamp,
+    segments: nextSegments,
     responseId: payload.responseId ?? current?.responseId,
-    agentId,
     status: "completed",
   };
 }
