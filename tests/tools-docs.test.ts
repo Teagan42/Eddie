@@ -6,12 +6,27 @@ const planModulePath = 'platform/runtime/tools/src/builtin/plan.ts';
 const fileSearchModulePath = 'platform/runtime/tools/src/builtin/file_search.ts';
 const treeModulePath =
   'platform/runtime/tools/src/builtin/get_folder_tree_structure.ts';
+const bashModulePath = 'platform/runtime/tools/src/builtin/bash.ts';
+const fileWriteModulePath = 'platform/runtime/tools/src/builtin/file_write.ts';
+const runtimeToolsReadmePath = 'platform/runtime/tools/README.md';
+const builtinToolNames = [
+  'bash',
+  'file_read',
+  'file_write',
+  'file_search',
+  'get_folder_tree_structure',
+  'get_plan',
+  'complete_task',
+  'update_plan',
+];
 
 describe('tools documentation', () => {
   let doc: string;
+  let runtimeReadme: string;
 
   beforeAll(() => {
     doc = read('docs/tools.md');
+    runtimeReadme = read(runtimeToolsReadmePath);
   });
 
   it('documents plan management workflow and schemas', () => {
@@ -43,5 +58,34 @@ describe('tools documentation', () => {
     expect(doc).toContain('offset');
     expect(doc).toContain('includeDependencies');
     expect(doc).toContain(treeModulePath);
+  });
+
+  it('cross-links runtime reference for interactive and mutation tools', () => {
+    expect(doc).toContain('../platform/runtime/tools/README.md#bash');
+    expect(doc).toContain('../platform/runtime/tools/README.md#file_write');
+    expect(doc).toContain(bashModulePath);
+    expect(doc).toContain(fileWriteModulePath);
+  });
+
+  it('documents runtime README sections for every built-in tool', () => {
+    for (const tool of builtinToolNames) {
+      expect(runtimeReadme).toContain(`### \`${tool}\``);
+    }
+
+    const parameterHeadings = runtimeReadme.match(/#### Parameters/g) ?? [];
+    const outputHeadings = runtimeReadme.match(/#### Outputs/g) ?? [];
+    const safetyHeadings =
+      runtimeReadme.match(/#### Safety considerations/g) ?? [];
+
+    expect(parameterHeadings).toHaveLength(builtinToolNames.length);
+    expect(outputHeadings).toHaveLength(builtinToolNames.length);
+    expect(safetyHeadings).toHaveLength(builtinToolNames.length);
+  });
+
+  it('notes confirmation flow for bash and file writes in runtime README', () => {
+    expect(runtimeReadme).toContain(bashModulePath);
+    expect(runtimeReadme).toContain(fileWriteModulePath);
+    expect(runtimeReadme).toContain('ctx.confirm');
+    expect(runtimeReadme.toLowerCase()).toContain('confirmation prompt');
   });
 });
