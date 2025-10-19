@@ -1,9 +1,13 @@
+
+import path from "node:path";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { DemoDataApiModule } from "../../../src/demo-data/demo-data.api.module";
+import { DemoFixtureValidationError } from "../../../src/demo-data/demo-fixture.validation-error";
 import "reflect-metadata";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import type { DynamicModule } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
-import { describe, expect, it, vi } from "vitest";
 import { BehaviorSubject } from "rxjs";
 import { ConfigStore, DEFAULT_CONFIG } from "@eddie/config";
 import type { EddieConfig } from "@eddie/types";
@@ -90,20 +94,21 @@ const DEMO_SEED_FILENAME = "demo-seed.json";
 let fixturePath: string;
 let demoSeedFixture: DemoSeedFixture;
 let expectedSessions: ChatSessionDto[];
-let expectedInvocations: Map<string, AgentInvocationSnapshot[]>;
+let expectedInvocations: Map<string, readonly AgentInvocationSnapshot[]>;
 let expectedLogs: LogEntryDto[];
 let expectedTraces: TraceDto[];
 
-beforeAll(async () => {
-  fixturePath = demoFixturePath(DEMO_SEED_FILENAME);
-  demoSeedFixture = await readDemoFixture<DemoSeedFixture>(DEMO_SEED_FILENAME);
-  expectedSessions = buildExpectedSessions(demoSeedFixture);
-  expectedInvocations = buildExpectedInvocations(demoSeedFixture);
-  expectedLogs = buildExpectedLogs(demoSeedFixture);
-  expectedTraces = buildExpectedTraces(demoSeedFixture);
-});
+
 
 describe("ApiModule demo data seeding", () => {
+  beforeAll(async () => {
+    fixturePath = demoFixturePath(DEMO_SEED_FILENAME);
+    demoSeedFixture = await readDemoFixture<DemoSeedFixture>(DEMO_SEED_FILENAME);
+    expectedSessions = buildExpectedSessions(demoSeedFixture);
+    expectedInvocations = buildExpectedInvocations(demoSeedFixture);
+    expectedLogs = buildExpectedLogs(demoSeedFixture);
+    expectedTraces = buildExpectedTraces(demoSeedFixture);
+  });
   it("loads sessions, logs, and traces from the configured demo fixture", async () => {
     const configStoreFactory = () => createConfigStore(fixturePath);
     const minimalApiModule: DynamicModule = {
@@ -156,7 +161,9 @@ describe("ApiModule demo data seeding", () => {
       imports: [ApiModule.forRoot({})],
     })
       .overrideProvider(ConfigStore)
-      .useFactory(configStoreFactory)
+      .useFactory({
+        factory: configStoreFactory,
+      })
       .overrideProvider(CHAT_SESSIONS_REPOSITORY)
       .useValue(repository)
       .compile();
@@ -224,7 +231,7 @@ function buildExpectedSessions(fixture: DemoSeedFixture): ChatSessionDto[] {
       return {
         id: session.id,
         title: session.title,
-        description: session.description ?? undefined,
+        description: ("description" in session && session.description) as string ?? undefined,
         status: "active",
         createdAt,
         updatedAt,
@@ -247,10 +254,10 @@ function calculateUpdatedAt(createdAt: string, messageCount: number): string {
 
 function buildExpectedInvocations(
   fixture: DemoSeedFixture,
-): Map<string, AgentInvocationSnapshot[]> {
+): Map<string, readonly AgentInvocationSnapshot[]> {
   const entries = fixture.sessions.map((session) => {
     if (!session.agentInvocationTree) {
-      return [session.id, [] as AgentInvocationSnapshot[]] as const;
+      return [session.id, [] as readonly AgentInvocationSnapshot[]] as const;
     }
 
     return [
@@ -375,3 +382,53 @@ function createStableId(prefix: string, value: unknown): string {
   hash.update(JSON.stringify(value));
   return `${prefix}-${hash.digest("hex")}`;
 }
+
+
+class ConfigStoreStub {
+  getSnapshot = vi.fn(() => ({
+    api: {
+      demoSeeds: {
+        files: [
+          path.join(
+            __dirname,
+            "fixtures",
+            "invalid-demo-seed.json",
+          ),
+        ],
+      },
+    },
+  }));
+
+  setSnapshot = vi.fn();
+}
+
+describe("DemoDataApiModule", () => {
+  it("fails to initialize when a demo fixture is invalid", async () => {
+    expect.assertions(2);
+
+    const moduleRef = await Test.createTestingModule({
+      imports: [DemoDataApiModule],
+    })
+      .overrideProvider(ConfigStore)
+      .useValue(new ConfigStoreStub())
+      .compile();
+
+    const app = moduleRef.createNestApplication();
+    let appClosed = false;
+
+    try {
+      await app.init();
+      await app.close();
+      appClosed = true;
+
+      throw new Error("DemoDataApiModule should reject invalid fixtures");
+    } catch (error) {
+      expect(error).toBeInstanceOf(DemoFixtureValidationError);
+      expect((error as Error).message).toContain("events[0].timestamp");
+    } finally {
+      if (!appClosed) {
+        await app.close().catch(() => undefined);
+      }
+    }
+  });
+});
