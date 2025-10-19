@@ -254,11 +254,53 @@ about session changes and agent activity. The gateway emits:
 - `session.deleted` – emitted after a session is removed; clients should drop local copies and active subscriptions when they receive this event.【F:apps/api/src/chat-sessions/chat-sessions.gateway.ts†L43-L61】
 - `message.created`, `message.updated` – when chat messages are streamed from
   the engine or edited by follow-up calls.【F:apps/api/src/chat-sessions/chat-sessions.gateway.ts†L63-L69】
-- `agent.activity` – progress updates as the agent executes tools and produces
-  responses.【F:apps/api/src/chat-sessions/chat-sessions.gateway.ts†L71-L75】
-- `message.send` – inbound websocket command that accepts a
-  `SendChatMessagePayloadDto` payload; the gateway forwards it to the command bus
-  as `SendChatMessageCommand`.【F:apps/api/src/chat-sessions/chat-sessions.gateway.ts†L77-L92】
+  - `agent.activity` – progress updates as the agent executes tools and produces
+    responses.【F:apps/api/src/chat-sessions/chat-sessions.gateway.ts†L71-L75】
+  - `execution-tree.updated` – full execution tree snapshots emitted by
+    `ChatSessionsGateway` whenever the orchestrator publishes a new
+    `ExecutionTreeState`. Each payload includes the `sessionId` that triggered the
+    update and the nested `agentHierarchy`, `toolInvocations`, and `contextBundles`
+    collections that describe which agents spawned children, which tools ran, and
+    what artefacts were captured. Client applications reshape the tree into graph
+    structures with a `rootNodeId`, flattened `nodes`, and directional `edges` so
+    timelines render consistently across dashboards.
+
+    Example websocket payload:
+
+    ```json
+    {
+      "event": "execution-tree.updated",
+      "payload": {
+        "sessionId": "session-123",
+        "state": {
+          "agentHierarchy": [
+            { "id": "root-agent", "name": "planner", "children": [] }
+          ],
+          "toolInvocations": [
+            { "id": "call-1", "name": "search", "status": "completed" }
+          ],
+          "contextBundles": [
+            { "id": "bundle-1", "label": "search-results", "sizeBytes": 512 }
+          ],
+          "agentLineageById": { "root-agent": [] },
+          "toolGroupsByAgentId": { "root-agent": ["call-1"] },
+          "contextBundlesByAgentId": { "root-agent": ["bundle-1"] },
+          "contextBundlesByToolCallId": { "call-1": ["bundle-1"] },
+          "createdAt": "2024-01-01T00:00:00.000Z",
+          "updatedAt": "2024-01-01T00:00:01.000Z"
+        },
+        "graph": {
+          "rootNodeId": "root-agent",
+          "nodes": ["root-agent", "call-1"],
+          "edges": [["root-agent", "call-1"]]
+        }
+      }
+    }
+    ```
+
+  - `message.send` – inbound websocket command that accepts a
+    `SendChatMessagePayloadDto` payload; the gateway forwards it to the command bus
+    as `SendChatMessageCommand`.【F:apps/api/src/chat-sessions/chat-sessions.gateway.ts†L77-L92】
 
 Runtime configuration updates stream over `/config`:
 
@@ -362,6 +404,70 @@ Fetch high-level orchestrator state to drive dashboards or debugging tools:
 - **`GET /orchestrator/metadata`** – return current orchestrator metadata, with
   an optional `sessionId` query parameter to scope results to a specific chat
   session.【F:apps/api/src/orchestrator/orchestrator.controller.ts†L7-L15】
+
+Snapshots are assembled in `orchestrator.service.ts` using the most recent
+`ExecutionTreeState`. When the optional in-memory `ExecutionTreeStateStore`
+contains a cached state for the requested session, the service reuses it so the
+response mirrors websocket emissions. Otherwise the API replays session data to
+rebuild the same `contextBundles`, `toolInvocations`, and `agentHierarchy`
+collections before returning. Every response includes a `capturedAt` timestamp
+and echoes the `sessionId` when one was supplied.
+
+An example response for `GET /orchestrator/metadata` looks like:
+
+```json
+{
+  "sessionId": "session-123",
+  "capturedAt": "2024-01-01T00:00:01.000Z",
+  "contextBundles": [
+    {
+      "id": "bundle-1",
+      "label": "Session history",
+      "sizeBytes": 420,
+      "fileCount": 0
+    }
+  ],
+  "toolInvocations": [
+    {
+      "id": "call-1",
+      "name": "search",
+      "status": "completed",
+      "metadata": {
+        "agentId": "root-agent",
+        "createdAt": "2024-01-01T00:00:00.500Z",
+        "updatedAt": "2024-01-01T00:00:01.000Z"
+      }
+    }
+  ],
+  "agentHierarchy": [
+    {
+      "id": "root-agent",
+      "name": "planner",
+      "provider": "openai",
+      "model": "gpt-4.1",
+      "depth": 0,
+      "children": []
+    }
+  ]
+}
+```
+
+When no session is provided, the service emits an empty snapshot with the
+current `capturedAt` timestamp so dashboards can still verify connectivity.
+
+### Troubleshooting execution tree telemetry
+
+- Ensure the CQRS `EventBus` remains enabled so
+  `ExecutionTreeStateUpdatedEvent` instances reach the websocket handlers;
+  disabling the bus prevents `execution-tree.updated` broadcasts entirely.
+- Confirm that each orchestrator runtime wires an `ExecutionTreeStateTracker`
+  from `platform/runtime/engine/src/execution-tree/execution-tree-tracker.service.ts`.
+  Without the tracker, the API cannot persist `agentHierarchy`,
+  `toolInvocations`, or `contextBundles` metadata for either the websocket stream
+  or metadata endpoint.
+- Inspect metadata payloads for agent provider/model pairs and tool invocation
+  identifiers. Missing provider names or tool identifiers usually indicates the
+  upstream agent descriptors were not supplied to the tracker.
 
 ## Telemetry
 

@@ -4,6 +4,17 @@ The Eddie Web UI provides a control plane for orchestrating chat sessions, trace
 
 Session controls allow operators to rename or delete chat sessions directly from the browser. These actions call the REST endpoints documented in [docs/api.md](docs/api.md) and watch for `session.updated` and `session.deleted` events so local state stays aligned with other clients.
 
+### Agent execution tree panel
+
+The execution tree panel subscribes to the `execution-tree.updated` stream
+documented in [docs/api.md](docs/api.md#orchestrator-metadata) so front-end
+integrators can render nested agent activity alongside tool invocations. Each
+snapshot contains the `ExecutionTreeState` payload emitted by
+`ChatSessionsGateway`, and may reuse cached data from the in-memory
+`ExecutionTreeStateStore` when the API's orchestrator has already populated it.
+The UI flattens these structures into graph nodes and edges to mirror the JSON
+examples in the API guide, keeping the panel consistent with backend telemetry.
+
 ## Prerequisites
 
 - Node.js 20 or newer (the same requirement as the CLI and API).

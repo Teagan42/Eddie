@@ -15,6 +15,27 @@ function expectAllMatches(source: string, patterns: RegExp[]): void {
   }
 }
 
+const executionTreePatterns = [
+  /execution-tree\.updated/,
+  /ChatSessionsGateway/,
+  /ExecutionTreeState/,
+  /rootNodeId/,
+  /nodes/,
+  /edges/,
+  /contextBundles/,
+  /toolInvocations/,
+  /agentHierarchy/,
+  /updatedAt/,
+];
+
+const orchestratorSnapshotPatterns = [
+  /ExecutionTreeStateStore/,
+  /contextBundles/,
+  /toolInvocations/,
+  /agentHierarchy/,
+  /capturedAt/,
+];
+
 describe('api documentation reference examples', () => {
   let apiDoc: string;
   const renameExamplePayload = '{\n  "name": "Renamed session title"\n}';
@@ -83,6 +104,17 @@ describe('api documentation reference examples', () => {
   it('mentions orchestrator metadata endpoint with optional session query', () => {
     expect(apiDoc).toMatch(/GET\s+\/orchestrator\/metadata/);
     expect(apiDoc).toMatch(/sessionId/);
+  });
+
+  it('documents execution tree websocket snapshots and payload fields', () => {
+    expectAllMatches(apiDoc, executionTreePatterns);
+    expect(apiDoc).toMatch(/"event"\s*:\s*"execution-tree\.updated"/);
+    expect(apiDoc).toMatch(/"payload"\s*:\s*\{/);
+  });
+
+  it('explains orchestrator metadata snapshots sourced from execution tree state', () => {
+    expectAllMatches(apiDoc, orchestratorSnapshotPatterns);
+    expect(apiDoc).toMatch(/GET\s+\/orchestrator\/metadata[\s\S]+example\s+response/);
   });
 
   it('documents chat session rename and delete routes with responses', () => {
