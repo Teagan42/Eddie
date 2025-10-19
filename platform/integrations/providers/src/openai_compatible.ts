@@ -23,6 +23,37 @@ interface ToolAccumulator {
   args: string;
 }
 
+type TextContentPart = { type: "text"; text: string };
+
+type NormalizedAssistantMessage = {
+  role: "assistant";
+  content: TextContentPart[];
+  name?: string;
+  tool_calls?: {
+    id?: string;
+    type: "function";
+    function: { name: string; arguments: string };
+  }[];
+};
+
+type NormalizedBaseMessage = {
+  role: "system" | "user";
+  content: TextContentPart[];
+  name?: string;
+};
+
+type NormalizedToolMessage = {
+  role: "tool";
+  content: string;
+  tool_call_id?: string;
+  name?: string;
+};
+
+type NormalizedChatMessage =
+  | NormalizedAssistantMessage
+  | NormalizedBaseMessage
+  | NormalizedToolMessage;
+
 export class OpenAICompatibleAdapter implements ProviderAdapter {
   readonly name = "openai_compatible";
 
@@ -39,6 +70,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
       ...this.config.headers,
     };
 
+    const formattedMessages = this.formatMessages(options.messages);
     const formattedTools = this.formatTools(options.tools);
     const responseFormat = resolveResponseFormat(options);
     const response = await fetch(this.endpoint(), {
@@ -47,7 +79,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
       body: JSON.stringify({
         model: options.model,
         stream: true,
-        messages: options.messages,
+        messages: formattedMessages,
         tools: formattedTools,
         tool_choice: formattedTools ? "auto" : undefined,
         ...(responseFormat ? { response_format: responseFormat } : {}),
@@ -397,6 +429,87 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
         ...(tool.description ? { description: tool.description } : {}),
       },
     }));
+  }
+
+  private formatMessages(messages: StreamOptions["messages"]): NormalizedChatMessage[] {
+    const toTextSegments = (content: string): TextContentPart[] =>
+      content.length > 0 ? [{ type: "text" as const, text: content }] : [];
+
+    return messages.map((message) => {
+      const content = typeof message.content === "string" ? message.content : "";
+
+      if (message.role === "tool") {
+        const toolMessage: NormalizedToolMessage = {
+          role: "tool",
+          content,
+        };
+
+        if (message.tool_call_id) {
+          toolMessage.tool_call_id = message.tool_call_id;
+        }
+
+        if (message.name) {
+          toolMessage.name = message.name;
+        }
+
+        return toolMessage;
+      }
+
+      if (message.role === "assistant") {
+        const assistant: NormalizedAssistantMessage = {
+          role: "assistant",
+          content: toTextSegments(content),
+        };
+
+        if (message.tool_call_id) {
+          assistant.tool_calls = [
+            {
+              id: message.tool_call_id,
+              type: "function" as const,
+              function: {
+                name: message.name ?? "tool",
+                arguments: content,
+              },
+            },
+          ];
+
+          if (
+            assistant.content.length === 1 &&
+            assistant.content[0]?.text.trim().length === 0
+          ) {
+            assistant.content = [];
+          }
+        } else if (message.name) {
+          assistant.name = message.name;
+        }
+
+        return assistant;
+      }
+
+      if (message.role === "system") {
+        const normalized: NormalizedBaseMessage = {
+          role: "system",
+          content: toTextSegments(content),
+        };
+
+        if (message.name) {
+          normalized.name = message.name;
+        }
+
+        return normalized;
+      }
+
+      const normalized: NormalizedBaseMessage = {
+        role: "user",
+        content: toTextSegments(content),
+      };
+
+      if (message.name) {
+        normalized.name = message.name;
+      }
+
+      return normalized;
+    });
   }
 }
 
