@@ -125,7 +125,7 @@ describe("OpenAICompatibleAdapter", () => {
       },
       {
         role: "assistant",
-        content: [],
+        content: [{ type: "text", text: "" }],
         tool_calls: [
           {
             id: "call-1",
@@ -137,8 +137,48 @@ describe("OpenAICompatibleAdapter", () => {
       {
         role: "tool",
         tool_call_id: "call-1",
-        name: "math",
         content: "{\"result\":42}",
+      },
+    ]);
+  });
+
+  it("adds empty text segments for blank assistant, system, and user content", async () => {
+    fetchMock.mockResolvedValueOnce(createResponse());
+
+    const adapter = new OpenAICompatibleAdapter({
+      baseUrl: "https://example.com",
+      apiKey: "sk-test",
+    });
+
+    const iterator = adapter.stream({
+      model: "gpt-test",
+      messages: [
+        { role: "system", content: "" },
+        { role: "user", content: "" },
+        { role: "assistant", content: "" },
+      ],
+    } as StreamOptions);
+
+    for await (const _ of iterator) {
+      // exhaust iterator
+    }
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, options] = fetchMock.mock.calls[0] ?? [];
+    const body = options?.body ? JSON.parse(options.body as string) : {};
+
+    expect(body.messages).toEqual([
+      {
+        role: "system",
+        content: [{ type: "text", text: "" }],
+      },
+      {
+        role: "user",
+        content: [{ type: "text", text: "" }],
+      },
+      {
+        role: "assistant",
+        content: [{ type: "text", text: "" }],
       },
     ]);
   });
