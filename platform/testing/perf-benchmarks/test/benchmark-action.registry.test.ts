@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { BroadcastChannel } from "node:worker_threads";
 
@@ -35,10 +35,20 @@ describe("benchmark action registry", () => {
       entry: { name: "broadcast entry", unit: "ms", value: 56.78 },
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    let capturedEntries: ReturnType<typeof drainBenchmarkActionEntries> = [];
+    await vi.waitUntil(() => {
+      const entries = drainBenchmarkActionEntries();
+      if (entries.length === 0) {
+        return false;
+      }
+
+      capturedEntries = entries;
+      return true;
+    });
+
     channel.close();
 
-    expect(drainBenchmarkActionEntries()).toEqual([
+    expect(capturedEntries).toEqual([
       { name: "broadcast entry", unit: "ms", value: 56.78 },
     ]);
   });
