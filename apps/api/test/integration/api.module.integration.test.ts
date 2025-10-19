@@ -86,6 +86,10 @@ vi.mock("../../src/runtime-config/runtime-config.module", () => ({
   RuntimeConfigModule: createStubModule("RuntimeConfigModule"),
 }));
 
+vi.mock("../../src/demo/demo.module", () => ({
+  DemoModule: createStubModule("DemoModule"),
+}));
+
 vi.mock("../../src/config-editor/config-editor.module", () => ({
   ConfigEditorModule: createStubModule("ConfigEditorModule"),
 }));

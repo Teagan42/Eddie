@@ -73,6 +73,26 @@ VITE_ENABLE_TELEMETRY=false
 
 To create an optimized production build, run `npm run web:build`. Vite will emit static assets under `apps/web/dist`, which you can serve behind the API or any other static host.【F:apps/web/package.json†L7-L15】
 
+### Demo dataset for screenshots and documentation
+
+When you need deterministic data for screenshot refreshes or walkthroughs, boot
+the API with the `demo-screenshots` preset:
+
+```bash
+npm run dev -- --preset demo-screenshots
+```
+
+The preset enables the `api.demo` block and points it at the structured fixture
+stored in `apps/api/demo/fixtures/overview-demo.json`. On startup the
+`DemoFixturesLoader` resets the in-memory repositories, seeds chat sessions,
+traces, logs, and runtime configuration, and then makes the data available to
+the Web UI immediately.【F:apps/api/src/demo/demo-fixtures-loader.service.ts†L24-L117】
+
+If you need to tweak the dataset (for example, to update screenshots), edit the
+fixture JSON and rerun the API with the same preset. The loader validates the
+schema before applying it so inconsistencies are caught during boot rather than
+silently leaking into the UI.【F:apps/api/src/demo/demo-fixtures.ts†L9-L109】
+
 ## What the UI expects from the API
 
 The generated API client calls REST endpoints for chat sessions, traces, logs, runtime configuration, user preferences, and orchestrator metadata, and opens WebSocket connections to the `/chat-sessions`, `/traces`, `/logs`, and `/config` endpoints for realtime updates.【F:platform/integrations/api-client/src/index.ts†L242-L443】 Ensure those modules stay enabled in the API module graph so that UI interactions succeed without 404s or connection failures.【F:apps/api/src/api.module.ts†L1-L61】

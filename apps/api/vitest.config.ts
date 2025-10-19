@@ -62,6 +62,8 @@ export default defineConfig({
     tsconfigRaw: {
       compilerOptions: {
         useDefineForClassFields: false,
+        experimentalDecorators: true,
+        emitDecoratorMetadata: true,
       },
     },
   },

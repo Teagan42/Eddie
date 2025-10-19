@@ -22,6 +22,17 @@ interface TraceEntity {
   updatedAt: Date;
 }
 
+export interface TraceSnapshotSeed {
+  id: string;
+  sessionId?: string;
+  name: string;
+  status: TraceEntity["status"];
+  durationMs?: number;
+  metadata?: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 const MAX_METADATA_DEPTH = 1_000;
 
 function deepClone<T>(value: T): T {
@@ -160,6 +171,23 @@ export class TracesService {
     return Array.from(this.traces.values())
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .map((trace) => this.toDto(trace));
+  }
+
+  replaceAll(traces: TraceSnapshotSeed[]): void {
+    this.traces.clear();
+    for (const snapshot of traces) {
+      const entity: TraceEntity = {
+        id: snapshot.id,
+        sessionId: snapshot.sessionId,
+        name: snapshot.name,
+        status: snapshot.status,
+        durationMs: snapshot.durationMs,
+        metadata: cloneMetadata(snapshot.metadata),
+        createdAt: new Date(snapshot.createdAt),
+        updatedAt: new Date(snapshot.updatedAt),
+      };
+      this.traces.set(entity.id, entity);
+    }
   }
 
   get(id: string): TraceDto {

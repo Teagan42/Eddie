@@ -1,10 +1,12 @@
 import type { EddieConfigInput } from "../types";
 import { apiHostPreset } from "./api-host";
 import { cliLocalPreset } from "./cli-local";
+import { demoScreenshotsPreset } from "./demo-screenshots";
 
 export const CONFIG_PRESETS = Object.freeze({
   "api-host": apiHostPreset,
   "cli-local": cliLocalPreset,
+  "demo-screenshots": demoScreenshotsPreset,
 }) satisfies Record<string, EddieConfigInput>;
 
 export type ConfigPresetName = keyof typeof CONFIG_PRESETS;

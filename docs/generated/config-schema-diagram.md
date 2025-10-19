@@ -125,6 +125,14 @@ graph LR
   api__cors__methods["methods: oneOf"]
   api__cors --> api__cors__origin
   api__cors__origin["origin: oneOf"]
+  api --> api__demo
+  api__demo["demo: object"]
+  api__demo --> api__demo__enabled
+  api__demo__enabled["enabled: boolean"]
+  api__demo --> api__demo__fixtures
+  api__demo__fixtures["fixtures: object"]
+  api__demo__fixtures --> api__demo__fixtures__path
+  api__demo__fixtures__path["path (required): string"]
   api --> api__host
   api__host["host: string"]
   api --> api__persistence

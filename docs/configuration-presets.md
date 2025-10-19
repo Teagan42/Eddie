@@ -53,3 +53,21 @@ Optimises logging for interactive CLI runs:
 
 Use `cli-local` together with ad-hoc flags (like `--context` or `--tools`) to
 keep local hacking sessions lightweight without losing trace data.
+
+### `demo-screenshots`
+
+Primes the API with a deterministic dataset for screenshot capture and docs
+reviews:
+
+- Enables the in-memory persistence driver so fixtures can be seeded and reset
+  quickly.【F:platform/core/config/src/presets/demo-screenshots.ts†L5-L12】
+- Points `api.demo.fixtures.path` at the shared `overview-demo.json` dataset so
+  chat sessions, traces, logs, and runtime config are hydrated automatically on
+  boot.【F:platform/core/config/src/presets/demo-screenshots.ts†L13-L19】
+- Turns on the `api.demo.enabled` switch so the loader runs without additional
+  CLI flags.【F:platform/core/config/src/presets/demo-screenshots.ts†L5-L19】
+
+Use this preset together with `npm run dev -- --preset demo-screenshots` to
+start the API populated with the fixtures exported from `apps/api/demo/fixtures`.
+The preset can also be supplied to tests via `CliRuntimeOptions` when you need a
+stable dataset for integration snapshots.【F:apps/api/test/integration/demo-fixtures/demo-fixtures.integration.test.ts†L164-L179】

@@ -1,0 +1,164 @@
+{
+  "metadata": {
+    "dataset": {
+      "id": "overview-demo",
+      "label": "Overview Demo",
+      "description": "Populates the Eddie API with data for docs and UI screenshots.",
+      "updatedAt": "2024-09-01T16:00:00.000Z"
+    },
+    "generator": "manual",
+    "version": 1
+  },
+  "runtime": {
+    "config": {
+      "apiUrl": "http://localhost:3000",
+      "websocketUrl": "ws://localhost:3000",
+      "features": {
+        "chat": true,
+        "logs": true,
+        "traces": true,
+        "configEditor": true
+      },
+      "theme": "aurora"
+    }
+  },
+  "chatSessions": [
+    {
+      "session": {
+        "id": "b013d18a-3534-4d2d-b4cf-7dba6c6f60fb",
+        "title": "Architecture Review",
+        "description": "Walkthrough of Eddie surfaces for the documentation refresh.",
+        "status": "active",
+        "createdAt": "2024-09-01T15:30:00.000Z",
+        "updatedAt": "2024-09-01T15:45:00.000Z"
+      },
+      "messages": [
+        {
+          "id": "f55a1f4a-6d26-4d6e-9af9-5a2786e0b63c",
+          "sessionId": "b013d18a-3534-4d2d-b4cf-7dba6c6f60fb",
+          "role": "user",
+          "content": "Give me a high-level overview of how Eddie is structured.",
+          "createdAt": "2024-09-01T15:30:05.000Z"
+        },
+        {
+          "id": "c4acda9e-0f8e-4a3e-8ab0-e5adf43b827e",
+          "sessionId": "b013d18a-3534-4d2d-b4cf-7dba6c6f60fb",
+          "role": "assistant",
+          "content": "Eddie is composed of a NestJS API, a CLI, and a web UI powered by shared platform packages.",
+          "createdAt": "2024-09-01T15:30:08.000Z"
+        },
+        {
+          "id": "4d7fcf9d-53fe-4fd3-8d40-d87b9a15c4d5",
+          "sessionId": "b013d18a-3534-4d2d-b4cf-7dba6c6f60fb",
+          "role": "assistant",
+          "content": "I'll inspect the repository to summarize each surface.",
+          "createdAt": "2024-09-01T15:31:00.000Z",
+          "toolCallId": "tool-call-1"
+        },
+        {
+          "id": "58e4700a-6f5d-490f-a6dd-8d3c15d760e1",
+          "sessionId": "b013d18a-3534-4d2d-b4cf-7dba6c6f60fb",
+          "role": "tool",
+          "name": "file_read",
+          "content": "{\"path\":\"README.md\",\"summary\":\"Project entry point\"}",
+          "createdAt": "2024-09-01T15:31:05.000Z",
+          "toolCallId": "tool-call-1"
+        },
+        {
+          "id": "f7c60463-b905-4cb9-82f0-09c0b8383a9d",
+          "sessionId": "b013d18a-3534-4d2d-b4cf-7dba6c6f60fb",
+          "role": "assistant",
+          "content": "The CLI issues commands through shared services while the API exposes HTTP and websocket gateways.",
+          "createdAt": "2024-09-01T15:31:10.000Z"
+        }
+      ],
+      "agentInvocations": [
+        {
+          "id": "invocation-root",
+          "provider": "openai",
+          "model": "gpt-4o-mini",
+          "messages": [
+            {
+              "role": "user",
+              "content": "Give me a high-level overview of how Eddie is structured."
+            },
+            {
+              "role": "assistant",
+              "content": "Eddie is composed of a NestJS API, a CLI, and a web UI powered by shared platform packages."
+            }
+          ],
+          "children": [
+            {
+              "id": "invocation-tool",
+              "provider": "filesystem",
+              "model": "inspect",
+              "messages": [
+                {
+                  "role": "assistant",
+                  "content": "I'll inspect the repository to summarize each surface.",
+                  "toolCallId": "tool-call-1"
+                },
+                {
+                  "role": "tool",
+                  "name": "file_read",
+                  "content": "{\"path\":\"README.md\",\"summary\":\"Project entry point\"}",
+                  "toolCallId": "tool-call-1"
+                }
+              ],
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "traces": [
+    {
+      "id": "c321f1f1-3137-4d53-a45a-2d9711d54d25",
+      "sessionId": "b013d18a-3534-4d2d-b4cf-7dba6c6f60fb",
+      "name": "initial-overview",
+      "status": "completed",
+      "durationMs": 1240,
+      "metadata": {
+        "steps": 3,
+        "summary": "Generated project overview"
+      },
+      "createdAt": "2024-09-01T15:30:06.000Z",
+      "updatedAt": "2024-09-01T15:31:12.000Z"
+    },
+    {
+      "id": "8f64c0a3-8cbb-4a3d-8e80-f6aab56c0af5",
+      "sessionId": "b013d18a-3534-4d2d-b4cf-7dba6c6f60fb",
+      "name": "tool-readme",
+      "status": "completed",
+      "durationMs": 340,
+      "metadata": {
+        "toolCallId": "tool-call-1",
+        "file": "README.md"
+      },
+      "createdAt": "2024-09-01T15:31:05.000Z",
+      "updatedAt": "2024-09-01T15:31:08.000Z"
+    }
+  ],
+  "logs": [
+    {
+      "id": "c9f02a46-7a37-4d80-8b6c-1f5f4f70aaf8",
+      "level": "info",
+      "message": "Loaded demo dataset overview-demo",
+      "context": {
+        "source": "demo-fixtures",
+        "sessionId": "b013d18a-3534-4d2d-b4cf-7dba6c6f60fb"
+      },
+      "createdAt": "2024-09-01T15:45:10.000Z"
+    },
+    {
+      "id": "0c9d5385-c872-4f8d-8d42-1db7d9c0cc64",
+      "level": "debug",
+      "message": "Captured README summary via file_read",
+      "context": {
+        "toolCallId": "tool-call-1"
+      },
+      "createdAt": "2024-09-01T15:31:06.500Z"
+    }
+  ]
+}

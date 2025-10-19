@@ -19,6 +19,14 @@ interface LogEntryEntity {
   createdAt: Date;
 }
 
+export interface LogEntrySeed {
+  id: string;
+  level: LogEntryDto["level"];
+  message: string;
+  context?: Record<string, unknown>;
+  createdAt: Date;
+}
+
 @Injectable()
 export class LogsService {
   private readonly logs: LogEntryEntity[] = [];
@@ -64,5 +72,18 @@ export class LogsService {
     const dto = this.toDto(entity);
     this.eventBus?.publish(new LogCreatedEvent(dto));
     return dto;
+  }
+
+  replaceAll(entries: LogEntrySeed[]): void {
+    this.logs.length = 0;
+    for (const entry of entries) {
+      this.logs.push({
+        id: entry.id,
+        level: entry.level,
+        message: entry.message,
+        context: entry.context,
+        createdAt: new Date(entry.createdAt),
+      });
+    }
   }
 }

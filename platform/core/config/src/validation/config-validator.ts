@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import type {
   AgentProviderConfig,
+  ApiDemoConfig,
   ApiPersistenceConfig,
   ApiPersistenceSqlConfig,
   ContextResourceConfig,
@@ -98,6 +99,7 @@ export class ConfigValidator {
     );
     this.validateProviderProfiles(config.providers, issues);
     this.validateApiPersistence(config.api?.persistence, issues);
+    this.validateApiDemo(config.api?.demo, issues);
 
     const { agents } = config;
 
@@ -879,6 +881,47 @@ export class ConfigValidator {
       "api.persistence.driver",
       "api.persistence.driver must be one of 'memory', 'sqlite', 'postgres', 'mysql', or 'mariadb'.",
     );
+  }
+
+  private validateApiDemo(
+    demo: ApiDemoConfig | undefined,
+    issues: ConfigValidationIssue[],
+  ): void {
+    if (!demo) {
+      return;
+    }
+
+    if (typeof demo.enabled !== "undefined" && typeof demo.enabled !== "boolean") {
+      this.pushValidationIssue(
+        issues,
+        "api.demo.enabled",
+        "api.demo.enabled must be a boolean when provided.",
+      );
+    }
+
+    if (typeof demo.fixtures === "undefined") {
+      return;
+    }
+
+    if (!this.isPlainObject(demo.fixtures)) {
+      this.pushValidationIssue(
+        issues,
+        "api.demo.fixtures",
+        "api.demo.fixtures must be an object when provided.",
+      );
+      return;
+    }
+
+    if (typeof demo.fixtures.path !== "undefined") {
+      const pathValue = demo.fixtures.path;
+      if (typeof pathValue !== "string" || pathValue.trim() === "") {
+        this.pushValidationIssue(
+          issues,
+          "api.demo.fixtures.path",
+          "api.demo.fixtures.path must be a non-empty string when provided.",
+        );
+      }
+    }
   }
 
   private ensureSqlPersistenceConfig(

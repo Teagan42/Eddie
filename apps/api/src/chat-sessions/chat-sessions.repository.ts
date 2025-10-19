@@ -90,6 +90,12 @@ export interface ChatSessionsRepository {
   listAgentInvocations(sessionId: string): Promise<AgentInvocationSnapshot[]>;
 }
 
+export interface InMemoryChatSessionsSnapshotEntry {
+  session: ChatSessionRecord;
+  messages: ChatMessageRecord[];
+  agentInvocations?: AgentInvocationSnapshot[];
+}
+
 const cloneInvocation = (
   invocation: AgentInvocationSnapshot
 ): AgentInvocationSnapshot => {
@@ -152,6 +158,32 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     AgentInvocationSnapshot[]
   >();
   private readonly apiKeyIndex = new Map<string, Set<string>>();
+
+  resetFromSnapshot(snapshot: InMemoryChatSessionsSnapshotEntry[]): void {
+    this.sessions.clear();
+    this.messages.clear();
+    this.agentInvocations.clear();
+    this.apiKeyIndex.clear();
+
+    for (const entry of snapshot) {
+      const session = cloneSession(entry.session);
+      this.sessions.set(session.id, session);
+      this.messages.set(
+        session.id,
+        entry.messages
+          .slice()
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map((message) => cloneMessage(message))
+      );
+
+      if (entry.agentInvocations && entry.agentInvocations.length > 0) {
+        this.agentInvocations.set(
+          session.id,
+          entry.agentInvocations.map((invocation) => cloneInvocation(invocation))
+        );
+      }
+    }
+  }
 
   private touchSession(session: ChatSessionRecord, timestamp?: number): void {
     const current = session.updatedAt.getTime();

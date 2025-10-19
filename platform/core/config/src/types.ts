@@ -6,6 +6,8 @@ export type {
   AgentsConfig,
   AgentsConfigInput,
   AgentRoutingConfig,
+  ApiDemoConfig,
+  ApiDemoFixturesConfig,
   ApiAuthConfig,
   ApiCacheConfig,
   ApiConfig,

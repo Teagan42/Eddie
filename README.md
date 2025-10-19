@@ -101,6 +101,13 @@ This command launches the Nest API and the Vite-powered UI with hot reloads. Whe
 ![Dashboard](docs/assets/ui-dashboard.png)
 ![Chat](docs/assets/ui-run-history.png)
 
+For deterministic demo content, run `npm run dev -- --preset demo-screenshots`.
+The preset hydrates the API from `apps/api/demo/fixtures/overview-demo.json`,
+providing chat transcripts, traces, and logs that align with the documentation
+screenshots. Update the fixture and rerun the preset whenever screenshots need a
+refresh—`DemoFixturesLoader` validates and seeds the dataset automatically on
+bootstrap.【F:platform/core/config/src/presets/demo-screenshots.ts†L5-L19】【F:apps/api/src/demo/demo-fixtures-loader.service.ts†L24-L117】
+
 Refer to [docs/web-ui.md](docs/web-ui.md) for advanced deployment guidance, environment variables, and authentication
 recommendations.
 

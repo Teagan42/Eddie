@@ -39,6 +39,11 @@ export class RuntimeConfigService {
     return cloneRuntimeConfig(merged);
   }
 
+  seed(config: RuntimeConfigDto): void {
+    const merged = mergeRuntimeConfig(runtimeDefaults, config);
+    this.store.setSnapshot(cloneRuntimeConfig(merged));
+  }
+
   private mergeConfig(
     current: RuntimeConfigDto,
     partial: Partial<RuntimeConfigDto>

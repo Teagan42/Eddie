@@ -104,7 +104,7 @@ export const CHAT_SESSIONS_REPOSITORY_PROVIDER: Provider = {
     ChatSessionStreamRendererService,
     AgentStreamEventHandler,
   ],
-  controllers: [ ChatSessionsController ],
-  exports: [ ChatSessionsService ],
+  controllers: [ChatSessionsController],
+  exports: [ChatSessionsService, CHAT_SESSIONS_REPOSITORY_PROVIDER],
 })
 export class ChatSessionsModule {}

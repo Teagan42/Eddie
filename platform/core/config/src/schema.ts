@@ -194,6 +194,24 @@ const API_PERSISTENCE_SCHEMA: JSONSchema7 = {
   },
 };
 
+const API_DEMO_FIXTURES_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["path"],
+  properties: {
+    path: { type: "string", minLength: 1 },
+  },
+};
+
+const API_DEMO_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    enabled: { type: "boolean" },
+    fixtures: API_DEMO_FIXTURES_SCHEMA,
+  },
+};
+
 const API_CONFIG_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
@@ -206,6 +224,7 @@ const API_CONFIG_SCHEMA: JSONSchema7 = {
     auth: API_AUTH_SCHEMA,
     cors: API_CORS_SCHEMA,
     persistence: API_PERSISTENCE_SCHEMA,
+    demo: API_DEMO_SCHEMA,
   },
 };
 
