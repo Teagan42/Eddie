@@ -26,6 +26,7 @@ export interface ChatWindowProps {
   composerSubmitDisabled?: boolean;
   composerPlaceholder?: string;
   onComposerSubmit: FormEventHandler<HTMLFormElement>;
+  onInspectToolInvocation?: (toolCallId: string | null) => void;
 }
 
 export function ChatWindow({
@@ -42,6 +43,7 @@ export function ChatWindow({
   composerSubmitDisabled = false,
   composerPlaceholder,
   onComposerSubmit,
+  onInspectToolInvocation,
 }: ChatWindowProps): JSX.Element {
   return (
     <Flex direction="column" gap="6">
@@ -49,6 +51,7 @@ export function ChatWindow({
         messages={messages}
         onReissueCommand={onReissueCommand}
         scrollAnchorRef={scrollAnchorRef}
+        onInspectToolInvocation={onInspectToolInvocation}
       />
       <Flex direction="column" gap="3">
         <AgentActivityIndicator state={agentActivityState} />

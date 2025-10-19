@@ -108,6 +108,8 @@ export interface AgentExecutionTreeProps {
   state: ExecutionTreeState | null | undefined;
   selectedAgentId: string | null;
   onSelectAgent: (agentId: string | null) => void;
+  focusedInvocationId?: string | null;
+  onFocusInvocation?: (invocationId: string | null) => void;
 }
 
 type AgentHierarchyNode = ExecutionTreeState['agentHierarchy'][number];
@@ -119,10 +121,28 @@ type DetailsTarget = {
   invocationId: string;
 };
 
+function findInvocationById(
+  nodes: ExecutionTreeState['toolInvocations'],
+  id: string,
+): ToolInvocationNode | null {
+  for (const node of nodes) {
+    if (node.id === id) {
+      return node;
+    }
+    const child = findInvocationById(node.children ?? [], id);
+    if (child) {
+      return child;
+    }
+  }
+  return null;
+}
+
 export function AgentExecutionTree({
   state,
   selectedAgentId,
   onSelectAgent,
+  focusedInvocationId,
+  onFocusInvocation,
 }: AgentExecutionTreeProps): JSX.Element {
   const agentHierarchy = state?.agentHierarchy ?? EMPTY_AGENT_HIERARCHY;
   const toolInvocations = state?.toolInvocations ?? EMPTY_TOOL_INVOCATIONS;
@@ -250,6 +270,43 @@ export function AgentExecutionTree({
     });
   }, [agentLineageById, agentsWithActivity]);
 
+  useEffect(() => {
+    if (!focusedInvocationId) {
+      setDetailsTarget(null);
+      return;
+    }
+
+    const invocation = findInvocationById(toolInvocations, focusedInvocationId);
+    if (!invocation) {
+      return;
+    }
+
+    const agentId = invocation.agentId ?? null;
+    if (agentId) {
+      const lineage = agentLineageById[agentId] ?? [];
+      setExpandedAgentIds((previous) => {
+        const next = new Set(previous);
+        for (const id of lineage) {
+          next.add(id);
+        }
+        next.add(agentId);
+        return next;
+      });
+
+      const statusKey: ToolGroupKey = `${agentId}:${invocation.status ?? 'pending'}`;
+      setExpandedGroups((previous) => {
+        const next = new Set(previous);
+        next.add(statusKey);
+        return next;
+      });
+    }
+
+    setDetailsTarget({
+      agentId: agentId ?? invocation.agentId ?? 'unknown',
+      invocationId: focusedInvocationId,
+    });
+  }, [agentLineageById, focusedInvocationId, toolInvocations]);
+
   const handleSelectAgent = useCallback(
     (agentId: string) => {
       const nextSelection = agentId === selectedAgentId ? null : agentId;
@@ -369,9 +426,10 @@ export function AgentExecutionTree({
                                 </Box>
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    setDetailsTarget({ agentId: agent.id, invocationId: entry.id })
-                                  }
+                                  onClick={() => {
+                                    setDetailsTarget({ agentId: agent.id, invocationId: entry.id });
+                                    onFocusInvocation?.(entry.id);
+                                  }}
                                   className={TOOL_DETAILS_BUTTON_CLASS}
                                   aria-label="View full tool invocation details"
                                 >
@@ -614,7 +672,15 @@ export function AgentExecutionTree({
   return (
     <>
       {renderAgents(agentHierarchy)}
-      <Dialog open={detailsTarget != null} onOpenChange={(open) => !open && setDetailsTarget(null)}>
+      <Dialog
+        open={detailsTarget != null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDetailsTarget(null);
+            onFocusInvocation?.(null);
+          }
+        }}
+      >
         {detailsInvocation ? (
           <DialogContent className="max-h-[85vh] space-y-4 overflow-y-auto">
             <DialogHeader className="text-left">
