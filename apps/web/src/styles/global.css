@@ -250,6 +250,94 @@ a:focus-visible {
     --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite alternate;
     --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
   }
+
+  :root[data-theme="aurora"] {
+    --color-accent: 28 96% 54%;
+    --hero-surface-from: 32 100% 97%;
+    --hero-surface-via: 45 96% 95%;
+    --hero-surface-to: 48 94% 92%;
+    --hero-surface-shadow: 0 65px 120px -60px rgba(249, 115, 22, 0.28);
+    --hero-surface-overlay: radial-gradient(
+        circle at top left,
+        rgba(249, 115, 22, 0.24),
+        transparent 55%
+      ),
+      radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.22), transparent 50%);
+    --hero-surface-overlay-dark: radial-gradient(
+        circle at top left,
+        rgba(249, 115, 22, 0.28),
+        transparent 55%
+      ),
+      radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.24), transparent 50%);
+    --hero-surface-lens: conic-gradient(
+      from 100deg at 50% 50%,
+      rgba(249, 115, 22, 0.2) 0deg,
+      transparent 140deg,
+      rgba(56, 189, 248, 0.18) 240deg,
+      transparent 360deg
+    );
+    --hero-cta-from: 18 92% 60%;
+    --hero-cta-via: 40 93% 60%;
+    --hero-cta-to: 156 68% 52%;
+    --hero-cta-shadow: 0 30px 70px -40px rgba(249, 115, 22, 0.45);
+    --hero-cta-foreground: hsl(26 64% 20%);
+    --hero-badge-bg: rgba(251, 191, 36, 0.22);
+    --hero-badge-fg: rgba(102, 51, 0, 0.82);
+    --hero-badge-bg-dark: rgba(251, 191, 36, 0.28);
+    --hero-badge-fg-dark: rgba(32, 18, 3, 0.9);
+    --hero-console-overlay: radial-gradient(
+      circle at top,
+      rgba(251, 191, 36, 0.24),
+      transparent 60%
+    );
+    --hero-console-overlay-dark: radial-gradient(
+      circle at top,
+      rgba(251, 191, 36, 0.3),
+      transparent 60%
+    );
+    --hero-console-icon-bg: rgba(253, 186, 116, 0.22);
+    --hero-console-icon-bg-dark: rgba(253, 186, 116, 0.28);
+    --hero-console-icon-fg: rgba(120, 53, 15, 0.88);
+    --hero-console-icon-fg-dark: rgba(253, 230, 138, 0.94);
+    --app-shell-overlay: circle_at_top, rgba(253, 230, 138, 0.16), transparent 60%;
+    --app-shell-main-overlay: circle_at_top_right, rgba(251, 191, 36, 0.14), transparent 65%;
+  }
+
+  :root[data-theme="midnight"] {
+    --color-accent: 260 92% 66%;
+    --hero-surface-from-dark: 252 64% 14%;
+    --hero-surface-via-dark: 245 55% 12%;
+    --hero-surface-to-dark: 262 58% 18%;
+    --hero-surface-shadow-dark: 0 65px 120px -60px rgba(76, 29, 149, 0.65);
+    --hero-surface-overlay-dark: radial-gradient(
+        circle at top left,
+        rgba(129, 140, 248, 0.32),
+        transparent 55%
+      ),
+      radial-gradient(circle at bottom right, rgba(165, 180, 252, 0.28), transparent 50%);
+    --hero-surface-lens-dark: conic-gradient(
+      from 120deg at 50% 50%,
+      rgba(129, 140, 248, 0.4) 0deg,
+      transparent 140deg,
+      rgba(76, 29, 149, 0.35) 240deg,
+      transparent 360deg
+    );
+    --hero-cta-from-dark: 248 95% 66%;
+    --hero-cta-via-dark: 280 84% 64%;
+    --hero-cta-to-dark: 210 82% 64%;
+    --hero-cta-shadow-dark: 0 30px 70px -40px rgba(59, 130, 246, 0.7);
+    --hero-badge-bg-dark: rgba(129, 140, 248, 0.3);
+    --hero-badge-fg-dark: rgba(224, 231, 255, 0.94);
+    --hero-console-overlay-dark: radial-gradient(
+      circle at top,
+      rgba(129, 140, 248, 0.3),
+      transparent 60%
+    );
+    --hero-console-icon-bg-dark: rgba(129, 140, 248, 0.32);
+    --hero-console-icon-fg-dark: rgba(224, 231, 255, 0.96);
+    --app-shell-overlay-dark: circle_at_top, rgba(91, 33, 182, 0.28), transparent 60%;
+    --app-shell-main-overlay-dark: circle_at_top_right, rgba(59, 130, 246, 0.14), transparent 60%;
+  }
 }
 
 @layer base {

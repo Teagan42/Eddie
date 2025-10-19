@@ -130,4 +130,34 @@ describe("ThemeProvider", () => {
     vi.useRealTimers();
     queryClient.clear();
   });
+
+  it("syncs data-theme attribute and dark class for extended palettes", async () => {
+    const queryClient = new QueryClient();
+
+    const { result } = renderHook(() => useTheme(), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await waitFor(() => expect(result.current.theme).toBe("light"));
+    expect(document.documentElement.dataset.theme).toBe("light");
+    expect(document.documentElement.classList.contains("dark")).toBe(false);
+
+    act(() => {
+      result.current.setTheme("midnight");
+    });
+
+    await waitFor(() => expect(result.current.theme).toBe("midnight"));
+    expect(document.documentElement.dataset.theme).toBe("midnight");
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+
+    act(() => {
+      result.current.setTheme("aurora");
+    });
+
+    await waitFor(() => expect(result.current.theme).toBe("aurora"));
+    expect(document.documentElement.dataset.theme).toBe("aurora");
+    expect(document.documentElement.classList.contains("dark")).toBe(false);
+
+    queryClient.clear();
+  });
 });
