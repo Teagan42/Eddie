@@ -219,6 +219,7 @@ export interface ChatMessageReasoningPartialPayload {
     metadata?: Record<string, unknown>;
     timestamp?: string;
     agentId?: string | null;
+    responseId?: string;
 }
 
 export interface ChatMessageReasoningCompletePayload {
@@ -505,6 +506,14 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     return undefined;
   };
 
+  const coerceResponseId = (value: unknown): string | undefined => {
+    if (typeof value === "string") {
+      return value;
+    }
+
+    return undefined;
+  };
+
   const coerceReasoningPartialPayload = (
     payload: unknown,
   ): ChatMessageReasoningPartialPayload | null => {
@@ -530,6 +539,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
             ? (payload as { timestamp: string }).timestamp
             : undefined,
         agentId: coerceAgentId((payload as { agentId?: unknown }).agentId),
+        responseId: coerceResponseId(
+          (payload as { responseId?: unknown }).responseId,
+        ),
       };
     }
 
@@ -550,10 +562,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       return {
         sessionId: (payload as { sessionId: string }).sessionId,
         messageId: (payload as { messageId: string }).messageId,
-        responseId:
-          typeof (payload as { responseId?: unknown }).responseId === "string"
-            ? (payload as { responseId: string }).responseId
-            : undefined,
+        responseId: coerceResponseId(
+          (payload as { responseId?: unknown }).responseId,
+        ),
         text:
           typeof (payload as { text?: unknown }).text === "string"
             ? (payload as { text: string }).text

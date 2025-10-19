@@ -267,6 +267,87 @@ describe("createApiClient", () => {
     client.dispose();
   });
 
+  it("wires reasoning message handlers with normalized payloads", () => {
+    const client = createApiClient({
+      baseUrl: "https://example.test/api/",
+      websocketUrl: "ws://example.test/ws/",
+    });
+
+    const chatMessagesChannel = createdChannels[ 1 ]!;
+    const partialHandler = vi.fn();
+    const completeHandler = vi.fn();
+
+    const unsubscribePartial =
+            client.sockets.chatMessages.onReasoningPartial(partialHandler);
+    const unsubscribeComplete =
+            client.sockets.chatMessages.onReasoningComplete(completeHandler);
+
+    const partialHandlers =
+            chatMessagesChannel.handlers.get("message.reasoning.partial");
+    expect(partialHandlers?.size ?? 0).toBe(1);
+    const [ registeredPartial ] = [ ...(partialHandlers ?? []) ];
+    expect(typeof registeredPartial).toBe("function");
+
+    const completeHandlers =
+            chatMessagesChannel.handlers.get("message.reasoning.completed");
+    expect(completeHandlers?.size ?? 0).toBe(1);
+    const [ registeredComplete ] = [ ...(completeHandlers ?? []) ];
+    expect(typeof registeredComplete).toBe("function");
+
+    registeredPartial?.({
+      sessionId: "session-1",
+      messageId: "message-1",
+      responseId: "response-1",
+      text: "thinking",
+      metadata: { step: 1 },
+      timestamp: "2024-01-01T00:00:00Z",
+      agentId: "agent-1",
+      extra: true,
+    });
+
+    expect(partialHandler).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      messageId: "message-1",
+      responseId: "response-1",
+      text: "thinking",
+      metadata: { step: 1 },
+      timestamp: "2024-01-01T00:00:00Z",
+      agentId: "agent-1",
+    });
+
+    registeredComplete?.({
+      sessionId: "session-2",
+      messageId: "message-2",
+      responseId: "response-2",
+      text: "done",
+      metadata: { summary: "complete" },
+      timestamp: "2024-01-01T00:01:00Z",
+      agentId: null,
+    });
+
+    expect(completeHandler).toHaveBeenCalledWith({
+      sessionId: "session-2",
+      messageId: "message-2",
+      responseId: "response-2",
+      text: "done",
+      metadata: { summary: "complete" },
+      timestamp: "2024-01-01T00:01:00Z",
+      agentId: null,
+    });
+
+    unsubscribePartial();
+    expect(
+      chatMessagesChannel.handlers.get("message.reasoning.partial")?.size ?? 0
+    ).toBe(0);
+
+    unsubscribeComplete();
+    expect(
+      chatMessagesChannel.handlers.get("message.reasoning.completed")?.size ?? 0
+    ).toBe(0);
+
+    client.dispose();
+  });
+
   it("passes pagination parameters to the logs HTTP client", () => {
     const logsService = LogsService as unknown as Record<string, unknown>;
     const listMock = vi.fn().mockResolvedValue([]);
