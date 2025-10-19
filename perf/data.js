@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760900341711,
+  "lastUpdate": 1760900360128,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -82,6 +82,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 23.486,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "99dcdcbe710953dc7f7420faa1dd35fcdcc4de4a",
+          "message": "feat(web): apply midnight theme tokens (#636)\n\n* refactor(web): reuse panel source helper\n\n* fix(web): update panel overlay tokens\n\n* chore(web): update composer cta tokens (#638)\n\n* fix(web): align overview midnight tokens (#640)\n\n* fix(web): align overview hero tokens (#639)\n\n* Update OverviewStatsGrid.theming.test.ts",
+          "timestamp": "2025-10-19T12:48:23-06:00",
+          "tree_id": "f2bcd36db6552f90eeba6d4beef19dc554a5aaae",
+          "url": "https://github.com/Teagan42/Eddie/commit/99dcdcbe710953dc7f7420faa1dd35fcdcc4de4a"
+        },
+        "date": 1760900359258,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 48.293,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 32.643,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 24.388,
             "unit": "ms",
             "extra": "[object Object]"
           }
