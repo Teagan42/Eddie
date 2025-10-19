@@ -46,7 +46,11 @@ export function SessionsList({
   onSelectSession,
 }: SessionsListProps): JSX.Element {
   return (
-    <ScrollArea type="always" className={LIST_SURFACE_CLASS}>
+    <ScrollArea
+      type="always"
+      className={LIST_SURFACE_CLASS}
+      data-testid="sessions-list"
+    >
       <Flex direction="column" gap="2">
         {sessions?.length ? (
           sessions.map((session) => (

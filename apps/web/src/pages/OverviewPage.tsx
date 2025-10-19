@@ -377,13 +377,18 @@ export function OverviewPage(): JSX.Element {
               Loading logs…
             </Text>
           ) : logs.length ? (
-            <ScrollArea type="always" className={panelSurfaceClass}>
+            <ScrollArea
+              type="always"
+              className={panelSurfaceClass}
+              data-testid="logs-scroll-area"
+            >
               <Flex direction="column" gap="3">
                 {logs.map((entry) => (
                   <Flex
                     key={entry.id}
                     direction="column"
                     className={panelItemClass}
+                    data-testid="log-entry"
                   >
                     <Flex align="center" justify="between">
                       <Text size="1" className={mutedTextClass}>
@@ -439,6 +444,7 @@ export function OverviewPage(): JSX.Element {
                   'dark:text-[color:var(--hero-cta-foreground-dark)]',
                   'dark:shadow-[var(--hero-cta-shadow-dark)]'
                 )}
+                data-testid="runtime-theme-trigger"
               >
                 Theme: {formatThemeLabel(theme)}
               </Select.Trigger>

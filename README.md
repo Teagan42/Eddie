@@ -121,6 +121,22 @@ This command launches the Nest API and the Vite-powered UI with hot reloads. Whe
 Refer to [docs/web-ui.md](docs/web-ui.md) for advanced deployment guidance, environment variables, and authentication
 recommendations.
 
+### Demo overview screenshots
+
+Run the API and UI against the demo screenshot preset before launching the Playwright suite so the overview page hydrates with
+seeded sessions, traces, and logs:
+
+```bash
+npm run dev:api -- --preset demo-screenshots
+npm run web:dev
+PLAYWRIGHT_BASE_URL=http://127.0.0.1:5173 \
+PLAYWRIGHT_API_BASE_URL=http://127.0.0.1:3000/api \
+npm run --workspace @eddie/web test:e2e -- demo-overview.spec.ts
+```
+
+The E2E fixtures wait for `/api/chat-sessions` to report data and attach PNG screenshots to `apps/web/test-results/` whenever the
+assertions succeed, keeping the marketing assets reproducible.
+
 ## Getting Started
 
 Requires Node.js 20 or newer (Node 22 is used in development and CI). The bundled dependencies rely on modern ESM support that is

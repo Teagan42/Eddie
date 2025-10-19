@@ -18,6 +18,10 @@ export function OverviewStatsGrid({ stats = [] }: OverviewStatsGridProps): JSX.E
     <Grid columns={{ initial: "1", sm: "3" }} gap="4">
       {stats.map((stat) => {
         const Icon = stat.icon;
+        const testId = `overview-stat-${stat.label
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")}`;
         return (
           <Box
             key={stat.label}
@@ -27,6 +31,7 @@ export function OverviewStatsGrid({ stats = [] }: OverviewStatsGridProps): JSX.E
               "bg-[color:var(--overview-stat-card-bg)]",
               "shadow-[var(--overview-stat-card-shadow)]"
             )}
+            data-testid={testId}
           >
             <div
               className={cn(
