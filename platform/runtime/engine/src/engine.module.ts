@@ -25,6 +25,7 @@ import {
   ToolCallHandler,
   TraceWriterDelegate,
 } from "./agents/runner";
+import { DemoSeedReplayService } from "./demo/demo-seed-replay.service";
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import {
     TraceWriterDelegate,
     transcriptCompactorFactoryProvider,
     TranscriptCompactionService,
+    DemoSeedReplayService,
   ],
   exports: [
     EngineService,
