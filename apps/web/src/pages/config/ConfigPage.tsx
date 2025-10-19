@@ -329,24 +329,6 @@ export function ConfigPage(): JSX.Element {
     [providerCatalogQuery.data]
   );
   const selectedProviderName = effectiveInput.provider?.name ?? null;
-  const catalogModels = useMemo(() => {
-    if (!selectedProviderName) {
-      return [] as string[];
-    }
-    const entry = providerCatalog.find(
-      (item) => item.name === selectedProviderName
-    );
-    return entry?.models ?? [];
-  }, [providerCatalog, selectedProviderName]);
-  const modelOptions = useMemo(() => {
-    const options = [...catalogModels];
-    if (effectiveInput.model && !options.includes(effectiveInput.model)) {
-      options.unshift(effectiveInput.model);
-    }
-    return options;
-  }, [catalogModels, effectiveInput.model]);
-  const selectedModel =
-    effectiveInput.model ?? modelOptions[0] ?? "";
   const autoApproveChecked =
     effectiveInput.tools?.autoApprove ?? currentConfig?.tools?.autoApprove ?? false;
   const enableSubagentsChecked =
@@ -775,58 +757,21 @@ export function ConfigPage(): JSX.Element {
               description="Configure providers, models, and system prompts."
             >
               <Flex direction="column" gap="3">
-                <Select.Root
-                  value={selectedModel}
-                  onValueChange={(value) => {
-                    if (value === "__custom__") {
-                      const next = window.prompt(
-                        "Model identifier",
-                        selectedModel ?? ""
-                      );
-                      const manual = next?.trim() ?? "";
-                      if (!manual) {
-                        return;
-                      }
-                      updateInput((draft) => {
-                        draft.model = manual;
-                      });
-                      return;
-                    }
-                    if (value === "__clear__") {
-                      updateInput((draft) => {
-                        delete draft.model;
-                      });
-                      return;
-                    }
+                <TextField.Root
+                  value={effectiveInput.model ?? ""}
+                  onChange={(event) =>
                     updateInput((draft) => {
-                      if (value) {
-                        draft.model = value;
+                      const next = event.target.value || undefined;
+                      if (next) {
+                        draft.model = next;
                       } else {
                         delete draft.model;
                       }
-                    });
-                  }}
-                  disabled={
-                    providerCatalogQuery.isLoading && modelOptions.length === 0
+                    })
                   }
-                >
-                  <Select.Trigger
-                    aria-label="Model"
-                    placeholder={currentConfig?.model ?? "Model identifier"}
-                  />
-                  <Select.Content>
-                    {modelOptions.map((model) => (
-                      <Select.Item key={model} value={model}>
-                        {model}
-                      </Select.Item>
-                    ))}
-                    {modelOptions.length > 0 ? <Select.Separator /> : null}
-                    <Select.Item value="__custom__">Custom model…</Select.Item>
-                    {selectedModel ? (
-                      <Select.Item value="__clear__">Clear model</Select.Item>
-                    ) : null}
-                  </Select.Content>
-                </Select.Root>
+                  placeholder={currentConfig?.model ?? "Model identifier"}
+                  aria-label="Model"
+                />
                 <Button
                   size="2"
                   variant="surface"
