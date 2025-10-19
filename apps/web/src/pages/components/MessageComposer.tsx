@@ -2,6 +2,44 @@ import type { FormEventHandler, KeyboardEvent } from "react";
 import { Button, Flex, Text, TextArea } from "@radix-ui/themes";
 import { PaperPlaneIcon } from "@radix-ui/react-icons";
 
+const COMPOSER_FORM_CLASS = [
+  "relative overflow-hidden rounded-3xl border p-4 backdrop-blur",
+  "border-[color:var(--overview-composer-border)]",
+  "bg-[color:var(--overview-composer-bg)]",
+  "shadow-[var(--overview-composer-shadow)]",
+].join(" ");
+
+const COMPOSER_GLOW_CLASSES = [
+  "pointer-events-none absolute -right-6 -top-8 h-32 w-32 rounded-full bg-[color:var(--overview-composer-glow-primary)] blur-3xl",
+  "pointer-events-none absolute -bottom-10 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-[color:var(--overview-composer-glow-secondary)] blur-3xl",
+] as const;
+
+const COMPOSER_FIELD_CLASS = [
+  "rounded-2xl border p-1",
+  "border-[color:var(--overview-composer-input-border)]",
+  "bg-[color:var(--overview-composer-input-bg)]",
+].join(" ");
+
+const COMPOSER_TEXTAREA_CLASS = "bg-transparent text-base leading-relaxed text-[color:var(--overview-panel-foreground)]";
+
+const HINT_ACTIVE_CLASS = "font-medium tracking-wide text-[color:var(--overview-composer-hint-active)]";
+const HINT_DISABLED_CLASS = "font-medium tracking-wide text-[color:var(--overview-composer-hint-disabled)]";
+
+const CTA_BUTTON_CLASS = [
+  "group relative overflow-hidden rounded-full bg-gradient-to-r",
+  "from-[hsl(var(--hero-cta-from))]",
+  "via-[hsl(var(--hero-cta-via))]",
+  "to-[hsl(var(--hero-cta-to))]",
+  "text-[color:var(--overview-composer-cta-foreground)]",
+  "shadow-[var(--overview-composer-cta-shadow)]",
+  "transition-transform duration-150 ease-out hover:scale-[1.02]",
+].join(" ");
+
+const CTA_SHINE_CLASS =
+  "absolute inset-0 bg-[color:var(--overview-composer-cta-shine)] opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100";
+const CTA_CONTENT_CLASS =
+  "relative flex items-center gap-2 text-[color:var(--overview-composer-cta-foreground)]";
+
 export interface MessageComposerProps {
   disabled: boolean;
   value: string;
@@ -21,10 +59,7 @@ export function MessageComposer({
 }: MessageComposerProps): JSX.Element {
   const hintMessage = disabled ? "Sending in progress..." : "Press Alt+Enter or click Send";
   const isSubmitDisabled = disabled || submitDisabled;
-  const glowClasses = [
-    "pointer-events-none absolute -right-6 -top-8 h-32 w-32 rounded-full bg-emerald-400/30 blur-3xl",
-    "pointer-events-none absolute -bottom-10 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-sky-500/20 blur-3xl",
-  ];
+  const hintClassName = disabled ? HINT_DISABLED_CLASS : HINT_ACTIVE_CLASS;
 
   const submitForm = (form: HTMLFormElement) => {
     if (typeof form.requestSubmit === "function") {
@@ -65,15 +100,12 @@ export function MessageComposer({
   };
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className="relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 p-4 shadow-[0_20px_60px_-30px_rgba(16,185,129,0.9)] backdrop-blur"
-    >
-      {glowClasses.map((className, index) => (
+    <form onSubmit={onSubmit} className={COMPOSER_FORM_CLASS}>
+      {COMPOSER_GLOW_CLASSES.map((className, index) => (
         <span key={index} className={className} />
       ))}
       <Flex direction="column" gap="3" className="relative z-10">
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-1">
+        <div className={COMPOSER_FIELD_CLASS}>
           <TextArea
             placeholder={placeholder}
             value={value}
@@ -82,26 +114,21 @@ export function MessageComposer({
             disabled={disabled}
             rows={3}
             variant="soft"
-            className="bg-transparent text-base leading-relaxed"
+            className={COMPOSER_TEXTAREA_CLASS}
           />
         </div>
         <Flex align="center" justify="between" gap="3">
-          <Text
-            size="2"
-            color={disabled ? "gray" : "mint"}
-            className="font-medium tracking-wide"
-            aria-live="polite"
-          >
+          <Text size="2" className={hintClassName} aria-live="polite">
             {hintMessage}
           </Text>
           <Button
             type="submit"
             size="3"
             disabled={isSubmitDisabled}
-            className="group relative overflow-hidden rounded-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-sky-500 text-white shadow-[0_10px_30px_-12px_rgba(14,165,233,0.8)] transition-transform duration-150 ease-out hover:scale-[1.02]"
+            className={CTA_BUTTON_CLASS}
           >
-            <span className="absolute inset-0 bg-white/15 opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100" />
-            <span className="relative flex items-center gap-2">
+            <span className={CTA_SHINE_CLASS} />
+            <span className={CTA_CONTENT_CLASS}>
               <PaperPlaneIcon />
               <span>Send</span>
             </span>
