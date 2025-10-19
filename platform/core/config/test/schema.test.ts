@@ -8,6 +8,21 @@ import {
   EDDIE_CONFIG_SCHEMA_ID,
 } from "../src/schema";
 
+function extractSchemaProperties(
+  schema: unknown,
+): Record<string, unknown> {
+  if (!schema || typeof schema !== "object") {
+    return {};
+  }
+
+  if (!("properties" in schema)) {
+    return {};
+  }
+
+  const { properties } = schema as { properties?: Record<string, unknown> };
+  return properties ?? {};
+}
+
 describe("EDDIE_CONFIG_SCHEMA_BUNDLE", () => {
   it("exposes the schema identifiers and version", () => {
     expect(EDDIE_CONFIG_SCHEMA_BUNDLE).toMatchObject({
@@ -50,6 +65,32 @@ describe("EDDIE_CONFIG_SCHEMA_BUNDLE", () => {
     expect(schemaProperties).toHaveProperty("version");
     expect(schemaProperties.version).toMatchObject({ type: "integer" });
     expect(inputProperties).toHaveProperty("version");
+  });
+
+  it("documents API demo seed configuration", () => {
+    const apiSchema = EDDIE_CONFIG_SCHEMA_BUNDLE.schema.properties?.api;
+    const apiInputSchema =
+      EDDIE_CONFIG_SCHEMA_BUNDLE.inputSchema.properties?.api;
+
+    expect(apiSchema).toBeDefined();
+    expect(apiInputSchema).toBeDefined();
+
+    const apiProperties = extractSchemaProperties(apiSchema);
+    const apiInputProperties = extractSchemaProperties(apiInputSchema);
+
+    expect(apiProperties).toHaveProperty("demoSeeds");
+    expect(apiInputProperties).toHaveProperty("demoSeeds");
+
+    expect(apiProperties?.demoSeeds).toMatchObject({
+      type: "object",
+      properties: {
+        files: {
+          type: "array",
+          items: { type: "string", minLength: 1 },
+          minItems: 1,
+        },
+      },
+    });
   });
 
   it("disables additional properties at the top level", () => {

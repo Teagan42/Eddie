@@ -45,6 +45,12 @@ const STRING_OR_STRING_ARRAY_SCHEMA: JSONSchema7 = {
   ],
 };
 
+const STRING_ARRAY_SCHEMA: JSONSchema7 = {
+  type: "array",
+  items: { type: "string", minLength: 1 },
+  minItems: 1,
+};
+
 const TEMPLATE_DESCRIPTOR_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
@@ -194,6 +200,14 @@ const API_PERSISTENCE_SCHEMA: JSONSchema7 = {
   },
 };
 
+const API_DEMO_SEEDS_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    files: STRING_ARRAY_SCHEMA,
+  },
+};
+
 const API_CONFIG_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
@@ -206,6 +220,7 @@ const API_CONFIG_SCHEMA: JSONSchema7 = {
     auth: API_AUTH_SCHEMA,
     cors: API_CORS_SCHEMA,
     persistence: API_PERSISTENCE_SCHEMA,
+    demoSeeds: API_DEMO_SEEDS_SCHEMA,
   },
 };
 

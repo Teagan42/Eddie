@@ -11,6 +11,7 @@ export type {
   ApiConfig,
   ApiCorsConfig,
   ApiCorsOrigin,
+  ApiDemoSeedsConfig,
   ApiPersistenceConfig,
   ApiPersistenceSqlConfig,
   ApiPersistenceSqlConnectionConfig,
