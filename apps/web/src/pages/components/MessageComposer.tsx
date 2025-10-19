@@ -34,7 +34,6 @@ const CTA_BUTTON_CLASS = [
   "dark:from-[hsl(var(--hero-cta-from-dark))] dark:via-[hsl(var(--hero-cta-via-dark))] dark:to-[hsl(var(--hero-cta-to-dark))]",
   "dark:text-[color:var(--hero-cta-foreground-dark)]",
   "dark:shadow-[var(--hero-cta-shadow-dark)]",
-  "transition-transform duration-150 ease-out hover:scale-[1.02]",
 ].join(" ");
 
 const CTA_SHINE_CLASS =
