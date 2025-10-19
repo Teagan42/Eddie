@@ -49,5 +49,11 @@ describe('CollapsiblePanel', () => {
     expect(content).toHaveAttribute('data-state', 'open');
     expect(content).toHaveClass('data-[state=open]:animate-accordion-down');
     expect(content).toHaveClass('data-[state=closed]:animate-accordion-up');
+    expect(content).toHaveClass('grid');
+    expect(content).toHaveClass('transition-all');
+    expect(content).toHaveClass('duration-500');
+    expect(content).toHaveClass('ease-out');
+    expect(content).toHaveClass('data-[state=open]:grid-rows-[1fr]');
+    expect(content).toHaveClass('data-[state=closed]:grid-rows-[0fr]');
   });
 });
