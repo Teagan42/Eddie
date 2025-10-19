@@ -45,7 +45,15 @@ Use the session list to rename or delete chat sessions; changes are broadcast im
 - Multi-surface agent orchestration across CLI, API, and browser
 - Provider-agnostic model adapters (OpenAI, Anthropic, Groq-compatible) with streaming support
 - Context service that packs workspace files via glob patterns, budgets tokens, and feeds models rich snippets
-- Tool registry with built-in `bash`, `file_read`, and `file_write` helpers plus confirmation prompts
+- Tool registry with built-in helpers for shell access, workspace files, and plan workflows:
+  - `bash` for streaming shell commands with confirmation prompts
+  - `file_read` for inspecting existing files without side effects
+  - `file_write` for applying structured edits to tracked files
+  - `file_search` for filtered, paginated code and text lookups
+  - `get_folder_tree_structure` for directory maps that respect dependency exclusions
+  - `get_plan` for reading structured task plans maintained alongside code
+  - `update_plan` for incrementally persisting plan edits and status changes
+  - `complete_task` for marking plan items finished with optional notes
 - Jinja prompt templating with reusable layouts, partials, and inline variables
 - Nested agent orchestrator that lets manager agents spawn task-specific subagents with their own prompts, context slices, and tools
 - Lifecycle hooks, optional OpenTelemetry spans, and JSONL traces for observability that every surface can replay

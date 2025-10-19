@@ -25,6 +25,11 @@ Eddie's CLI collects flags in `CliParserService` and adapts them into engine run
 | `--auto` | – | boolean | Alias for `--auto-approve`; see above.【F:apps/cli/src/cli/cli-parser.service.ts†L27-L90】【F:apps/cli/src/cli/cli-options.service.ts†L48-L53】 | Same as `--auto-approve`. |
 | `--non-interactive` | – | boolean | Runs commands without prompting for confirmations (useful for CI). When paired with `--auto-approve`, runs proceed without pauses.【F:apps/cli/src/cli/cli-parser.service.ts†L27-L90】【F:apps/cli/src/cli/cli-options.service.ts†L55-L67】 | Interactive prompts enabled by default.【F:platform/core/config/src/defaults.ts†L76-L79】 |
 | `--jsonl-trace` | – | string | Overrides the JSONL trace path for structured run logs.【F:apps/cli/src/cli/cli-parser.service.ts†L21-L74】【F:platform/core/config/src/config.service.ts†L592-L597】 | `.eddie/trace.jsonl`.【F:platform/core/config/src/defaults.ts†L71-L75】 |
+
+See [docs/tools.md](./tools.md) for deep dives into the built-in tool catalogue,
+including plan file management, pagination controls, and dependency-safe file
+discovery helpers that you can enable or disable via the `--tools` and
+`--disable-tools` flags.
 | `--log-level` | – | string | Sets the logging level for the run and propagates it to the logger configuration.【F:apps/cli/src/cli/cli-parser.service.ts†L22-L74】【F:platform/core/config/src/config.service.ts†L599-L607】 | `info`.【F:platform/core/config/src/defaults.ts†L61-L70】 |
 | `--log-file` | – | string | Writes structured logs to the specified file instead of standard output. Pretty-printing and colour are disabled when writing to files.【F:apps/cli/src/cli/cli-parser.service.ts†L23-L74】【F:platform/core/config/src/config.service.ts†L609-L619】 | Logs stream to pretty stdout transport by default.【F:platform/core/config/src/defaults.ts†L61-L70】 |
 | `--metrics-backend` | – | string | Chooses the metrics backend for the engine. Use `logging` to emit counters and histograms via the Nest logger or `noop` to disable emissions.【F:platform/core/config/src/runtime-cli-options.ts†L100-L135】【F:apps/cli/src/cli/cli-options.service.ts†L32-L88】【F:platform/runtime/engine/src/telemetry/metrics.service.ts†L103-L118】 | `noop` via the default configuration.【F:platform/core/config/src/defaults.ts†L99-L101】 |
