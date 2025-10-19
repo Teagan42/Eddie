@@ -1,0 +1,35 @@
+{
+  "events": [
+    {
+      "id": "evt-plan-accepted",
+      "type": "agent.plan.accepted",
+      "timestamp": "2024-09-01T12:00:02Z",
+      "payload": {
+        "agent": "planner",
+        "plan": [
+          "Collect repository overview",
+          "Capture trace timeline callouts"
+        ]
+      }
+    },
+    {
+      "id": "evt-trace-loaded",
+      "type": "trace.streaming.completed",
+      "timestamp": "2024-09-01T12:00:05Z",
+      "payload": {
+        "items": 16,
+        "durationMs": 820,
+        "notes": "Used to render the screenshot timeline"
+      }
+    },
+    {
+      "id": "evt-summary-finished",
+      "type": "agent.run.completed",
+      "timestamp": "2024-09-01T12:00:08Z",
+      "payload": {
+        "agent": "demo-web",
+        "output": "Annotated screenshot timeline for docs."
+      }
+    }
+  ]
+}

@@ -39,6 +39,31 @@ describe("EDDIE_CONFIG_SCHEMA_BUNDLE", () => {
     expect(schemaProperties).toHaveProperty("tools");
     expect(schemaProperties).toHaveProperty("hooks");
     expect(schemaProperties).toHaveProperty("agents");
+    expect(schemaProperties).toHaveProperty("demoSeeds");
+  });
+
+  it("describes the demo seed file locations", () => {
+    const schemaProperties =
+      EDDIE_CONFIG_SCHEMA_BUNDLE.schema.properties ?? {};
+    const inputProperties =
+      EDDIE_CONFIG_SCHEMA_BUNDLE.inputSchema.properties ?? {};
+
+    expect(schemaProperties.demoSeeds).toMatchObject({
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        chatSessions: { type: "string" },
+        agentInvocations: { type: "string" },
+        traces: { type: "string" },
+        logs: { type: "string" },
+        runtimeConfig: { type: "string" },
+      },
+    });
+
+    expect(inputProperties.demoSeeds).toMatchObject({
+      type: "object",
+      additionalProperties: false,
+    });
   });
 
   it("describes the configuration version field", () => {
