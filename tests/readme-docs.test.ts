@@ -58,4 +58,9 @@ describe('README documentation', () => {
       expect(featuresSection).toContain(tool);
     }
   });
+
+  it('lists the configuration wizard command in the CLI overview', () => {
+    expect(readme).toContain('`eddie config`');
+    expect(readme).toMatch(/configuration wizard/i);
+  });
 });
