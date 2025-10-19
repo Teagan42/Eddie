@@ -213,6 +213,26 @@ export function ChatPage(): JSX.Element {
   const sessionsLoaded = sessionsQuery.isSuccess;
 
   const selectedSessionIdRef = useRef<string | null>(null);
+  const displayedSessionIdsRef = useRef<Set<string>>(new Set());
+
+  const removeDisplayedSessionIds = useCallback((sessionIds: Iterable<string>) => {
+    if (displayedSessionIdsRef.current.size === 0) {
+      return;
+    }
+
+    const next = new Set(displayedSessionIdsRef.current);
+    let mutated = false;
+
+    for (const sessionId of sessionIds) {
+      if (typeof sessionId === 'string' && sessionId.length > 0) {
+        mutated = next.delete(sessionId) || mutated;
+      }
+    }
+
+    if (mutated) {
+      displayedSessionIdsRef.current = next;
+    }
+  }, []);
   const [autoSessionAttempt, setAutoSessionAttempt] = useState<AutoSessionAttemptState>({
     status: 'idle',
     apiKey: null,
@@ -609,6 +629,98 @@ export function ChatPage(): JSX.Element {
     [applyChatUpdate],
   );
 
+  const removeMissingSessions = useCallback(
+    (missingSessionIds: string[]) => {
+      const uniqueSessionIds = [...new Set(missingSessionIds)].filter(
+        (value): value is string => typeof value === 'string' && value.length > 0,
+      );
+
+      if (uniqueSessionIds.length === 0) {
+        return;
+      }
+
+      const missingSessionSet = new Set(uniqueSessionIds);
+
+      queryClient.setQueryData<ChatSessionDto[]>(
+        CHAT_SESSIONS_QUERY_KEY,
+        (previous = []) => previous.filter((session) => !missingSessionSet.has(session.id)),
+      );
+
+      removeDisplayedSessionIds(uniqueSessionIds);
+
+      uniqueSessionIds.forEach((sessionId) => {
+        setSessionContext(sessionId, null);
+        setMessageCountBySession((previous) => removeSessionKey(previous, sessionId));
+        queryClient.removeQueries({
+          queryKey: ['chat-session', sessionId, 'messages'],
+          exact: true,
+        });
+        queryClient.removeQueries({
+          queryKey: ['chat-sessions', sessionId, 'messages'],
+          exact: true,
+        });
+        queryClient.removeQueries({
+          queryKey: getOrchestratorMetadataQueryKey(sessionId),
+          exact: true,
+        });
+        queryClient.setQueryData(['chat-session', sessionId, 'messages'], undefined);
+        queryClient.setQueryData(['chat-sessions', sessionId, 'messages'], undefined);
+      });
+
+      const currentSelection = selectedSessionIdRef.current;
+      const fallbackSessionId = missingSessionSet.has(currentSelection ?? '')
+        ? sessions.find((session) => !missingSessionSet.has(session.id))?.id ?? null
+        : currentSelection ?? null;
+
+      applyChatUpdate((chat) => {
+        const nextSessionSettings = { ...(chat.sessionSettings ?? {}) };
+        const nextTemplates = { ...(chat.templates ?? {}) };
+        let nextSelectedId = chat.selectedSessionId ?? null;
+        let mutated = false;
+
+        uniqueSessionIds.forEach((sessionId) => {
+          if (nextSelectedId === sessionId) {
+            nextSelectedId = fallbackSessionId;
+            mutated = true;
+          }
+          if (sessionId in nextSessionSettings) {
+            delete nextSessionSettings[sessionId];
+            mutated = true;
+          }
+          if (sessionId in nextTemplates) {
+            delete nextTemplates[sessionId];
+            mutated = true;
+          }
+        });
+
+        if (nextSelectedId !== (chat.selectedSessionId ?? null)) {
+          mutated = true;
+        }
+
+        if (!mutated) {
+          return chat;
+        }
+
+        return {
+          ...chat,
+          selectedSessionId: nextSelectedId,
+          sessionSettings: nextSessionSettings,
+          templates: nextTemplates,
+        } satisfies ChatPreferences;
+      });
+
+      selectedSessionIdRef.current = fallbackSessionId;
+    },
+    [
+      applyChatUpdate,
+      removeDisplayedSessionIds,
+      queryClient,
+      sessions,
+      setMessageCountBySession,
+      setSessionContext,
+    ],
+  );
+
   const selectedSessionId = useMemo(() => {
     if (preferences.chat?.selectedSessionId) {
       return preferences.chat.selectedSessionId;
@@ -646,6 +758,56 @@ export function ChatPage(): JSX.Element {
         ? api.http.chatSessions.listMessages(selectedSessionId)
         : Promise.resolve([]),
   });
+
+  useEffect(() => {
+    const error = messagesQuery.error as { status?: number } | null | undefined;
+    if (!error) {
+      return;
+    }
+
+    if (error.status !== 404) {
+      return;
+    }
+
+    const missingSessionId = selectedSessionIdRef.current;
+    if (!missingSessionId) {
+      return;
+    }
+
+    toast({
+      title: 'Session no longer available',
+      description: 'The selected session could not be found and has been removed.',
+      variant: 'warning',
+    });
+
+    removeMissingSessions([missingSessionId]);
+  }, [messagesQuery.error, removeMissingSessions]);
+
+  useEffect(() => {
+    const currentSessionIds = new Set(sessions.map((session) => session.id));
+    const previousSessionIds = displayedSessionIdsRef.current;
+    displayedSessionIdsRef.current = currentSessionIds;
+
+    if (previousSessionIds.size === 0) {
+      return;
+    }
+
+    const missingSessionIds = [...previousSessionIds].filter(
+      (sessionId) => !currentSessionIds.has(sessionId),
+    );
+
+    if (missingSessionIds.length === 0) {
+      return;
+    }
+
+    toast({
+      title: 'Sessions no longer available',
+      description: 'Some sessions from the server response were missing and have been removed.',
+      variant: 'warning',
+    });
+
+    removeMissingSessions(missingSessionIds);
+  }, [removeMissingSessions, sessions]);
 
   useEffect(() => {
     if (!selectedSessionId) {
@@ -696,6 +858,7 @@ export function ChatPage(): JSX.Element {
         queryClient.setQueryData<ChatSessionDto[]>(CHAT_SESSIONS_QUERY_KEY, (previous = []) =>
           previous.filter((item) => item.id !== sessionId),
         );
+        removeDisplayedSessionIds([sessionId]);
         queryClient.removeQueries({ queryKey: ['chat-session', sessionId, 'messages'] });
         queryClient.removeQueries({ queryKey: ['chat-sessions', sessionId, 'messages'] });
         if (selectedSessionIdRef.current === sessionId) {
@@ -888,6 +1051,7 @@ export function ChatPage(): JSX.Element {
         CHAT_SESSIONS_QUERY_KEY,
         previousSessions.filter((session) => session.id !== sessionId),
       );
+      removeDisplayedSessionIds([sessionId]);
       return {
         previousSessions,
         previousSelected: selectedSessionIdRef.current ?? null,
