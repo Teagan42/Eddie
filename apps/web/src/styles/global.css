@@ -116,19 +116,19 @@ a:focus-visible {
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 215 30% 16%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 215 30% 16%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 215 30% 16%;
     --primary: 222.2 47.4% 11.2%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary-foreground: 215 30% 18%;
     --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted-foreground: 215 19% 32%;
     --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent-foreground: 215 30% 18%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
@@ -144,9 +144,9 @@ a:focus-visible {
     --app-shell-overlay-dark: circle_at_top, rgba(56, 189, 248, 0.2), transparent 60%;
     --app-shell-main-overlay: circle_at_top_right, rgba(59, 130, 246, 0.12), transparent 65%;
     --app-shell-main-overlay-dark: circle_at_top_right, rgba(59, 130, 246, 0.08), transparent 60%;
-    --hero-surface-from: 160 35% 98%;
-    --hero-surface-via: 200 38% 96%;
-    --hero-surface-to: 210 42% 94%;
+    --hero-surface-from: 210 36% 99%;
+    --hero-surface-via: 212 34% 96%;
+    --hero-surface-to: 214 32% 94%;
     --hero-surface-from-dark: 222 47% 12%;
     --hero-surface-via-dark: 220 36% 18%;
     --hero-surface-to-dark: 222 47% 12%;
@@ -157,7 +157,7 @@ a:focus-visible {
     --hero-surface-lens: conic-gradient(from 120deg at 50% 50%, rgba(59, 130, 246, 0.3) 0deg, transparent 140deg, rgba(34, 197, 94, 0.25) 240deg, transparent 360deg);
     --hero-surface-lens-dark: conic-gradient(from 120deg at 50% 50%, rgba(59, 130, 246, 0.4) 0deg, transparent 140deg, rgba(74, 222, 128, 0.35) 240deg, transparent 360deg);
     --hero-badge-bg: rgba(16, 185, 129, 0.18);
-    --hero-badge-fg: rgba(12, 74, 110, 0.85);
+    --hero-badge-fg: rgba(15, 23, 42, 0.9);
     --hero-badge-bg-dark: rgba(16, 185, 129, 0.2);
     --hero-badge-fg-dark: rgba(236, 253, 245, 0.92);
     --hero-cta-from: 152 65% 45%;
@@ -166,7 +166,7 @@ a:focus-visible {
     --hero-cta-from-dark: 152 72% 55%;
     --hero-cta-via-dark: 160 84% 44%;
     --hero-cta-to-dark: 199 89% 56%;
-    --hero-cta-foreground: hsl(210 40% 12%);
+    --hero-cta-foreground: hsl(215 30% 18%);
     --hero-cta-foreground-dark: hsl(210 40% 98%);
     --hero-cta-shadow: 0 30px 70px -40px rgba(34, 197, 94, 0.4);
     --hero-cta-shadow-dark: 0 30px 70px -40px rgba(45, 212, 191, 0.9);
