@@ -11,6 +11,7 @@ const listMessagesMock = vi.fn();
 const getMetadataMock = vi.fn();
 const getExecutionStateMock = vi.fn();
 const catalogMock = vi.fn();
+const loadConfigMock = vi.fn();
 
 const toolCallHandlers: Array<(payload: unknown) => void> = [];
 const toolResultHandlers: Array<(payload: unknown) => void> = [];
@@ -71,6 +72,9 @@ vi.mock('@/api/api-provider', () => ({
       orchestrator: {
         getMetadata: getMetadataMock,
         getExecutionState: getExecutionStateMock,
+      },
+      config: {
+        loadEddieConfig: loadConfigMock,
       },
       providers: {
         catalog: catalogMock,
@@ -133,6 +137,21 @@ describe('ChatPage execution tree realtime updates', () => {
     const now = new Date().toISOString();
 
     catalogMock.mockResolvedValue([]);
+    loadConfigMock.mockResolvedValue({
+      path: null,
+      format: 'yaml' as const,
+      content: '',
+      input: {},
+      config: {
+        providers: {
+          'profile-openai': {
+            provider: { name: 'openai' },
+            model: 'gpt-4.1',
+          },
+        },
+      },
+      error: null,
+    });
     listSessionsMock.mockResolvedValue([
       {
         id: 'session-1',

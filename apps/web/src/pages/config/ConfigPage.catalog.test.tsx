@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   render,
@@ -87,6 +88,16 @@ describe("ConfigPage provider catalog", () => {
       config: {
         model: "api-model-2",
         provider: { name: "api-provider" },
+        providers: {
+          "profile-openai": {
+            provider: { name: "openai" },
+            model: "gpt-4.1",
+          },
+          "profile-anthropic": {
+            provider: { name: "anthropic" },
+            model: "claude-3.5",
+          },
+        },
       },
       error: null,
     });
@@ -95,7 +106,7 @@ describe("ConfigPage provider catalog", () => {
   it("does not render a model selector when using the provider catalog", async () => {
     renderConfigPage();
 
-    await waitFor(() => expect(catalogMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(loadSourceMock).toHaveBeenCalledTimes(1));
 
     await waitForElementToBeRemoved(() =>
       screen.queryByText("Loading configuration editor…")
@@ -103,6 +114,49 @@ describe("ConfigPage provider catalog", () => {
 
     expect(
       screen.queryByRole("combobox", { name: "Model" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("populates provider options from configuration profiles", async () => {
+    renderConfigPage();
+
+    await waitFor(() => expect(loadSourceMock).toHaveBeenCalledTimes(1));
+
+    const trigger = await screen.findByRole("combobox", { name: /provider/i });
+    await userEvent.click(trigger);
+
+    expect(
+      await screen.findByRole("option", { name: "profile-openai" })
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: "profile-anthropic" })
+    ).toBeInTheDocument();
+  });
+
+  it("hides provider controls when configuration profiles are unavailable", async () => {
+    loadSourceMock.mockResolvedValueOnce({
+      path: null,
+      format: "yaml",
+      content: "model: api-model-2\nprovider:\n  name: api-provider\n",
+      input: { model: "api-model-2", provider: { name: "api-provider" } },
+      config: {
+        model: "api-model-2",
+        provider: { name: "api-provider" },
+        providers: {},
+      },
+      error: null,
+    });
+
+    renderConfigPage();
+
+    await waitFor(() => expect(loadSourceMock).toHaveBeenCalledTimes(1));
+
+    await waitForElementToBeRemoved(() =>
+      screen.queryByText("Loading configuration editor…")
+    );
+
+    expect(
+      screen.queryByRole("combobox", { name: /provider/i })
     ).not.toBeInTheDocument();
   });
 });
