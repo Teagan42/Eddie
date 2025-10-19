@@ -3,6 +3,7 @@ import { Theme } from "@radix-ui/themes";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AgentToolsDrawer } from "./AgentToolsDrawer";
+import type { AgentToolsDrawerProps } from "./AgentToolsDrawer";
 import type { AgentExecutionTreeProps } from "./AgentExecutionTree";
 import type { ContextBundlesPanelProps } from "./ContextBundlesPanel";
 import { Sheet } from "@/vendor/components/ui/sheet";
@@ -10,6 +11,42 @@ import { createEmptyExecutionTreeState } from "../execution-tree-state";
 
 const executionTreeProps: AgentExecutionTreeProps[] = [];
 const contextPanelProps: ContextBundlesPanelProps[] = [];
+const useThemeMock = vi.fn(() => ({ theme: "dark", setTheme: vi.fn(), isThemeStale: false }));
+
+vi.mock("@/theme", () => ({
+  useTheme: () => useThemeMock(),
+}));
+
+function createDrawerProps(
+  overrides: Partial<AgentToolsDrawerProps> = {},
+): AgentToolsDrawerProps {
+  return {
+    executionTreeState: overrides.executionTreeState ?? createEmptyExecutionTreeState(),
+    selectedAgentId: overrides.selectedAgentId ?? null,
+    onSelectAgent: overrides.onSelectAgent ?? (() => {}),
+    contextPanelId: overrides.contextPanelId ?? "context-bundles",
+    contextBundles: overrides.contextBundles ?? [],
+    isContextPanelCollapsed: overrides.isContextPanelCollapsed ?? false,
+    onToggleContextPanel: overrides.onToggleContextPanel ?? (() => {}),
+  } satisfies AgentToolsDrawerProps;
+}
+
+function renderDrawer(
+  overrides: Partial<AgentToolsDrawerProps> = {},
+  options: { wrapWithTheme?: boolean } = {},
+): void {
+  const props = createDrawerProps(overrides);
+  const content = (
+    <Sheet open>
+      <AgentToolsDrawer {...props} />
+    </Sheet>
+  );
+  if (options.wrapWithTheme === false) {
+    render(content);
+    return;
+  }
+  render(<Theme>{content}</Theme>);
+}
 
 class ResizeObserverMock {
   observe(): void {}
@@ -39,35 +76,33 @@ describe("AgentToolsDrawer", () => {
   beforeEach(() => {
     executionTreeProps.length = 0;
     contextPanelProps.length = 0;
+    useThemeMock.mockReset();
+    useThemeMock.mockReturnValue({ theme: "dark", setTheme: vi.fn(), isThemeStale: false });
   });
 
   it("renders drawer headings and forwards panel props", () => {
-    const state = createEmptyExecutionTreeState();
     const handleSelectAgent = vi.fn();
     const handleTogglePanel = vi.fn();
 
-    render(
-      <Theme>
-        <Sheet open>
-          <AgentToolsDrawer
-            executionTreeState={state}
-            selectedAgentId="agent-42"
-            onSelectAgent={handleSelectAgent}
-            contextPanelId="context-bundles"
-            contextBundles={[
-              {
-                id: "bundle-1",
-                label: "Docs",
-                summary: "Primary docs",
-                sizeBytes: 1024,
-                fileCount: 0,
-              },
-            ]}
-            isContextPanelCollapsed
-            onToggleContextPanel={handleTogglePanel}
-          />
-        </Sheet>
-      </Theme>,
+    const state = createEmptyExecutionTreeState();
+    renderDrawer(
+      {
+        executionTreeState: state,
+        selectedAgentId: "agent-42",
+        onSelectAgent: handleSelectAgent,
+        contextBundles: [
+          {
+            id: "bundle-1",
+            label: "Docs",
+            summary: "Primary docs",
+            sizeBytes: 1024,
+            fileCount: 0,
+          },
+        ],
+        isContextPanelCollapsed: true,
+        onToggleContextPanel: handleTogglePanel,
+      },
+      { wrapWithTheme: true },
     );
 
     expect(
@@ -99,5 +134,23 @@ describe("AgentToolsDrawer", () => {
     });
     contextPanelProps[0].onToggle("context-bundles", false);
     expect(handleTogglePanel).toHaveBeenCalledWith("context-bundles", false);
+  });
+
+  it("applies the active theme to the sheet content", async () => {
+    renderDrawer({}, { wrapWithTheme: true });
+
+    const drawer = await screen.findByRole("dialog", { name: /agent tools/i });
+    expect(drawer).toHaveClass("radix-themes");
+  });
+
+  it("falls back to a default theme when the provider is unavailable", async () => {
+    useThemeMock.mockImplementation(() => {
+      throw new Error("no theme context");
+    });
+
+    renderDrawer({}, { wrapWithTheme: false });
+
+    const drawer = await screen.findByRole("dialog", { name: /agent tools/i });
+    expect(drawer).toHaveClass("radix-themes");
   });
 });
