@@ -1,5 +1,5 @@
 import { Badge, Flex, Text, TextField } from "@radix-ui/themes";
-import { Panel } from "@/components/common";
+import { Panel } from "@eddie/ui";
 
 interface OverviewAuthPanelProps {
   apiKey: string | null;

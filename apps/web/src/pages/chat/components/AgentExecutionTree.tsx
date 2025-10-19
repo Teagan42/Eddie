@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/vendor/components/ui/dialog';
-import { JsonTreeView } from '@/components/common';
+import { JsonTreeView } from '@eddie/ui';
 import { cn } from '@/vendor/lib/utils';
 
 import { summarizeObject } from '../chat-utils';

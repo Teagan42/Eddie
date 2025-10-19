@@ -1,6 +1,6 @@
 import { Flex, Grid, IconButton, TextField } from "@radix-ui/themes";
 import { PlusIcon } from "@radix-ui/react-icons";
-import { Panel } from "@/components/common";
+import { Panel } from "@eddie/ui";
 import type { ChatMessageDto, ChatSessionDto } from "@eddie/api-client";
 import { SessionsList } from "./SessionsList";
 import { SessionDetail } from "./SessionDetail";
