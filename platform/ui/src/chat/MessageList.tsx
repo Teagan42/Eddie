@@ -3,26 +3,25 @@ import type {
   ComponentProps,
   ComponentType,
   KeyboardEvent,
-} from 'react';
-import { Badge, Box, Flex, IconButton, ScrollArea, Text, Tooltip } from '@radix-ui/themes';
+} from "react";
+import { Badge, Box, Flex, IconButton, ScrollArea, Text, Tooltip } from "@radix-ui/themes";
 import {
   CubeIcon,
   GearIcon,
   MagicWandIcon,
   PersonIcon,
   ReloadIcon,
-} from '@radix-ui/react-icons';
+} from "@radix-ui/react-icons";
 
-import type { ChatMessageDto } from '@eddie/api-client';
+import { cn } from "../common/cn";
 
-import { cn } from '@/vendor/lib/utils';
-
-import { ChatMessageContent } from '../ChatMessageContent';
+import { ChatMessageContent } from "./ChatMessageContent";
+import type { ChatMessage } from "./types";
 
 const MESSAGE_CONTAINER_CLASS =
-  'space-y-3 rounded-2xl border border-white/10 bg-slate-950/70 p-5 backdrop-blur-xl';
+  "space-y-3 rounded-2xl border border-white/10 bg-slate-950/70 p-5 backdrop-blur-xl";
 
-type MessageRole = ChatMessageDto['role'];
+type MessageRole = ChatMessage["role"];
 
 type BadgeColor = ComponentProps<typeof Badge>['color'];
 
@@ -38,14 +37,14 @@ type MessageRoleStyle = {
 
 const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
   user: {
-    label: 'User',
-    badgeColor: 'blue',
-    align: 'end',
+    label: "User",
+    badgeColor: "blue",
+    align: "end",
     cardClassName:
-      'border border-emerald-400/30 bg-gradient-to-br from-emerald-500/25 via-emerald-500/5 to-slate-950/70 text-emerald-50 shadow-[0_30px_60px_-35px_rgba(16,185,129,0.7)]',
+      "border border-emerald-400/30 bg-gradient-to-br from-emerald-500/25 via-emerald-500/5 to-slate-950/70 text-emerald-50 shadow-[0_30px_60px_-35px_rgba(16,185,129,0.7)]",
     icon: PersonIcon,
-    iconClassName: 'text-emerald-200',
-    contentClassName: 'leading-relaxed text-white/95',
+    iconClassName: "text-emerald-200",
+    contentClassName: "leading-relaxed text-white/95",
   },
   assistant: {
     label: 'Assistant',
@@ -80,8 +79,8 @@ const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
 };
 
 const REASONING_STATUS_VARIANTS = {
-  streaming: { label: 'Streaming', badge: 'blue' as BadgeColor },
-  completed: { label: 'Completed', badge: 'green' as BadgeColor },
+  streaming: { label: "Streaming", badge: "blue" as BadgeColor },
+  completed: { label: "Completed", badge: "green" as BadgeColor },
 };
 
 type AgentMetadata = {
@@ -120,7 +119,7 @@ type MessageReasoning = {
   status?: "streaming" | "completed";
 } | null;
 
-type MessageWithMetadata = ChatMessageDto & {
+type MessageWithMetadata = ChatMessage & {
   metadata?: MessageMetadata;
   reasoning?: MessageReasoning;
 };

@@ -1,9 +1,10 @@
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { ChatMessageDto } from "@eddie/api-client";
-import { cn } from "@/vendor/lib/utils";
-import { JsonTreeView } from "@/components/common";
+
+import { JsonTreeView } from "../common/JsonTreeView";
+import { cn } from "../common/cn";
+import type { ChatMessageRole } from "./types";
 
 const CODE_BLOCK_CONTAINER_CLASSES =
   "mt-4 overflow-x-auto rounded-lg bg-slate-900/70 p-4 font-mono text-sm";
@@ -118,10 +119,8 @@ const markdownComponents: Components = {
   },
 };
 
-type MessageRole = ChatMessageDto["role"];
-
-interface ChatMessageContentProps {
-  messageRole: MessageRole;
+export interface ChatMessageContentProps {
+  messageRole: ChatMessageRole;
   content: string;
   className?: string;
 }
@@ -177,7 +176,7 @@ function parseJsonContent(content: string): JsonParseResult {
   }
 }
 
-function formatRoleLabel(role: MessageRole): string {
+function formatRoleLabel(role: ChatMessageRole): string {
   if (!role) {
     return "";
   }

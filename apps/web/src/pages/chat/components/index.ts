@@ -6,10 +6,18 @@ export { CollapsiblePanel } from './CollapsiblePanel';
 export type { CollapsiblePanelProps } from './CollapsiblePanel';
 export { ContextBundlesPanel } from './ContextBundlesPanel';
 export type { ContextBundlesPanelProps } from './ContextBundlesPanel';
-export { ChatWindow } from './ChatWindow';
-export type { ChatWindowProps, ComposerRole as ChatWindowComposerRole } from './ChatWindow';
-export { MessageList } from './MessageList';
-export type { MessageListProps } from './MessageList';
+export {
+  AgentActivityIndicator,
+  ChatWindow,
+  MessageList,
+} from '@eddie/ui';
+export type {
+  AgentActivityIndicatorProps,
+  AgentActivityState,
+  ChatWindowProps,
+  ComposerRole as ChatWindowComposerRole,
+  MessageListProps,
+} from '@eddie/ui';
 export { SessionSelector } from './SessionSelector';
 export type {
   SessionSelectorProps,

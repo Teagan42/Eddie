@@ -3,13 +3,15 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-import type { ChatMessageDto } from '@eddie/api-client';
-
 import { TooltipProvider } from '@radix-ui/react-tooltip';
 
-import { ChatWindow, type ChatWindowProps } from '../ChatWindow';
+import {
+  ChatWindow,
+  type ChatWindowProps,
+  type MessageListItem,
+} from '@eddie/ui';
 
-type TestMessage = ChatMessageDto & {
+type TestMessage = MessageListItem & {
   metadata?: {
     agent?: {
       name?: string | null;

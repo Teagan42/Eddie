@@ -2,7 +2,7 @@ import { type ComponentType } from "react";
 import { Flex, Text } from "@radix-ui/themes";
 import { PaperPlaneIcon } from "@radix-ui/react-icons";
 import { AlertTriangle, Loader2, Sparkles as SparklesIcon, Wrench } from "lucide-react";
-import { cn } from "@/vendor/lib/utils";
+import { cn } from "../common/cn";
 
 export type AgentActivityState =
   | "idle"

@@ -1,6 +1,7 @@
 import { Badge, Flex, Heading, ScrollArea, Text } from "@radix-ui/themes";
-import type { ChatMessageDto, ChatSessionDto } from "@eddie/api-client";
 import { useEffect, useMemo, useRef } from "react";
+
+import type { OverviewMessage, OverviewSessionSummary } from "./types";
 
 const SESSION_TITLE_CLASS = "text-[color:var(--overview-panel-foreground)]";
 const MUTED_TEXT_CLASS = "text-[color:var(--overview-panel-muted)]";
@@ -37,8 +38,8 @@ const MESSAGE_BADGE_CLASS =
   "self-start text-[0.65rem] uppercase tracking-wider bg-[color:var(--overview-message-badge-bg)] text-[color:var(--overview-message-badge-fg)]";
 
 export interface SessionDetailProps {
-  session: ChatSessionDto | null;
-  messages: ChatMessageDto[] | undefined;
+  session: OverviewSessionSummary | null;
+  messages: OverviewMessage[] | undefined;
   isLoading: boolean;
 }
 
@@ -69,12 +70,11 @@ interface StreamMessageMetadata {
   agent?: StreamMessageAgentMetadata | null;
 }
 
-type StreamAwareMessage = ChatMessageDto & {
-  event?: string | null;
+type StreamAwareMessage = OverviewMessage & {
   metadata?: StreamMessageMetadata | null;
 };
 
-function deriveCompletedMessages(messages: ChatMessageDto[]): StreamAwareMessage[] {
+function deriveCompletedMessages(messages: OverviewMessage[]): StreamAwareMessage[] {
   const completed: StreamAwareMessage[] = [];
   const partials = new Map<string, StreamAwareMessage>();
 
@@ -140,7 +140,7 @@ function formatTimestamp(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function MessagesList({ messages }: { messages: ChatMessageDto[] }): JSX.Element {
+function MessagesList({ messages }: { messages: OverviewMessage[] }): JSX.Element {
   const completedMessages = useMemo(
     () => deriveCompletedMessages(messages),
     [messages]

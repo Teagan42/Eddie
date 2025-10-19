@@ -1,6 +1,7 @@
 import { Flex, Heading, ScrollArea, Text } from "@radix-ui/themes";
-import type { ChatSessionDto } from "@eddie/api-client";
-import { cn } from "@/vendor/lib/utils";
+
+import { cn } from "../common/cn";
+import type { OverviewSessionSummary } from "./types";
 
 const LIST_SURFACE_CLASS = cn(
   "h-80 rounded-2xl border p-3",
@@ -35,7 +36,7 @@ const ACTIVE_ITEM_CLASS = cn(
 const MUTED_TEXT_CLASS = "text-[color:var(--overview-panel-muted)]";
 
 export interface SessionsListProps {
-  sessions: ChatSessionDto[] | undefined;
+  sessions: OverviewSessionSummary[] | undefined;
   selectedSessionId: string | null;
   onSelectSession: (sessionId: string) => void;
 }

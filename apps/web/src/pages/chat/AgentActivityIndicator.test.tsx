@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   AgentActivityIndicator,
   type AgentActivityIndicatorProps,
-} from "./AgentActivityIndicator";
+} from "@eddie/ui";
 
 const renderIndicator = (state: AgentActivityIndicatorProps["state"]) =>
   render(<AgentActivityIndicator state={state} />);

@@ -1,22 +1,23 @@
 import { Flex, Grid, IconButton, TextField } from "@radix-ui/themes";
 import { PlusIcon } from "@radix-ui/react-icons";
-import { Panel } from "@/components/common";
-import type { ChatMessageDto, ChatSessionDto } from "@eddie/api-client";
-import { SessionsList } from "./SessionsList";
-import { SessionDetail } from "./SessionDetail";
-import { MessageComposer } from "./MessageComposer";
 import type { FormEvent } from "react";
 
+import { MessageComposer } from "./MessageComposer";
+import { SessionDetail } from "./SessionDetail";
+import { SessionsList } from "./SessionsList";
+import type { OverviewMessage, OverviewSessionSummary } from "./types";
+import { OverviewPanel } from "./OverviewPanel";
+
 export interface ChatSessionsPanelProps {
-  sessions: ChatSessionDto[] | undefined;
+  sessions: OverviewSessionSummary[] | undefined;
   selectedSessionId: string | null;
   onSelectSession: (sessionId: string) => void;
   onCreateSession: (event: FormEvent<HTMLFormElement>) => void;
   newSessionTitle: string;
   onNewSessionTitleChange: (value: string) => void;
   isCreatingSession: boolean;
-  activeSession: ChatSessionDto | null;
-  messages: ChatMessageDto[] | undefined;
+  activeSession: OverviewSessionSummary | null;
+  messages: OverviewMessage[] | undefined;
   isMessagesLoading: boolean;
   onSubmitMessage: (event: FormEvent<HTMLFormElement>) => void;
   messageDraft: string;
@@ -41,7 +42,7 @@ export function ChatSessionsPanel({
   isMessagePending,
 }: ChatSessionsPanelProps): JSX.Element {
   return (
-    <Panel
+    <OverviewPanel
       title="Chat Sessions"
       description="Inspect and collaborate on control plane sessions"
       actions={
@@ -81,6 +82,6 @@ export function ChatSessionsPanel({
           />
         </Flex>
       </Grid>
-    </Panel>
+    </OverviewPanel>
   );
 }
