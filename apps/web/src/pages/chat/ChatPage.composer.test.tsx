@@ -15,6 +15,7 @@ const getMetadataMock = vi.fn();
 const getExecutionStateMock = vi.fn();
 const useAuthMock = vi.fn();
 const updatePreferencesMock = vi.fn();
+const loadConfigMock = vi.fn();
 
 class ResizeObserverMock {
   observe(): void {}
@@ -74,6 +75,9 @@ vi.mock("@/api/api-provider", () => ({
         getMetadata: getMetadataMock,
         getExecutionState: getExecutionStateMock,
       },
+      config: {
+        loadEddieConfig: loadConfigMock,
+      },
       providers: {
         catalog: catalogMock,
       },
@@ -111,6 +115,21 @@ describe("ChatPage composer interactions", () => {
     const timestamp = new Date().toISOString();
 
     catalogMock.mockResolvedValue([]);
+    loadConfigMock.mockResolvedValue({
+      path: null,
+      format: "yaml" as const,
+      content: "",
+      input: {},
+      config: {
+        providers: {
+          "profile-openai": {
+            provider: { name: "openai" },
+            model: "gpt-4.1",
+          },
+        },
+      },
+      error: null,
+    });
     listSessionsMock.mockResolvedValue([
       {
         id: "session-1",
