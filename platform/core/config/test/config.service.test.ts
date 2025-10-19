@@ -109,6 +109,70 @@ describe("ConfigService compose precedence", () => {
     expect(composed.context.exclude).toEqual(["**/*.test.ts"]);
   });
 
+  it("applies extended configs before file input", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "eddie-config-"));
+    const externalConfigPath = path.join(tempDir, "extended.json");
+    const externalConfig: EddieConfigInput = {
+      logging: { level: "warn" },
+      tools: { autoApprove: true },
+    };
+
+    await fs.writeFile(
+      externalConfigPath,
+      `${JSON.stringify(externalConfig, null, 2)}\n`,
+      "utf-8",
+    );
+
+    const { service } = createService();
+
+    const composed = await service.compose({
+      extends: [
+        { id: "cli-local" },
+        { path: externalConfigPath },
+      ],
+      logging: { level: "error" },
+    } satisfies EddieConfigInput);
+
+    expect(composed.logging?.enableTimestamps).toBe(false);
+    expect(composed.tools?.autoApprove).toBe(true);
+    expect(composed.logging?.level).toBe("error");
+    expect(composed.logLevel).toBe("error");
+  });
+
+  it("resolves nested extension paths relative to each config file", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "eddie-config-"));
+    const sharedPath = path.join(tempDir, "shared.yaml");
+    const childPath = path.join(tempDir, "child.yaml");
+    const mainPath = path.join(tempDir, "main.yaml");
+
+    await fs.writeFile(
+      sharedPath,
+      "logging:\n  level: warn\ntools:\n  autoApprove: true\n",
+      "utf-8",
+    );
+
+    await fs.writeFile(
+      childPath,
+      "extends:\n  - ./shared.yaml\nlogging:\n  enableTimestamps: true\n",
+      "utf-8",
+    );
+
+    const { service } = createService();
+
+    const composed = await service.compose(
+      {
+        extends: ["./child.yaml"],
+        logging: { level: "error" },
+      },
+      {},
+      { path: mainPath },
+    );
+
+    expect(composed.tools?.autoApprove).toBe(true);
+    expect(composed.logging?.enableTimestamps).toBe(true);
+    expect(composed.logging?.level).toBe("error");
+  });
+
   it("applies CLI overrides last", async () => {
     const defaults: EddieConfig = {
       ...clone(DEFAULT_CONFIG),
@@ -285,7 +349,11 @@ describe("ConfigService readSnapshot", () => {
 
     expect(readFile).toHaveBeenCalledWith(configPath, "utf-8");
     expect(readConfigFile).toHaveBeenCalledWith(configPath);
-    expect(compose).toHaveBeenCalledWith({ model: "file-model" }, moduleOptions);
+    expect(compose).toHaveBeenCalledWith(
+      { model: "file-model" },
+      moduleOptions,
+      { path: configPath },
+    );
     expect(snapshot.path).toBe(configPath);
     expect(snapshot.config?.model).toBe("composed");
   });

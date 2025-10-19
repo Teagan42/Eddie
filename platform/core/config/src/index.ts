@@ -6,6 +6,7 @@ export * from "./types";
 export * from "./schema";
 export * from "./config.store";
 export * from "./config-watcher";
+export * from "./config-extensions";
 export * from "./runtime-overrides";
 export * from "./runtime-env";
 export * from "./runtime-cli";

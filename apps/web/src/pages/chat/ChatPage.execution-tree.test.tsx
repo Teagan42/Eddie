@@ -239,6 +239,199 @@ describe('ChatPage execution tree realtime updates', () => {
     });
   });
 
+  it('coerces execution tree updates that omit context bundle arrays', async () => {
+    const { client } = renderChatPage();
+
+    await waitFor(() => {
+      expect(onExecutionTreeUpdatedMock).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(getMetadataMock).toHaveBeenCalled();
+    });
+
+    const baseTree = createExecutionTreeStateFromMetadata({
+      sessionId: 'session-1',
+      capturedAt: '2024-05-01T12:45:00.000Z',
+      agentHierarchy: [
+        {
+          id: 'session-1',
+          name: 'Session 1',
+          provider: 'orchestrator',
+          model: 'delegator',
+          depth: 0,
+          metadata: { messageCount: 1 },
+          children: [
+            {
+              id: 'agent-primary',
+              name: 'Primary agent',
+              provider: 'openai',
+              model: 'gpt-4o',
+              depth: 1,
+              metadata: { messageCount: 1 },
+              children: [],
+            },
+          ],
+        },
+      ],
+      toolInvocations: [
+        {
+          id: 'call-1',
+          name: 'web_search',
+          status: 'running',
+          metadata: {
+            args: { query: 'latest docs' },
+          },
+          createdAt: '2024-05-01T12:40:00.000Z',
+          updatedAt: '2024-05-01T12:41:00.000Z',
+          agentId: 'agent-primary',
+          agentModel: 'gpt-4o',
+          provider: 'openai',
+          children: [],
+        },
+      ],
+      contextBundles: [],
+    });
+
+    const eventState = { ...baseTree, contextBundles: undefined } as unknown as typeof baseTree;
+
+    await act(async () => {
+      executionTreeHandlers.forEach((handler) =>
+        handler({
+          sessionId: 'session-1',
+          state: eventState,
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      const snapshot = client.getQueryData<any>([
+        'orchestrator-metadata',
+        'session-1',
+      ]);
+      expect(
+        snapshot?.executionTree?.toolInvocations?.some(
+          (invocation: { id?: string }) => invocation?.id === 'call-1',
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it('preserves existing context bundles when realtime updates omit them', async () => {
+    const now = '2024-05-01T12:55:00.000Z';
+    const baseMetadata = {
+      sessionId: 'session-1',
+      capturedAt: now,
+      agentHierarchy: [
+        {
+          id: 'session-1',
+          name: 'Session 1',
+          provider: 'orchestrator',
+          model: 'delegator',
+          depth: 0,
+          metadata: { messageCount: 1 },
+          children: [
+            {
+              id: 'agent-primary',
+              name: 'Primary agent',
+              provider: 'openai',
+              model: 'gpt-4o',
+              depth: 1,
+              metadata: { messageCount: 1 },
+              children: [],
+            },
+          ],
+        },
+      ],
+      toolInvocations: [
+        {
+          id: 'call-1',
+          name: 'web_search',
+          status: 'running',
+          metadata: {
+            args: { query: 'latest docs' },
+          },
+          createdAt: '2024-05-01T12:50:00.000Z',
+          updatedAt: '2024-05-01T12:51:00.000Z',
+          agentId: 'agent-primary',
+          agentModel: 'gpt-4o',
+          provider: 'openai',
+          children: [],
+        },
+      ],
+      contextBundles: [
+        {
+          id: 'bundle-1',
+          label: 'Search results',
+          summary: 'Top web results',
+          sizeBytes: 2048,
+          fileCount: 2,
+          files: [
+            { path: 'result-1.txt', sizeBytes: 1024 },
+            { path: 'result-2.txt', sizeBytes: 1024 },
+          ],
+        },
+      ],
+    } as const;
+
+    getMetadataMock.mockResolvedValueOnce(baseMetadata);
+
+    const { client } = renderChatPage();
+
+    await waitFor(() => {
+      expect(onExecutionTreeUpdatedMock).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(getMetadataMock).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      const snapshot = client.getQueryData<any>([
+        'orchestrator-metadata',
+        'session-1',
+      ]);
+      expect(
+        snapshot?.executionTree?.contextBundles?.some(
+          (bundle: { id?: string }) => bundle?.id === 'bundle-1',
+        ),
+      ).toBe(true);
+    });
+
+    const updateState = createExecutionTreeStateFromMetadata({
+      ...baseMetadata,
+      capturedAt: '2024-05-01T13:05:00.000Z',
+      contextBundles: [],
+    });
+
+    const realtimeState = {
+      ...updateState,
+      contextBundles: undefined,
+    } as unknown as typeof updateState;
+
+    await act(async () => {
+      executionTreeHandlers.forEach((handler) =>
+        handler({
+          sessionId: 'session-1',
+          state: realtimeState,
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      const snapshot = client.getQueryData<any>([
+        'orchestrator-metadata',
+        'session-1',
+      ]);
+      const bundleIds =
+        snapshot?.executionTree?.contextBundles?.map(
+          (bundle: { id?: string }) => bundle?.id,
+        ) ?? [];
+      expect(bundleIds).toContain('bundle-1');
+      expect(snapshot?.capturedAt).toBe(updateState.updatedAt);
+    });
+  });
+
   it('updates tool status groups when tool call lifecycle events stream in', async () => {
     const user = userEvent.setup();
     const { client } = renderChatPage();

@@ -18,6 +18,7 @@ export type {
   ApiTelemetryConfig,
   ApiValidationConfig,
   CliRuntimeOptions,
+  ConfigExtensionDescriptor,
   ConfigFileFormat,
   ConfigFileSnapshot,
   ContextConfig,

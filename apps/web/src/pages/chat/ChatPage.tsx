@@ -46,11 +46,11 @@ import {
   applyToolCallEvent,
   applyToolResultEvent,
   cloneExecutionTreeState,
+  coerceExecutionTreeState,
   composeExecutionTreeState,
   createEmptyExecutionTreeState,
   createExecutionTreeStateFromMetadata,
   type ExecutionTreeState,
-  isExecutionTreeState,
   type ToolEventPayload,
 } from './execution-tree-state';
 
@@ -353,15 +353,45 @@ export function ChatPage(): JSX.Element {
         return;
       }
 
-      if (!state || !isExecutionTreeState(state) || !Array.isArray(state.contextBundles)) {
+      const normalizedState = coerceExecutionTreeState(state);
+      if (!normalizedState) {
         return;
       }
 
-      const clonedTree = cloneExecutionTreeState(state);
+      const existingSnapshot = sessionContextByIdRef.current[sessionId];
+      const existingTree = existingSnapshot?.executionTree;
+
+      let mergedTree = normalizedState;
+
+      if (existingTree) {
+        const shouldMergeToolInvocations = normalizedState.toolInvocations.length === 0;
+        const shouldMergeContextBundles = normalizedState.contextBundles.length === 0;
+
+        if (shouldMergeToolInvocations || shouldMergeContextBundles) {
+          const nextToolInvocations = shouldMergeToolInvocations
+            ? existingTree.toolInvocations
+            : normalizedState.toolInvocations;
+          const nextContextBundles = shouldMergeContextBundles
+            ? existingTree.contextBundles
+            : normalizedState.contextBundles;
+
+          mergedTree = composeExecutionTreeState(
+            normalizedState.agentHierarchy,
+            nextToolInvocations,
+            nextContextBundles,
+            {
+              createdAt: normalizedState.createdAt,
+              updatedAt: normalizedState.updatedAt,
+            },
+          );
+        }
+      }
+
+      const clonedTree = cloneExecutionTreeState(mergedTree);
       setSessionContext(sessionId, {
         sessionId,
         executionTree: clonedTree,
-        capturedAt: state.updatedAt ?? undefined,
+        capturedAt: normalizedState.updatedAt ?? undefined,
       });
     });
 

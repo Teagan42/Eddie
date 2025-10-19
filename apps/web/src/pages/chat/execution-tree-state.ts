@@ -103,6 +103,60 @@ export function cloneExecutionTreeState(state: ExecutionTreeState): ExecutionTre
   );
 }
 
+export function coerceExecutionTreeState(value: unknown): ExecutionTreeState | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const candidate = value as Partial<ExecutionTreeState>;
+  const agentHierarchy = Array.isArray(candidate.agentHierarchy)
+    ? candidate.agentHierarchy
+    : [];
+  const toolInvocations = Array.isArray(candidate.toolInvocations)
+    ? candidate.toolInvocations
+    : [];
+  const contextBundles = Array.isArray(candidate.contextBundles)
+    ? candidate.contextBundles
+    : [];
+
+  const isRecord = (input: unknown): input is Record<string, unknown> =>
+    Boolean(input) && typeof input === 'object' && !Array.isArray(input);
+
+  const derived: Partial<ExecutionTreeState> = {};
+
+  if (isRecord(candidate.agentLineageById)) {
+    derived.agentLineageById = candidate.agentLineageById as ExecutionTreeState['agentLineageById'];
+  }
+
+  if (isRecord(candidate.toolGroupsByAgentId)) {
+    derived.toolGroupsByAgentId = candidate.toolGroupsByAgentId as ExecutionTreeState['toolGroupsByAgentId'];
+  }
+
+  if (isRecord(candidate.contextBundlesByAgentId)) {
+    derived.contextBundlesByAgentId = candidate.contextBundlesByAgentId as ExecutionTreeState['contextBundlesByAgentId'];
+  }
+
+  if (isRecord(candidate.contextBundlesByToolCallId)) {
+    derived.contextBundlesByToolCallId =
+      candidate.contextBundlesByToolCallId as ExecutionTreeState['contextBundlesByToolCallId'];
+  }
+
+  if (typeof candidate.createdAt === 'string') {
+    derived.createdAt = candidate.createdAt;
+  }
+
+  if (typeof candidate.updatedAt === 'string') {
+    derived.updatedAt = candidate.updatedAt;
+  }
+
+  return composeExecutionTreeState(
+    agentHierarchy,
+    toolInvocations,
+    contextBundles,
+    Object.keys(derived).length > 0 ? derived : undefined,
+  );
+}
+
 export function applyToolCallEvent(
   current: ExecutionTreeState,
   payload: ToolEventPayload,

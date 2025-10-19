@@ -31,6 +31,6 @@ export const initialConfigProvider: FactoryProvider<Promise<EddieConfig>> = {
       return config;
     }
 
-    return service.compose(input, combinedOptions);
+    return service.compose(input, combinedOptions, { path: configFilePath ?? undefined });
   },
 };
