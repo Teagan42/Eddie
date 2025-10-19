@@ -9,7 +9,16 @@ import { TooltipProvider } from '@radix-ui/react-tooltip';
 
 import { ChatWindow, type ChatWindowProps } from '../ChatWindow';
 
-function createMessage(partial?: Partial<ChatMessageDto>): ChatMessageDto {
+type TestMessage = ChatMessageDto & {
+  metadata?: {
+    agent?: {
+      name?: string | null;
+      parentName?: string | null;
+    } | null;
+  } | null;
+};
+
+function createMessage(partial?: Partial<TestMessage>): TestMessage {
   return {
     id: 'message-1',
     sessionId: 'session-1',
@@ -17,7 +26,7 @@ function createMessage(partial?: Partial<ChatMessageDto>): ChatMessageDto {
     content: 'Test message',
     createdAt: new Date().toISOString(),
     ...partial,
-  } as ChatMessageDto;
+  } as TestMessage;
 }
 
 beforeAll(() => {
@@ -78,6 +87,34 @@ describe('ChatWindow', () => {
     await user.click(screen.getByRole('button', { name: 'Re-issue command' }));
 
     expect(handleReissue).toHaveBeenCalledWith(message);
+  });
+
+  it('shows agent provenance for tool messages', () => {
+    const messages: TestMessage[] = [
+      createMessage({
+        id: 'message-user',
+        role: 'user',
+        content: 'How is progress?'
+      }),
+      createMessage({
+        id: 'message-tool',
+        role: 'tool',
+        content: 'Gathering results',
+        metadata: {
+          agent: {
+            name: 'Researcher',
+            parentName: 'Orchestrator'
+          }
+        }
+      }),
+    ];
+
+    renderChatWindow({ messages });
+
+    const logRegion = screen.getByRole('log');
+    expect(within(logRegion).getByText('Researcher')).toBeInTheDocument();
+    expect(within(logRegion).getByText('Orchestrator')).toBeInTheDocument();
+    expect(within(logRegion).getByText('Gathering results')).toBeInTheDocument();
   });
 
   it('renders the agent activity indicator and segmented role control', async () => {
