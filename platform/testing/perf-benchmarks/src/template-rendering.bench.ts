@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { afterAll, bench, describe, suite } from 'vitest';
 
 import { TemplateRendererService } from '@eddie/templates';
@@ -13,6 +14,7 @@ import {
   isBenchmarkMode,
   type BenchRegistration,
 } from './bench.runtime';
+import { registerBenchmarkActionEntry } from './benchmark-action.registry';
 
 const FIXTURE_ROOT = fileURLToPath(
   new URL('../fixtures/templates/', import.meta.url),
@@ -302,8 +304,35 @@ const emitScenarioReport = () => {
     scenarios,
   };
 
+  for (const scenario of scenarios) {
+    const warmDurations = scenario.warm.durations;
+    registerBenchmarkActionEntry({
+      name: `TemplateRendererService render scenarios › ${scenario.label}`,
+      unit: 'ms',
+      value: warmDurations.mean,
+      extra: {
+        samples: warmDurations.sampleCount,
+        median: warmDurations.median,
+        min: warmDurations.min,
+        max: warmDurations.max,
+      },
+    });
+  }
+
+  const reportDirectory = process.env.BENCHMARK_ACTION_REPORT_DIR;
+  if (reportDirectory) {
+    mkdirSync(reportDirectory, { recursive: true });
+    writeFileSync(
+      join(reportDirectory, 'template-rendering.nunjucks.json'),
+      JSON.stringify(report),
+      'utf-8',
+    );
+  }
+
   console.log(JSON.stringify(report));
 };
+
+export const emitTemplateRenderingBenchmarkReport = () => emitScenarioReport();
 
 export interface TemplateBenchmarkRegistrationContext {
   readonly suite: typeof suite;
@@ -322,7 +351,7 @@ export async function defineTemplateRenderingBenchmarks({
 
   registerSuite('TemplateRendererService render scenarios', () => {
     afterAll(() => {
-      emitScenarioReport();
+      emitTemplateRenderingBenchmarkReport();
     });
 
     for (const fixture of fixtures) {

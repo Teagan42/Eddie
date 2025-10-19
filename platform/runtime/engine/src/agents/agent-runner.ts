@@ -239,8 +239,10 @@ export class AgentRunner {
       ? finalMessageText
       : `Subagent ${ descriptor.id } completed without a final response.`;
 
-    const hasRequestMetadata =
-      request.metadata && Object.keys(request.metadata).length > 0;
+    const metadataRequest =
+      request.metadata && Object.keys(request.metadata).length > 0
+        ? { ...request.metadata }
+        : {};
 
     const metadata: Record<string, unknown> = {
       agentId: descriptor.id,
@@ -257,7 +259,7 @@ export class AgentRunner {
       ...(descriptor.metadata?.description
         ? { description: descriptor.metadata.description }
         : {}),
-      ...(hasRequestMetadata ? { request: { ...request.metadata } } : {}),
+      request: metadataRequest,
       ...(selectedBundleIds.length > 0
         ? { contextBundleIds: selectedBundleIds }
         : {}),

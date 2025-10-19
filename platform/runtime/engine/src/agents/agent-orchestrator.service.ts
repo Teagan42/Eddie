@@ -519,6 +519,7 @@ export class AgentOrchestratorService {
           provider: descriptor.provider.name,
           parentAgentId: parentDescriptor.id,
           blocked: true,
+          request: {},
         },
       };
     }
@@ -908,14 +909,14 @@ export class AgentOrchestratorService {
     );
   }
 }
-const SPAWN_SUBAGENT_SCHEMA_REQUIRED_FIELDS = [
+const SPAWN_SUBAGENT_SCHEMA_REQUIRED_FIELDS = Object.freeze([
   "schema",
   "content",
   "data",
   "metadata",
-] as const satisfies readonly string[];
+] as const satisfies readonly string[]);
 
-const SPAWN_SUBAGENT_DATA_REQUIRED_FIELDS = [
+const SPAWN_SUBAGENT_DATA_REQUIRED_FIELDS = Object.freeze([
   "agentId",
   "messageCount",
   "blocked",
@@ -923,16 +924,16 @@ const SPAWN_SUBAGENT_DATA_REQUIRED_FIELDS = [
   "history",
   "transcriptSummary",
   "historySnippet",
-] as const satisfies readonly string[];
+] as const satisfies readonly string[]);
 
-const SPAWN_SUBAGENT_HISTORY_REQUIRED_FIELDS = [
+const SPAWN_SUBAGENT_HISTORY_REQUIRED_FIELDS = Object.freeze([
   "role",
   "content",
   "name",
   "tool_call_id",
-] as const satisfies readonly string[];
+] as const satisfies readonly string[]);
 
-const SPAWN_SUBAGENT_METADATA_REQUIRED_FIELDS = [
+const SPAWN_SUBAGENT_METADATA_REQUIRED_FIELDS = Object.freeze([
   "agentId",
   "model",
   "provider",
@@ -946,9 +947,12 @@ const SPAWN_SUBAGENT_METADATA_REQUIRED_FIELDS = [
   "transcriptSummary",
   "historySnippet",
   "contextBundleIds",
-] as const satisfies readonly string[];
+  "request",
+] as const satisfies readonly string[]);
 
-const SPAWN_SUBAGENT_REQUEST_REQUIRED_FIELDS = [] as const satisfies readonly string[];
+const SPAWN_SUBAGENT_REQUEST_REQUIRED_FIELDS = Object.freeze(
+  [] as const satisfies readonly string[],
+);
 
 const SPAWN_SUBAGENT_OUTPUT_SCHEMA: NonNullable<ToolSchema["outputSchema"]> = {
   type: "json_schema",

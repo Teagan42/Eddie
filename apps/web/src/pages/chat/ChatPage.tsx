@@ -11,7 +11,6 @@ import {
   ChatBubbleIcon,
   MagicWandIcon,
   PlusIcon,
-  RocketIcon,
 } from '@radix-ui/react-icons';
 import { type AgentActivityState } from './AgentActivityIndicator';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -20,7 +19,7 @@ import type {
   ChatSessionDto,
   CreateChatMessageDto,
   CreateChatSessionDto,
-  ProviderCatalogEntryDto,
+  EddieConfigSourceDto,
 } from '@eddie/api-client';
 import { useApi } from '@/api/api-provider';
 import { useAuth } from '@/auth/auth-context';
@@ -53,6 +52,11 @@ import {
   type ExecutionTreeState,
   type ToolEventPayload,
 } from './execution-tree-state';
+import {
+  createProviderProfileOptions,
+  extractProviderProfiles,
+  type ProviderOption,
+} from '../shared/providerProfiles';
 
 const ORCHESTRATOR_METADATA_QUERY_KEY = 'orchestrator-metadata' as const;
 
@@ -76,6 +80,7 @@ const PANEL_IDS = {
 const SCROLL_VIEWPORT_SELECTOR = '[data-radix-scroll-area-viewport]';
 
 const CHAT_SESSIONS_QUERY_KEY = ['chat-sessions'] as const;
+const CONFIG_EDITOR_QUERY_KEY = ['config', 'editor'] as const;
 
 const scrollMessageViewportToBottom = (anchor: HTMLElement): void => {
   const viewport = anchor.closest(SCROLL_VIEWPORT_SELECTOR);
@@ -95,6 +100,8 @@ const scrollMessageViewportToBottom = (anchor: HTMLElement): void => {
 type ChatPreferences = NonNullable<LayoutPreferencesDto['chat']>;
 
 type ComposerRole = ChatWindowComposerRole;
+
+const DEFAULT_COMPOSER_ROLE: ComposerRole = 'user';
 
 type AutoSessionAttemptStatus = 'idle' | 'pending' | 'failed';
 
@@ -192,9 +199,7 @@ export function ChatPage(): JSX.Element {
   useChatMessagesRealtime(api);
   const [composerValue, setComposerValue] = useState('');
   // Derive a safe default for composer role from the DTO union (fall back to 'user')
-  const defaultComposerRole = 'user' as ComposerRole;
-  const [composerRole, setComposerRole] = useState<ComposerRole>(defaultComposerRole);
-  const [templateSelection, setTemplateSelection] = useState<string>('');
+  const [composerRole, setComposerRole] = useState<ComposerRole>(DEFAULT_COMPOSER_ROLE);
   const [agentStreamActivity, setAgentStreamActivity] = useState<
     Exclude<AgentActivityState, 'sending'>
   >('idle');
@@ -629,7 +634,7 @@ export function ChatPage(): JSX.Element {
 
   useEffect(() => {
     setComposerValue('');
-    setComposerRole(defaultComposerRole);
+    setComposerRole(DEFAULT_COMPOSER_ROLE);
     setSelectedAgentId(null);
   }, [selectedSessionId]);
 
@@ -1020,45 +1025,97 @@ export function ChatPage(): JSX.Element {
 
   const collapsedPanels = preferences.chat?.collapsedPanels ?? {};
   const sessionSettings = preferences.chat?.sessionSettings ?? {};
-  const templates = useMemo(() => preferences.chat?.templates ?? {}, [preferences.chat?.templates]);
 
-  const providerCatalogQuery = useQuery<ProviderCatalogEntryDto[]>({
-    queryKey: ['providers', 'catalog'],
-    queryFn: () => api.http.providers.catalog(),
+  const configSourceQuery = useQuery<EddieConfigSourceDto>({
+    queryKey: CONFIG_EDITOR_QUERY_KEY,
+    queryFn: () => api.http.config.loadEddieConfig(),
     staleTime: 300_000,
   });
 
-  const providerCatalog = useMemo(
-    () => providerCatalogQuery.data ?? [],
-    [providerCatalogQuery.data],
+  const providerProfiles = useMemo(
+    () => extractProviderProfiles(configSourceQuery.data?.config ?? null),
+    [configSourceQuery.data?.config],
   );
 
   const activeSettings = selectedSessionId ? (sessionSettings[selectedSessionId] ?? {}) : {};
 
-  const providerOptions = useMemo(() => {
-    const options = providerCatalog.map((entry) => ({
-      label: entry.label ?? entry.name,
-      value: entry.name,
-    }));
+  const profileProviderOptions = useMemo(
+    () => createProviderProfileOptions(providerProfiles),
+    [providerProfiles],
+  );
+
+  const providerOptions = useMemo<ProviderOption[]>(() => {
+    if (profileProviderOptions.length === 0) {
+      return [];
+    }
+
+    const options = [...profileProviderOptions];
+
     if (
       activeSettings.provider &&
-      !options.some((option) => option.value === activeSettings.provider)
+      !options.some((option) => option.providerName === activeSettings.provider)
     ) {
       options.unshift({
         label: activeSettings.provider,
         value: activeSettings.provider,
+        providerName: activeSettings.provider,
+        defaultModel:
+          typeof activeSettings.model === 'string' ? activeSettings.model : undefined,
       });
     }
-    return options;
-  }, [activeSettings.provider, providerCatalog]);
 
-  const selectedProvider = activeSettings.provider ?? providerOptions[0]?.value ?? '';
+    return options;
+  }, [activeSettings.model, activeSettings.provider, profileProviderOptions]);
+
+  const providerOptionsByValue = useMemo(() => {
+    const map = new Map<string, ProviderOption>();
+    for (const option of providerOptions) {
+      map.set(option.value, option);
+    }
+    return map;
+  }, [providerOptions]);
+
+  const selectedProviderOption = useMemo(() => {
+    if (providerOptions.length === 0) {
+      return null;
+    }
+
+    const providerName = activeSettings.provider ?? providerOptions[0]?.providerName;
+    if (!providerName) {
+      return providerOptions[0] ?? null;
+    }
+
+    const activeModel =
+      typeof activeSettings.model === 'string' ? activeSettings.model : undefined;
+    if (activeModel) {
+      const matchByModel = providerOptions.find(
+        (option) =>
+          option.providerName === providerName && option.defaultModel === activeModel,
+      );
+      if (matchByModel) {
+        return matchByModel;
+      }
+    }
+
+    return providerOptions.find((option) => option.providerName === providerName) ?? null;
+  }, [activeSettings.model, activeSettings.provider, providerOptions]);
+
+  const selectedProviderName = selectedProviderOption?.providerName ?? '';
+  const selectedProviderValue = selectedProviderOption?.value ??
+    (selectedProviderName ? selectedProviderName : providerOptions[0]?.value ?? '');
 
 
   const messagesWithMetadata = useMemo(() => {
     const baseMessages = messagesQuery.data ?? [];
     return enrichMessagesWithExecutionTree(baseMessages, executionTreeState);
   }, [executionTreeState, messagesQuery.data]);
+  const hasStreamingReasoning = useMemo(
+    () =>
+      messagesWithMetadata.some(
+        (message) => message.reasoning?.status === "streaming"
+      ),
+    [messagesWithMetadata]
+  );
   const selectedContextBundles = useMemo(
     () => getSessionContextBundles(selectedSessionId ?? null),
     [getSessionContextBundles, selectedSessionId],
@@ -1074,8 +1131,17 @@ export function ChatPage(): JSX.Element {
       return 'error';
     }
 
+    if (hasStreamingReasoning && agentStreamActivity === 'idle') {
+      return 'thinking';
+    }
+
     return agentStreamActivity;
-  }, [agentStreamActivity, sendMessageMutation.isError, sendMessageMutation.isPending]);
+  }, [
+    agentStreamActivity,
+    hasStreamingReasoning,
+    sendMessageMutation.isError,
+    sendMessageMutation.isPending,
+  ]);
 
   useEffect(() => {
     if (!lastMessage) {
@@ -1191,20 +1257,17 @@ export function ChatPage(): JSX.Element {
         }
       }
 
-      const entry = providerCatalog.find((item) => item.name === providerValue);
-      const models = entry?.models ?? [];
-      const nextModel = models.length
-        ? models.includes(activeSettings.model ?? '')
-          ? activeSettings.model
-          : models[0]
-        : activeSettings.model;
+      const option = providerOptionsByValue.get(providerValue);
+      const providerName = option?.providerName ?? providerValue;
+      const defaultModel = option?.defaultModel;
+      const nextModel = defaultModel ?? activeSettings.model;
 
       applyChatUpdate((chat) => {
         const nextSettings = { ...(chat.sessionSettings ?? {}) };
         const current = nextSettings[selectedSessionId] ?? {};
         const updated = {
           ...current,
-          provider: providerValue,
+          provider: providerName,
         } as { provider: string; model?: string };
         if (nextModel) {
           updated.model = nextModel;
@@ -1219,7 +1282,7 @@ export function ChatPage(): JSX.Element {
       activeSettings.model,
       activeSettings.provider,
       applyChatUpdate,
-      providerCatalog,
+      providerOptionsByValue,
       selectedSessionId,
     ],
   );
@@ -1257,8 +1320,8 @@ export function ChatPage(): JSX.Element {
         };
         if (trimmedValue) {
           updated.model = trimmedValue;
-          if (!updated.provider && selectedProvider) {
-            updated.provider = selectedProvider;
+          if (!updated.provider && selectedProviderName) {
+            updated.provider = selectedProviderName;
           }
         } else {
           delete updated.model;
@@ -1267,68 +1330,7 @@ export function ChatPage(): JSX.Element {
         return { ...chat, sessionSettings: nextSettings };
       });
     },
-    [applyChatUpdate, selectedProvider, selectedSessionId],
-  );
-
-  const handleSaveTemplate = useCallback(() => {
-    if (!selectedSessionId || !composerValue.trim()) {
-      return;
-    }
-    const name = window.prompt('Template name', 'New template');
-    if (!name) {
-      return;
-    }
-    const templateId = `${selectedSessionId}-${Date.now()}`;
-    const template = {
-      id: templateId,
-      name: name.trim(),
-      provider: selectedProvider,
-      model: activeSettings.model,
-      prompt: composerValue,
-      createdAt: new Date().toISOString(),
-    };
-    applyChatUpdate((chat) => {
-      const nextTemplates = { ...(chat.templates ?? {}) };
-      nextTemplates[templateId] = template;
-      return { ...chat, templates: nextTemplates };
-    });
-  }, [
-    activeSettings.model,
-    applyChatUpdate,
-    composerValue,
-    selectedProvider,
-    selectedSessionId,
-  ]);
-
-  const handleLoadTemplate = useCallback(
-    (templateId: string) => {
-      const template = templates[templateId];
-      if (!template) {
-        return;
-      }
-      setComposerValue(template.prompt);
-      setComposerRole(defaultComposerRole);
-      if (selectedSessionId) {
-        applyChatUpdate((chat) => {
-          const nextSettings = { ...(chat.sessionSettings ?? {}) };
-          nextSettings[selectedSessionId] = {
-            provider: template.provider,
-            model: template.model,
-          };
-          return { ...chat, sessionSettings: nextSettings };
-        });
-      }
-    },
-    [applyChatUpdate, selectedSessionId, templates],
-  );
-
-  const handleTemplateSelection = useCallback(
-    (value: string) => {
-      setTemplateSelection(value);
-      handleLoadTemplate(value);
-      setTemplateSelection('');
-    },
-    [handleLoadTemplate],
+    [applyChatUpdate, selectedProviderName, selectedSessionId],
   );
 
   const handleCreateSession = useCallback(() => {
@@ -1415,64 +1417,35 @@ export function ChatPage(): JSX.Element {
               }
               actions={
                 <Flex align="center" gap="3" wrap="wrap">
-                  <Select.Root
-                    value={selectedProvider}
-                    onValueChange={handleProviderChange}
-                    disabled={!selectedSessionId}
-                  >
-                    <Select.Trigger placeholder="Provider" />
-                    <Select.Content>
-                      {providerOptions.map((option) => (
-                        <Select.Item key={option.value} value={option.value}>
-                          {option.label}
-                        </Select.Item>
-                      ))}
-                      {providerOptions.length > 0 ? <Select.Separator /> : null}
-                      <Select.Item value="__custom__">Custom provider…</Select.Item>
-                    </Select.Content>
-                  </Select.Root>
-                  <TextField.Root
-                    value={activeSettings.model ?? ''}
-                    onChange={(event) =>
-                      handleModelInputChange(event.target.value)
-                    }
-                    placeholder="Model identifier"
-                    aria-label="Model"
-                    disabled={!selectedSessionId}
-                  />
-                  <Select.Root
-                    value={templateSelection}
-                    onValueChange={handleTemplateSelection}
-                    disabled={Object.keys(templates).length === 0}
-                  >
-                    <Select.Trigger placeholder="Load template" />
-                    <Select.Content>
-                      {Object.values(
-                        templates as Record<
-                          string,
-                          {
-                            id: string;
-                            name: string;
-                            provider: string;
-                            model?: string;
-                            prompt: string;
-                          }
-                        >,
-                      ).map((template) => (
-                        <Select.Item key={template.id} value={template.id}>
-                          {template.name}
-                        </Select.Item>
-                      ))}
-                    </Select.Content>
-                  </Select.Root>
-                  <Button
-                    variant="soft"
-                    size="2"
-                    onClick={handleSaveTemplate}
-                    disabled={!composerValue.trim()}
-                  >
-                    <RocketIcon /> Save template
-                  </Button>
+                  {providerOptions.length > 0 ? (
+                    <Select.Root
+                      value={selectedProviderValue}
+                      onValueChange={handleProviderChange}
+                      disabled={!selectedSessionId}
+                    >
+                      <Select.Trigger aria-label="Provider" placeholder="Provider" />
+                      <Select.Content>
+                        {providerOptions.map((option) => (
+                          <Select.Item key={option.value} value={option.value}>
+                            {option.label}
+                          </Select.Item>
+                        ))}
+                        <Select.Separator />
+                        <Select.Item value="__custom__">Custom provider…</Select.Item>
+                      </Select.Content>
+                    </Select.Root>
+                  ) : null}
+                  {selectedProviderName ? (
+                    <TextField.Root
+                      value={activeSettings.model ?? ''}
+                      onChange={(event) =>
+                        handleModelInputChange(event.target.value)
+                      }
+                      placeholder="Model identifier"
+                      aria-label="Model"
+                      disabled={!selectedSessionId}
+                    />
+                  ) : null}
                   <SheetTrigger asChild>
                     <Button variant="solid" size="2">
                       <MagicWandIcon /> Open agent tools
@@ -1531,11 +1504,25 @@ type MessageMetadataTool = {
   status?: string | null;
 };
 
+type MessageReasoningSegment = {
+  text: string;
+  metadata?: Record<string, unknown>;
+  timestamp?: string;
+  agentId?: string | null;
+};
+
+type MessageReasoningState = {
+  segments: MessageReasoningSegment[];
+  responseId?: string;
+  status: "streaming" | "completed";
+};
+
 type ChatMessageWithMetadata = ChatMessageDto & {
   metadata?: {
     agent?: MessageMetadataAgent | null;
     tool?: MessageMetadataTool | null;
   } | null;
+  reasoning?: MessageReasoningState | null;
 };
 
 type AgentHierarchyNode = ExecutionTreeState['agentHierarchy'][number];

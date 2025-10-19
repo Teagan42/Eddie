@@ -66,6 +66,10 @@ directory.
 All task list persistence helpers live in the runtime module linked above, which
 also exposes `TASK_LIST_RESULT_SCHEMA` for tool integrations.
 
+All task list persistence helpers live in
+[`platform/runtime/tools/src/builtin/task_list.ts`](../platform/runtime/tools/src/builtin/task_list.ts),
+which exposes `TASK_LIST_RESULT_SCHEMA` for tool integrations.
+
 ## File discovery helpers: `file_search` and `get_folder_tree_structure`
 
 The file discovery helpers expose read-only views of the workspace. Their JSON
