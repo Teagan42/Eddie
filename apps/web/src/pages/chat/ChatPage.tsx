@@ -337,6 +337,18 @@ export function ChatPage(): JSX.Element {
       return;
     }
 
+    const persistExecutionState = (
+      sessionId: string,
+      tree: ExecutionTreeState,
+      timestamp?: string,
+    ): void => {
+      setSessionContext(sessionId, {
+        sessionId,
+        executionTree: cloneExecutionTreeState(tree),
+        capturedAt: timestamp ?? undefined,
+      });
+    };
+
     const unsubscribe = subscribe((payload) => {
       if (!payload || typeof payload !== 'object') {
         return;
@@ -389,13 +401,36 @@ export function ChatPage(): JSX.Element {
         }
       }
 
-      const clonedTree = cloneExecutionTreeState(mergedTree);
-      setSessionContext(sessionId, {
-        sessionId,
-        executionTree: clonedTree,
-        capturedAt: normalizedState.updatedAt ?? undefined,
-      });
+      persistExecutionState(sessionId, mergedTree, normalizedState.updatedAt);
     });
+
+    const fetchExecutionState = async (): Promise<void> => {
+      const targetSessionId = selectedSessionIdRef.current;
+      if (!targetSessionId) {
+        return;
+      }
+
+      try {
+        const state = await api.http.orchestrator.getExecutionState(targetSessionId);
+        const normalized = coerceExecutionTreeState(state);
+        if (!normalized) {
+          return;
+        }
+
+        persistExecutionState(
+          targetSessionId,
+          normalized,
+          normalized.updatedAt ?? undefined,
+        );
+      } catch (error) {
+        const status = (error as { status?: number; }).status;
+        if (status === 404) {
+          return;
+        }
+      }
+    };
+
+    void fetchExecutionState();
 
     return () => {
       try {

@@ -8,6 +8,7 @@ const listSessionsMock = vi.fn();
 const listMessagesMock = vi.fn();
 const createSessionMock = vi.fn();
 const getMetadataMock = vi.fn();
+const getExecutionStateMock = vi.fn();
 const useAuthMock = vi.fn();
 const updatePreferencesMock = vi.fn();
 
@@ -68,6 +69,7 @@ vi.mock("@/api/api-provider", () => ({
       },
       orchestrator: {
         getMetadata: getMetadataMock,
+        getExecutionState: getExecutionStateMock,
       },
       providers: {
         catalog: catalogMock,
@@ -103,6 +105,7 @@ describe("ChatPage authentication behaviours", () => {
     useAuthMock.mockReset();
     updatePreferencesMock.mockReset();
 
+    getExecutionStateMock.mockResolvedValue(null);
     const timestamp = new Date().toISOString();
 
     useAuthMock.mockReturnValue({ apiKey: "test-key", setApiKey: vi.fn() });
