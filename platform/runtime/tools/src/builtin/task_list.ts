@@ -170,8 +170,8 @@ export const isTaskListTaskStatus = (
   typeof value === "string" && TASK_STATUS_SET.has(value);
 
 const normaliseTaskStatus = (value: unknown): TaskListTaskStatus => {
-  if (isTaskListTaskStatus(value)) {
-    return value;
+  if (typeof value === "string" && TASK_STATUS_SET.has(value)) {
+    return value as TaskListTaskStatus;
   }
 
   return "pending";

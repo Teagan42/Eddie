@@ -11,4 +11,27 @@ export class ChatMessagesGateway {
   emitPartial(message: ChatMessageDto): void {
     emitEvent(this.server, "message.partial", message);
   }
+
+  emitReasoningPartial(payload: {
+    sessionId: string;
+    messageId: string;
+    text: string;
+    metadata: Record<string, unknown> | undefined;
+    timestamp: string | undefined;
+    agentId: string | null;
+  }): void {
+    emitEvent(this.server, "message.reasoning.partial", payload);
+  }
+
+  emitReasoningComplete(payload: {
+    sessionId: string;
+    messageId: string;
+    responseId: string | undefined;
+    text: string | undefined;
+    metadata: Record<string, unknown> | undefined;
+    timestamp: string | undefined;
+    agentId: string | null;
+  }): void {
+    emitEvent(this.server, "message.reasoning.completed", payload);
+  }
 }

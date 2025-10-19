@@ -5,6 +5,8 @@ import type { ChatMessagesGateway } from "../../../src/chat-sessions/chat-messag
 import type { ChatMessageDto } from "../../../src/chat-sessions/dto/chat-session.dto";
 import {
   ChatMessagePartialEvent,
+  ChatMessageReasoningCompleteEvent,
+  ChatMessageReasoningDeltaEvent,
   ChatSessionToolCallEvent,
   ChatSessionToolResultEvent,
 } from "@eddie/types";
@@ -98,5 +100,65 @@ describe("ChatSessionEventsService", () => {
         new ChatSessionToolResultEvent("s1", "t1", "tool", "ok", undefined, "agent-42"),
       ),
     ).not.toThrow();
+  });
+
+  it("forwards reasoning deltas to the chat messages gateway", () => {
+    const gateway = {
+      emitPartial: vi.fn(),
+      emitReasoningPartial: vi.fn(),
+    } as unknown as ChatMessagesGateway;
+    const events = new ChatSessionEventsService(gateway);
+
+    const reasoning = new ChatMessageReasoningDeltaEvent(
+      "s1",
+      "m1",
+      "Thinking",
+      { step: 1 },
+      "2024-01-01T00:00:00.000Z",
+      "agent-7",
+    );
+
+    events.handle(reasoning);
+
+    expect((gateway.emitReasoningPartial as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith({
+      sessionId: "s1",
+      messageId: "m1",
+      text: "Thinking",
+      metadata: { step: 1 },
+      timestamp: "2024-01-01T00:00:00.000Z",
+      agentId: "agent-7",
+    });
+  });
+
+  it("forwards reasoning completions to the chat messages gateway", () => {
+    const gateway = {
+      emitPartial: vi.fn(),
+      emitReasoningComplete: vi.fn(),
+    } as unknown as ChatMessagesGateway;
+    const events = new ChatSessionEventsService(gateway);
+
+    const completion = new ChatMessageReasoningCompleteEvent(
+      "s1",
+      "m1",
+      "resp-9",
+      "Thinking complete",
+      { step: 2 },
+      "2024-01-01T00:00:01.000Z",
+      "agent-7",
+    );
+
+    events.handle(completion);
+
+    expect((gateway.emitReasoningComplete as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "s1",
+        messageId: "m1",
+        responseId: "resp-9",
+        metadata: { step: 2 },
+        timestamp: "2024-01-01T00:00:01.000Z",
+        agentId: "agent-7",
+        text: "Thinking complete",
+      })
+    );
   });
 });

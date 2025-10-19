@@ -4,6 +4,8 @@ import { EventBus } from "@nestjs/cqrs";
 import type { StreamEvent } from "@eddie/types";
 import {
   ChatMessagePartialEvent,
+  ChatMessageReasoningCompleteEvent,
+  ChatMessageReasoningDeltaEvent,
   ChatSessionToolCallEvent,
   ChatSessionToolResultEvent,
 } from "@eddie/types";
@@ -23,6 +25,16 @@ interface StreamState {
     content: string;
   };
   toolTimestamps: Map<string, string>;
+  reasoning?: ReasoningState;
+}
+
+interface ReasoningState {
+  id?: string;
+  buffer: string;
+  lastEmitted?: string;
+  metadata?: Record<string, unknown> | undefined;
+  agentId?: string | null;
+  messageId?: string;
 }
 
 export interface StreamCaptureResult<T> {
@@ -110,6 +122,15 @@ export class ChatSessionStreamRendererService {
         await this.upsertMessage(state);
         break;
       }
+      case "reasoning_delta": {
+        await this.updateActivity(state, "thinking");
+        await this.handleReasoningDelta(state, event);
+        break;
+      }
+      case "reasoning_end": {
+        await this.handleReasoningEnd(state, event);
+        break;
+      }
       case "tool_call": {
         await this.updateActivity(state, "tool");
         this.emitToolCallEvent(state, event);
@@ -153,11 +174,113 @@ export class ChatSessionStreamRendererService {
           this.emitPartial(state, message);
         }
         await this.updateActivity(state, "idle");
+        state.reasoning = undefined;
         break;
       }
       default:
         break;
     }
+  }
+
+  private async handleReasoningDelta(
+    state: StreamState,
+    event: Extract<StreamEvent, { type: "reasoning_delta" }>,
+  ): Promise<void> {
+    if (!event.text) {
+      return;
+    }
+
+    const messageId = await this.ensureReasoningMessage(state);
+    const reasoning = this.getOrCreateReasoningState(state, event.id);
+    reasoning.messageId = messageId;
+    reasoning.buffer += event.text;
+    reasoning.metadata = event.metadata;
+    reasoning.agentId = event.agentId ?? null;
+
+    if (reasoning.lastEmitted === reasoning.buffer) {
+      return;
+    }
+
+    reasoning.lastEmitted = reasoning.buffer;
+
+    const timestamp = this.now();
+    this.eventBus.publish(
+      new ChatMessageReasoningDeltaEvent(
+        state.sessionId,
+        messageId,
+        reasoning.buffer,
+        event.metadata,
+        timestamp,
+        event.agentId ?? null,
+      )
+    );
+  }
+
+  private async handleReasoningEnd(
+    state: StreamState,
+    event: Extract<StreamEvent, { type: "reasoning_end" }>,
+  ): Promise<void> {
+    const messageId = await this.ensureReasoningMessage(state);
+    const reasoning = state.reasoning;
+    const timestamp = this.now();
+    const {
+      buffer: reasoningText,
+      metadata: reasoningMetadata,
+      agentId: reasoningAgentId,
+    } = reasoning ?? { buffer: undefined, metadata: undefined, agentId: null };
+    const text = reasoningText;
+    const metadata = event.metadata ?? reasoningMetadata;
+    const agentId = event.agentId ?? reasoningAgentId ?? null;
+
+    this.eventBus.publish(
+      new ChatMessageReasoningCompleteEvent(
+        state.sessionId,
+        messageId,
+        event.responseId,
+        text,
+        metadata,
+        timestamp,
+        agentId,
+      )
+    );
+
+    state.reasoning = undefined;
+  }
+
+  private async ensureReasoningMessage(state: StreamState): Promise<string> {
+    if (state.messageId) {
+      return state.messageId;
+    }
+
+    const result = await this.chatSessions.addMessage(state.sessionId, {
+      role: ChatMessageRole.Assistant,
+      content: state.buffer,
+    });
+    const message = result.message;
+    state.messageId = message.id;
+    state.lastPartial = { messageId: message.id, content: state.buffer };
+    return message.id;
+  }
+
+  private getOrCreateReasoningState(
+    state: StreamState,
+    id: string | undefined,
+  ): ReasoningState {
+    const existing = state.reasoning;
+    if (existing && (id === undefined || existing.id === id)) {
+      return existing;
+    }
+
+    const next: ReasoningState = {
+      id,
+      buffer: "",
+      lastEmitted: undefined,
+      metadata: undefined,
+      agentId: existing?.agentId ?? null,
+      messageId: existing?.messageId ?? state.messageId,
+    };
+    state.reasoning = next;
+    return next;
   }
 
   private async upsertMessage(state: StreamState): Promise<void> {
@@ -241,7 +364,7 @@ export class ChatSessionStreamRendererService {
     id: string | null
   ): string {
     if (!id) {
-      return new Date().toISOString();
+      return this.now();
     }
 
     const existing = state.toolTimestamps.get(id);
@@ -249,14 +372,14 @@ export class ChatSessionStreamRendererService {
       return existing;
     }
 
-    const timestamp = new Date().toISOString();
+    const timestamp = this.now();
     state.toolTimestamps.set(id, timestamp);
     return timestamp;
   }
 
   private consumeToolTimestamp(state: StreamState, id: string | null): string {
     if (!id) {
-      return new Date().toISOString();
+      return this.now();
     }
 
     const existing = state.toolTimestamps.get(id);
@@ -265,7 +388,7 @@ export class ChatSessionStreamRendererService {
       return existing;
     }
 
-    const timestamp = new Date().toISOString();
+    const timestamp = this.now();
     state.toolTimestamps.set(id, timestamp);
     return timestamp;
   }
@@ -281,6 +404,10 @@ export class ChatSessionStreamRendererService {
       return globalThis.structuredClone(value);
     }
     return JSON.parse(JSON.stringify(value)) as T;
+  }
+
+  private now(): string {
+    return new Date().toISOString();
   }
 
   private async updateActivity(

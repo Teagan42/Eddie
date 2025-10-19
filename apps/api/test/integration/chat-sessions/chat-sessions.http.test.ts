@@ -26,7 +26,12 @@ import {
   CompleteToolCallCommand,
 } from "../../../src/tools/commands";
 import { SendChatMessagePayloadDto } from "../../../src/chat-sessions/dto/send-chat-message.dto";
-import { ChatSessionToolCallEvent, ChatSessionToolResultEvent } from "@eddie/types";
+import {
+  ChatMessageReasoningCompleteEvent,
+  ChatMessageReasoningDeltaEvent,
+  ChatSessionToolCallEvent,
+  ChatSessionToolResultEvent,
+} from "@eddie/types";
 import { ChatMessageSent } from "../../../src/chat-sessions/events";
 
 const UNKNOWN_SESSION_ID = "00000000-0000-0000-0000-000000000000";
@@ -239,6 +244,75 @@ describe("ChatSessionsController HTTP", () => {
             command.input.agentId === "agent-123"
         )
       ).toBe(true)
+    );
+  });
+
+  it("broadcasts reasoning updates over the chat messages gateway", async () => {
+    const session = await service.createSession({ title: "Reasoning" });
+    const gateway = app.get(ChatMessagesGateway);
+    const partialSpy = vi
+      .spyOn(gateway, "emitReasoningPartial")
+      .mockImplementation(() => undefined);
+    const completeSpy = vi
+      .spyOn(gateway, "emitReasoningComplete")
+      .mockImplementation(() => undefined);
+
+    const message = (
+      await service.addMessage(session.id, {
+        role: ChatMessageRole.Assistant,
+        content: "",
+      })
+    ).message;
+
+    const partialTimestamp = new Date().toISOString();
+    const completeTimestamp = new Date(Date.now() + 1).toISOString();
+
+    await eventBus.publish(
+      new ChatMessageReasoningDeltaEvent(
+        session.id,
+        message.id,
+        "Thinking",
+        { stage: "analysis" },
+        partialTimestamp,
+        "agent-999",
+      )
+    );
+
+    await eventBus.publish(
+      new ChatMessageReasoningCompleteEvent(
+        session.id,
+        message.id,
+        "resp-xyz",
+        "Thinking",
+        { stage: "analysis" },
+        completeTimestamp,
+        "agent-999",
+      )
+    );
+
+    await vi.waitFor(() =>
+      expect(partialSpy).toHaveBeenCalledWith({
+        sessionId: session.id,
+        messageId: message.id,
+        text: "Thinking",
+        metadata: { stage: "analysis" },
+        timestamp: partialTimestamp,
+        agentId: "agent-999",
+      })
+    );
+
+    await vi.waitFor(() =>
+      expect(completeSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionId: session.id,
+          messageId: message.id,
+          responseId: "resp-xyz",
+          metadata: { stage: "analysis" },
+          timestamp: completeTimestamp,
+          agentId: "agent-999",
+          text: "Thinking",
+        })
+      )
     );
   });
 });

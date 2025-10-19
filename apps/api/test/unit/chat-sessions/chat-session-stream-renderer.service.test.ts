@@ -3,6 +3,8 @@ import type { EventBus } from "@nestjs/cqrs";
 import type { StreamEvent } from "@eddie/types";
 import {
   ChatMessagePartialEvent,
+  ChatMessageReasoningCompleteEvent,
+  ChatMessageReasoningDeltaEvent,
   ChatSessionToolCallEvent,
   ChatSessionToolResultEvent,
 } from "@eddie/types";
@@ -24,6 +26,18 @@ describe("ChatSessionStreamRendererService", () => {
     getPublishedEvents().filter(
       (event): event is ChatMessagePartialEvent =>
         event instanceof ChatMessagePartialEvent
+    );
+
+  const getReasoningPartials = () =>
+    getPublishedEvents().filter(
+      (event): event is ChatMessageReasoningDeltaEvent =>
+        event instanceof ChatMessageReasoningDeltaEvent
+    );
+
+  const getReasoningCompletions = () =>
+    getPublishedEvents().filter(
+      (event): event is ChatMessageReasoningCompleteEvent =>
+        event instanceof ChatMessageReasoningCompleteEvent
     );
 
   const getActivityEvents = () =>
@@ -177,6 +191,67 @@ describe("ChatSessionStreamRendererService", () => {
       id: "t1",
       agentId: "agent-alpha",
     });
+  });
+
+  it("publishes reasoning partial and completion events without duplicating message content", async () => {
+    await renderer.capture(sessionId, async () => {
+      renderer.render({
+        type: "reasoning_delta",
+        text: "Thinking",
+        id: "reason-1",
+        agentId: "agent-42",
+      });
+      renderer.render({
+        type: "reasoning_delta",
+        text: " harder",
+        id: "reason-1",
+        agentId: "agent-42",
+      });
+      renderer.render({
+        type: "reasoning_end",
+        responseId: "resp-1",
+        metadata: { stage: "analysis" },
+        agentId: "agent-42",
+      });
+      renderer.render({ type: "delta", text: "Final" });
+      renderer.render({ type: "end", responseId: "resp-1" });
+    });
+
+    const messages = await service.listMessages(sessionId);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.content).toBe("Final");
+
+    const reasoningPartials = getReasoningPartials();
+    expect(reasoningPartials).toHaveLength(2);
+    const [ firstPartial, secondPartial ] = reasoningPartials;
+    expect(firstPartial).toMatchObject({
+      sessionId,
+      text: "Thinking",
+      agentId: "agent-42",
+    });
+    expect(secondPartial).toMatchObject({
+      sessionId,
+      text: "Thinking harder",
+      agentId: "agent-42",
+      messageId: firstPartial.messageId,
+    });
+
+    const reasoningCompletions = getReasoningCompletions();
+    expect(reasoningCompletions).toHaveLength(1);
+    expect(reasoningCompletions[0]).toEqual(
+      expect.objectContaining({
+        sessionId,
+        messageId: firstPartial.messageId,
+        responseId: "resp-1",
+        metadata: { stage: "analysis" },
+        agentId: "agent-42",
+        text: "Thinking harder",
+      })
+    );
+
+    const partialEvents = getPartialEvents();
+    expect(partialEvents).toHaveLength(1);
+    expect(partialEvents[0]?.message.content).toBe("Final");
   });
 
   it("annotates tool events with consistent timestamps", async () => {

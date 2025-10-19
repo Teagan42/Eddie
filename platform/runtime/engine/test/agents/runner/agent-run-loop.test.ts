@@ -199,12 +199,61 @@ describe("AgentRunLoop", () => {
     const toolResultTrace = traceEvents.find((event) => event.phase === "tool_result");
     expect(toolResultTrace).toBeDefined();
     expect(toolResultTrace?.data).toEqual(
-      expect.objectContaining({ id: "call_1", result: toolResult })
+      expect.objectContaining({
+        id: "call_1",
+        result: toolResult,
+        arguments: { x: 1 },
+      })
     );
 
     expect(traceEvents.some((event) => event.phase === "iteration_complete")).toBe(
       true
     );
     expect(traceEvents.some((event) => event.phase === "agent_complete")).toBe(true);
+  });
+
+  it("publishes reasoning events without mixing them into assistant content", async () => {
+    const invocation = createInvocation();
+    const descriptor = createDescriptor({
+      provider: {
+        name: "mock",
+        stream: vi.fn().mockReturnValue(
+          createStream([
+            { type: "reasoning_delta", text: "Thinking", id: "reason-1" },
+            { type: "reasoning_delta", text: " harder", id: "reason-1" },
+            {
+              type: "reasoning_end",
+              responseId: "resp-42",
+              metadata: { stage: "analysis" },
+            },
+            { type: "delta", text: "Final answer" },
+            { type: "end", responseId: "resp-42" },
+          ])
+        ),
+      },
+    });
+
+    const streamRenderer = { render: vi.fn(), flush: vi.fn() };
+
+    const { runner, publish, streamRenderer: renderer } =
+      createAgentRunnerTestContext({
+        invocation,
+        descriptor,
+        streamRenderer: streamRenderer as unknown,
+      });
+
+    await runner.run();
+
+    const events = collectPublishedEvents(publish).map((event) => event.event);
+    expect(events.map((event) => event.type)).toEqual([
+      "reasoning_delta",
+      "reasoning_delta",
+      "reasoning_end",
+      "delta",
+      "end",
+    ]);
+
+    expect(renderer.flush).toHaveBeenCalled();
+    expect(invocation.messages.at(-1)?.content).toBe("Final answer");
   });
 });

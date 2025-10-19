@@ -126,6 +126,143 @@ export class OpenAIAdapter implements ProviderAdapter {
 
     let endReason: string | undefined;
     let usage: Record<string, unknown> | undefined;
+    const reasoningSegments: string[] = [];
+    let reasoningCompleted = false;
+    let reasoningResponseId: string | undefined;
+
+    const toRecord = (value: unknown): Record<string, unknown> | undefined => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return undefined;
+      }
+
+      return { ...(value as Record<string, unknown>) };
+    };
+
+    const extractReasoningText = (value: unknown): string | undefined => {
+      if (!value) {
+        return undefined;
+      }
+
+      if (typeof value === "string") {
+        return value;
+      }
+
+      if (Array.isArray(value)) {
+        const joined = value
+          .map((item) => extractReasoningText(item))
+          .filter((chunk): chunk is string => typeof chunk === "string" && chunk.length > 0)
+          .join("");
+        return joined.length > 0 ? joined : undefined;
+      }
+
+      if (typeof value === "object") {
+        const record = value as Record<string, unknown>;
+        if (typeof record.text === "string") {
+          return record.text;
+        }
+
+        if (typeof record.output_text === "string") {
+          return record.output_text;
+        }
+
+        if (Array.isArray(record.output_text)) {
+          const joined = record.output_text
+            .map((item) => extractReasoningText(item))
+            .filter(
+              (chunk): chunk is string =>
+                typeof chunk === "string" && chunk.length > 0,
+            )
+            .join("");
+          return joined.length > 0 ? joined : undefined;
+        }
+
+        if (Array.isArray(record.content)) {
+          const joined = record.content
+            .map((item) => extractReasoningText(item))
+            .filter(
+              (chunk): chunk is string =>
+                typeof chunk === "string" && chunk.length > 0,
+            )
+            .join("");
+          return joined.length > 0 ? joined : undefined;
+        }
+      }
+
+      return undefined;
+    };
+
+    const aggregatedReasoningText = (): string | undefined => {
+      return reasoningSegments.length > 0
+        ? reasoningSegments.join("")
+        : undefined;
+    };
+
+    const pushReasoningSegment = (segment: string | undefined): string | undefined => {
+      if (typeof segment !== "string") {
+        return undefined;
+      }
+
+      if (segment.length === 0) {
+        return undefined;
+      }
+
+      const normalized = segment.trim();
+      if (normalized.length === 0) {
+        return undefined;
+      }
+
+      reasoningSegments.push(normalized);
+      return normalized;
+    };
+
+    const maybeEmitReasoningDelta = (segment: string | undefined): StreamEvent | undefined => {
+      const chunk = pushReasoningSegment(segment);
+      if (!chunk) {
+        return undefined;
+      }
+
+      return { type: "reasoning_delta", text: chunk };
+    };
+
+    const maybeEmitReasoningEnd = (
+      reasoning: unknown,
+      responseId?: string,
+    ): StreamEvent | undefined => {
+      if (reasoningCompleted) {
+        return undefined;
+      }
+
+      const metadata = toRecord(reasoning) ?? {};
+      const aggregatedFromPayload = extractReasoningText(reasoning);
+      const aggregatedFromSegments = aggregatedReasoningText();
+
+      if (aggregatedFromPayload && typeof metadata.text !== "string") {
+        metadata.text = aggregatedFromPayload;
+      }
+
+      if (!metadata.text && aggregatedFromSegments) {
+        metadata.text = aggregatedFromSegments;
+      }
+
+      if (typeof metadata.text !== "string" || metadata.text.length === 0) {
+        return undefined;
+      }
+
+      reasoningCompleted = true;
+
+      return {
+        type: "reasoning_end",
+        metadata,
+        responseId: responseId ?? reasoningResponseId ?? currentResponseId,
+      } satisfies StreamEvent;
+    };
+
+    const assignReasoningResponseId = (
+      response: { id?: string } | undefined,
+    ): void => {
+      reasoningResponseId =
+        response?.id ?? reasoningResponseId ?? currentResponseId;
+    };
 
     try {
       for await (const event of stream) {
@@ -152,6 +289,32 @@ export class OpenAIAdapter implements ProviderAdapter {
             }
             if (typeof item.name === "string") {
               accumulator.name = item.name;
+            }
+            break;
+          }
+          case "response.reasoning_text.delta": {
+            assignReasoningResponseId(
+              (event as { response?: { id?: string } }).response,
+            );
+            const emitted = maybeEmitReasoningDelta(
+              (event as { delta?: unknown }).delta as string | undefined,
+            );
+            if (emitted) {
+              yield emitted;
+            }
+            break;
+          }
+          case "response.reasoning_text.done": {
+            const response = (event as { response?: { id?: string } })
+              .response;
+            assignReasoningResponseId(response);
+            const reasoningEnd = maybeEmitReasoningEnd(
+              (event as { response?: { reasoning?: unknown } }).response
+                ?.reasoning,
+              response?.id,
+            );
+            if (reasoningEnd) {
+              yield reasoningEnd;
             }
             break;
           }
@@ -214,6 +377,14 @@ export class OpenAIAdapter implements ProviderAdapter {
           case "response.completed": {
             usage = this.normalizeUsage(event.response?.usage);
             endReason = event.response?.status ?? "completed";
+            assignReasoningResponseId(event.response);
+            const reasoningEnd = maybeEmitReasoningEnd(
+              event.response?.reasoning,
+              event.response?.id,
+            );
+            if (reasoningEnd) {
+              yield reasoningEnd;
+            }
             break;
           }
           case "response.failed": {
@@ -263,6 +434,7 @@ export class OpenAIAdapter implements ProviderAdapter {
 
     if (finalResponse) {
       currentResponseId = currentResponseId ?? finalResponse.id;
+      reasoningResponseId = reasoningResponseId ?? finalResponse.id;
       for (const notification of extractNotificationEvents(finalResponse)) {
         yield notification;
       }
@@ -305,8 +477,23 @@ export class OpenAIAdapter implements ProviderAdapter {
         }
       }
 
+      const finalReasoningEnd = maybeEmitReasoningEnd(
+        (finalResponse as { reasoning?: unknown }).reasoning,
+        finalResponse.id,
+      );
+      if (finalReasoningEnd) {
+        yield finalReasoningEnd;
+      }
+
       usage = usage ?? this.normalizeUsage(finalResponse.usage);
       endReason = endReason ?? finalResponse.status ?? undefined;
+    }
+
+    if (!reasoningCompleted) {
+      const reasoningEnd = maybeEmitReasoningEnd(undefined, currentResponseId);
+      if (reasoningEnd) {
+        yield reasoningEnd;
+      }
     }
 
     yield { type: "end", reason: endReason, usage, responseId: currentResponseId };
