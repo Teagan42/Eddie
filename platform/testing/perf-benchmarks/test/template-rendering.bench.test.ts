@@ -1,3 +1,5 @@
+import { sep } from 'node:path';
+
 import { describe, expect, it, vi } from 'vitest';
 
 type AsyncFactoryRegistration = (
@@ -18,6 +20,8 @@ import {
   measureTemplateRenderingScenario,
 } from '../src/template-rendering.bench';
 
+const templateFixturesPathSegment = `${sep}fixtures${sep}templates${sep}`;
+
 describe('template-rendering benchmarks', () => {
   it('prepares fixtures that exercise extends and include behaviour', async () => {
     const fixtures = await loadTemplateRenderingFixtures();
@@ -33,6 +37,9 @@ describe('template-rendering benchmarks', () => {
     expect(welcomeFixture?.inline.template).toContain('{% extends');
     expect(welcomeFixture?.inline.template).toContain('{% include');
     expect(welcomeFixture?.descriptor.file).toMatch(/welcome-email\.njk$/);
+    expect(welcomeFixture?.descriptor.file).toContain(
+      templateFixturesPathSegment,
+    );
   });
 
   it('measures cold, warm, and cache-busted renders for a fixture', async () => {
