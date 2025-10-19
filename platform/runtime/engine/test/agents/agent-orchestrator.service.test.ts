@@ -350,7 +350,6 @@ describe("AgentOrchestratorService", () => {
     expect(dataSchema.required).toEqual([
       "agentId",
       "messageCount",
-      "prompt",
       "blocked",
       "finalMessage",
       "history",
@@ -361,7 +360,6 @@ describe("AgentOrchestratorService", () => {
     const dataProps = dataSchema.properties as Record<string, Record<string, unknown>>;
     expect(dataProps.agentId).toMatchObject({ type: "string" });
     expect(dataProps.messageCount).toMatchObject({ type: "integer" });
-    expect(dataProps.prompt).toMatchObject({ type: "string" });
     expect(dataProps.blocked).toMatchObject({ type: "boolean" });
 
     for (const key of ["variables", "context", "requestContext"]) {
@@ -402,7 +400,6 @@ describe("AgentOrchestratorService", () => {
       "transcriptSummary",
       "historySnippet",
       "contextBundleIds",
-      "request",
     ]);
 
     const metadataProps = metadataSchema.properties as Record<string, Record<string, unknown>>;
@@ -413,14 +410,20 @@ describe("AgentOrchestratorService", () => {
       type: "object",
       additionalProperties: false,
     });
-    expect(requestSchema.required).toEqual(["prompt"]);
+    expect(requestSchema.required).toEqual([]);
 
     const requestProps = requestSchema.properties as Record<string, Record<string, unknown>>;
-    expect(requestProps.prompt).toMatchObject({ type: "string" });
     expect(requestProps.variables).toMatchObject({ type: "object", additionalProperties: false });
     expect(
       Object.keys((requestProps.variables?.patternProperties ?? {}) as Record<string, unknown>),
     ).toContain("^.*$");
+
+    for (const key of ["context", "metadata"]) {
+      expect(requestProps[key]).toMatchObject({ type: "object", additionalProperties: false });
+      expect(
+        Object.keys((requestProps[key]?.patternProperties ?? {}) as Record<string, unknown>),
+      ).toContain("^.*$");
+    }
   });
 
   it("rejects hook-driven agent runs when subagents are disabled", async () => {

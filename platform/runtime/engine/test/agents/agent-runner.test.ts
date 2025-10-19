@@ -255,6 +255,53 @@ describe("AgentRunner", () => {
     expect(result.data.messageCount).toBe(completeHistory.length);
   });
 
+  it("omits the delegation prompt from spawn_subagent results", () => {
+    const parentDescriptor = createDescriptor({
+      id: "manager-agent",
+      definition: {
+        id: "manager-agent",
+        systemPrompt: "Coordinate work",
+        tools: [],
+      },
+    });
+
+    const childDescriptor = createDescriptor({
+      id: "writer-agent",
+      definition: {
+        id: "writer-agent",
+        systemPrompt: "Handle delegated tasks",
+        tools: [],
+      },
+    });
+
+    const childInvocation = createInvocation({
+      id: "writer-agent",
+      definition: childDescriptor.definition,
+      prompt: "Summarize the quarterly report in 200 words",
+      messages: [
+        { role: "system", content: "Handle delegated tasks" },
+        { role: "user", content: "Understood." },
+        { role: "assistant", content: "Here is the summary." },
+      ],
+      isRoot: false,
+    });
+
+    const result = AgentRunner.buildSubagentResult({
+      child: childInvocation,
+      descriptor: childDescriptor,
+      parentDescriptor,
+      request: {
+        prompt: "Summarize the quarterly report in 200 words",
+      },
+    });
+
+    expect(result.data?.prompt).toBeUndefined();
+    expect(result.metadata?.request?.prompt).toBeUndefined();
+    expect(JSON.stringify(result)).not.toContain(
+      "Summarize the quarterly report in 200 words"
+    );
+  });
+
   it("flushes non-root renderers and emits lifecycle hooks", async () => {
     const flush = vi.fn();
     const hooks = { emitAsync: vi.fn().mockResolvedValue({}) };

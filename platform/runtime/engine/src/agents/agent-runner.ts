@@ -94,7 +94,6 @@ export interface BuildSubagentResultOptions {
 interface SpawnResultData extends Record<string, unknown> {
   agentId: string;
   messageCount: number;
-  prompt: string;
   finalMessage?: string;
   variables?: TemplateVariables;
   context: PackedContextSnapshot;
@@ -240,69 +239,50 @@ export class AgentRunner {
       ? finalMessageText
       : `Subagent ${ descriptor.id } completed without a final response.`;
 
+    const hasRequestMetadata =
+      request.metadata && Object.keys(request.metadata).length > 0;
+
     const metadata: Record<string, unknown> = {
       agentId: descriptor.id,
       model: descriptor.model,
       provider: descriptor.provider.name,
       parentAgentId: parentDescriptor.id,
+      ...(descriptor.metadata?.profileId
+        ? { profileId: descriptor.metadata.profileId }
+        : {}),
+      ...(descriptor.metadata?.routingThreshold !== undefined
+        ? { routingThreshold: descriptor.metadata.routingThreshold }
+        : {}),
+      ...(descriptor.metadata?.name ? { name: descriptor.metadata.name } : {}),
+      ...(descriptor.metadata?.description
+        ? { description: descriptor.metadata.description }
+        : {}),
+      ...(hasRequestMetadata ? { request: { ...request.metadata } } : {}),
+      ...(selectedBundleIds.length > 0
+        ? { contextBundleIds: selectedBundleIds }
+        : {}),
+      ...(transcriptSummary
+        ? { historySnippet: transcriptSummary, transcriptSummary }
+        : {}),
+      ...(finalMessageText.length > 0
+        ? { finalMessage: finalMessageText }
+        : {}),
     };
-
-    if (descriptor.metadata?.profileId) {
-      metadata.profileId = descriptor.metadata.profileId;
-    }
-    if (descriptor.metadata?.routingThreshold !== undefined) {
-      metadata.routingThreshold = descriptor.metadata.routingThreshold;
-    }
-    if (descriptor.metadata?.name) {
-      metadata.name = descriptor.metadata.name;
-    }
-    if (descriptor.metadata?.description) {
-      metadata.description = descriptor.metadata.description;
-    }
-    if (request.metadata && Object.keys(request.metadata).length > 0) {
-      metadata.request = { ...request.metadata };
-    }
-
-    if (selectedBundleIds.length > 0) {
-      metadata.contextBundleIds = selectedBundleIds;
-    }
-
-    if (transcriptSummary) {
-      metadata.historySnippet = transcriptSummary;
-      metadata.transcriptSummary = transcriptSummary;
-    }
-
-    if (finalMessageText.length > 0) {
-      metadata.finalMessage = finalMessageText;
-    }
 
     const data: SpawnResultData = {
       agentId: descriptor.id,
       messageCount: historySource.length,
-      prompt: request.prompt,
       context: contextClone,
+      ...(variablesClone ? { variables: variablesClone } : {}),
+      ...(finalMessageText.length > 0
+        ? { finalMessage: finalMessageText }
+        : {}),
+      ...(transcriptSummary
+        ? { transcriptSummary, historySnippet: transcriptSummary }
+        : {}),
+      ...(historyClone.length > 0 ? { history: historyClone } : {}),
+      ...(requestContextClone ? { requestContext: requestContextClone } : {}),
     };
-
-    if (variablesClone) {
-      data.variables = variablesClone;
-    }
-
-    if (finalMessageText.length > 0) {
-      data.finalMessage = finalMessageText;
-    }
-
-    if (transcriptSummary) {
-      data.transcriptSummary = transcriptSummary;
-      data.historySnippet = transcriptSummary;
-    }
-
-    if (historyClone.length > 0) {
-      data.history = historyClone;
-    }
-
-    if (requestContextClone) {
-      data.requestContext = requestContextClone;
-    }
 
     return {
       schema: AgentRunner.SPAWN_TOOL_RESULT_SCHEMA,
