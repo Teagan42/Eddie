@@ -20,6 +20,7 @@ const catalogMock = vi.fn();
 const listSessionsMock = vi.fn();
 const listMessagesMock = vi.fn();
 const getMetadataMock = vi.fn();
+const getExecutionStateMock = vi.fn();
 const onSessionCreatedMock = vi.fn().mockImplementation(() => () => {});
 const onSessionUpdatedMock = vi.fn().mockImplementation(() => () => {});
 const onMessageCreatedMock = vi.fn().mockImplementation(() => () => {});
@@ -61,6 +62,7 @@ vi.mock("@/api/api-provider", () => ({
       },
       orchestrator: {
         getMetadata: getMetadataMock,
+        getExecutionState: getExecutionStateMock,
       },
       providers: {
         catalog: catalogMock,
@@ -98,6 +100,7 @@ describe("ChatPage message scrolling", () => {
       writable: true,
       value: vi.fn(),
     });
+    getExecutionStateMock.mockResolvedValue(null);
     const timestamp = new Date().toISOString();
     catalogMock.mockResolvedValue([]);
     listSessionsMock.mockResolvedValue([

@@ -306,6 +306,9 @@ export interface ApiClient {
         };
         orchestrator: {
             getMetadata(sessionId?: string): Promise<OrchestratorMetadataDto>;
+            getExecutionState(
+                sessionId: string
+            ): Promise<ExecutionTreeState | null>;
         };
     };
     sockets: {
@@ -623,6 +626,23 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
               ? `/orchestrator/metadata?sessionId=${ encodeURIComponent(sessionId) }`
               : "/orchestrator/metadata"
           ),
+        getExecutionState: async (sessionId) => {
+          if (!sessionId) {
+            return null;
+          }
+
+          try {
+            return await performRequest<ExecutionTreeState>(
+              `/orchestrator/execution-state?sessionId=${ encodeURIComponent(sessionId) }`
+            );
+          } catch (error) {
+            const status = (error as { status?: number; }).status;
+            if (status === 404) {
+              return null;
+            }
+            throw error;
+          }
+        },
       },
     },
     sockets: {
