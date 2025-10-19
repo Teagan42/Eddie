@@ -199,7 +199,11 @@ describe("AgentRunLoop", () => {
     const toolResultTrace = traceEvents.find((event) => event.phase === "tool_result");
     expect(toolResultTrace).toBeDefined();
     expect(toolResultTrace?.data).toEqual(
-      expect.objectContaining({ id: "call_1", result: toolResult })
+      expect.objectContaining({
+        id: "call_1",
+        result: toolResult,
+        arguments: { x: 1 },
+      })
     );
 
     expect(traceEvents.some((event) => event.phase === "iteration_complete")).toBe(
