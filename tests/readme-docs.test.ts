@@ -10,9 +10,12 @@ function readRootFile(path: string) {
 
 describe('README documentation', () => {
   let readme: string;
+  let featuresSection: string;
 
   beforeAll(() => {
     readme = readRootFile('../README.md');
+    const featuresSectionMatch = readme.match(/## Features([\s\S]*?)## /);
+    featuresSection = featuresSectionMatch?.[1] ?? '';
   });
 
   it('uses a title that reflects Eddie as a multi-surface agent platform', () => {
@@ -35,5 +38,24 @@ describe('README documentation', () => {
 
   it('documents the platform config defaults source path', () => {
     expect(readme).toContain(platformDefaultsPath);
+  });
+
+  it('enumerates every builtin tool in the features list', () => {
+    expect(featuresSection).toContain('Tool registry');
+
+    const builtinTools = [
+      '`bash`',
+      '`file_read`',
+      '`file_write`',
+      '`file_search`',
+      '`get_folder_tree_structure`',
+      '`get_plan`',
+      '`update_plan`',
+      '`complete_task`',
+    ];
+
+    for (const tool of builtinTools) {
+      expect(featuresSection).toContain(tool);
+    }
   });
 });
