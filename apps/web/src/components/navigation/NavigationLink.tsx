@@ -1,5 +1,4 @@
 import { Link, useLocation } from "react-router-dom";
-import { Badge } from "@radix-ui/themes";
 import { cn } from "@/vendor/lib/utils";
 
 export interface NavigationLinkProps {
@@ -22,14 +21,7 @@ export function NavigationLink({ to, label }: NavigationLinkProps): JSX.Element 
           : "text-white/80 hover:-translate-y-0.5 hover:bg-emerald-500/15 hover:text-white"
       )}
     >
-      <span className="relative z-10 flex items-center gap-2">
-        <span>{label}</span>
-        {isActive ? (
-          <Badge color="grass" variant="solid" radius="full" className="hidden md:inline-flex">
-            Active
-          </Badge>
-        ) : null}
-      </span>
+      <span className="relative z-10 flex items-center gap-2">{label}</span>
       <span className="absolute inset-0 z-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
     </Link>
   );
