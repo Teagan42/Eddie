@@ -114,6 +114,7 @@ export function OverviewHero({
                   "dark:text-[color:var(--hero-outline-foreground-dark)]",
                   "dark:hover:bg-[color:var(--hero-outline-bg-hover-dark)]"
                 )}
+                data-testid="hero-theme-trigger"
               >
                 Theme: {formatThemeLabel(theme)}
               </Select.Trigger>

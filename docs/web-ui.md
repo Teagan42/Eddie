@@ -71,7 +71,33 @@ VITE_ENABLE_TELEMETRY=false
 
 3. Open `http://localhost:5173` in your browser. If API keys are enabled, use the header’s **Add API Key** button to store a key; it will be sent on every HTTP request and WebSocket connection.
 
-To create an optimized production build, run `npm run web:build`. Vite will emit static assets under `apps/web/dist`, which you can serve behind the API or any other static host.【F:apps/web/package.json†L7-L15】
+  To create an optimized production build, run `npm run web:build`. Vite will emit static assets under `apps/web/dist`, which you can serve behind the API or any other static host.【F:apps/web/package.json†L7-L15】
+
+## Capture the demo overview screenshots
+
+The Playwright specs in `apps/web/tests` assume the API runs with the demo screenshot preset so the overview page renders seeded sessions, traces, logs, and runtime metadata. Start each service in its own terminal:
+
+1. Launch the API with demo fixtures enabled:
+
+   ```bash
+   npm run dev:api -- --preset demo-screenshots
+   ```
+
+2. Start the Vite dev server so the UI proxies `/api` requests to the running backend:
+
+   ```bash
+   npm run web:dev
+   ```
+
+3. Run the Playwright suite from the repository root once both servers report ready. Point the tests to the dev servers with environment variables so Playwright skips the bundled preview server and hits the hydrated API directly:
+
+   ```bash
+   PLAYWRIGHT_BASE_URL=http://127.0.0.1:5173 \
+   PLAYWRIGHT_API_BASE_URL=http://127.0.0.1:3000/api \
+   npm run --workspace @eddie/web test:e2e -- demo-overview.spec.ts
+   ```
+
+The shared test fixtures poll `/api/chat-sessions` until the demo data hydrates and capture full-page screenshots whenever assertions succeed. Collect the generated PNGs from `apps/web/test-results/*/` to update documentation screenshots or marketing assets. Re-run the command without the trailing spec filter to execute the entire E2E suite once additional pages gain coverage.
 
 ## What the UI expects from the API
 

@@ -1,5 +1,14 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const shouldStartWebServer = !process.env.PLAYWRIGHT_BASE_URL;
+const webServerConfig = shouldStartWebServer
+  ? {
+    command: "npm run preview -- --host",
+    port: 4173,
+    reuseExistingServer: !process.env.CI,
+  }
+  : undefined;
+
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: true,
@@ -25,9 +34,5 @@ export default defineConfig({
       use: { ...devices["Desktop Safari"] },
     },
   ],
-  webServer: {
-    command: "npm run preview -- --host",
-    port: 4173,
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: webServerConfig,
 });
