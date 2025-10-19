@@ -153,4 +153,15 @@ describe("ChatPage composer interactions", () => {
       content: "Hello world",
     });
   });
+
+  it("does not render template actions", async () => {
+    renderChatPage();
+
+    await screen.findByRole("button", { name: /open agent tools/i });
+
+    expect(
+      screen.queryByRole("button", { name: /save template/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/load template/i)).not.toBeInTheDocument();
+  });
 });

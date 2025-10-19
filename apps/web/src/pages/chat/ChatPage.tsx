@@ -11,7 +11,6 @@ import {
   ChatBubbleIcon,
   MagicWandIcon,
   PlusIcon,
-  RocketIcon,
 } from '@radix-ui/react-icons';
 import { type AgentActivityState } from './AgentActivityIndicator';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -95,6 +94,8 @@ const scrollMessageViewportToBottom = (anchor: HTMLElement): void => {
 type ChatPreferences = NonNullable<LayoutPreferencesDto['chat']>;
 
 type ComposerRole = ChatWindowComposerRole;
+
+const DEFAULT_COMPOSER_ROLE: ComposerRole = 'user';
 
 type AutoSessionAttemptStatus = 'idle' | 'pending' | 'failed';
 
@@ -192,9 +193,7 @@ export function ChatPage(): JSX.Element {
   useChatMessagesRealtime(api);
   const [composerValue, setComposerValue] = useState('');
   // Derive a safe default for composer role from the DTO union (fall back to 'user')
-  const defaultComposerRole = 'user' as ComposerRole;
-  const [composerRole, setComposerRole] = useState<ComposerRole>(defaultComposerRole);
-  const [templateSelection, setTemplateSelection] = useState<string>('');
+  const [composerRole, setComposerRole] = useState<ComposerRole>(DEFAULT_COMPOSER_ROLE);
   const [agentStreamActivity, setAgentStreamActivity] = useState<
     Exclude<AgentActivityState, 'sending'>
   >('idle');
@@ -629,7 +628,7 @@ export function ChatPage(): JSX.Element {
 
   useEffect(() => {
     setComposerValue('');
-    setComposerRole(defaultComposerRole);
+    setComposerRole(DEFAULT_COMPOSER_ROLE);
     setSelectedAgentId(null);
   }, [selectedSessionId]);
 
@@ -1020,7 +1019,6 @@ export function ChatPage(): JSX.Element {
 
   const collapsedPanels = preferences.chat?.collapsedPanels ?? {};
   const sessionSettings = preferences.chat?.sessionSettings ?? {};
-  const templates = useMemo(() => preferences.chat?.templates ?? {}, [preferences.chat?.templates]);
 
   const providerCatalogQuery = useQuery<ProviderCatalogEntryDto[]>({
     queryKey: ['providers', 'catalog'],
@@ -1270,67 +1268,6 @@ export function ChatPage(): JSX.Element {
     [applyChatUpdate, selectedProvider, selectedSessionId],
   );
 
-  const handleSaveTemplate = useCallback(() => {
-    if (!selectedSessionId || !composerValue.trim()) {
-      return;
-    }
-    const name = window.prompt('Template name', 'New template');
-    if (!name) {
-      return;
-    }
-    const templateId = `${selectedSessionId}-${Date.now()}`;
-    const template = {
-      id: templateId,
-      name: name.trim(),
-      provider: selectedProvider,
-      model: activeSettings.model,
-      prompt: composerValue,
-      createdAt: new Date().toISOString(),
-    };
-    applyChatUpdate((chat) => {
-      const nextTemplates = { ...(chat.templates ?? {}) };
-      nextTemplates[templateId] = template;
-      return { ...chat, templates: nextTemplates };
-    });
-  }, [
-    activeSettings.model,
-    applyChatUpdate,
-    composerValue,
-    selectedProvider,
-    selectedSessionId,
-  ]);
-
-  const handleLoadTemplate = useCallback(
-    (templateId: string) => {
-      const template = templates[templateId];
-      if (!template) {
-        return;
-      }
-      setComposerValue(template.prompt);
-      setComposerRole(defaultComposerRole);
-      if (selectedSessionId) {
-        applyChatUpdate((chat) => {
-          const nextSettings = { ...(chat.sessionSettings ?? {}) };
-          nextSettings[selectedSessionId] = {
-            provider: template.provider,
-            model: template.model,
-          };
-          return { ...chat, sessionSettings: nextSettings };
-        });
-      }
-    },
-    [applyChatUpdate, selectedSessionId, templates],
-  );
-
-  const handleTemplateSelection = useCallback(
-    (value: string) => {
-      setTemplateSelection(value);
-      handleLoadTemplate(value);
-      setTemplateSelection('');
-    },
-    [handleLoadTemplate],
-  );
-
   const handleCreateSession = useCallback(() => {
     const title = window.prompt('Session title', 'New orchestrator session');
     if (!title?.trim()) {
@@ -1440,39 +1377,6 @@ export function ChatPage(): JSX.Element {
                     aria-label="Model"
                     disabled={!selectedSessionId}
                   />
-                  <Select.Root
-                    value={templateSelection}
-                    onValueChange={handleTemplateSelection}
-                    disabled={Object.keys(templates).length === 0}
-                  >
-                    <Select.Trigger placeholder="Load template" />
-                    <Select.Content>
-                      {Object.values(
-                        templates as Record<
-                          string,
-                          {
-                            id: string;
-                            name: string;
-                            provider: string;
-                            model?: string;
-                            prompt: string;
-                          }
-                        >,
-                      ).map((template) => (
-                        <Select.Item key={template.id} value={template.id}>
-                          {template.name}
-                        </Select.Item>
-                      ))}
-                    </Select.Content>
-                  </Select.Root>
-                  <Button
-                    variant="soft"
-                    size="2"
-                    onClick={handleSaveTemplate}
-                    disabled={!composerValue.trim()}
-                  >
-                    <RocketIcon /> Save template
-                  </Button>
                   <SheetTrigger asChild>
                     <Button variant="solid" size="2">
                       <MagicWandIcon /> Open agent tools
