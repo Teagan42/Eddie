@@ -8,10 +8,14 @@ import { afterAll, bench, describe, suite } from 'vitest';
 import { TemplateRendererService } from '@eddie/templates';
 import type { TemplateDescriptor, TemplateVariables } from '@eddie/templates';
 
-import { createSafeBench, type BenchRegistration } from './bench.runtime';
+import {
+  createSafeBench,
+  isBenchmarkMode,
+  type BenchRegistration,
+} from './bench.runtime';
 
 const FIXTURE_ROOT = fileURLToPath(
-  new URL('../fixtures/providers/', import.meta.url),
+  new URL('../fixtures/templates/', import.meta.url),
 );
 
 interface TemplateFixtureDefinition {
@@ -338,12 +342,14 @@ export async function defineTemplateRenderingBenchmarks({
   });
 }
 
-await defineTemplateRenderingBenchmarks({
-  suite,
-  describe,
-  bench: createSafeBench(bench),
-  loadFixtures: loadTemplateRenderingFixtures,
-}).catch((error) => {
-  console.error('Failed to register template rendering benchmarks', error);
-});
+if (isBenchmarkMode()) {
+  await defineTemplateRenderingBenchmarks({
+    suite,
+    describe,
+    bench: createSafeBench(bench),
+    loadFixtures: loadTemplateRenderingFixtures,
+  }).catch((error) => {
+    console.error('Failed to register template rendering benchmarks', error);
+  });
+}
 

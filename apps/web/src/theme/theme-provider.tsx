@@ -18,6 +18,7 @@ const CONFIG_QUERY_KEY = ["config"] as const;
 interface ThemeContextValue {
   theme: RuntimeConfigDto["theme"];
   setTheme: (theme: RuntimeConfigDto["theme"]) => void;
+  isThemeStale: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -36,6 +37,7 @@ function syncDocumentTheme(theme: RuntimeConfigDto["theme"]): void {
 
 const THEME_TRANSITION_CLASS = "theme-transition";
 const THEME_TRANSITION_MS = 320;
+const STALE_REPLAY_WINDOW_MS = 1000;
 
 export function ThemeProvider({ children }: { children: ReactNode }): JSX.Element {
   const api = useApi();
@@ -48,7 +50,13 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
   const [theme, setThemeState] = useState<RuntimeConfigDto["theme"]>(() => {
     return (configQuery.data?.theme ?? "dark") as RuntimeConfigDto["theme"];
   });
+  const [isThemeStale, setIsThemeStale] = useState(false);
+  const markThemeStale = useCallback(() => setIsThemeStale(true), []);
+  const markThemeStable = useCallback(() => setIsThemeStale(false), []);
   const userOverrideRef = useRef(false);
+  const pendingThemeRef = useRef<RuntimeConfigDto["theme"] | null>(null);
+  const previousThemeRef = useRef<RuntimeConfigDto["theme"] | null>(null);
+  const lastAckTimestampRef = useRef<number | null>(null);
   const transitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearThemeTransition = useCallback(() => {
@@ -82,16 +90,47 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
       return;
     }
 
+    if (pendingThemeRef.current) {
+      if (serverTheme === pendingThemeRef.current) {
+        pendingThemeRef.current = null;
+        userOverrideRef.current = false;
+        lastAckTimestampRef.current = Date.now();
+        markThemeStable();
+      } else if (previousThemeRef.current && serverTheme === previousThemeRef.current) {
+        markThemeStale();
+      }
+      return;
+    }
+
+    const previousTheme = previousThemeRef.current;
+    const lastAck = lastAckTimestampRef.current;
+    const isStaleReplay =
+      previousTheme !== null &&
+      serverTheme === previousTheme &&
+      lastAck !== null &&
+      Date.now() - lastAck < STALE_REPLAY_WINDOW_MS;
+
+    if (isStaleReplay) {
+      markThemeStale();
+      return;
+    }
+
+    previousThemeRef.current = null;
+    lastAckTimestampRef.current = null;
+    markThemeStable();
+
     if (serverTheme === theme) {
       userOverrideRef.current = false;
+      markThemeStable();
       return;
     }
 
     if (!userOverrideRef.current) {
       beginThemeTransition();
       setThemeState(serverTheme);
+      userOverrideRef.current = false;
     }
-  }, [beginThemeTransition, configQuery.data?.theme, theme]);
+  }, [beginThemeTransition, configQuery.data?.theme, markThemeStable, markThemeStale, theme]);
 
   useEffect(() => {
     syncDocumentTheme(theme);
@@ -100,9 +139,13 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
   const setTheme = useCallback(
     (nextTheme: RuntimeConfigDto["theme"]) => {
       userOverrideRef.current = true;
+      previousThemeRef.current = theme;
+      pendingThemeRef.current = nextTheme;
+      lastAckTimestampRef.current = null;
       beginThemeTransition();
       setThemeState(nextTheme);
       syncDocumentTheme(nextTheme);
+      markThemeStable();
       queryClient.setQueryData<RuntimeConfigDto | undefined>(CONFIG_QUERY_KEY, (current) => {
         if (current) {
           return { ...current, theme: nextTheme };
@@ -111,10 +154,13 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
       });
       void api.http.config.update({ theme: nextTheme });
     },
-    [api, beginThemeTransition, queryClient]
+    [api, beginThemeTransition, markThemeStable, queryClient, theme]
   );
 
-  const value = useMemo<ThemeContextValue>(() => ({ theme, setTheme }), [theme, setTheme]);
+  const value = useMemo<ThemeContextValue>(
+    () => ({ theme, setTheme, isThemeStale }),
+    [isThemeStale, setTheme, theme]
+  );
 
   return (
     <ThemeContext.Provider value={value}>

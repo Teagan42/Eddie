@@ -29,7 +29,7 @@ describe('CollapsiblePanel', () => {
     expect(handleToggle).toHaveBeenCalledWith('panel-id', true);
   });
 
-  it('renders animated collapsible content when expanded', () => {
+  it('wraps expanded content in a motion region for transitions', () => {
     render(
       <TooltipProvider>
         <CollapsiblePanel
@@ -44,16 +44,9 @@ describe('CollapsiblePanel', () => {
       </TooltipProvider>,
     );
 
-    const content = screen.getByText('Panel content').closest('[data-state]');
+    const animatedRegion = screen.getByTestId('collapsible-panel-motion');
 
-    expect(content).toHaveAttribute('data-state', 'open');
-    expect(content).toHaveClass('data-[state=open]:animate-accordion-down');
-    expect(content).toHaveClass('data-[state=closed]:animate-accordion-up');
-    expect(content).toHaveClass('grid');
-    expect(content).toHaveClass('transition-all');
-    expect(content).toHaveClass('duration-500');
-    expect(content).toHaveClass('ease-out');
-    expect(content).toHaveClass('data-[state=open]:grid-rows-[1fr]');
-    expect(content).toHaveClass('data-[state=closed]:grid-rows-[0fr]');
+    expect(animatedRegion).toHaveAttribute('data-motion', 'collapsible-panel-content');
+    expect(animatedRegion).toHaveTextContent('Panel content');
   });
 });

@@ -15,7 +15,7 @@ type MockCandidate = { mock?: unknown };
 const isMockFunction = (value: unknown): value is MockCandidate =>
   typeof value === 'function' && value !== null && 'mock' in (value as MockCandidate);
 
-const isBenchmarkMode = (): boolean => {
+export const isBenchmarkMode = (): boolean => {
   const mode = process.env.VITEST_MODE?.toLowerCase();
   return mode ? BENCH_MODE_VALUES.has(mode) : false;
 };

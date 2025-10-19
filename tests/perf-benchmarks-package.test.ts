@@ -24,10 +24,11 @@ const loadModule = async (url: URL) => {
   const module = await import(url.href);
   return module.default ?? module;
 };
+const benchScript = 'vitest bench --run';
 const expectedScripts = Object.freeze({
   lint: 'eslint --no-error-on-unmatched-pattern .',
   build: expect.any(String),
-  bench: 'vitest bench',
+  bench: benchScript,
 });
 
 describe('@eddie/perf-benchmarks workspace configuration', () => {
