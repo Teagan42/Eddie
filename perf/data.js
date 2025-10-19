@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760900360128,
+  "lastUpdate": 1760900538708,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -124,6 +124,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 24.388,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b4c3c39f55d6a1a0252f5bdb2be1dc8f5ea4721b",
+          "message": "ci: Update benchmarks.yml (#641)\n\n* Update benchmarks.yml\n\n* ci: add deploy for benchmarks\n\n* fix: adjust path",
+          "timestamp": "2025-10-19T18:51:37Z",
+          "tree_id": "e293d1d910f7fbb5b4444ba3036c6a1c6dc15964",
+          "url": "https://github.com/Teagan42/Eddie/commit/b4c3c39f55d6a1a0252f5bdb2be1dc8f5ea4721b"
+        },
+        "date": 1760900538254,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 50.311,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 32.97,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 24.88,
             "unit": "ms",
             "extra": "[object Object]"
           }
