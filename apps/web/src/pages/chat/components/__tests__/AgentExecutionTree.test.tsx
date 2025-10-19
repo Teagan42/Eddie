@@ -122,6 +122,68 @@ describe('AgentExecutionTree', () => {
     expect(screen.getByText(/preferences.json/)).toBeInTheDocument();
   });
 
+  it('retains previews from invocation metadata when args and result fields are missing', async () => {
+    const user = userEvent.setup();
+    const invocation: ExecutionTreeState['toolInvocations'][number] = {
+      id: 'tool-with-metadata',
+      agentId: 'root-agent',
+      name: 'ingest-records',
+      status: 'completed',
+      createdAt: '2024-05-01T12:03:00.000Z',
+      updatedAt: '2024-05-01T12:03:30.000Z',
+      metadata: {
+        args: { source: 'records.csv' },
+        result: 'All good',
+      },
+      children: [],
+    };
+
+    const executionTree: ExecutionTreeState = {
+      agentHierarchy: [
+        {
+          id: 'root-agent',
+          name: 'orchestrator',
+          provider: 'openai',
+          model: 'gpt-4o',
+          depth: 0,
+          lineage: ['root-agent'],
+          children: [],
+        },
+      ],
+      toolInvocations: [invocation],
+      contextBundles: [],
+      agentLineageById: { 'root-agent': ['root-agent'] },
+      toolGroupsByAgentId: {
+        'root-agent': {
+          pending: [],
+          running: [],
+          completed: [invocation],
+          failed: [],
+        },
+      },
+      contextBundlesByAgentId: { 'root-agent': [] },
+      contextBundlesByToolCallId: {},
+      createdAt: '2024-05-01T12:03:00.000Z',
+      updatedAt: '2024-05-01T12:03:30.000Z',
+    };
+
+    render(
+      <AgentExecutionTree state={executionTree} selectedAgentId={null} onSelectAgent={() => {}} />,
+    );
+
+    const completedToggle = screen.getByRole('button', {
+      name: /toggle completed tool invocations for orchestrator/i,
+    });
+    await user.click(completedToggle);
+
+    const completedRegion = screen.getByRole('region', {
+      name: /completed tool invocations for orchestrator/i,
+    });
+
+    expect(within(completedRegion).getByText(/ingest-records/i)).toBeInTheDocument();
+    expect(within(completedRegion).getByText('All good')).toBeInTheDocument();
+  });
+
   it('orders tool invocations in each status group with newest entries first', async () => {
     const user = userEvent.setup();
     const olderInvocation: ExecutionTreeState['toolInvocations'][number] = {
