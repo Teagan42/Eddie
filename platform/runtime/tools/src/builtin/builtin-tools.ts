@@ -10,6 +10,7 @@ import { agentNewTaskListTool } from "./agent__new_task_list";
 import { agentNewTaskTool } from "./agent__new_task";
 import { agentGetTaskListTool } from "./agent__get_task_list";
 import { agentSetTaskStatusTool } from "./agent__set_task_status";
+import { agentDeleteTaskTool } from "./agent__delete_task";
 
 export const builtinTools = [
   bashTool,
@@ -24,4 +25,5 @@ export const builtinTools = [
   agentNewTaskTool,
   agentGetTaskListTool,
   agentSetTaskStatusTool,
+  agentDeleteTaskTool,
 ];

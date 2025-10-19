@@ -137,6 +137,14 @@ export const sanitiseTaskListName = (value: unknown): string => {
   return trimmed;
 };
 
+export const sanitiseTaskId = (value: unknown): string => {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error("taskId must be provided");
+  }
+
+  return value.trim();
+};
+
 const resolveTaskListDirectory = (rootDir: string): string =>
   path.join(rootDir, DEFAULT_TASK_LIST_DIRECTORY);
 
