@@ -28,7 +28,10 @@ const baseConfig: EddieConfig = {
   transcript: {},
 };
 
-function createService(overrides: Partial<EddieConfig> = {}) {
+function createService(
+  overrides: Partial<EddieConfig> = {},
+  options: { includeDemoSeedReplayService?: boolean } = {}
+) {
   const config: EddieConfig = { ...baseConfig, ...overrides };
   const configStore = { getSnapshot: vi.fn(() => config) };
   const contextService = {
@@ -88,6 +91,14 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     })),
   };
 
+  const { includeDemoSeedReplayService = true } = options;
+
+  const demoSeedReplayService = includeDemoSeedReplayService
+    ? {
+        replayIfEnabled: vi.fn(async () => undefined),
+      }
+    : undefined;
+
   const service = new EngineService(
     configStore as any,
     contextService as any,
@@ -100,6 +111,7 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     agentOrchestrator as any,
     mcpToolSourceService as any,
     metrics as any,
+    includeDemoSeedReplayService ? (demoSeedReplayService as any) : undefined,
   );
 
   return {
@@ -111,6 +123,7 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     transcriptCompactionService,
     metrics,
     agentOrchestrator,
+    demoSeedReplayService,
   };
 }
 
@@ -126,7 +139,7 @@ afterEach(() => {
 
 describe("EngineService", () => {
   it("does not declare a ConfigService dependency", () => {
-    expect(EngineService.length).toBe(11);
+    expect(EngineService.length).toBe(12);
   });
 
   it("does not reload configuration when runtime overrides are provided", async () => {
@@ -153,6 +166,42 @@ describe("EngineService", () => {
     expect(agentOrchestrator.runAgent).toHaveBeenCalled();
     const [, runtimeOptions] = agentOrchestrator.runAgent.mock.calls[0] ?? [];
     expect(runtimeOptions?.metrics).toBe(metrics);
+  });
+
+  it("replays demo seeds when provided", async () => {
+    const {
+      service,
+      agentOrchestrator,
+      demoSeedReplayService,
+      metrics,
+    } = createService();
+
+    demoSeedReplayService!.replayIfEnabled.mockResolvedValue({
+      messages: [
+        { role: "system", content: "You are Eddie." },
+        { role: "assistant", content: "Demo" },
+      ],
+      assistantMessages: 1,
+      tracePath: "/tmp/demo-trace.jsonl",
+    });
+
+    const result = await service.run("prompt");
+
+    expect(agentOrchestrator.runAgent).not.toHaveBeenCalled();
+    expect(result.messages).toHaveLength(2);
+    expect(result.tracePath).toBe("/tmp/demo-trace.jsonl");
+    expect(metrics.countMessage).toHaveBeenCalledWith("assistant");
+  });
+
+  it("treats DemoSeedReplayService as optional", async () => {
+    const { service, agentOrchestrator } = createService({}, {
+      includeDemoSeedReplayService: false,
+    });
+
+    const result = await service.run("prompt");
+
+    expect(agentOrchestrator.runAgent).toHaveBeenCalledTimes(1);
+    expect(result.messages).toEqual([]);
   });
 
   it("skips MCP resources that exceed context byte budget", async () => {

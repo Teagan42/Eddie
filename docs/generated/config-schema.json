@@ -1474,6 +1474,27 @@
             ]
           }
         }
+      },
+      "demoSeeds": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chatSessions": {
+            "type": "string"
+          },
+          "agentInvocations": {
+            "type": "string"
+          },
+          "traces": {
+            "type": "string"
+          },
+          "logs": {
+            "type": "string"
+          },
+          "runtimeConfig": {
+            "type": "string"
+          }
+        }
       }
     }
   },
@@ -2956,6 +2977,27 @@
                 }
               }
             ]
+          }
+        }
+      },
+      "demoSeeds": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chatSessions": {
+            "type": "string"
+          },
+          "agentInvocations": {
+            "type": "string"
+          },
+          "traces": {
+            "type": "string"
+          },
+          "logs": {
+            "type": "string"
+          },
+          "runtimeConfig": {
+            "type": "string"
           }
         }
       }

@@ -1,0 +1,47 @@
+{
+  "sessions": [
+    {
+      "id": "demo-screenshot",
+      "title": "Web walkthrough",
+      "createdAt": "2024-09-01T12:00:00Z",
+      "messages": [
+        {
+          "id": "msg-001",
+          "role": "user",
+          "content": "Show me how Eddie renders the trace timeline."
+        },
+        {
+          "id": "msg-002",
+          "role": "assistant",
+          "content": "Loading the pre-recorded session for the trace timeline screenshot."
+        },
+        {
+          "id": "msg-003",
+          "role": "assistant",
+          "content": "Here is the snapshot featuring the agent invocation tree with highlighted tool calls."
+        }
+      ],
+      "agentInvocationTree": {
+        "id": "root",
+        "agent": "demo-web",
+        "status": "succeeded",
+        "children": [
+          {
+            "id": "tool-plan",
+            "agent": "planner",
+            "status": "succeeded",
+            "tool": "plan",
+            "output": "Review repository docs and collect trace artifacts."
+          },
+          {
+            "id": "tool-trace",
+            "agent": "trace-inspector",
+            "status": "succeeded",
+            "tool": "trace.read",
+            "output": "Loaded 16 streamed events for screenshot annotations."
+          }
+        ]
+      }
+    }
+  ]
+}

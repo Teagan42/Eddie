@@ -54,11 +54,19 @@ export interface CreateChatMessageInput {
   name?: string;
 }
 
+export interface ChatSessionSeedSnapshot {
+  session: ChatSessionRecord;
+  messages: ChatMessageRecord[];
+  agentInvocations?: AgentInvocationSnapshot[];
+  apiKeyHashes?: readonly string[];
+}
+
 export interface ChatSessionsRepository {
   listSessions(): Promise<ChatSessionRecord[]>;
   listSessionsForApiKey(apiKey: string): Promise<ChatSessionRecord[]>;
   getSessionById(id: string): Promise<ChatSessionRecord | undefined>;
   createSession(input: CreateChatSessionInput): Promise<ChatSessionRecord>;
+  seedSession(snapshot: ChatSessionSeedSnapshot): Promise<void>;
   renameSession(
     id: string,
     title: string
@@ -230,6 +238,52 @@ export class InMemoryChatSessionsRepository implements ChatSessionsRepository {
     this.messages.set(session.id, []);
     this.indexSession(session.id, input.apiKey);
     return cloneSession(session);
+  }
+
+  async seedSession(snapshot: ChatSessionSeedSnapshot): Promise<void> {
+    const session: ChatSessionRecord = {
+      id: snapshot.session.id,
+      title: snapshot.session.title,
+      description: snapshot.session.description,
+      status: snapshot.session.status,
+      createdAt: new Date(snapshot.session.createdAt),
+      updatedAt: new Date(snapshot.session.updatedAt),
+    };
+
+    this.sessions.set(session.id, session);
+
+    const messageCollection = snapshot.messages.map((message) => ({
+      id: message.id,
+      sessionId: message.sessionId,
+      role: message.role,
+      content: message.content,
+      createdAt: new Date(message.createdAt),
+      toolCallId: message.toolCallId,
+      name: message.name,
+    }));
+
+    this.messages.set(session.id, messageCollection);
+
+    if (snapshot.agentInvocations && snapshot.agentInvocations.length > 0) {
+      const cloned = snapshot.agentInvocations.map((invocation) =>
+        cloneInvocation(invocation)
+      );
+      this.agentInvocations.set(session.id, cloned);
+    } else {
+      this.agentInvocations.delete(session.id);
+    }
+
+    this.unindexSession(session.id);
+    if (snapshot.apiKeyHashes) {
+      for (const hash of snapshot.apiKeyHashes) {
+        let sessionsForKey = this.apiKeyIndex.get(hash);
+        if (!sessionsForKey) {
+          sessionsForKey = new Set<string>();
+          this.apiKeyIndex.set(hash, sessionsForKey);
+        }
+        sessionsForKey.add(session.id);
+      }
+    }
   }
 
   async renameSession(
@@ -557,6 +611,106 @@ export class KnexChatSessionsRepository implements ChatSessionsRepository, OnMod
       throw new Error(`Failed to load chat session ${id} after creation.`);
     }
     return session;
+  }
+
+  async seedSession(snapshot: ChatSessionSeedSnapshot): Promise<void> {
+    await this.ensureReady();
+    await this.knex.transaction(async (trx) => {
+      const sessionId = snapshot.session.id;
+
+      await trx("tool_results").where({ session_id: sessionId }).delete();
+      await trx("tool_calls").where({ session_id: sessionId }).delete();
+      await trx("chat_messages").where({ session_id: sessionId }).delete();
+      await trx("agent_invocations").where({ session_id: sessionId }).delete();
+      await trx("chat_session_api_keys").where({ session_id: sessionId }).delete();
+      await trx("chat_sessions").where({ id: sessionId }).delete();
+
+      await trx("chat_sessions").insert({
+        id: sessionId,
+        title: snapshot.session.title,
+        description: snapshot.session.description ?? null,
+        status: snapshot.session.status,
+        created_at: snapshot.session.createdAt,
+        updated_at: snapshot.session.updatedAt,
+      });
+
+      if (snapshot.apiKeyHashes) {
+        for (const hash of snapshot.apiKeyHashes) {
+          await trx("chat_session_api_keys").insert({
+            session_id: sessionId,
+            api_key: hash,
+          });
+        }
+      }
+
+      for (const message of snapshot.messages) {
+        const timestamp = new Date(message.createdAt);
+        await trx("chat_messages").insert({
+          id: message.id,
+          session_id: sessionId,
+          role: message.role,
+          content: message.content,
+          created_at: timestamp,
+          tool_call_id: message.toolCallId ?? null,
+          name: message.name ?? null,
+        });
+
+        if (message.toolCallId) {
+          if (message.role === ChatMessageRole.Assistant) {
+            await trx("tool_calls")
+              .insert({
+                id: randomUUID(),
+                session_id: sessionId,
+                tool_call_id: message.toolCallId,
+                name: message.name ?? null,
+                status: "running",
+                arguments: null,
+                message_id: message.id,
+                created_at: timestamp,
+                updated_at: timestamp,
+              })
+              .onConflict(["session_id", "tool_call_id"])
+              .merge({
+                message_id: message.id,
+                name: message.name ?? null,
+                updated_at: timestamp,
+              });
+          }
+
+          if (message.role === ChatMessageRole.Tool) {
+            await trx("tool_results")
+              .insert({
+                id: randomUUID(),
+                session_id: sessionId,
+                tool_call_id: message.toolCallId,
+                name: message.name ?? null,
+                result: null,
+                message_id: message.id,
+                created_at: timestamp,
+                updated_at: timestamp,
+              })
+              .onConflict(["session_id", "tool_call_id"])
+              .merge({
+                message_id: message.id,
+                name: message.name ?? null,
+                updated_at: timestamp,
+              });
+          }
+        }
+      }
+
+      if (snapshot.agentInvocations && snapshot.agentInvocations.length > 0) {
+        const cloned = snapshot.agentInvocations.map((snapshotInvocation) =>
+          cloneInvocation(snapshotInvocation)
+        );
+        const payload =
+          this.jsonDialect === "text" ? JSON.stringify(cloned) : cloned;
+        await trx("agent_invocations")
+          .insert({ session_id: sessionId, payload })
+          .onConflict("session_id")
+          .merge({ payload });
+      }
+    });
   }
 
   async renameSession(

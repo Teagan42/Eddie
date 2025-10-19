@@ -229,6 +229,18 @@ graph LR
   context__resources["resources: array<oneOf>"]
   context --> context__variables
   context__variables["variables: object"]
+  root --> demoSeeds
+  demoSeeds["demoSeeds: object"]
+  demoSeeds --> demoSeeds__agentInvocations
+  demoSeeds__agentInvocations["agentInvocations: string"]
+  demoSeeds --> demoSeeds__chatSessions
+  demoSeeds__chatSessions["chatSessions: string"]
+  demoSeeds --> demoSeeds__logs
+  demoSeeds__logs["logs: string"]
+  demoSeeds --> demoSeeds__runtimeConfig
+  demoSeeds__runtimeConfig["runtimeConfig: string"]
+  demoSeeds --> demoSeeds__traces
+  demoSeeds__traces["traces: string"]
   root --> hooks
   hooks["hooks: object"]
   hooks --> hooks__directory

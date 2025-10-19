@@ -319,6 +319,14 @@ export interface TranscriptConfig {
   compactor?: TranscriptCompactorConfig;
 }
 
+export interface DemoSeedsConfig {
+  chatSessions?: string;
+  agentInvocations?: string;
+  traces?: string;
+  logs?: string;
+  runtimeConfig?: string;
+}
+
 export interface EddieConfig {
   version: number;
   model: string;
@@ -337,6 +345,7 @@ export interface EddieConfig {
   agents: AgentsConfig;
   transcript?: TranscriptConfig;
   metrics?: MetricsConfig;
+  demoSeeds?: DemoSeedsConfig;
 }
 
 export interface EddieConfigInput {
@@ -357,6 +366,7 @@ export interface EddieConfigInput {
   agents?: AgentsConfigInput;
   transcript?: TranscriptConfig;
   metrics?: Partial<MetricsConfig>;
+  demoSeeds?: DemoSeedsConfig;
   extends?: ConfigExtensionReference[];
 }
 

@@ -30,6 +30,7 @@ import type {
   ContextResourceConfig,
   EddieConfig,
   EddieConfigInput,
+  DemoSeedsConfig,
   LoggingConfig,
   MetricsConfig,
   ProviderConfig,
@@ -546,6 +547,7 @@ export class ConfigService {
       input.provider
     );
     const mergedApi = this.mergeApiConfig(base.api, input.api);
+    const mergedDemoSeeds = this.mergeDemoSeeds(base.demoSeeds, input.demoSeeds);
 
     return {
       ...base,
@@ -580,6 +582,21 @@ export class ConfigService {
         input.transcript,
       ),
       metrics: this.mergeMetricsConfig(base.metrics, input.metrics),
+      demoSeeds: mergedDemoSeeds,
+    };
+  }
+
+  private mergeDemoSeeds(
+    base: DemoSeedsConfig | undefined,
+    input: DemoSeedsConfig | undefined,
+  ): DemoSeedsConfig | undefined {
+    if (!base && !input) {
+      return undefined;
+    }
+
+    return {
+      ...(base ?? {}),
+      ...(input ?? {}),
     };
   }
 
