@@ -204,7 +204,7 @@ export interface OrchestratorMetadataDto {
     capturedAt?: string;
 }
 
-export type AgentActivityStateDto = "idle" | "thinking" | "tool" | "error";
+export type AgentActivityStateDto = "idle" | "thinking" | "tool" | "tool-error" | "error";
 
 export interface AgentActivityEventDto {
     sessionId: string;
