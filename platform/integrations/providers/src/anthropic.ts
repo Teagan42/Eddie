@@ -62,6 +62,147 @@ export class AnthropicAdapter implements ProviderAdapter {
     const decoder = new TextDecoder();
     let buffer = "";
     const toolStates = new Map<string, ToolState>();
+    type ReasoningState = {
+      id?: string;
+      segments: string[];
+      metadata: Record<string, unknown>;
+    };
+    const reasoningStates = new Map<string, ReasoningState>();
+
+    const reasoningKey = (id?: string): string => id ?? "__default__";
+
+    const toRecord = (value: unknown): Record<string, unknown> | undefined => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return undefined;
+      }
+
+      return { ...(value as Record<string, unknown>) };
+    };
+
+    const extractText = (value: unknown): string | undefined => {
+      if (typeof value === "string") {
+        return value;
+      }
+
+      if (Array.isArray(value)) {
+        const joined = value
+          .map((item) => extractText(item))
+          .filter((chunk): chunk is string => typeof chunk === "string" && chunk.trim().length > 0)
+          .join(" ");
+        return joined.length > 0 ? joined : undefined;
+      }
+
+      if (value && typeof value === "object") {
+        const record = value as Record<string, unknown>;
+        if (typeof record.text === "string") {
+          return record.text;
+        }
+
+        if (record.delta) {
+          return extractText(record.delta);
+        }
+
+        if (typeof record.partial_json === "string") {
+          return record.partial_json;
+        }
+      }
+
+      return undefined;
+    };
+
+    const appendReasoning = (
+      id: string | undefined,
+      chunk: string | undefined,
+    ): StreamEvent | undefined => {
+      if (typeof chunk !== "string") {
+        return undefined;
+      }
+
+      const normalized = chunk.trim();
+      if (normalized.length === 0) {
+        return undefined;
+      }
+
+      const key = reasoningKey(id);
+      const state = reasoningStates.get(key) ?? {
+        id,
+        segments: [],
+        metadata: {},
+      };
+      state.segments.push(normalized);
+      if (id && typeof state.metadata.id !== "string") {
+        state.metadata.id = id;
+      }
+      reasoningStates.set(key, state);
+
+      return { type: "reasoning_delta", text: normalized, id };
+    };
+
+    const isReasoningComplete = (value: unknown): boolean => {
+      if (!value || typeof value !== "object") {
+        return false;
+      }
+
+      const record = value as Record<string, unknown>;
+      const type = record.type;
+      if (typeof type === "string" && /stop|complete|end|done/i.test(type)) {
+        return true;
+      }
+
+      const completed = record.completed ?? record.done ?? record.is_final;
+      if (typeof completed === "boolean") {
+        return completed;
+      }
+
+      return false;
+    };
+
+    const finalizeReasoning = (
+      id: string | undefined,
+      metadataSource?: unknown,
+    ): StreamEvent | undefined => {
+      const key = reasoningKey(id);
+      const state = reasoningStates.get(key);
+      if (!state) {
+        return undefined;
+      }
+
+      const metadata: Record<string, unknown> = { ...state.metadata };
+      const metadataRecord = toRecord(metadataSource);
+      if (metadataRecord) {
+        Object.assign(metadata, metadataRecord);
+      } else {
+        const extracted = extractText(metadataSource);
+        if (extracted && typeof metadata.text !== "string") {
+          metadata.text = extracted;
+        }
+      }
+
+      const aggregated = state.segments.join(" ");
+      if (aggregated.length > 0 && typeof metadata.text !== "string") {
+        metadata.text = aggregated;
+      }
+
+      reasoningStates.delete(key);
+
+      if (typeof metadata.text !== "string" || metadata.text.length === 0) {
+        return undefined;
+      }
+
+      return { type: "reasoning_end", metadata };
+    };
+
+    const finalizeAllReasoning = (metadataSource?: unknown): StreamEvent[] => {
+      const events: StreamEvent[] = [];
+      for (const key of [...reasoningStates.keys()]) {
+        const state = reasoningStates.get(key);
+        const event = finalizeReasoning(state?.id, metadataSource);
+        if (event) {
+          events.push(event);
+        }
+      }
+      return events;
+    };
 
     while (true) {
       const { done, value } = await reader.read();
@@ -76,6 +217,9 @@ export class AnthropicAdapter implements ProviderAdapter {
         if (!trimmed.startsWith("data:")) continue;
         const payload = trimmed.slice(5).trim();
         if (!payload || payload === "[DONE]") {
+          for (const event of finalizeAllReasoning()) {
+            yield event;
+          }
           yield { type: "end" };
           return;
         }
@@ -91,11 +235,59 @@ export class AnthropicAdapter implements ProviderAdapter {
             case "message_start":
             case "connection_ack":
               break;
-            case "message_delta":
+            case "message_delta": {
+              const thinking = json.delta?.thinking;
+              if (thinking) {
+                const id = typeof thinking.id === "string" ? thinking.id : undefined;
+                if (!isReasoningComplete(thinking)) {
+                  const reasoningEvent = appendReasoning(
+                    id,
+                    extractText((thinking as { delta?: unknown }).delta ?? thinking),
+                  );
+                  if (reasoningEvent) {
+                    yield reasoningEvent;
+                  }
+                }
+
+                if (isReasoningComplete(thinking)) {
+                  const reasoningEnd = finalizeReasoning(id, thinking);
+                  if (reasoningEnd) {
+                    yield reasoningEnd;
+                  }
+                }
+              }
+
               if (json.delta?.stop_reason) {
+                for (const event of finalizeAllReasoning(json.delta?.thinking)) {
+                  yield event;
+                }
                 yield { type: "end", reason: json.delta.stop_reason };
               }
               break;
+            }
+            case "thinking": {
+              const thinking = json.thinking;
+              if (!thinking) {
+                break;
+              }
+
+              const id = typeof thinking.id === "string" ? thinking.id : undefined;
+              const reasoningEvent = appendReasoning(
+                id,
+                extractText((thinking as { delta?: unknown }).delta ?? thinking),
+              );
+              if (reasoningEvent) {
+                yield reasoningEvent;
+              }
+
+              if (isReasoningComplete(thinking)) {
+                const reasoningEnd = finalizeReasoning(id, thinking);
+                if (reasoningEnd) {
+                  yield reasoningEnd;
+                }
+              }
+              break;
+            }
             case "content_block_start":
               if (json.content_block?.type === "tool_use") {
                 const id = json.content_block.id ?? `${toolStates.size}`;
@@ -130,6 +322,9 @@ export class AnthropicAdapter implements ProviderAdapter {
                   arguments: state.args,
                 };
                 toolStates.delete(id);
+                for (const event of finalizeAllReasoning()) {
+                  yield event;
+                }
                 return;
               }
               break;
@@ -145,6 +340,10 @@ export class AnthropicAdapter implements ProviderAdapter {
           };
         }
       }
+    }
+
+    for (const event of finalizeAllReasoning()) {
+      yield event;
     }
   }
 }
