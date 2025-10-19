@@ -5,7 +5,7 @@ capabilities out of the box. This guide explains how the plan-aware tools work
 in tandem and how to safely invoke the file discovery helpers that power most
 code-editing loops.
 
-## Plan management tools: `get_plan`, `update_plan`, `complete_task`
+## Plan and task list tools: `agent__new_task_list`, `get_plan`, `update_plan`, `complete_task`
 
 Plan files live alongside your workspace so the agent can checkpoint progress
 between runs. By default the runtime stores the active document at
@@ -28,20 +28,27 @@ arrays of tasks with titles, statuses (`pending`, `in_progress`, or
 the last update in the `updatedAt` property so downstream automations can decide
 when a plan has changed.
 
-The workflow for the three tools is:
+The workflow for the tools is:
 
-1. `get_plan` loads and validates the current document, returning the full
+1. `agent__new_task_list` creates a `.tasks/<name>.json` document with empty
+   tasks and optional metadata, returning a payload that matches
+   `TASK_LIST_RESULT_SCHEMA`.
+2. `get_plan` loads and validates the current document, returning the full
    structure described by `PLAN_RESULT_SCHEMA`. If the plan does not exist the
    runtime creates an empty document in the configured directory.
-2. `update_plan` accepts partial task lists and replaces the stored document,
+3. `update_plan` accepts partial task lists and replaces the stored document,
    allowing agents to reorder work or expand task descriptions while preserving
    metadata.
-3. `complete_task` flips the targeted entry to `complete` (and maintains the
+4. `complete_task` flips the targeted entry to `complete` (and maintains the
    `completed` boolean for backwards compatibility), optionally appending a note
    so human reviewers understand the resolution.
 
-All three tools sanitise file names to keep writes inside the workspace root,
+The storage helpers sanitise names to keep writes inside the workspace root,
 ensuring hostile input cannot escape the configured directory.
+
+All task list persistence helpers live in
+[`platform/runtime/tools/src/builtin/task_list.ts`](../platform/runtime/tools/src/builtin/task_list.ts),
+which exposes `TASK_LIST_RESULT_SCHEMA` for tool integrations.
 
 ## File discovery helpers: `file_search` and `get_folder_tree_structure`
 

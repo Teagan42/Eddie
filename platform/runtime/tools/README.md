@@ -123,6 +123,22 @@
 - Plan filenames reuse the sanitisation provided by [`platform/runtime/tools/src/builtin/plan.ts`](./src/builtin/plan.ts).
 - Only the targeted task’s status flips—other metadata remains untouched to preserve audit trails.
 
+### `agent__new_task_list`
+#### Parameters
+- `taskListName` (required): name of the task list stored as `.tasks/<name>.json`.
+- `metadata`: optional object copied into the persisted document.
+
+#### Outputs
+- `metadata`: shallow copy of the provided metadata.
+- `tasks`: initialised as an empty array.
+- `createdAt`, `updatedAt`: ISO-8601 timestamps describing when the list was created.
+- `content`: confirmation string summarising the new list.
+
+#### Safety considerations
+- The handler calls `ctx.confirm` before creating any files.
+- Task list names are sanitised to reject path separators and empty values.
+- Files are written inside the workspace-scoped `.tasks/` directory using the shared storage helpers in [`platform/runtime/tools/src/builtin/task_list.ts`](./src/builtin/task_list.ts).
+
 ### `update_plan`
 #### Parameters
 - `tasks` (required unless `plan.tasks` provided): array of plan entries containing `title`, `status`, and optional `details`.

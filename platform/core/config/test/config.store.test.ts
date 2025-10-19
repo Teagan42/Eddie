@@ -121,6 +121,32 @@ describe("ConfigStore", () => {
     await moduleRef.close();
   });
 
+  it("retains API demo seed files in cloned snapshots", async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [ConfigModule],
+    }).compile();
+    const service = moduleRef.get(ConfigService);
+    const store = moduleRef.get(ConfigStore);
+
+    const composed = await service.compose({
+      api: {
+        demoSeeds: {
+          files: ["./seeds/demo.json"],
+        },
+      },
+    });
+
+    store.setSnapshot(composed);
+
+    const snapshot = store.getSnapshot();
+
+    expect(snapshot.api?.demoSeeds?.files).toEqual(["./seeds/demo.json"]);
+    expect(snapshot).not.toBe(composed);
+    expect(snapshot.api?.demoSeeds).not.toBe(composed.api?.demoSeeds);
+
+    await moduleRef.close();
+  });
+
   it("emits updates whenever configuration changes", async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [ConfigModule],

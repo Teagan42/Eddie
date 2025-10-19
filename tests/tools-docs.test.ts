@@ -18,6 +18,7 @@ const builtinToolNames = [
   'get_plan',
   'complete_task',
   'update_plan',
+  'agent__new_task_list',
 ];
 
 describe('tools documentation', () => {
