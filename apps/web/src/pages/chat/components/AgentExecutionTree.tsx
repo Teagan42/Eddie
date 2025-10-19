@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Badge, Box, Flex, Text } from '@radix-ui/themes';
 import { ArrowUpRight, ChevronDown, ChevronRight } from 'lucide-react';
 import type { ToolCallStatusDto } from '@eddie/api-client';
@@ -47,6 +48,61 @@ const TOOL_DETAILS_BUTTON_CLASS =
   'inline-flex items-center gap-1 rounded-md border border-accent/40 bg-accent/5 px-2 py-1 text-xs font-medium text-accent transition hover:bg-accent/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
 
 const TRANSITION_REGION_CLASS = 'transition-all duration-300 ease-out';
+
+const EXPANSION_VARIANTS = {
+  open: {
+    opacity: 1,
+    height: 'auto',
+    marginTop: 8,
+  },
+  collapsed: {
+    opacity: 0,
+    height: 0,
+    marginTop: 0,
+  },
+} as const;
+
+const EXPANSION_TRANSITION = {
+  duration: 0.28,
+  ease: [0.16, 1, 0.3, 1],
+} as const;
+
+const EXPANSION_MOTION_PROPS = {
+  initial: 'collapsed',
+  animate: 'open',
+  exit: 'collapsed',
+  variants: EXPANSION_VARIANTS,
+  transition: EXPANSION_TRANSITION,
+  style: { overflow: 'hidden' },
+} as const;
+
+function formatContextSource(
+  source: ExecutionTreeState['contextBundles'][number]['source'],
+): string {
+  if (!source) {
+    return 'Unknown source';
+  }
+
+  if (typeof source === 'string') {
+    return source;
+  }
+
+  if (typeof source === 'object' && 'type' in source) {
+    if (source.type === 'tool_result') {
+      return `Tool result from ${source.agentId ?? 'unknown agent'}`;
+    }
+    if (source.type === 'session_file') {
+      return `Session file ${'fileId' in source ? source.fileId : 'unknown'}`;
+    }
+    return source.type;
+  }
+
+  try {
+    return JSON.stringify(source);
+  } catch (error) {
+    return String(source);
+  }
+}
 
 export interface AgentExecutionTreeProps {
   state: ExecutionTreeState | null | undefined;
@@ -270,56 +326,68 @@ export function AgentExecutionTree({
                 </Badge>
               </button>
 
-              {isExpanded ? (
-                <Box
-                  role="region"
-                  id={regionId}
-                  aria-label={`${TOOL_STATUS_LABELS[status].toLowerCase()} for ${agent.name}`}
-                  className={cn(
-                    'mt-2 rounded-lg border border-white/10 bg-slate-950/70',
-                    TRANSITION_REGION_CLASS,
-                  )}
-                >
-                  <ul className="divide-y divide-white/5">
-                    {orderedEntries.map((entry) => {
-                      const metadataInspector = renderInvocationMetadata(entry);
-                      return (
-                        <li
-                          key={entry.id}
-                          className={cn('p-3 space-y-3', TRANSITION_REGION_CLASS)}
-                        >
-                          <Flex align="center" justify="between" gap="3">
-                            <Box className="min-w-0">
-                              <Text weight="medium" className="truncate text-white/90">
-                                {entry.name ?? 'Unnamed invocation'}
-                              </Text>
-                              <Text size="1" color="gray" className="mt-1 block">
-                                {summarizeObject(
-                                  resolveInvocationPreviewSource(status, entry),
-                                  TOOL_PREVIEW_LIMIT,
-                                ) ??
-                                  'No preview available'}
-                              </Text>
-                            </Box>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setDetailsTarget({ agentId: agent.id, invocationId: entry.id })
-                              }
-                              className={TOOL_DETAILS_BUTTON_CLASS}
-                              aria-label="View full tool invocation details"
+              <AnimatePresence initial={false}>
+                {isExpanded ? (
+                  <motion.div
+                    key={`${key}:content`}
+                    className="mt-2"
+                    {...EXPANSION_MOTION_PROPS}
+                  >
+                    <Box
+                      role="region"
+                      id={regionId}
+                      aria-label={`${TOOL_STATUS_LABELS[status].toLowerCase()} for ${agent.name}`}
+                      className={cn(
+                        'rounded-lg border border-white/10 bg-slate-950/70',
+                        TRANSITION_REGION_CLASS,
+                      )}
+                    >
+                      <ul
+                        data-testid="agent-execution-tree-tool-group-motion"
+                        data-motion="agent-execution-tree-tool-group"
+                        className="divide-y divide-white/5"
+                      >
+                        {orderedEntries.map((entry) => {
+                          const metadataInspector = renderInvocationMetadata(entry);
+                          return (
+                            <li
+                              key={entry.id}
+                              className={cn('p-3 space-y-3', TRANSITION_REGION_CLASS)}
                             >
-                              View details
-                              <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-                            </button>
-                          </Flex>
-                          {metadataInspector}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </Box>
-              ) : null}
+                              <Flex align="center" justify="between" gap="3">
+                                <Box className="min-w-0">
+                                  <Text weight="medium" className="truncate text-white/90">
+                                    {entry.name ?? 'Unnamed invocation'}
+                                  </Text>
+                                  <Text size="1" color="gray" className="mt-1 block">
+                                    {summarizeObject(
+                                      resolveInvocationPreviewSource(status, entry),
+                                      TOOL_PREVIEW_LIMIT,
+                                    ) ??
+                                      'No preview available'}
+                                  </Text>
+                                </Box>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDetailsTarget({ agentId: agent.id, invocationId: entry.id })
+                                  }
+                                  className={TOOL_DETAILS_BUTTON_CLASS}
+                                  aria-label="View full tool invocation details"
+                                >
+                                  View details
+                                  <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                                </button>
+                              </Flex>
+                              {metadataInspector}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </Box>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
             </Box>
           );
         })}
@@ -360,42 +428,59 @@ export function AgentExecutionTree({
           </Badge>
         </button>
 
-        {isExpanded ? (
-          <Box
-            role="region"
-            id={regionId}
-            aria-label={`context bundles for ${_agent.name}`}
-            className={cn(
-              'mt-2 space-y-2 rounded-lg border border-white/10 bg-slate-950/70 p-3',
-              TRANSITION_REGION_CLASS,
-            )}
-          >
-            {bundles.map((bundle) => (
-              <Box key={bundle.id} className="space-y-1">
-                <Text weight="medium" className="text-white/90">
-                  {bundle.title}
-                </Text>
-                <Text size="1" color="gray">
-                  {bundle.source}
-                </Text>
-                {bundle.metadata ? (
-                  <JsonTreeView
-                    value={bundle.metadata as unknown}
-                    collapsedByDefault
-                    className="text-left text-xs"
-                  />
-                ) : null}
-                {bundle.files && bundle.files.length > 0 ? (
-                  <ul className="space-y-1 text-xs text-white/80">
-                    {bundle.files.map((file) => (
-                      <li key={file.id}>{file.name}</li>
-                    ))}
-                  </ul>
-                ) : null}
+        <AnimatePresence initial={false}>
+          {isExpanded ? (
+            <motion.div
+              key={`${key}:content`}
+              className="mt-2"
+              {...EXPANSION_MOTION_PROPS}
+            >
+              <Box
+                role="region"
+                id={regionId}
+                aria-label={`context bundles for ${_agent.name}`}
+                className={cn(
+                  'space-y-2 rounded-lg border border-white/10 bg-slate-950/70 p-3',
+                  TRANSITION_REGION_CLASS,
+                )}
+              >
+                {bundles.map((bundle, index) => (
+                  <Box
+                    key={bundle.id}
+                    className="space-y-1"
+                    data-testid={
+                      index === 0 ? 'agent-execution-tree-context-motion' : undefined
+                    }
+                    data-motion={
+                      index === 0 ? 'agent-execution-tree-context' : undefined
+                    }
+                  >
+                    <Text weight="medium" className="text-white/90">
+                      {bundle.title}
+                    </Text>
+                    <Text size="1" color="gray">
+                      {formatContextSource(bundle.source)}
+                    </Text>
+                    {bundle.metadata ? (
+                      <JsonTreeView
+                        value={bundle.metadata as unknown}
+                        collapsedByDefault
+                        className="text-left text-xs"
+                      />
+                    ) : null}
+                    {bundle.files && bundle.files.length > 0 ? (
+                      <ul className="space-y-1 text-xs text-white/80">
+                        {bundle.files.map((file) => (
+                          <li key={file.id}>{file.name}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </Box>
+                ))}
               </Box>
-            ))}
-          </Box>
-        ) : null}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </Box>
     );
   }

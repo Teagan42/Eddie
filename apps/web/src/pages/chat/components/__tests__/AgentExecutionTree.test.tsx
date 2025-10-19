@@ -593,4 +593,88 @@ describe('AgentExecutionTree', () => {
       within(delegateContextRegion).getByText(/delegate agent context/i),
     ).toBeInTheDocument();
   });
+
+  it('wraps expandable tool and context sections in motion regions', async () => {
+    const user = userEvent.setup();
+
+    const agent: ExecutionTreeState['agentHierarchy'][number] = {
+      id: 'root-agent',
+      name: 'Root agent',
+      provider: 'openai',
+      model: 'gpt-4o',
+      depth: 0,
+      lineage: ['root-agent'],
+      children: [],
+    };
+
+    const completedInvocation: ExecutionTreeState['toolInvocations'][number] = {
+      id: 'tool-1',
+      agentId: agent.id,
+      name: 'search-web',
+      status: 'completed',
+      createdAt: '2024-05-01T12:00:00.000Z',
+      updatedAt: '2024-05-01T12:01:00.000Z',
+      metadata: {},
+      children: [],
+    };
+
+    const contextBundle: ExecutionContextBundle = {
+      id: 'bundle-1',
+      label: 'Latest insights',
+      summary: 'Summaries from the latest tool output',
+      sizeBytes: 128,
+      fileCount: 0,
+      files: [],
+      source: { type: 'tool_result', agentId: agent.id, toolCallId: completedInvocation.id },
+    };
+
+    const state: ExecutionTreeState = {
+      agentHierarchy: [agent],
+      toolInvocations: [completedInvocation],
+      contextBundles: [contextBundle],
+      agentLineageById: { [agent.id]: [agent.id] },
+      toolGroupsByAgentId: {
+        [agent.id]: {
+          pending: [],
+          running: [],
+          completed: [completedInvocation],
+          failed: [],
+        },
+      },
+      contextBundlesByAgentId: { [agent.id]: [contextBundle] },
+      contextBundlesByToolCallId: { [completedInvocation.id]: [contextBundle] },
+      createdAt: '2024-05-01T12:00:00.000Z',
+      updatedAt: '2024-05-01T12:01:00.000Z',
+    };
+
+    render(
+      <AgentExecutionTree state={state} selectedAgentId={null} onSelectAgent={() => {}} />,
+    );
+
+    await user.click(
+      screen.getByRole('button', {
+        name: /toggle completed tool invocations for root agent/i,
+      }),
+    );
+
+    const toolRegion = screen.getByRole('region', {
+      name: /completed tool invocations for root agent/i,
+    });
+
+    expect(
+      within(toolRegion).getByTestId('agent-execution-tree-tool-group-motion'),
+    ).toHaveAttribute('data-motion', 'agent-execution-tree-tool-group');
+
+    await user.click(
+      screen.getByRole('button', { name: /toggle context bundles for root agent/i }),
+    );
+
+    const contextRegion = screen.getByRole('region', {
+      name: /context bundles for root agent/i,
+    });
+
+    expect(
+      within(contextRegion).getByTestId('agent-execution-tree-context-motion'),
+    ).toHaveAttribute('data-motion', 'agent-execution-tree-context');
+  });
 });
