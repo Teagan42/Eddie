@@ -1,5 +1,6 @@
 import { Badge, Box, Flex, Grid, Heading, Text } from "@radix-ui/themes";
 import type { ComponentType } from "react";
+import { cn } from "@/vendor/lib/utils";
 
 export interface OverviewStat {
   label: string;
@@ -20,15 +21,36 @@ export function OverviewStatsGrid({ stats = [] }: OverviewStatsGridProps): JSX.E
         return (
           <Box
             key={stat.label}
-            className="group relative overflow-hidden rounded-3xl border border-white/15 bg-white/12 p-6 shadow-[0_35px_70px_-55px_rgba(56,189,248,0.75)]"
+            className={cn(
+              "group relative overflow-hidden rounded-3xl border p-6",
+              "border-[color:var(--overview-stat-card-border)]",
+              "bg-[color:var(--overview-stat-card-bg)]",
+              "shadow-[var(--overview-stat-card-shadow)]"
+            )}
           >
-            <div className="absolute inset-0 -z-10 opacity-0 transition-opacity duration-500 group-hover:opacity-100 [background:radial-gradient(circle_at_top,_rgba(74,222,128,0.25),transparent_65%)]" />
+            <div
+              className={cn(
+                "absolute inset-0 -z-10 opacity-0 transition-opacity duration-500 group-hover:opacity-100",
+                "[background:var(--overview-stat-card-overlay)]"
+              )}
+            />
             <Flex align="center" justify="between" className="mb-3">
               <Flex align="center" gap="3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900/50">
-                  <Icon className="h-5 w-5 text-emerald-200" />
+                <span
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-2xl",
+                    "bg-[color:var(--overview-stat-icon-bg)]"
+                  )}
+                >
+                  <Icon className="h-5 w-5 text-[color:var(--overview-stat-icon-fg)]" />
                 </span>
-                <Text size="1" color="gray" className="uppercase tracking-[0.3em]">
+                <Text
+                  size="1"
+                  className={cn(
+                    "uppercase tracking-[0.3em]",
+                    "text-[color:var(--overview-stat-hint)]"
+                  )}
+                >
                   {stat.label}
                 </Text>
               </Flex>
@@ -36,10 +58,10 @@ export function OverviewStatsGrid({ stats = [] }: OverviewStatsGridProps): JSX.E
                 Live
               </Badge>
             </Flex>
-            <Heading size="7" className="text-white">
+            <Heading size="7" className="text-[color:var(--overview-stat-value)]">
               {stat.value}
             </Heading>
-            <Text size="2" color="gray">
+            <Text size="2" className="text-[color:var(--overview-stat-hint)]">
               {stat.hint}
             </Text>
           </Box>

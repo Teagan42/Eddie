@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import userEvent from "@testing-library/user-event";
 import type { LogEntryDto } from "@eddie/api-client";
 import { OverviewPage } from "../OverviewPage";
-import { ThemeProvider } from "@/theme";
+import { AVAILABLE_THEMES, ThemeProvider } from "@/theme";
 
 vi.mock("@/auth/auth-context", () => ({
   useAuth: () => ({ apiKey: "test", setApiKey: vi.fn() }),
@@ -261,6 +262,26 @@ describe("OverviewPage log updates", () => {
     await waitFor(() => {
       expect(screen.queryByTestId("logs-loading-skeleton")).not.toBeInTheDocument();
     });
+  });
+
+  it("selects the runtime config theme from a dropdown", async () => {
+    const user = userEvent.setup();
+    renderOverview();
+
+    const heading = await screen.findByRole("heading", { name: /runtime config/i });
+    const runtimePanel = heading.closest("section");
+    expect(runtimePanel).not.toBeNull();
+
+    const trigger = within(runtimePanel as HTMLElement).getByRole("combobox", { name: /theme/i });
+
+    for (const theme of AVAILABLE_THEMES) {
+      await user.click(trigger);
+      const option = await screen.findByRole("option", { name: new RegExp(theme, "i") });
+      await user.click(option);
+      await waitFor(() => {
+        expect(document.documentElement.dataset.theme).toBe(theme);
+      });
+    }
   });
 });
 

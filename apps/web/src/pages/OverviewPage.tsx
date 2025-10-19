@@ -14,6 +14,7 @@ import {
   Grid,
   Heading,
   ScrollArea,
+  Select,
   Separator,
   Text,
   TextField,
@@ -24,7 +25,8 @@ import { PaperPlaneIcon, PlusIcon, ReloadIcon } from '@radix-ui/react-icons';
 import { Panel } from "@/components/common";
 import { useAuth } from '@/auth/auth-context';
 import { useApi } from '@/api/api-provider';
-import { getNextTheme, useTheme } from '@/theme';
+import { AVAILABLE_THEMES, formatThemeLabel, useTheme } from '@/theme';
+import { cn } from '@/vendor/lib/utils';
 import { ChatSessionsPanel, OverviewAuthPanel, OverviewHero } from './components';
 import { useChatSessionEvents, useOverviewStats } from './hooks';
 import type {
@@ -233,6 +235,22 @@ export function OverviewPage(): JSX.Element {
 
   const { theme, setTheme, isThemeStale } = useTheme();
 
+  const panelSurfaceClass = cn(
+    "h-80 rounded-2xl border p-4",
+    "border-[color:var(--overview-panel-border)]",
+    "bg-[color:var(--overview-panel-bg)]",
+    "shadow-[var(--overview-panel-shadow)]"
+  );
+  const panelItemClass = cn(
+    "rounded-2xl border p-4",
+    "border-[color:var(--overview-panel-item-border)]",
+    "bg-[color:var(--overview-panel-item-bg)]",
+    "shadow-[var(--overview-panel-item-shadow)]"
+  );
+  const mutedTextClass = "text-[color:var(--overview-panel-muted)]";
+  const codeTextClass = "font-mono text-[color:var(--overview-panel-code)]";
+  const dividerClass = "border-[color:var(--overview-panel-divider)]";
+
   const activeSession = useMemo<ChatSessionDto | null>(() => {
     if (!selectedSessionId) {
       return null;
@@ -265,8 +283,7 @@ export function OverviewPage(): JSX.Element {
     });
   };
 
-  const handleToggleTheme = (): void => {
-    const nextTheme = getNextTheme(theme);
+  const handleSelectTheme = (nextTheme: RuntimeConfigDto["theme"]): void => {
     setTheme(nextTheme);
   };
 
@@ -275,10 +292,11 @@ export function OverviewPage(): JSX.Element {
       <OverviewHero
         apiKey={apiKey}
         apiUrl={configQuery.data?.apiUrl}
-        onToggleTheme={handleToggleTheme}
+        theme={theme}
+        onSelectTheme={handleSelectTheme}
         onRemoveApiKey={() => setApiKey(null)}
         stats={stats}
-        isToggleThemeDisabled={isThemeStale}
+        isThemeSelectorDisabled={isThemeStale}
       />
 
       <OverviewAuthPanel apiKey={apiKey} onApiKeyChange={setApiKey} />
@@ -303,20 +321,17 @@ export function OverviewPage(): JSX.Element {
 
         <Panel title="Traces" description="Real-time observability into orchestrated workloads">
           {tracesQuery.isLoading ? (
-            <Text size="2" color="gray">
+            <Text size="2" className={mutedTextClass}>
               Loading traces…
             </Text>
           ) : tracesQuery.data?.length ? (
-            <ScrollArea
-              type="always"
-              className="h-80 rounded-2xl border border-white/15 bg-slate-900/35 p-4"
-            >
+            <ScrollArea type="always" className={panelSurfaceClass}>
               <Flex direction="column" gap="3">
                 {tracesQuery.data.map((trace) => (
                   <Flex
                     key={trace.id}
                     direction="column"
-                    className="rounded-2xl border border-white/10 bg-white/12 p-4"
+                    className={panelItemClass}
                   >
                     <Flex align="center" justify="between">
                       <Text size="2" weight="medium">
@@ -326,7 +341,7 @@ export function OverviewPage(): JSX.Element {
                         {trace.status.toUpperCase()}
                       </Badge>
                     </Flex>
-                    <Text size="1" color="gray">
+                    <Text size="1" className={mutedTextClass}>
                       Duration: {trace.durationMs ? `${trace.durationMs}ms` : 'pending'}
                     </Text>
                   </Flex>
@@ -334,7 +349,7 @@ export function OverviewPage(): JSX.Element {
               </Flex>
             </ScrollArea>
           ) : (
-            <Text size="2" color="gray">
+            <Text size="2" className={mutedTextClass}>
               No traces emitted yet.
             </Text>
           )}
@@ -358,23 +373,20 @@ export function OverviewPage(): JSX.Element {
           }
         >
           {logsQuery.isLoading ? (
-            <Text size="2" color="gray">
+            <Text size="2" className={mutedTextClass}>
               Loading logs…
             </Text>
           ) : logs.length ? (
-            <ScrollArea
-              type="always"
-              className="h-80 rounded-2xl border border-white/15 bg-slate-900/35 p-4"
-            >
+            <ScrollArea type="always" className={panelSurfaceClass}>
               <Flex direction="column" gap="3">
                 {logs.map((entry) => (
                   <Flex
                     key={entry.id}
                     direction="column"
-                    className="rounded-2xl border border-white/10 bg-white/12 p-4"
+                    className={panelItemClass}
                   >
                     <Flex align="center" justify="between">
-                      <Text size="1" color="gray">
+                      <Text size="1" className={mutedTextClass}>
                         {new Date(entry.createdAt).toLocaleTimeString([], {
                           hour: '2-digit',
                           minute: '2-digit',
@@ -398,7 +410,7 @@ export function OverviewPage(): JSX.Element {
               </Flex>
             </ScrollArea>
           ) : (
-            <Text size="2" color="gray">
+            <Text size="2" className={mutedTextClass}>
               Awaiting log entries.
             </Text>
           )}
@@ -408,30 +420,72 @@ export function OverviewPage(): JSX.Element {
           title="Runtime Config"
           description="Adjust live settings for connected dashboards"
           actions={
-            <Button size="2" variant="soft" color="jade" onClick={handleToggleTheme}>
-              Toggle theme
-            </Button>
+            <Select.Root value={theme} onValueChange={handleSelectTheme} disabled={isThemeStale}>
+              <Select.Trigger
+                aria-label="Theme"
+                size="2"
+                className={cn(
+                  'w-40 justify-between',
+                  'border',
+                  'border-[color:var(--hero-outline-border)]',
+                  'bg-[color:var(--hero-outline-bg)]',
+                  'text-[color:var(--hero-outline-foreground)]',
+                  'hover:bg-[color:var(--hero-outline-bg-hover)]',
+                  'dark:border-[color:var(--hero-outline-border-dark)]',
+                  'dark:bg-[color:var(--hero-outline-bg-dark)]',
+                  'dark:text-[color:var(--hero-outline-foreground-dark)]',
+                  'dark:hover:bg-[color:var(--hero-outline-bg-hover-dark)]'
+                )}
+              >
+                Theme: {formatThemeLabel(theme)}
+              </Select.Trigger>
+              <Select.Content
+                position="popper"
+                className={cn(
+                  'min-w-[--radix-select-trigger-width] rounded-2xl border',
+                  'border-[color:var(--hero-outline-border)]',
+                  'bg-[color:var(--hero-outline-bg)]',
+                  'text-[color:var(--hero-outline-foreground)]',
+                  'shadow-[var(--hero-surface-shadow)]',
+                  'dark:border-[color:var(--hero-outline-border-dark)]',
+                  'dark:bg-[color:var(--hero-outline-bg-dark)]',
+                  'dark:text-[color:var(--hero-outline-foreground-dark)]',
+                  'dark:shadow-[var(--hero-surface-shadow-dark)]'
+                )}
+              >
+                <Select.Group>
+                  <Select.Label className="text-[color:var(--hero-outline-foreground)] dark:text-[color:var(--hero-outline-foreground-dark)]">
+                    Themes
+                  </Select.Label>
+                  {AVAILABLE_THEMES.map((availableTheme) => (
+                    <Select.Item key={availableTheme} value={availableTheme}>
+                      {formatThemeLabel(availableTheme)}
+                    </Select.Item>
+                  ))}
+                </Select.Group>
+              </Select.Content>
+            </Select.Root>
           }
         >
           {configQuery.isLoading ? (
-            <Text size="2" color="gray">
+            <Text size="2" className={mutedTextClass}>
               Loading configuration…
             </Text>
           ) : configQuery.data ? (
             <Flex direction="column" gap="4">
-              <Box className="rounded-2xl border border-white/10 bg-white/12 p-4">
-                <Text size="1" color="gray">
+              <Box className={panelItemClass}>
+                <Text size="1" className={mutedTextClass}>
                   API URL
                 </Text>
-                <Text size="2" className="font-mono text-emerald-100">
+                <Text size="2" className={codeTextClass}>
                   {configQuery.data.apiUrl}
                 </Text>
               </Box>
-              <Box className="rounded-2xl border border-white/10 bg-white/12 p-4">
-                <Text size="1" color="gray">
+              <Box className={panelItemClass}>
+                <Text size="1" className={mutedTextClass}>
                   WebSocket URL
                 </Text>
-                <Text size="2" className="font-mono text-emerald-100">
+                <Text size="2" className={codeTextClass}>
                   {configQuery.data.websocketUrl}
                 </Text>
               </Box>
@@ -441,7 +495,7 @@ export function OverviewPage(): JSX.Element {
                   {configQuery.data.theme}
                 </Badge>
               </Flex>
-              <Separator className="border-white/10" />
+              <Separator className={dividerClass} />
               <Flex gap="2" wrap="wrap">
                 {Object.entries(configQuery.data.features).map(([feature, enabled]) => (
                   <Badge
@@ -456,7 +510,7 @@ export function OverviewPage(): JSX.Element {
               </Flex>
             </Flex>
           ) : (
-            <Text size="2" color="gray">
+            <Text size="2" className={mutedTextClass}>
               Unable to load configuration.
             </Text>
           )}
