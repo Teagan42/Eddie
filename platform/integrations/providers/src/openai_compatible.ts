@@ -129,13 +129,16 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
       remainder: string;
     } => {
       const reasoning: string[] = [];
-      const remainder = value.replace(/<think>([\s\S]*?)<\/think>/gi, (_match, inner) => {
-        const text = typeof inner === "string" ? inner.trim() : "";
-        if (text.length > 0) {
-          reasoning.push(text);
-        }
-        return "";
-      });
+      const remainder = value.replace(
+        /<([\w:.-]*?)think>([\s\S]*?)<\/\1think>/gi,
+        (_match, _prefix, inner) => {
+          const text = typeof inner === "string" ? inner.trim() : "";
+          if (text.length > 0) {
+            reasoning.push(text);
+          }
+          return "";
+        },
+      );
 
       return { reasoning, remainder };
     };

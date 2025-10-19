@@ -257,6 +257,13 @@ export class OpenAIAdapter implements ProviderAdapter {
       } satisfies StreamEvent;
     };
 
+    const assignReasoningResponseId = (
+      response: { id?: string } | undefined,
+    ): void => {
+      reasoningResponseId =
+        response?.id ?? reasoningResponseId ?? currentResponseId;
+    };
+
     try {
       for await (const event of stream) {
         if (event.type === "response.created") {
@@ -286,15 +293,28 @@ export class OpenAIAdapter implements ProviderAdapter {
             break;
           }
           case "response.reasoning_text.delta": {
-            reasoningResponseId =
-              (event as { response?: { id?: string } }).response?.id ??
-              reasoningResponseId ??
-              currentResponseId;
+            assignReasoningResponseId(
+              (event as { response?: { id?: string } }).response,
+            );
             const emitted = maybeEmitReasoningDelta(
               (event as { delta?: unknown }).delta as string | undefined,
             );
             if (emitted) {
               yield emitted;
+            }
+            break;
+          }
+          case "response.reasoning_text.done": {
+            const response = (event as { response?: { id?: string } })
+              .response;
+            assignReasoningResponseId(response);
+            const reasoningEnd = maybeEmitReasoningEnd(
+              (event as { response?: { reasoning?: unknown } }).response
+                ?.reasoning,
+              response?.id,
+            );
+            if (reasoningEnd) {
+              yield reasoningEnd;
             }
             break;
           }
@@ -357,8 +377,7 @@ export class OpenAIAdapter implements ProviderAdapter {
           case "response.completed": {
             usage = this.normalizeUsage(event.response?.usage);
             endReason = event.response?.status ?? "completed";
-            reasoningResponseId =
-              event.response?.id ?? reasoningResponseId ?? currentResponseId;
+            assignReasoningResponseId(event.response);
             const reasoningEnd = maybeEmitReasoningEnd(
               event.response?.reasoning,
               event.response?.id,
