@@ -190,6 +190,23 @@ a:focus-visible {
     --hero-console-icon-fg-dark: rgba(167, 243, 208, 0.95);
     --hero-console-separator: hsl(var(--border) / 0.3);
     --hero-console-separator-dark: hsl(var(--border) / 0.35);
+    --overview-panel-border: hsl(var(--border) / 0.35);
+    --overview-panel-bg: hsl(var(--card) / 0.85);
+    --overview-panel-shadow: 0 35px 70px -60px rgba(56, 189, 248, 0.35);
+    --overview-panel-item-border: hsl(var(--border) / 0.22);
+    --overview-panel-item-bg: hsl(var(--card) / 0.7);
+    --overview-panel-item-shadow: 0 28px 60px -45px rgba(15, 23, 42, 0.22);
+    --overview-panel-muted: hsl(var(--muted-foreground));
+    --overview-panel-code: hsl(160 70% 35%);
+    --overview-panel-divider: hsl(var(--border) / 0.25);
+    --overview-stat-card-border: hsl(var(--border) / 0.18);
+    --overview-stat-card-bg: hsl(var(--card) / 0.75);
+    --overview-stat-card-shadow: 0 35px 70px -55px rgba(56, 189, 248, 0.45);
+    --overview-stat-card-overlay: radial-gradient(circle at top, rgba(74, 222, 128, 0.22), transparent 65%);
+    --overview-stat-icon-bg: rgba(15, 23, 42, 0.55);
+    --overview-stat-icon-fg: rgba(16, 185, 129, 0.88);
+    --overview-stat-value: hsl(var(--foreground));
+    --overview-stat-hint: hsl(var(--muted-foreground));
   }
   .dark {
     --background: 222.2 84% 4.9%;
@@ -243,6 +260,23 @@ a:focus-visible {
     --hero-console-icon-bg: rgba(16, 185, 129, 0.2);
     --hero-console-icon-fg: rgba(167, 243, 208, 0.95);
     --hero-console-separator: hsl(var(--border) / 0.35);
+    --overview-panel-border: hsl(var(--border) / 0.45);
+    --overview-panel-bg: hsl(var(--card) / 0.18);
+    --overview-panel-shadow: 0 35px 70px -60px rgba(14, 116, 144, 0.58);
+    --overview-panel-item-border: hsl(var(--border) / 0.35);
+    --overview-panel-item-bg: hsl(var(--card) / 0.24);
+    --overview-panel-item-shadow: 0 28px 60px -45px rgba(15, 118, 110, 0.45);
+    --overview-panel-muted: rgba(226, 232, 240, 0.8);
+    --overview-panel-code: rgba(134, 239, 172, 0.88);
+    --overview-panel-divider: hsl(var(--border) / 0.4);
+    --overview-stat-card-border: hsl(var(--border) / 0.42);
+    --overview-stat-card-bg: hsl(var(--card) / 0.22);
+    --overview-stat-card-shadow: 0 35px 70px -55px rgba(14, 116, 144, 0.65);
+    --overview-stat-card-overlay: radial-gradient(circle at top, rgba(56, 189, 248, 0.28), transparent 68%);
+    --overview-stat-icon-bg: rgba(15, 118, 110, 0.42);
+    --overview-stat-icon-fg: rgba(134, 239, 172, 0.95);
+    --overview-stat-value: hsl(var(--foreground));
+    --overview-stat-hint: rgba(226, 232, 240, 0.75);
   }
   .theme {
     --animate-aurora: aurora 8s ease-in-out infinite alternate;
@@ -301,6 +335,20 @@ a:focus-visible {
     --hero-console-icon-fg-dark: rgba(253, 230, 138, 0.94);
     --app-shell-overlay: circle_at_top, rgba(253, 230, 138, 0.16), transparent 60%;
     --app-shell-main-overlay: circle_at_top_right, rgba(251, 191, 36, 0.14), transparent 65%;
+    --overview-panel-border: hsla(40, 86%, 70%, 0.45);
+    --overview-panel-bg: hsla(42, 94%, 92%, 0.85);
+    --overview-panel-shadow: 0 35px 70px -60px rgba(249, 115, 22, 0.32);
+    --overview-panel-item-border: hsla(35, 80%, 72%, 0.45);
+    --overview-panel-item-bg: hsla(48, 94%, 90%, 0.78);
+    --overview-panel-item-shadow: 0 28px 60px -45px rgba(249, 115, 22, 0.28);
+    --overview-panel-muted: rgba(120, 53, 15, 0.78);
+    --overview-panel-code: rgba(250, 204, 21, 0.92);
+    --overview-panel-divider: hsla(35, 78%, 72%, 0.5);
+    --overview-stat-card-shadow: 0 35px 70px -55px rgba(249, 115, 22, 0.45);
+    --overview-stat-card-overlay: radial-gradient(circle at top, rgba(253, 186, 116, 0.26), transparent 65%);
+    --overview-stat-icon-bg: rgba(253, 186, 116, 0.26);
+    --overview-stat-icon-fg: rgba(250, 204, 21, 0.9);
+    --overview-stat-hint: rgba(120, 53, 15, 0.75);
   }
 
   :root[data-theme="midnight"] {
@@ -337,6 +385,16 @@ a:focus-visible {
     --hero-console-icon-fg-dark: rgba(224, 231, 255, 0.96);
     --app-shell-overlay-dark: circle_at_top, rgba(91, 33, 182, 0.28), transparent 60%;
     --app-shell-main-overlay-dark: circle_at_top_right, rgba(59, 130, 246, 0.14), transparent 60%;
+    --overview-panel-shadow: 0 35px 70px -60px rgba(76, 29, 149, 0.55);
+    --overview-panel-item-shadow: 0 28px 60px -45px rgba(129, 140, 248, 0.32);
+    --overview-panel-muted: rgba(196, 181, 253, 0.85);
+    --overview-panel-code: rgba(165, 180, 252, 0.92);
+    --overview-panel-divider: hsla(230, 65%, 70%, 0.5);
+    --overview-stat-card-shadow: 0 35px 70px -55px rgba(91, 33, 182, 0.55);
+    --overview-stat-card-overlay: radial-gradient(circle at top, rgba(129, 140, 248, 0.32), transparent 65%);
+    --overview-stat-icon-bg: rgba(129, 140, 248, 0.38);
+    --overview-stat-icon-fg: rgba(224, 231, 255, 0.96);
+    --overview-stat-hint: rgba(196, 181, 253, 0.82);
   }
 }
 

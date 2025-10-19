@@ -1,26 +1,30 @@
 import { Link } from "react-router-dom";
-import { Badge, Box, Button, Flex, Heading, Separator, Text } from "@radix-ui/themes";
+import { Badge, Box, Button, Flex, Heading, Select, Separator, Text } from "@radix-ui/themes";
 import { ArrowUpRight, KeyRound } from "lucide-react";
 import { cn } from "@/vendor/lib/utils";
 import type { OverviewStat } from "./OverviewStatsGrid";
 import { OverviewStatsGrid } from "./OverviewStatsGrid";
+import type { RuntimeConfigDto } from "@eddie/api-client";
+import { AVAILABLE_THEMES, formatThemeLabel } from "@/theme";
 
 interface OverviewHeroProps {
   apiKey: string | null;
   apiUrl?: string;
-  onToggleTheme: () => void;
+  theme: RuntimeConfigDto["theme"];
+  onSelectTheme: (theme: RuntimeConfigDto["theme"]) => void;
   onRemoveApiKey: () => void;
   stats: OverviewStat[];
-  isToggleThemeDisabled?: boolean;
+  isThemeSelectorDisabled?: boolean;
 }
 
 export function OverviewHero({
   apiKey,
   apiUrl,
-  onToggleTheme,
+  theme,
+  onSelectTheme,
   onRemoveApiKey,
   stats,
-  isToggleThemeDisabled,
+  isThemeSelectorDisabled,
 }: OverviewHeroProps): JSX.Element {
   const consoleSeparatorClass = cn(
     "border-[color:var(--hero-console-separator)]",
@@ -94,25 +98,51 @@ export function OverviewHero({
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
             </Button>
-            <Button
-              size="3"
-              variant="outline"
-              className={cn(
-                "border",
-                "border-[color:var(--hero-outline-border)]",
-                "bg-[color:var(--hero-outline-bg)]",
-                "text-[color:var(--hero-outline-foreground)]",
-                "hover:bg-[color:var(--hero-outline-bg-hover)]",
-                "dark:border-[color:var(--hero-outline-border-dark)]",
-                "dark:bg-[color:var(--hero-outline-bg-dark)]",
-                "dark:text-[color:var(--hero-outline-foreground-dark)]",
-                "dark:hover:bg-[color:var(--hero-outline-bg-hover-dark)]"
-              )}
-              onClick={onToggleTheme}
-              disabled={isToggleThemeDisabled}
-            >
-              Cycle Theme
-            </Button>
+            <Select.Root value={theme} onValueChange={onSelectTheme} disabled={isThemeSelectorDisabled}>
+              <Select.Trigger
+                aria-label="Theme"
+                size="3"
+                className={cn(
+                  "w-44 justify-between",
+                  "border",
+                  "border-[color:var(--hero-outline-border)]",
+                  "bg-[color:var(--hero-outline-bg)]",
+                  "text-[color:var(--hero-outline-foreground)]",
+                  "hover:bg-[color:var(--hero-outline-bg-hover)]",
+                  "dark:border-[color:var(--hero-outline-border-dark)]",
+                  "dark:bg-[color:var(--hero-outline-bg-dark)]",
+                  "dark:text-[color:var(--hero-outline-foreground-dark)]",
+                  "dark:hover:bg-[color:var(--hero-outline-bg-hover-dark)]"
+                )}
+              >
+                Theme: {formatThemeLabel(theme)}
+              </Select.Trigger>
+              <Select.Content
+                position="popper"
+                className={cn(
+                  "min-w-[--radix-select-trigger-width] rounded-2xl border",
+                  "border-[color:var(--hero-outline-border)]",
+                  "bg-[color:var(--hero-outline-bg)]",
+                  "text-[color:var(--hero-outline-foreground)]",
+                  "shadow-[var(--hero-surface-shadow)]",
+                  "dark:border-[color:var(--hero-outline-border-dark)]",
+                  "dark:bg-[color:var(--hero-outline-bg-dark)]",
+                  "dark:text-[color:var(--hero-outline-foreground-dark)]",
+                  "dark:shadow-[var(--hero-surface-shadow-dark)]"
+                )}
+              >
+                <Select.Group>
+                  <Select.Label className="text-[color:var(--hero-outline-foreground)] dark:text-[color:var(--hero-outline-foreground-dark)]">
+                    Themes
+                  </Select.Label>
+                  {AVAILABLE_THEMES.map((availableTheme) => (
+                    <Select.Item key={availableTheme} value={availableTheme}>
+                      {formatThemeLabel(availableTheme)}
+                    </Select.Item>
+                  ))}
+                </Select.Group>
+              </Select.Content>
+            </Select.Root>
           </Flex>
         </Flex>
         <Box

@@ -11,6 +11,10 @@ export const AVAILABLE_THEMES = [
 
 const DARK_THEMES = new Set<RuntimeConfigDto["theme"]>(["dark", "midnight"]);
 
+export function formatThemeLabel(theme: RuntimeConfigDto["theme"]): string {
+  return theme.charAt(0).toUpperCase() + theme.slice(1);
+}
+
 export function isDarkTheme(theme: RuntimeConfigDto["theme"]): boolean {
   return DARK_THEMES.has(theme);
 }

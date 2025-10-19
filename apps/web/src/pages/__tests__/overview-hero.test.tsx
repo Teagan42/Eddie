@@ -8,7 +8,6 @@ import { OverviewHero } from "../components";
 import {
   AVAILABLE_THEMES,
   ThemeProvider,
-  getNextTheme,
   isDarkTheme,
   useTheme,
 } from "@/theme";
@@ -28,8 +27,8 @@ let initialTheme: RuntimeConfigDto["theme"] = "light";
 
 function ThemeHarness(): JSX.Element {
   const { theme, setTheme, isThemeStale } = useTheme();
-  const handleToggleTheme = (): void => {
-    setTheme(getNextTheme(theme));
+  const handleSelectTheme = (nextTheme: RuntimeConfigDto["theme"]): void => {
+    setTheme(nextTheme);
   };
 
   return (
@@ -38,8 +37,9 @@ function ThemeHarness(): JSX.Element {
         apiKey="demo"
         apiUrl="https://api.example.com"
         onRemoveApiKey={vi.fn()}
-        onToggleTheme={handleToggleTheme}
-        isToggleThemeDisabled={isThemeStale}
+        theme={theme}
+        onSelectTheme={handleSelectTheme}
+        isThemeSelectorDisabled={isThemeStale}
         stats={[
           {
             label: "Stat",
@@ -54,7 +54,17 @@ function ThemeHarness(): JSX.Element {
 }
 
 describe("OverviewHero", () => {
-  it("cycles through all available themes when button clicked", async () => {
+  async function chooseTheme(
+    user: ReturnType<typeof userEvent.setup>,
+    theme: RuntimeConfigDto["theme"]
+  ): Promise<void> {
+    const trigger = await screen.findByRole("combobox", { name: /theme/i });
+    await user.click(trigger);
+    const option = await screen.findByRole("option", { name: new RegExp(theme, "i") });
+    await user.click(option);
+  }
+
+  it("lists all available themes in the dropdown and applies the selection", async () => {
     const user = userEvent.setup();
     const queryClient = new QueryClient();
 
@@ -66,16 +76,18 @@ describe("OverviewHero", () => {
       </QueryClientProvider>
     );
 
-    const button = await screen.findByRole("button", { name: /cycle theme/i });
     await waitFor(() => expect(document.documentElement.dataset.theme).toBe(AVAILABLE_THEMES[0]));
 
-    const sequence = [...AVAILABLE_THEMES.slice(1), AVAILABLE_THEMES[0]];
+    const trigger = await screen.findByRole("combobox", { name: /theme/i });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
 
-    for (const nextTheme of sequence) {
-      await user.click(button);
+    for (const nextTheme of AVAILABLE_THEMES) {
+      await chooseTheme(user, nextTheme);
       await waitFor(() => expect(document.documentElement.dataset.theme).toBe(nextTheme));
       expect(document.documentElement.classList.contains("dark")).toBe(isDarkTheme(nextTheme));
     }
+
+    expect(trigger).toHaveTextContent(new RegExp(AVAILABLE_THEMES.at(-1) ?? "", "i"));
 
     queryClient.clear();
   });
@@ -103,7 +115,7 @@ describe("OverviewHero", () => {
     expect(hero.className).toContain("dark:via-[hsl(var(--hero-surface-via-dark))]");
     expect(hero.className).toContain("dark:to-[hsl(var(--hero-surface-to-dark))]");
 
-    await user.click(screen.getByRole("button", { name: /cycle theme/i }));
+    await chooseTheme(user, "midnight");
 
     await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
 
@@ -125,7 +137,7 @@ describe("OverviewHero", () => {
 
     await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(false));
 
-    await user.click(screen.getByRole("button", { name: /cycle theme/i }));
+    await chooseTheme(user, "dark");
 
     await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
 
@@ -144,7 +156,7 @@ describe("OverviewHero", () => {
     queryClient.clear();
   });
 
-  it("disables the cycle theme button while stale config theme is replayed", async () => {
+  it("disables the theme dropdown while stale config theme is replayed", async () => {
     initialTheme = "light";
     const user = userEvent.setup();
     const queryClient = new QueryClient();
@@ -157,11 +169,11 @@ describe("OverviewHero", () => {
       </QueryClientProvider>
     );
 
-    const toggleButton = await screen.findByRole("button", { name: /cycle theme/i });
+    const toggleButton = await screen.findByRole("combobox", { name: /theme/i });
 
     await waitFor(() => expect(toggleButton).not.toBeDisabled());
 
-    await user.click(toggleButton);
+    await chooseTheme(user, "dark");
 
     await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
 
