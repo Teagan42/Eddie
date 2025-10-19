@@ -110,4 +110,139 @@ describe("task list tools", () => {
     ).rejects.toThrow(/task list name/i);
     expect(ctx.confirm).not.toHaveBeenCalled();
   });
+
+  it("adds tasks with insertion hints, metadata, and confirmation", async () => {
+    const tool = findTool("agent__new_task");
+
+    expect(tool).toBeDefined();
+    if (!tool) {
+      throw new Error("agent__new_task tool not registered");
+    }
+
+    await fs.mkdir(path.join(workspace, ".tasks"), { recursive: true });
+    await fs.writeFile(
+      path.join(workspace, ".tasks", "daily.json"),
+      `${JSON.stringify(
+        {
+          metadata: { owner: "agent" },
+          tasks: [
+            {
+              id: "alpha",
+              title: "Existing first task",
+              status: "pending",
+              summary: "Initial",
+              details: null,
+              metadata: { priority: "medium" },
+              createdAt: "2024-01-01T00:00:00.000Z",
+              updatedAt: "2024-01-01T00:00:00.000Z",
+            },
+            {
+              id: "omega",
+              title: "Existing final task",
+              status: "in_progress",
+              summary: null,
+              details: "Wrap up work",
+              metadata: { priority: "low" },
+              createdAt: "2024-01-02T00:00:00.000Z",
+              updatedAt: "2024-01-02T00:00:00.000Z",
+            },
+          ],
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-02T00:00:00.000Z",
+        },
+        null,
+        2,
+      )}\n`,
+      "utf-8",
+    );
+
+    const confirm = vi.fn().mockResolvedValue(true);
+    const ctx = { cwd: workspace, confirm };
+
+    const firstResult = await tool.handler(
+      {
+        taskListName: "daily",
+        title: "Write tests",
+        summary: "Add coverage",
+        details: "Ensure the new task tool is verified",
+        metadata: { priority: "high" },
+        beforeTaskId: "omega",
+      },
+      ctx,
+    );
+
+    expect(confirm).toHaveBeenCalledWith('Add task "Write tests" to list "daily"?');
+    expect(firstResult.schema).toBe("eddie.tool.task_list.result.v1");
+    expect(firstResult.content).toMatch(/Write tests/);
+    expect(firstResult.content).toMatch(/daily/);
+    const firstIds = firstResult.data.tasks.map((task) => task.id);
+    expect(firstIds[0]).toBe("alpha");
+    const firstInsertedId = firstIds[1];
+    expect(firstInsertedId).toEqual(expect.any(String));
+    expect(firstInsertedId).not.toBe("alpha");
+    expect(firstInsertedId).not.toBe("omega");
+    expect(firstIds[2]).toBe("omega");
+    const inserted = firstResult.data.tasks[1];
+    expect(inserted.status).toBe("pending");
+    expect(inserted.metadata).toEqual({ priority: "high" });
+
+    const secondResult = await tool.handler(
+      {
+        taskListName: "daily",
+        title: "Draft documentation",
+        position: 1,
+      },
+      ctx,
+    );
+
+    const secondIds = secondResult.data.tasks.map((task) => task.id);
+    const secondInsertedId = secondIds[1];
+    expect(secondInsertedId).toEqual(expect.any(String));
+    expect(secondIds).toEqual([
+      "alpha",
+      secondInsertedId,
+      firstInsertedId,
+      "omega",
+    ]);
+
+    const thirdResult = await tool.handler(
+      {
+        taskListName: "daily",
+        title: "Wrap up tasks",
+        beforeTaskId: "missing",
+      },
+      ctx,
+    );
+
+    expect(confirm).toHaveBeenCalledTimes(3);
+    const thirdIds = thirdResult.data.tasks.map((task) => task.id);
+    const thirdInsertedId = thirdIds[thirdIds.length - 1];
+    expect(thirdInsertedId).toEqual(expect.any(String));
+    expect(thirdIds).toEqual([
+      "alpha",
+      secondInsertedId,
+      firstInsertedId,
+      "omega",
+      thirdInsertedId,
+    ]);
+    expect(thirdResult.data.metadata).toEqual({ owner: "agent" });
+
+    const stored = JSON.parse(
+      await fs.readFile(
+        path.join(workspace, ".tasks", "daily.json"),
+        "utf-8",
+      ),
+    );
+
+    expect(stored.tasks.map((task: { id: string }) => task.id)).toEqual([
+      "alpha",
+      secondInsertedId,
+      firstInsertedId,
+      "omega",
+      thirdInsertedId,
+    ]);
+    expect(stored.tasks[2].status).toBe("pending");
+    expect(stored.tasks[2].metadata).toEqual({ priority: "high" });
+    expect(stored.metadata).toEqual({ owner: "agent" });
+  });
 });

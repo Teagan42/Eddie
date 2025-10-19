@@ -49,6 +49,18 @@ export interface WriteTaskListDocumentOptions
   document: TaskListDocumentPayload;
 }
 
+export interface InsertTaskPayloadOptions {
+  tasks: readonly (TaskListTaskPayload | TaskListTask)[];
+  task: TaskListTaskPayload;
+  beforeTaskId?: string;
+  position?: number;
+}
+
+export interface InsertTaskPayloadResult {
+  tasks: TaskListTaskPayload[];
+  index: number;
+}
+
 export const TASK_LIST_RESULT_SCHEMA = {
   $id: "eddie.tool.task_list.result.v1",
   type: "object",
@@ -268,6 +280,51 @@ const normaliseDocumentFromStorage = (
     createdAt: normaliseTimestamp(source.createdAt, fallbackTimestamp),
     updatedAt: normaliseTimestamp(source.updatedAt, fallbackTimestamp),
   };
+};
+
+const cloneTaskPayload = (
+  task: TaskListTaskPayload | TaskListTask,
+): TaskListTaskPayload => ({
+  ...task,
+});
+
+const clampPosition = (value: number, upperBound: number): number => {
+  if (!Number.isInteger(value) || value < 0) {
+    return upperBound;
+  }
+
+  if (value > upperBound) {
+    return upperBound;
+  }
+
+  return value;
+};
+
+export const insertTaskPayload = (
+  options: InsertTaskPayloadOptions,
+): InsertTaskPayloadResult => {
+  const nextTasks = options.tasks.map(cloneTaskPayload);
+  const candidate = cloneTaskPayload(options.task);
+
+  let insertIndex = nextTasks.length;
+
+  if (options.beforeTaskId) {
+    const matchedIndex = nextTasks.findIndex(
+      (task) => task.id === options.beforeTaskId,
+    );
+
+    if (matchedIndex >= 0) {
+      insertIndex = matchedIndex;
+    }
+  }
+
+  if (insertIndex === nextTasks.length && typeof options.position === "number") {
+    insertIndex = clampPosition(options.position, nextTasks.length);
+  }
+
+  nextTasks.splice(insertIndex, 0, candidate);
+
+  return { tasks: nextTasks, index: insertIndex };
 };
 
 export const readTaskListDocument = async (
