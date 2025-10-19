@@ -8,19 +8,21 @@ import { Subject } from "rxjs";
 import yaml from "yaml";
 import { ConfigValidator } from "./validation/config-validator";
 import { CURRENT_CONFIG_VERSION, runConfigMigrations } from "./migrations";
-import { CONFIG_FILE_PATH_TOKEN, MODULE_OPTIONS_TOKEN } from './config.const';
+import { CONFIG_FILE_PATH_TOKEN, MODULE_OPTIONS_TOKEN } from "./config.const";
 import { eddieConfig } from "./config.namespace";
-import { ConfigStore } from './config.store';
+import { ConfigStore } from "./config.store";
 import { DEFAULT_CONFIG } from "./defaults";
 import { getConfigRoot, resolveConfigFilePath } from "./config-path";
+import {
+  normalizeConfigExtensions,
+  resolveConfigExtensionPath,
+} from "./config-extensions";
 import { CONFIG_PRESET_NAMES, getConfigPreset } from "./presets";
 import type {
   AgentsConfig,
   AgentsConfigInput,
   ApiConfig,
   CliRuntimeOptions,
-  ConfigExtensionDescriptor,
-  ConfigExtensionEntry,
   ConfigExtensionReference,
   ConfigFileFormat,
   ConfigFileSnapshot,
@@ -44,8 +46,6 @@ type ConfigInputWithExtends = EddieConfigInput & {
 interface ConfigCompositionContext {
   path?: string | null;
 }
-
-const CONFIG_PRESET_NAME_SET = new Set<string>(CONFIG_PRESET_NAMES);
 
 /**
  * ConfigService resolves Eddie configuration from disk and merges it with CLI
@@ -193,7 +193,9 @@ export class ConfigService {
     visited: Set<string> = new Set(),
   ): Promise<EddieConfig> {
     const normalizedContext = this.normalizeCompositionContext(context);
-    const entries = this.normalizeExtensionReferences(references);
+    const entries = normalizeConfigExtensions(references, {
+      logger: this.logger,
+    });
     if (entries.length === 0) {
       return base;
     }
@@ -206,10 +208,10 @@ export class ConfigService {
         continue;
       }
 
-      const resolvedPath = await this.resolveExtensionPath(
-        entry.path,
-        normalizedContext,
-      );
+      const resolvedPath = await resolveConfigExtensionPath(entry.path, {
+        contextPath: normalizedContext.path,
+        configFilePath: this.configFilePath,
+      });
       if (visited.has(resolvedPath)) {
         throw new Error(
           `Circular config extension detected at ${resolvedPath}.`,
@@ -240,130 +242,6 @@ export class ConfigService {
     }
 
     return current;
-  }
-
-  private normalizeExtensionReferences(
-    references: ConfigExtensionReference[] | undefined,
-  ): ConfigExtensionEntry[] {
-    if (!Array.isArray(references) || references.length === 0) {
-      return [];
-    }
-
-    const entries: ConfigExtensionEntry[] = [];
-    const presetPrefix = "preset:";
-
-    for (const reference of references) {
-      if (!reference) {
-        continue;
-      }
-
-      if (typeof reference === "string") {
-        const trimmed = reference.trim();
-        if (trimmed.length === 0) {
-          this.logger.warn(
-            "[Config] Skipping empty config extension reference.",
-          );
-          continue;
-        }
-
-        if (trimmed.startsWith(presetPrefix)) {
-          const presetId = trimmed.slice(presetPrefix.length).trim();
-          if (presetId.length === 0) {
-            this.logger.warn(
-              "[Config] Skipping preset extension without an identifier.",
-            );
-            continue;
-          }
-          entries.push({ type: "preset", id: presetId });
-          continue;
-        }
-
-        if (CONFIG_PRESET_NAME_SET.has(trimmed)) {
-          entries.push({ type: "preset", id: trimmed });
-          continue;
-        }
-
-        entries.push({ type: "file", path: trimmed });
-        continue;
-      }
-
-      const descriptor = reference as ConfigExtensionDescriptor;
-
-      const presetId = this.isNonEmptyString(descriptor.id)
-        ? descriptor.id.trim()
-        : "";
-      if (presetId.length > 0) {
-        entries.push({ type: "preset", id: presetId });
-      }
-
-      const filePath = this.isNonEmptyString(descriptor.path)
-        ? descriptor.path.trim()
-        : "";
-      if (filePath.length > 0) {
-        entries.push({ type: "file", path: filePath });
-      }
-
-      if (presetId.length === 0 && filePath.length === 0) {
-        this.logger.warn(
-          "[Config] Skipping config extension without id or path.",
-        );
-      }
-    }
-
-    return entries;
-  }
-
-  private async resolveExtensionPath(
-    candidate: string,
-    context: ConfigCompositionContext,
-  ): Promise<string> {
-    const trimmed = candidate.trim();
-    if (trimmed.length === 0) {
-      throw new Error("Config extension path must be a non-empty string.");
-    }
-
-    if (path.isAbsolute(trimmed)) {
-      return trimmed;
-    }
-
-    const contextPath = this.isNonEmptyString(context.path)
-      ? context.path
-      : null;
-    let normalizedContextPath: string | null = null;
-    if (contextPath) {
-      normalizedContextPath = path.isAbsolute(contextPath)
-        ? contextPath
-        : path.resolve(process.cwd(), contextPath);
-    }
-
-    const configuredPath = this.isNonEmptyString(this.configFilePath)
-      ? this.configFilePath
-      : null;
-
-    const baseCandidates = [
-      normalizedContextPath ? path.dirname(normalizedContextPath) : null,
-      configuredPath ? path.dirname(configuredPath) : null,
-      getConfigRoot(),
-      process.cwd(),
-    ].filter((value, index, array): value is string => {
-      if (typeof value !== "string" || value.trim().length === 0) {
-        return false;
-      }
-      return array.indexOf(value) === index;
-    });
-
-    for (const baseDir of baseCandidates) {
-      const resolved = path.resolve(baseDir, trimmed);
-      try {
-        await fs.access(resolved);
-        return resolved;
-      } catch {
-        // continue searching
-      }
-    }
-
-    const fallbackBase = baseCandidates[0] ?? process.cwd();
-    return path.resolve(fallbackBase, trimmed);
   }
 
   private isNonEmptyString(value: unknown): value is string {
