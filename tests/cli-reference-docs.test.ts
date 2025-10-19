@@ -46,4 +46,11 @@ describe("cli reference documentation", () => {
     expect(cliReferenceContent).toMatch(/maxFiles/i);
     expect(cliReferenceContent).toMatch(/maxBytes/i);
   });
+
+  it("details metrics backend flag options and advanced configuration link", () => {
+    expect(cliReferenceContent).toMatch(/--metrics-backend/);
+    expect(cliReferenceContent).toMatch(/otel/i);
+    expect(cliReferenceContent).toMatch(/metrics-backend-level applies/i);
+    expect(cliReferenceContent).toMatch(/See .*configuration/i);
+  });
 });

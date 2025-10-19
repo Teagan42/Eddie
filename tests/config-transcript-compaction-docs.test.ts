@@ -13,6 +13,21 @@ const expectDocToMatchAll = (patterns: RegExp[]): void => {
   }
 };
 
+describe('configuration documentation metrics section', () => {
+  it('documents metrics backend options and otel requirements', () => {
+    expectDocToMatchAll([
+      /metrics section/i,
+      /three backend types/i,
+      /noop/, // backend names should appear verbatim
+      /logging/,
+      /otel/,
+      /meterName/,
+      /meterVersion/,
+      /METRICS_METER_PROVIDER/,
+    ]);
+  });
+});
+
 describe('configuration documentation transcript compaction section', () => {
   it('explains the transcript.compactor block with global and agent scopes', () => {
     expectDocToMatchAll([
