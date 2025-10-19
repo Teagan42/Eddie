@@ -19,4 +19,10 @@ describe('web ui documentation', () => {
     expect(webUiDoc).toMatch(renameDeleteCopy);
     expect(webUiDoc).toMatch(sessionDeletedToken);
   });
+
+  it('cross-links execution tree panel to websocket telemetry sources', () => {
+    expect(webUiDoc).toMatch(/execution tree panel/i);
+    expect(webUiDoc).toMatch(/execution-tree\.updated/);
+    expect(webUiDoc).toMatch(/ExecutionTreeStateStore/);
+  });
 });
