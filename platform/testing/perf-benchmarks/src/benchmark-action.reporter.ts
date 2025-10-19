@@ -1,5 +1,5 @@
-import { promises as fs } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { promises as fs, mkdirSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 
 import type { Reporter, Vitest } from "vitest";
 
@@ -104,11 +104,16 @@ export function buildBenchmarkEntries(files: readonly FileTaskLike[]): Benchmark
 
 export class BenchmarkActionReporter implements Reporter {
   private ctx: Vitest | undefined;
+  private reportDir: string | undefined;
 
   constructor(private readonly options: ReporterOptions = {}) {}
 
   onInit(ctx: Vitest): void {
     this.ctx = ctx;
+    const defaultDir = resolve(ctx.config.root, ".bench-reports");
+    this.reportDir = process.env.BENCHMARK_ACTION_REPORT_DIR ?? defaultDir;
+    process.env.BENCHMARK_ACTION_REPORT_DIR = this.reportDir;
+    mkdirSync(this.reportDir, { recursive: true });
   }
 
   private resolveOutputTarget(): string | undefined {
@@ -141,10 +146,64 @@ export class BenchmarkActionReporter implements Reporter {
     const sourceFiles = (files ?? this.ctx.state.getFiles()) as readonly FileTaskLike[];
     const vitestEntries = buildBenchmarkEntries(sourceFiles);
     const fallbackEntries = drainBenchmarkActionEntries();
-    const entries = vitestEntries.length > 0 ? vitestEntries : fallbackEntries;
-    await fs.writeFile(resolvedOutput, JSON.stringify(entries, null, 2), "utf-8");
+    const structuredEntries = this.collectReportEntries();
+    const mergedEntries = [...vitestEntries, ...fallbackEntries, ...structuredEntries];
+    const uniqueEntries = Array.from(
+      new Map(mergedEntries.map((entry) => [`${entry.name}:${entry.unit}`, entry])).values(),
+    );
+    await fs.writeFile(resolvedOutput, JSON.stringify(uniqueEntries, null, 2), "utf-8");
 
     this.ctx.logger?.log?.(`Benchmark action results written to ${resolvedOutput}`);
+  }
+
+  private readStructuredReport<T>(filename: string): T | undefined {
+    if (!this.reportDir) {
+      return undefined;
+    }
+
+    try {
+      const path = join(this.reportDir, filename);
+      return JSON.parse(readFileSync(path, "utf-8")) as T;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private collectReportEntries(): BenchmarkActionEntry[] {
+    const entries: BenchmarkActionEntry[] = [];
+
+    const templateReport = this.readStructuredReport<{
+      scenarios?: Array<{
+        label: string;
+        warm: { durations: { mean: number; sampleCount: number } };
+      }>;
+    }>("template-rendering.nunjucks.json");
+
+    for (const scenario of templateReport?.scenarios ?? []) {
+      entries.push({
+        name: `TemplateRendererService render scenarios › ${scenario.label}`,
+        unit: "ms",
+        value: scenario.warm.durations.mean,
+        extra: { samples: scenario.warm.durations.sampleCount },
+      });
+    }
+
+    const contextReport = this.readStructuredReport<{
+      scenarios?: Array<{
+        dataset: { name: string };
+        metrics: { meanDurationMs: number };
+      }>;
+    }>("context-pack.pack.json");
+
+    for (const scenario of contextReport?.scenarios ?? []) {
+      entries.push({
+        name: `ContextService.pack benchmarks › pack ${scenario.dataset.name}`,
+        unit: "ms",
+        value: scenario.metrics.meanDurationMs,
+      });
+    }
+
+    return entries;
   }
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -294,6 +294,111 @@ describe("buildBenchmarkEntries", () => {
     ]);
 
     delete process.env.BENCHMARK_OUTPUT_PATH;
+  });
+
+  it("merges registered entries with vitest stats when both are available", async () => {
+    const files = [
+      {
+        filepath: "/workspace/foo.bench.ts",
+        tasks: [
+          {
+            type: "suite",
+            name: "Renderer",
+            tasks: [
+              {
+                type: "test",
+                name: "render inline",
+                meta: { benchmark: true },
+                result: {
+                  state: "pass",
+                  benchmark: {
+                    name: "render inline",
+                    mean: 1.234,
+                    sampleCount: 10,
+                  },
+                },
+              },
+            ],
+            result: { state: "pass" },
+          },
+        ],
+      },
+    ];
+
+    const tmpRoot = mkdtempSync(join(tmpdir(), "bench-reporter-"));
+    const targetPath = join(tmpRoot, "benchmark-results.json");
+    const reportDir = join(tmpRoot, ".bench-reports");
+    mkdirSync(reportDir, { recursive: true });
+    process.env.BENCHMARK_ACTION_REPORT_DIR = reportDir;
+    writeFileSync(
+      join(reportDir, "template-rendering.nunjucks.json"),
+      JSON.stringify({
+        scenarios: [
+          {
+            label: "Welcome email layout [descriptor]",
+            warm: { durations: { mean: 2.222, sampleCount: 5 } },
+          },
+        ],
+      }),
+    );
+    writeFileSync(
+      join(reportDir, "context-pack.pack.json"),
+      JSON.stringify({
+        scenarios: [
+          {
+            dataset: { name: "10x1KB" },
+            metrics: { meanDurationMs: 3.333 },
+          },
+        ],
+      }),
+    );
+    const reporter = new BenchmarkActionReporter({ outputFile: "merged.json" });
+    const ctx = {
+      config: { root: tmpRoot },
+      logger: { log: () => {}, warn: () => {} },
+      state: { getFiles: () => files },
+    } as const;
+
+    drainBenchmarkActionEntries();
+    registerBenchmarkActionEntry({
+      name: "TemplateRendererService render scenarios › Welcome email layout [descriptor]",
+      unit: "ms",
+      value: 2.468,
+    });
+
+    process.env.BENCHMARK_OUTPUT_PATH = targetPath;
+
+    reporter.onInit(ctx as never);
+    await reporter.onFinished(files as never);
+
+    const written = JSON.parse(readFileSync(targetPath, "utf-8")) as Array<{
+      readonly name: string;
+      readonly unit: string;
+      readonly value: number;
+    }>;
+
+    expect(written).toEqual([
+      {
+        name: "Renderer › render inline",
+        unit: "ms",
+        value: 1234,
+        extra: { samples: 10 },
+      },
+      {
+        name: "TemplateRendererService render scenarios › Welcome email layout [descriptor]",
+        unit: "ms",
+        value: 2.222,
+        extra: { samples: 5 },
+      },
+      {
+        name: "ContextService.pack benchmarks › pack 10x1KB",
+        unit: "ms",
+        value: 3.333,
+      },
+    ]);
+
+    delete process.env.BENCHMARK_OUTPUT_PATH;
+    delete process.env.BENCHMARK_ACTION_REPORT_DIR;
   });
 
   it("exposes the reporter class as the default export", () => {

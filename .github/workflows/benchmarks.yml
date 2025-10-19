@@ -64,6 +64,7 @@ jobs:
     env:
       BENCHMARK_OUTPUT_PATH: ${{ github.workspace }}/platform/testing/perf-benchmarks/benchmark-results.json
       CHAT_SESSIONS_BENCH_POSTGRES_URL: postgresql://eddie:eddie-pass@127.0.0.1:5432/eddie_bench
+      POSTGRES_URL: postgresql://eddie:eddie-pass@127.0.0.1:5432/eddie_bench
       CHAT_SESSIONS_BENCH_MYSQL_URL: mysql://eddie:eddie-pass@127.0.0.1:3306/eddie_bench
       CHAT_SESSIONS_BENCH_MARIADB_URL: mysql://eddie:eddie-pass@127.0.0.1:3307/eddie_bench
       DATABASE_URL: postgresql://eddie:eddie-pass@127.0.0.1:5432/eddie_bench
