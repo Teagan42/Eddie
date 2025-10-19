@@ -19,6 +19,7 @@ import type {
   AgentsConfigInput,
   ApiConfig,
   CliRuntimeOptions,
+  ConfigExtensionDescriptor,
   ConfigFileFormat,
   ConfigFileSnapshot,
   ContextConfig,
@@ -33,6 +34,10 @@ import type {
 } from "@eddie/types";
 
 export type { ConfigFileSnapshot };
+
+type ConfigInputWithExtends = EddieConfigInput & {
+  extends?: ConfigExtensionDescriptor[];
+};
 
 /**
  * ConfigService resolves Eddie configuration from disk and merges it with CLI
@@ -119,9 +124,25 @@ export class ConfigService {
       mergedOverrides.preset,
     );
 
-    const finalConfig = this.composeLayers(
+    const {
+      extends: extensionDescriptors,
+      ...fileOverrides
+    } = migratedInput as ConfigInputWithExtends;
+
+    const extensionBaseDir =
+      typeof this.configFilePath === "string" && this.configFilePath.trim().length > 0
+        ? path.dirname(this.configFilePath)
+        : null;
+
+    const defaultsWithExtensions = await this.applyConfigExtensions(
       defaultsWithPreset,
-      migratedInput,
+      extensionDescriptors,
+      extensionBaseDir,
+    );
+
+    const finalConfig = this.composeLayers(
+      defaultsWithExtensions,
+      fileOverrides as EddieConfigInput,
       mergedOverrides,
     );
 
@@ -143,6 +164,118 @@ export class ConfigService {
     const normalisedFileLayer = this.normalizeConfig(withFileLayer);
     const withCliLayer = this.applyCliOverrides(normalisedFileLayer, cliOverrides);
     return this.normalizeConfig(withCliLayer);
+  }
+
+  private async applyConfigExtensions(
+    base: EddieConfig,
+    descriptors: ConfigExtensionDescriptor[] | undefined,
+    contextBaseDir: string | null,
+    visited: Set<string> = new Set(),
+  ): Promise<EddieConfig> {
+    if (!Array.isArray(descriptors) || descriptors.length === 0) {
+      return base;
+    }
+
+    let current = base;
+
+    for (const descriptor of descriptors) {
+      if (!descriptor) {
+        continue;
+      }
+
+      const hasId =
+        typeof descriptor.id === "string" && descriptor.id.trim().length > 0;
+      const hasPath =
+        typeof descriptor.path === "string" && descriptor.path.trim().length > 0;
+
+      if (!hasId && !hasPath) {
+        this.logger.warn(
+          "[Config] Skipping config extension without id or path.",
+        );
+        continue;
+      }
+
+      let next = current;
+
+      if (hasId && descriptor.id) {
+        next = this.applyPreset(next, descriptor.id);
+      }
+
+      if (hasPath && descriptor.path) {
+        const resolvedPath = await this.resolveExtensionPath(
+          descriptor.path,
+          contextBaseDir,
+        );
+
+        if (visited.has(resolvedPath)) {
+          this.logger.warn(
+            `[Config] Skipping cyclic config extension at ${resolvedPath}.`,
+          );
+        } else {
+          visited.add(resolvedPath);
+          try {
+            const extensionInput = await this.readConfigFile(resolvedPath);
+            const {
+              extends: nestedExtensions,
+              ...extensionOverrides
+            } = extensionInput as ConfigInputWithExtends;
+
+            const withNested = await this.applyConfigExtensions(
+              next,
+              nestedExtensions,
+              path.dirname(resolvedPath),
+              visited,
+            );
+
+            next = this.applyConfigFileOverrides(
+              withNested,
+              extensionOverrides as EddieConfigInput,
+            );
+          } finally {
+            visited.delete(resolvedPath);
+          }
+        }
+      }
+
+      current = next;
+    }
+
+    return current;
+  }
+
+  private async resolveExtensionPath(
+    candidate: string,
+    contextBaseDir: string | null,
+  ): Promise<string> {
+    const trimmed = candidate.trim();
+    if (path.isAbsolute(trimmed)) {
+      return trimmed;
+    }
+
+    const baseCandidates = [
+      contextBaseDir,
+      this.configFilePath ? path.dirname(this.configFilePath) : null,
+      getConfigRoot(),
+      process.cwd(),
+    ].filter((value, index, array): value is string => {
+      if (typeof value !== "string" || value.trim().length === 0) {
+        return false;
+      }
+      return array.indexOf(value) === index;
+    });
+
+    for (const baseDir of baseCandidates) {
+      const resolved = path.resolve(baseDir, trimmed);
+      try {
+        await fs.access(resolved);
+        return resolved;
+      } catch {
+        // continue searching
+      }
+    }
+
+    const fallbackBase = baseCandidates[0] ?? process.cwd();
+    return path.resolve(fallbackBase, trimmed);
   }
 
   private applyPreset(
