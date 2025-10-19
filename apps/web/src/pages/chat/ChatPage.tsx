@@ -417,6 +417,27 @@ export function ChatPage(): JSX.Element {
           return;
         }
 
+        const existingSnapshot = sessionContextByIdRef.current[targetSessionId];
+        const existingCapturedAt = existingSnapshot?.capturedAt;
+        const fetchedCapturedAt = normalized.updatedAt ?? undefined;
+
+        if (existingCapturedAt) {
+          if (!fetchedCapturedAt) {
+            return;
+          }
+
+          const existingTimestamp = Date.parse(existingCapturedAt);
+          const fetchedTimestamp = Date.parse(fetchedCapturedAt);
+
+          if (
+            Number.isFinite(existingTimestamp) &&
+            Number.isFinite(fetchedTimestamp) &&
+            fetchedTimestamp < existingTimestamp
+          ) {
+            return;
+          }
+        }
+
         persistExecutionState(
           targetSessionId,
           normalized,
