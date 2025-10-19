@@ -76,6 +76,73 @@ describe("OpenAICompatibleAdapter", () => {
     expect(body.response_format).toEqual(spawnTool.outputSchema);
   });
 
+  it("normalizes chat history to OpenAI-compatible message schema", async () => {
+    fetchMock.mockResolvedValueOnce(createResponse());
+
+    const adapter = new OpenAICompatibleAdapter({
+      baseUrl: "https://example.com",
+      apiKey: "sk-test",
+    });
+
+    const iterator = adapter.stream({
+      model: "gpt-test",
+      messages: [
+        { role: "system", content: "system prompt" },
+        { role: "user", content: "hello" },
+        { role: "assistant", content: "hi there" },
+        {
+          role: "assistant",
+          content: "",
+          name: "math",
+          tool_call_id: "call-1",
+        },
+        {
+          role: "tool",
+          name: "math",
+          tool_call_id: "call-1",
+          content: "{\"result\":42}",
+        },
+      ],
+    } as StreamOptions);
+
+    for await (const _ of iterator) {
+      // exhaust iterator
+    }
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, options] = fetchMock.mock.calls[0] ?? [];
+    const body = options?.body ? JSON.parse(options.body as string) : {};
+
+    expect(body.messages).toEqual([
+      {
+        role: "system",
+        content: [{ type: "text", text: "system prompt" }],
+      },
+      { role: "user", content: [{ type: "text", text: "hello" }] },
+      {
+        role: "assistant",
+        content: [{ type: "text", text: "hi there" }],
+      },
+      {
+        role: "assistant",
+        content: [],
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "math", arguments: "" },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        tool_call_id: "call-1",
+        name: "math",
+        content: "{\"result\":42}",
+      },
+    ]);
+  });
+
   it("streams reasoning_content entries as reasoning events", async () => {
     const chunks = [
       'data: {"choices":[{"delta":{"reasoning_content":"Plan step"}}]}\n',
