@@ -38,13 +38,18 @@ export function OverviewStatsGrid({ stats = [] }: OverviewStatsGridProps): JSX.E
               <Flex align="center" gap="3">
                 <span
                   className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-2xl",
-                    "bg-[color:var(--overview-stat-icon-bg)]",
+                    "flex h-12 w-12 items-center justify-center rounded-2xl",
                     "bg-[color:var(--hero-console-icon-bg)]",
                     "dark:bg-[color:var(--hero-console-icon-bg-dark)]"
                   )}
                 >
-                  <Icon className="h-5 w-5 text-[color:var(--overview-stat-icon-fg)]" />
+                  <Icon
+                    className={cn(
+                      "h-6 w-6",
+                      "text-[color:var(--hero-console-icon-fg)]",
+                      "dark:text-[color:var(--hero-console-icon-fg-dark)]"
+                    )}
+                  />
                 </span>
                 <Text
                   size="1"
@@ -56,7 +61,15 @@ export function OverviewStatsGrid({ stats = [] }: OverviewStatsGridProps): JSX.E
                   {stat.label}
                 </Text>
               </Flex>
-              <Badge variant="soft" color="grass">
+              <Badge
+                variant="soft"
+                className={cn(
+                  "bg-[color:var(--hero-badge-bg)]",
+                  "text-[color:var(--hero-badge-fg)]",
+                  "dark:bg-[color:var(--hero-badge-bg-dark)]",
+                  "dark:text-[color:var(--hero-badge-fg-dark)]"
+                )}
+              >
                 Live
               </Badge>
             </Flex>
