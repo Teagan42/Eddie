@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { clsx } from "clsx";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 interface PanelProps {
   title: string;
@@ -18,6 +19,12 @@ export function Panel({
   id,
   children,
 }: PanelProps): JSX.Element {
+  const isOnline = useOnlineStatus();
+  const statusText = isOnline ? "Live Surface" : "Offline Surface";
+  const statusIndicatorClass = isOnline
+    ? "bg-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.25)]"
+    : "bg-rose-400 shadow-[0_0_0_4px_rgba(244,63,94,0.35)]";
+
   return (
     <section
       id={id}
@@ -32,8 +39,11 @@ export function Panel({
         <header className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
           <div className="max-w-xl space-y-1">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-emerald-50">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.25)]" />
-              Live Surface
+              <span
+                aria-hidden="true"
+                className={clsx("h-2 w-2 rounded-full", statusIndicatorClass)}
+              />
+              <span aria-live="polite">{statusText}</span>
             </div>
             <h2 className="text-2xl font-semibold tracking-tight text-white drop-shadow-sm">{title}</h2>
             {description ? (
