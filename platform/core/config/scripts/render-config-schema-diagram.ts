@@ -8,7 +8,8 @@ import {
   EDDIE_CONFIG_SCHEMA_BUNDLE,
 } from "../src/schema";
 
-const OUTPUT_RELATIVE_PATH = "docs/generated/config-schema-diagram.md";
+const DIAGRAM_OUTPUT_RELATIVE_PATH = "docs/generated/config-schema-diagram.md";
+const JSON_OUTPUT_RELATIVE_PATH = "docs/generated/config-schema.json";
 const MERMAID_SPECIAL_CHARS = /[<>{}:()]/;
 const MERMAID_GRAPH_DIRECTION = "LR";
 
@@ -45,6 +46,12 @@ export function renderConfigSchemaMarkdown(
     "```",
     "",
   ].join("\n");
+}
+
+export function renderConfigSchemaJson(
+  bundle: EddieConfigSchemaBundle,
+): string {
+  return `${JSON.stringify(bundle, null, 2)}\n`;
 }
 
 function describeObject(
@@ -209,12 +216,12 @@ function isArraySchema(schema: JSONSchema7 | undefined): schema is JSONSchema7 {
   return Array.isArray(schema.type) && schema.type.includes("array");
 }
 
-function writeMarkdown(outputPath: string, content: string): void {
+function writeOutput(outputPath: string, content: string): void {
   mkdirSync(dirname(outputPath), { recursive: true });
   writeFileSync(outputPath, content);
 }
 
-function checkMarkdown(outputPath: string, content: string): boolean {
+function checkOutput(outputPath: string, content: string): boolean {
   if (!existsSync(outputPath)) {
     return false;
   }
@@ -227,21 +234,36 @@ function runCli(): void {
   const args = process.argv.slice(2);
   const check = args.includes("--check");
 
-  const outputPath = resolve(process.cwd(), OUTPUT_RELATIVE_PATH);
-  const content = renderConfigSchemaMarkdown(EDDIE_CONFIG_SCHEMA_BUNDLE);
+  const diagramOutputPath = resolve(
+    process.cwd(),
+    DIAGRAM_OUTPUT_RELATIVE_PATH,
+  );
+  const jsonOutputPath = resolve(process.cwd(), JSON_OUTPUT_RELATIVE_PATH);
+  const markdownContent = renderConfigSchemaMarkdown(
+    EDDIE_CONFIG_SCHEMA_BUNDLE,
+  );
+  const jsonContent = renderConfigSchemaJson(EDDIE_CONFIG_SCHEMA_BUNDLE);
+  const outputs = [
+    { path: diagramOutputPath, content: markdownContent },
+    { path: jsonOutputPath, content: jsonContent },
+  ];
 
   if (check) {
-    const inSync = checkMarkdown(outputPath, content);
+    const inSync = outputs.every(({ path, content }) =>
+      checkOutput(path, content),
+    );
     if (!inSync) {
       console.error(
-        "Configuration schema diagram is out of date. Run npm run docs:config-schema.",
+        "Configuration schema artifacts are out of date. Run npm run docs:config-schema.",
       );
       process.exitCode = 1;
     }
     return;
   }
 
-  writeMarkdown(outputPath, content);
+  for (const { path, content } of outputs) {
+    writeOutput(path, content);
+  }
 }
 
 if (require.main === module) {
