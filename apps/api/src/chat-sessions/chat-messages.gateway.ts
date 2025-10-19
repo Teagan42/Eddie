@@ -27,6 +27,7 @@ export class ChatMessagesGateway {
     sessionId: string;
     messageId: string;
     responseId: string | undefined;
+    text: string | undefined;
     metadata: Record<string, unknown> | undefined;
     timestamp: string | undefined;
     agentId: string | null;

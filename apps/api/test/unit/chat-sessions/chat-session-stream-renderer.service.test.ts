@@ -238,13 +238,16 @@ describe("ChatSessionStreamRendererService", () => {
 
     const reasoningCompletions = getReasoningCompletions();
     expect(reasoningCompletions).toHaveLength(1);
-    expect(reasoningCompletions[0]).toMatchObject({
-      sessionId,
-      messageId: firstPartial.messageId,
-      responseId: "resp-1",
-      metadata: { stage: "analysis" },
-      agentId: "agent-42",
-    });
+    expect(reasoningCompletions[0]).toEqual(
+      expect.objectContaining({
+        sessionId,
+        messageId: firstPartial.messageId,
+        responseId: "resp-1",
+        metadata: { stage: "analysis" },
+        agentId: "agent-42",
+        text: "Thinking harder",
+      })
+    );
 
     const partialEvents = getPartialEvents();
     expect(partialEvents).toHaveLength(1);
