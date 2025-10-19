@@ -201,6 +201,19 @@ describe("ContextService byte budget checks", () => {
     );
   });
 
+  it("applies basename exclude patterns across nested directories", async () => {
+    const service = await instantiateContextService();
+    globMock.mockResolvedValueOnce(["nested/output.log"]);
+
+    const result = await service.pack({
+      baseDir: "/repo",
+      exclude: ["*.log"],
+    });
+
+    expect(fsMocks.stat).not.toHaveBeenCalled();
+    expect(result.files).toHaveLength(0);
+  });
+
   it("allows glob results that reference parent directories", async () => {
     const service = await instantiateContextService();
     globMock.mockResolvedValueOnce(["../shared/info.txt"]);

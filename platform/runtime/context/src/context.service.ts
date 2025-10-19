@@ -722,7 +722,7 @@ export class ContextService {
       return () => false;
     }
 
-    const isMatch = picomatch(patterns, { dot: true });
+    const isMatch = picomatch(patterns, { dot: true, matchBase: true });
 
     return (candidatePath: string) =>
       isMatch(this.normalizeForMatching(candidatePath));
