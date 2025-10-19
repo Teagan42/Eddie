@@ -236,10 +236,21 @@ function mergeCompletedReasoning(
   const agentId = resolveAgentId(previousAgentId, payload.agentId);
 
   let nextSegments = segments;
+  const hasText = typeof payload.text === "string";
+  const normalizedText = hasText ? payload.text : "";
+  const trimmed = normalizedText.trim();
 
-  if (typeof payload.text === "string") {
+  if (hasText && trimmed.length === 0) {
+    if (last) {
+      nextSegments = updateLastReasoningSegment(segments, {
+        metadata: payload.metadata ?? last.metadata,
+        timestamp: payload.timestamp ?? last.timestamp,
+        agentId,
+      });
+    }
+  } else if (hasText) {
     const segment: MessageReasoningSegment = {
-      text: payload.text,
+      text: normalizedText,
       metadata: payload.metadata,
       timestamp: payload.timestamp,
       agentId,
