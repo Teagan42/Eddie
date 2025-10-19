@@ -352,8 +352,8 @@ export const readTaskListDocument = async (
   options: ReadTaskListDocumentOptions,
 ): Promise<TaskListDocument> => {
   assertValidTaskListName(options.listName);
-  const filePath = resolveTaskListPath(options.rootDir, options.listName);
   const timestamp = nowIsoString();
+  const filePath = resolveTaskListPath(options.rootDir, options.listName);
 
   try {
     const raw = await fs.readFile(filePath, "utf-8");
@@ -376,6 +376,38 @@ export const readTaskListDocument = async (
   }
 };
 
+export const ensureTaskListDocument = async (
+  options: ReadTaskListDocumentOptions,
+): Promise<TaskListDocument> => {
+  let document = await readTaskListDocument(options);
+  const filePath = resolveTaskListPath(options.rootDir, options.listName);
+
+  try {
+    await fs.access(filePath);
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error) {
+      const { code } = error as NodeJS.ErrnoException;
+      if (code === "ENOENT") {
+        document = await writeTaskListDocument({
+          ...options,
+          document: {
+            metadata: document.metadata,
+            tasks: document.tasks.map((task) => cloneTaskPayload(task)),
+            createdAt: document.createdAt,
+            updatedAt: document.updatedAt,
+          },
+          preserveTaskUpdatedAt: true,
+        });
+        return document;
+      }
+    }
+
+    throw error;
+  }
+
+  return document;
+};
+
 export const writeTaskListDocument = async (
   options: WriteTaskListDocumentOptions,
 ): Promise<TaskListDocument> => {
@@ -396,14 +428,39 @@ export const writeTaskListDocument = async (
   return document;
 };
 
+const findNextActionableTask = (
+  tasks: TaskListTask[],
+): TaskListTask | undefined =>
+  tasks.find((task) => task.status !== "complete");
+
 const summariseNextActionableTask = (tasks: TaskListTask[]): string => {
-  const next = tasks.find((task) => task.status !== "complete");
+  const next = findNextActionableTask(tasks);
 
   if (!next) {
     return "All tasks are complete.";
   }
 
   return `Next task: ${next.title} (${next.status}).`;
+};
+
+const formatNextTaskDetailLines = (tasks: TaskListTask[]): string[] => {
+  const next = findNextActionableTask(tasks);
+
+  if (!next) {
+    return [];
+  }
+
+  const lines: string[] = [];
+
+  if (typeof next.summary === "string" && next.summary.trim().length > 0) {
+    lines.push(`Summary: ${next.summary}`);
+  }
+
+  if (typeof next.details === "string" && next.details.trim().length > 0) {
+    lines.push(`Details: ${next.details}`);
+  }
+
+  return lines;
 };
 
 const formatStatusCounts = (tasks: TaskListTask[]): string => {
@@ -442,15 +499,49 @@ export const renderTaskListContent = (
 ): string => {
   const { listName, document, abridged = false } = options;
   const summary = summariseNextActionableTask(document.tasks);
+  const detailLines = formatNextTaskDetailLines(document.tasks);
 
   if (abridged) {
-    return `Task list "${listName}" — ${summary}`;
+    const abridgedLines = [`Task list "${listName}" — ${summary}`, ...detailLines];
+    return abridgedLines.join("\n").trim();
   }
 
   const statusCounts = formatStatusCounts(document.tasks);
   const totalLine = `Tasks: ${document.tasks.length} total (${statusCounts})`;
   const taskLines = document.tasks.map(formatTaskLine);
   const body = taskLines.length > 0 ? `\n${taskLines.join("\n")}` : "";
+  const details = detailLines.length > 0 ? `\n${detailLines.join("\n")}` : "";
 
-  return `Task list "${listName}"\n${summary}\n${totalLine}${body}`;
+  return `Task list "${listName}"\n${summary}${details}\n${totalLine}${body}`;
+};
+
+export interface TaskListResult {
+  schema: typeof TASK_LIST_RESULT_SCHEMA.$id;
+  content: string;
+  data: TaskListDocument;
+}
+
+export interface FormatTaskListResultOptions {
+  document: TaskListDocument;
+  listName: string;
+  header?: string;
+  abridged?: boolean;
+}
+
+export const formatTaskListResult = ({
+  document,
+  listName,
+  header,
+  abridged = false,
+}: FormatTaskListResultOptions): TaskListResult => {
+  const headerLine = header ? header.trim() : "";
+  const body = renderTaskListContent({ listName, document, abridged });
+  const lines = headerLine.length > 0 ? [headerLine, body] : [body];
+  const content = lines.join("\n").trim();
+
+  return {
+    schema: TASK_LIST_RESULT_SCHEMA.$id,
+    content,
+    data: document,
+  } as const;
 };

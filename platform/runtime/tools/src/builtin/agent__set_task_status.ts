@@ -3,12 +3,11 @@ import type { ToolDefinition } from "@eddie/types";
 import {
   TASK_LIST_RESULT_SCHEMA,
   readTaskListDocument,
-  renderTaskListContent,
+  formatTaskListResult,
   sanitiseTaskListName,
   sanitiseTaskId,
   isTaskListTaskStatus,
   writeTaskListDocument,
-  type TaskListDocument,
   type TaskListTaskStatus,
   type TaskListTaskPayload,
 } from "./task_list";
@@ -20,8 +19,6 @@ interface AgentSetTaskStatusArguments {
   abridged?: boolean;
 }
 
-const SCHEMA_ID = TASK_LIST_RESULT_SCHEMA.$id;
-
 const sanitiseStatus = (value: unknown): TaskListTaskStatus => {
   if (!isTaskListTaskStatus(value)) {
     throw new Error(
@@ -31,21 +28,6 @@ const sanitiseStatus = (value: unknown): TaskListTaskStatus => {
 
   return value;
 };
-
-const buildResult = (
-  document: TaskListDocument,
-  listName: string,
-  abridged: boolean,
-  header: string,
-) => ({
-  schema: SCHEMA_ID,
-  content: `${header}\n${renderTaskListContent({
-    listName,
-    document,
-    abridged,
-  })}`.trim(),
-  data: document,
-});
 
 export const agentSetTaskStatusTool: ToolDefinition = {
   name: "agent__set_task_status",
@@ -93,12 +75,12 @@ export const agentSetTaskStatusTool: ToolDefinition = {
     );
 
     if (!confirmation) {
-      return buildResult(
+      return formatTaskListResult({
         document,
-        taskListName,
-        abridgedResult,
-        `Status update cancelled for "${taskListName}".`,
-      );
+        listName: taskListName,
+        abridged: abridgedResult,
+        header: `Status update cancelled for "${taskListName}".`,
+      });
     }
 
     const tasks: TaskListTaskPayload[] = document.tasks.map((task, index) => {
@@ -123,11 +105,11 @@ export const agentSetTaskStatusTool: ToolDefinition = {
       preserveTaskUpdatedAt: true,
     });
 
-    return buildResult(
-      updated,
-      taskListName,
-      abridgedResult,
-      `Updated task "${taskId}" to status ${status}.`,
-    );
+    return formatTaskListResult({
+      document: updated,
+      listName: taskListName,
+      abridged: abridgedResult,
+      header: `Updated task "${taskId}" to status ${status}.`,
+    });
   },
 };

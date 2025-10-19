@@ -2,8 +2,8 @@ import type { ToolDefinition } from "@eddie/types";
 
 import {
   TASK_LIST_RESULT_SCHEMA,
-  readTaskListDocument,
-  renderTaskListContent,
+  ensureTaskListDocument,
+  formatTaskListResult,
   sanitiseTaskListName,
 } from "./task_list";
 
@@ -11,8 +11,6 @@ interface AgentGetTaskListArguments {
   taskListName: string;
   abridged?: boolean;
 }
-
-const SCHEMA_ID = TASK_LIST_RESULT_SCHEMA.$id;
 
 export const agentGetTaskListTool: ToolDefinition = {
   name: "agent__get_task_list",
@@ -32,20 +30,14 @@ export const agentGetTaskListTool: ToolDefinition = {
       args as unknown as AgentGetTaskListArguments;
 
     const taskListName = sanitiseTaskListName(taskListNameInput);
-    const document = await readTaskListDocument({
+    const document = await ensureTaskListDocument({
       rootDir: ctx.cwd,
       listName: taskListName,
     });
-    const content = renderTaskListContent({
-      listName: taskListName,
+    return formatTaskListResult({
       document,
+      listName: taskListName,
       abridged: Boolean(abridged),
     });
-
-    return {
-      schema: SCHEMA_ID,
-      content,
-      data: document,
-    } as const;
   },
 };
