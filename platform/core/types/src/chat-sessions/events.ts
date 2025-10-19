@@ -53,6 +53,27 @@ export class ChatSessionToolResultEvent {
   ) {}
 }
 
+export class ChatSessionReasoningDeltaEvent {
+  constructor(
+    public readonly sessionId: string,
+    public readonly id: string | undefined,
+    public readonly text: string,
+    public readonly metadata: Record<string, unknown> | undefined,
+    public readonly timestamp: string | undefined,
+    public readonly agentId: string | null | undefined,
+  ) {}
+}
+
+export class ChatSessionReasoningCompleteEvent {
+  constructor(
+    public readonly sessionId: string,
+    public readonly responseId: string | undefined,
+    public readonly metadata: Record<string, unknown> | undefined,
+    public readonly timestamp: string | undefined,
+    public readonly agentId: string | null | undefined,
+  ) {}
+}
+
 export class ExecutionTreeStateUpdatedEvent implements IEvent {
   constructor(
     public readonly sessionId: string,
@@ -67,6 +88,8 @@ export const CHAT_SESSION_EVENT_CLASSES = [
   ChatMessagePartialEvent,
   ChatSessionToolCallEvent,
   ChatSessionToolResultEvent,
+  ChatSessionReasoningDeltaEvent,
+  ChatSessionReasoningCompleteEvent,
   ExecutionTreeStateUpdatedEvent,
 ] as const;
 
