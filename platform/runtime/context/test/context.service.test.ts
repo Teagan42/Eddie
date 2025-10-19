@@ -200,6 +200,44 @@ describe("ContextService byte budget checks", () => {
       })
     );
   });
+
+  it("applies basename exclude patterns across nested directories", async () => {
+    const service = await instantiateContextService();
+    globMock.mockResolvedValueOnce(["nested/output.log"]);
+
+    const result = await service.pack({
+      baseDir: "/repo",
+      exclude: ["*.log"],
+    });
+
+    expect(fsMocks.stat).not.toHaveBeenCalled();
+    expect(result.files).toHaveLength(0);
+  });
+
+  it("allows glob results that reference parent directories", async () => {
+    const service = await instantiateContextService();
+    globMock.mockResolvedValueOnce(["../shared/info.txt"]);
+    fsMocks.stat.mockResolvedValueOnce({ size: 11 } as Stats);
+    streamMocks.createReadStream.mockReturnValueOnce(
+      Readable.from(["hello world"], { objectMode: false })
+    );
+
+    const result = await service.pack({
+      baseDir: "/repo",
+      include: ["../shared/info.txt"],
+    });
+
+    expect(fsMocks.stat).toHaveBeenCalledWith(
+      path.resolve("/repo", "../shared/info.txt")
+    );
+    expect(result.files).toEqual([
+      {
+        path: "../shared/info.txt",
+        bytes: 11,
+        content: "hello world",
+      },
+    ]);
+  });
 });
 
 describe("ContextService.computeStats", () => {
