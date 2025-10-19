@@ -26,18 +26,13 @@ const HINT_ACTIVE_CLASS = "font-medium tracking-wide text-[color:var(--overview-
 const HINT_DISABLED_CLASS = "font-medium tracking-wide text-[color:var(--overview-composer-hint-disabled)]";
 
 const CTA_BUTTON_CLASS = [
-  "group relative overflow-hidden rounded-full bg-gradient-to-r",
-  "from-[hsl(var(--hero-cta-from))]",
-  "via-[hsl(var(--hero-cta-via))]",
-  "to-[hsl(var(--hero-cta-to))]",
+  "bg-gradient-to-r",
+  "from-[hsl(var(--hero-cta-from))] via-[hsl(var(--hero-cta-via))] to-[hsl(var(--hero-cta-to))]",
   "text-[color:var(--hero-cta-foreground)]",
   "shadow-[var(--hero-cta-shadow)]",
-  "dark:from-[hsl(var(--hero-cta-from-dark))]",
-  "dark:via-[hsl(var(--hero-cta-via-dark))]",
-  "dark:to-[hsl(var(--hero-cta-to-dark))]",
+  "dark:from-[hsl(var(--hero-cta-from-dark))] dark:via-[hsl(var(--hero-cta-via-dark))] dark:to-[hsl(var(--hero-cta-to-dark))]",
   "dark:text-[color:var(--hero-cta-foreground-dark)]",
   "dark:shadow-[var(--hero-cta-shadow-dark)]",
-  "transition-transform duration-150 ease-out hover:scale-[1.02]",
 ].join(" ");
 
 const CTA_SHINE_CLASS =
