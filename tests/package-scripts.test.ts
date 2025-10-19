@@ -6,6 +6,8 @@ const packageJson = JSON.parse(
 );
 
 const concurrencyFallback = 'WORKSPACE_TEST_CONCURRENCY=${WORKSPACE_TEST_CONCURRENCY:-2}';
+const changedWorkspacesRunner =
+  'WORKSPACE_ONLY_CHANGED=1 WORKSPACE_DIFF_BASE=origin/main tsx scripts/workspace-script.ts';
 
 const convenienceScripts = {
   clean: 'npm run clean --workspaces --if-present && git clean -fdX',
@@ -22,6 +24,14 @@ const convenienceScripts = {
 } as const;
 
 describe('root package scripts', () => {
+  it('runs build only for changed workspaces compared to origin/main', () => {
+    expect(packageJson.scripts.build).toBe(`${changedWorkspacesRunner} build`);
+  });
+
+  it('runs lint only for changed workspaces compared to origin/main', () => {
+    expect(packageJson.scripts.lint).toBe(`${changedWorkspacesRunner} lint`);
+  });
+
   it('runs API and web development servers together', () => {
     expect(packageJson.scripts.dev).toBe(
       'concurrently "npm run dev:api --if-present" "npm run web:dev --if-present"',

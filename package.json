@@ -16,8 +16,8 @@
   "scripts": {
     "clean": "npm run clean --workspaces --if-present && git clean -fdX",
     "reset": "npm run clean && npm install",
-    "build": "tsx scripts/workspace-script.ts build",
-    "lint": "tsx scripts/workspace-script.ts lint",
+    "build": "WORKSPACE_ONLY_CHANGED=1 WORKSPACE_DIFF_BASE=origin/main tsx scripts/workspace-script.ts build",
+    "lint": "WORKSPACE_ONLY_CHANGED=1 WORKSPACE_DIFF_BASE=origin/main tsx scripts/workspace-script.ts lint",
     "lint:licenses": "tsx scripts/license-check.ts --check",
     "licenses:write": "tsx scripts/license-check.ts",
     "typecheck": "npm run typecheck --workspaces --if-present",
