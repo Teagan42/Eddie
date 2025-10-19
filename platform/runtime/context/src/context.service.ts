@@ -3,7 +3,7 @@ import { createReadStream } from "node:fs";
 import fs from "fs/promises";
 import path from "path";
 import fg from "fast-glob";
-import ignore from "ignore";
+import picomatch from "picomatch";
 import type {
   ContextConfig,
   ContextResourceBundleConfig,
@@ -191,7 +191,7 @@ export class ContextService {
       this.createGlobOptions(baseDir, excludePatterns)
     );
 
-    const ig = ignore().add(excludePatterns);
+    const shouldIgnore = this.createIgnoreMatcher(excludePatterns);
 
     let fileCount = 0;
     let totalBytes = 0;
@@ -202,7 +202,7 @@ export class ContextService {
         break;
       }
 
-      if (ig.ignores(relPath)) {
+      if (shouldIgnore(relPath)) {
         continue;
       }
 
@@ -271,7 +271,7 @@ export class ContextService {
       this.createGlobOptions(baseDir, excludePatterns)
     );
 
-    const ig = ignore().add(excludePatterns);
+    const shouldIgnore = this.createIgnoreMatcher(excludePatterns);
 
     const files: PackedContext["files"] = [];
     let totalBytes = 0;
@@ -282,7 +282,7 @@ export class ContextService {
         break;
       }
 
-      if (ig.ignores(relPath)) {
+      if (shouldIgnore(relPath)) {
         continue;
       }
 
@@ -457,12 +457,12 @@ export class ContextService {
       this.createGlobOptions(baseDir, excludePatterns)
     );
 
-    const ig = ignore().add(excludePatterns);
+    const shouldIgnore = this.createIgnoreMatcher(excludePatterns);
     const files: PackedFile[] = [];
     let bytes = 0;
 
     for (const relPath of globResults) {
-      if (ig.ignores(relPath)) {
+      if (shouldIgnore(relPath)) {
         continue;
       }
 
@@ -634,11 +634,11 @@ export class ContextService {
       this.createGlobOptions(baseDir, excludePatterns)
     );
 
-    const ig = ignore().add(excludePatterns);
+    const shouldIgnore = this.createIgnoreMatcher(excludePatterns);
     let bytes = 0;
 
     for (const relPath of globResults) {
-      if (ig.ignores(relPath)) {
+      if (shouldIgnore(relPath)) {
         continue;
       }
 
@@ -715,6 +715,21 @@ export class ContextService {
       onlyFiles: true,
       ignore: excludePatterns,
     } as const;
+  }
+
+  private createIgnoreMatcher(patterns: string[]): (candidatePath: string) => boolean {
+    if (!patterns.length) {
+      return () => false;
+    }
+
+    const isMatch = picomatch(patterns, { dot: true });
+
+    return (candidatePath: string) =>
+      isMatch(this.normalizeForMatching(candidatePath));
+  }
+
+  private normalizeForMatching(candidatePath: string) {
+    return candidatePath.replaceAll("\\", "/");
   }
 
   private resolveContextOptions(config: ContextConfig) {
