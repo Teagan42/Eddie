@@ -15,7 +15,8 @@ describe("ProviderCatalogService", () => {
       .fn<ProviderFactoryService["listModels"]>()
       .mockResolvedValueOnce(["gpt-4o", "gpt-4o-mini"])
       .mockResolvedValueOnce(["claude-3", "claude-3-haiku"])
-      .mockResolvedValueOnce(["mixtral-8x7b"]);
+      .mockResolvedValueOnce(["mixtral-8x7b"])
+      .mockResolvedValueOnce(["llama-3-70b"]);
     const service = createService(listModels);
 
     const catalog = await service.catalog();
@@ -23,6 +24,7 @@ describe("ProviderCatalogService", () => {
     expect(listModels).toHaveBeenCalledWith({ name: "openai" });
     expect(listModels).toHaveBeenCalledWith({ name: "anthropic" });
     expect(listModels).toHaveBeenCalledWith({ name: "openai_compatible" });
+    expect(listModels).toHaveBeenCalledWith({ name: "local_docker" });
     expect(catalog).toEqual([
       {
         name: "openai",
@@ -38,6 +40,11 @@ describe("ProviderCatalogService", () => {
         name: "openai_compatible",
         label: "OpenAI Compatible",
         models: ["mixtral-8x7b"],
+      },
+      {
+        name: "local_docker",
+        label: "Local Docker Runner",
+        models: ["llama-3-70b"],
       },
     ]);
   });

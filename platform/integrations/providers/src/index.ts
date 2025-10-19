@@ -4,3 +4,4 @@ export * from "./provider.tokens";
 export * from "./openai";
 export * from "./openai_compatible";
 export * from "./anthropic";
+export * from "./local_docker";

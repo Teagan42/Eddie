@@ -6,10 +6,11 @@ interface ProviderCatalogSource {
   readonly label: string;
 }
 
-const PROVIDER_CATALOG_SOURCES: ProviderCatalogSource[] = [
+const PROVIDER_CATALOG_SOURCES: ReadonlyArray<ProviderCatalogSource> = [
   { name: "openai", label: "OpenAI" },
   { name: "anthropic", label: "Anthropic Claude" },
   { name: "openai_compatible", label: "OpenAI Compatible" },
+  { name: "local_docker", label: "Local Docker Runner" },
 ];
 
 export interface ProviderCatalogEntry {

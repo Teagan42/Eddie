@@ -1,6 +1,7 @@
 import type { FactoryProvider } from "@nestjs/common";
 import { Module } from "@nestjs/common";
 import { AnthropicAdapterFactory } from "./anthropic";
+import { LocalDockerModelRunnerAdapterFactory } from "./local_docker";
 import { OpenAIAdapterFactory } from "./openai";
 import { OpenAICompatibleAdapterFactory } from "./openai_compatible";
 import { ProviderFactoryService } from "./provider-factory.service";
@@ -24,10 +25,17 @@ const openAICompatibleAdapterFactoryProvider: FactoryProvider<OpenAICompatibleAd
   inject: [],
 };
 
+const localDockerAdapterFactoryProvider: FactoryProvider<LocalDockerModelRunnerAdapterFactory> = {
+  provide: LocalDockerModelRunnerAdapterFactory,
+  useFactory: () => new LocalDockerModelRunnerAdapterFactory(),
+  inject: [],
+};
+
 export const adapterFactoryProviders: FactoryProvider[] = [
   anthropicAdapterFactoryProvider,
   openAIAdapterFactoryProvider,
   openAICompatibleAdapterFactoryProvider,
+  localDockerAdapterFactoryProvider,
 ];
 
 const adapterFactoryProviderTokens: FactoryProvider["provide"][] =
@@ -46,8 +54,9 @@ const adapterFactoryProviderTokens: FactoryProvider["provide"][] =
       useFactory: (
         anthropic: AnthropicAdapterFactory,
         openai: OpenAIAdapterFactory,
-        openaiCompatible: OpenAICompatibleAdapterFactory
-      ) => [anthropic, openai, openaiCompatible],
+        openaiCompatible: OpenAICompatibleAdapterFactory,
+        localDocker: LocalDockerModelRunnerAdapterFactory,
+      ) => [anthropic, openai, openaiCompatible, localDocker],
       inject: adapterFactoryProviderTokens,
     },
     ProviderFactoryService,

@@ -4,6 +4,7 @@ import { AnthropicAdapterFactory } from "../src/anthropic";
 import { OpenAIAdapterFactory } from "../src/openai";
 import { OpenAICompatibleAdapterFactory } from "../src/openai_compatible";
 import { ProviderFactoryService } from "../src/provider-factory.service";
+import { LocalDockerModelRunnerAdapterFactory } from "../src/local_docker";
 
 const baseConfig: ProviderConfig = { name: "openai", apiKey: "key" };
 
@@ -82,6 +83,28 @@ describe("OpenAICompatibleAdapterFactory listModels", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0]?.[0]).toBe("https://groq.example.com/v1/models");
     expect(models).toEqual(["mixtral-8x7b"]);
+  });
+});
+
+describe("LocalDockerModelRunnerAdapterFactory listModels", () => {
+  beforeEach(() => {
+    fetchMock.mockReset();
+  });
+
+  it("requests models from the local docker runner", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: [{ id: "llama-3" }, { id: 0 }] }),
+    });
+
+    const factory = new LocalDockerModelRunnerAdapterFactory();
+    const models = await factory.listModels({ name: "local_docker" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "http://127.0.0.1:3210/v1/models"
+    );
+    expect(models).toEqual(["llama-3"]);
   });
 });
 
