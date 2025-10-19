@@ -36,6 +36,18 @@ const orchestratorSnapshotPatterns = [
   /capturedAt/,
 ];
 
+const logsDocumentationPatterns = [
+  /##\s+Logs/,
+  /GET\s+\/logs/,
+  /POST\s+\/logs/,
+  /logs\.created/,
+  /LogEntryDto/,
+  /apps\/api\/src\/logs\/dto\/log-entry\.dto\.ts/,
+  /offset/,
+  /limit/,
+  /LogsForwarderService/,
+];
+
 describe('api documentation reference examples', () => {
   let apiDoc: string;
   const renameExamplePayload = '{\n  "name": "Renamed session title"\n}';
@@ -128,6 +140,10 @@ describe('api documentation reference examples', () => {
   it('covers real-time session.deleted events for websocket consumers', () => {
     expect(apiDoc).toMatch(/session\.deleted/);
     expect(apiDoc).toMatch(/clients\s+should\s+drop\s+local\s+copies/);
+  });
+
+  it('documents logs feature routes, payloads, and websocket forwarding', () => {
+    expectAllMatches(apiDoc, logsDocumentationPatterns);
   });
 
   it('details persistence configuration for sql drivers', () => {

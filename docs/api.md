@@ -397,6 +397,31 @@ Persist lightweight per-user preferences keyed by the caller's API key:
 - **`PUT /user/preferences/layout`** – update layout settings for the resolved
   user identifier.【F:apps/api/src/user-preferences/user-preferences.controller.ts†L30-L34】
 
+## Logs
+
+Stream structured diagnostics over HTTP or WebSocket to power dashboards and
+automations:
+
+- **`GET /logs`** – page through the in-memory ring buffer of log entries using
+  `offset` and `limit` query parameters (defaulting to `0` and `50`
+  respectively). Responses return arrays of `LogEntryDto` objects as defined in
+  `apps/api/src/logs/dto/log-entry.dto.ts`, exposing `id`, `level`, `message`,
+  optional `context`, and ISO `createdAt` timestamps.【F:apps/api/src/logs/logs.controller.ts†L11-L18】【F:apps/api/src/logs/dto/log-entry.dto.ts†L1-L16】
+- **`POST /logs`** – append a manual diagnostic entry to the buffer and receive
+  the resulting `LogEntryDto` payload, useful for probes or scripted smoke
+  checks.【F:apps/api/src/logs/logs.controller.ts†L20-L24】
+
+Connect to the `/logs` WebSocket gateway to receive live batches of newly
+created entries. The gateway emits messages shaped as
+`{ "event": "logs.created", "data": LogEntryDto[] }`, mirroring the REST
+payloads for consistent client handling.【F:apps/api/src/logs/logs.gateway.ts†L8-L42】【F:apps/api/src/websocket/utils.ts†L1-L22】
+
+Behind the scenes the `LogsForwarderService` subscribes to both the shared
+`LoggerService` and `JsonlWriterService`, normalising their events into
+`LogEntryDto` records before forwarding them to the gateway. UI and tooling
+consumers can therefore subscribe to `logs.created` to mirror everything the
+forwarder captures in real time.【F:apps/api/src/logs/logs-forwarder.service.ts†L1-L118】
+
 ## Orchestrator Metadata
 
 Fetch high-level orchestrator state to drive dashboards or debugging tools:
