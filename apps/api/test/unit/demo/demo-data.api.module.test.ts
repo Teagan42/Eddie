@@ -1,7 +1,6 @@
 import "reflect-metadata";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { demoFixturePath, readDemoFixture } from "../support/demo-fixtures";
 
 import type { DynamicModule } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
@@ -34,15 +33,23 @@ type DemoSeedFixture = DemoSessionsFixtureFile &
   DemoTracesFixtureFile &
   DemoLogsFixtureFile;
 
-const fixturePath = join(__dirname, "fixtures", "demo-seed.json");
-const demoSeedFixture = JSON.parse(
-  readFileSync(fixturePath, "utf-8"),
-) as DemoSeedFixture;
+const DEMO_SEED_FILENAME = "demo-seed.json";
 
-const expectedSessions = buildExpectedSessions(demoSeedFixture);
-const expectedInvocations = buildExpectedInvocations(demoSeedFixture);
-const expectedLogs = buildExpectedLogs(demoSeedFixture);
-const expectedTraces = buildExpectedTraces(demoSeedFixture);
+let fixturePath: string;
+let demoSeedFixture: DemoSeedFixture;
+let expectedSessions: ChatSessionDto[];
+let expectedInvocations: Map<string, AgentInvocationSnapshot[]>;
+let expectedLogs: LogEntryDto[];
+let expectedTraces: TraceDto[];
+
+beforeAll(async () => {
+  fixturePath = demoFixturePath(DEMO_SEED_FILENAME);
+  demoSeedFixture = await readDemoFixture<DemoSeedFixture>(DEMO_SEED_FILENAME);
+  expectedSessions = buildExpectedSessions(demoSeedFixture);
+  expectedInvocations = buildExpectedInvocations(demoSeedFixture);
+  expectedLogs = buildExpectedLogs(demoSeedFixture);
+  expectedTraces = buildExpectedTraces(demoSeedFixture);
+});
 
 describe("ApiModule demo data seeding", () => {
   it("loads sessions, logs, and traces from the configured demo fixture", async () => {
