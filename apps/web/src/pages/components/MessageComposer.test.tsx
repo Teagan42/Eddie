@@ -89,4 +89,36 @@ describe("MessageComposer", () => {
 
     expect(handleSubmit).toHaveBeenCalledTimes(1);
   });
+
+  it("allows customizing the placeholder copy", () => {
+    render(
+      <MessageComposer
+        disabled={false}
+        value=""
+        onChange={noop}
+        onSubmit={noop}
+        placeholder="Send a message to the orchestrator"
+      />,
+    );
+
+    expect(
+      screen.getByPlaceholderText("Send a message to the orchestrator"),
+    ).toBeInTheDocument();
+  });
+
+  it("can disable submissions while leaving the composer interactive", () => {
+    render(
+      <MessageComposer
+        disabled={false}
+        value="Hello"
+        onChange={noop}
+        onSubmit={noop}
+        submitDisabled={true}
+      />,
+    );
+
+    const textarea = screen.getByPlaceholderText(/send a message/i);
+    expect(textarea).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+  });
 });
