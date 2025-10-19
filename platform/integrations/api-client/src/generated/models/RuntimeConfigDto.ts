@@ -27,6 +27,8 @@ export namespace RuntimeConfigDto {
     export enum theme {
         LIGHT = 'light',
         DARK = 'dark',
+        MIDNIGHT = 'midnight',
+        AURORA = 'aurora',
     }
 }
 

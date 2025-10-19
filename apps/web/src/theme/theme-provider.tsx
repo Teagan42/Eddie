@@ -12,6 +12,7 @@ import { Theme } from "@radix-ui/themes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { RuntimeConfigDto } from "@eddie/api-client";
 import { useApi } from "@/api/api-provider";
+import { isDarkTheme } from "./themes";
 
 const CONFIG_QUERY_KEY = ["config"] as const;
 
@@ -28,7 +29,8 @@ function syncDocumentTheme(theme: RuntimeConfigDto["theme"]): void {
     return;
   }
   const root = document.documentElement;
-  if (theme === "dark") {
+  root.dataset.theme = theme;
+  if (isDarkTheme(theme)) {
     root.classList.add("dark");
   } else {
     root.classList.remove("dark");
@@ -194,9 +196,13 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
     [isThemeStale, setTheme, theme]
   );
 
+  const accentColor =
+    theme === "aurora" ? "amber" : theme === "midnight" ? "iris" : "jade";
+  const appearance = isDarkTheme(theme) ? "dark" : "light";
+
   return (
     <ThemeContext.Provider value={value}>
-      <Theme accentColor="jade" radius="large" appearance={theme}>
+      <Theme accentColor={accentColor} radius="large" appearance={appearance}>
         {children}
       </Theme>
     </ThemeContext.Provider>

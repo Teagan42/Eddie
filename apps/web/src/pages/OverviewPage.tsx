@@ -24,7 +24,7 @@ import { PaperPlaneIcon, PlusIcon, ReloadIcon } from '@radix-ui/react-icons';
 import { Panel } from "@/components/common";
 import { useAuth } from '@/auth/auth-context';
 import { useApi } from '@/api/api-provider';
-import { useTheme } from '@/theme';
+import { getNextTheme, useTheme } from '@/theme';
 import { ChatSessionsPanel, OverviewAuthPanel, OverviewHero } from './components';
 import { useChatSessionEvents, useOverviewStats } from './hooks';
 import type {
@@ -266,7 +266,7 @@ export function OverviewPage(): JSX.Element {
   };
 
   const handleToggleTheme = (): void => {
-    const nextTheme = (theme === 'dark' ? 'light' : 'dark') as RuntimeConfigDto['theme'];
+    const nextTheme = getNextTheme(theme);
     setTheme(nextTheme);
   };
 

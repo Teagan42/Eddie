@@ -10,6 +10,6 @@ export class RuntimeConfigDto {
   @ApiProperty({ description: "Feature flags" })
     features!: Record<string, boolean>;
 
-  @ApiProperty({ description: "Active theme", enum: ["light", "dark"] })
-    theme!: "light" | "dark";
+  @ApiProperty({ description: "Active theme", enum: ["light", "dark", "midnight", "aurora"] })
+    theme!: "light" | "dark" | "midnight" | "aurora";
 }
