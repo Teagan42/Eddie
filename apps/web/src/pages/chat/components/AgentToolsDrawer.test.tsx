@@ -24,6 +24,8 @@ function createDrawerProps(
     executionTreeState: overrides.executionTreeState ?? createEmptyExecutionTreeState(),
     selectedAgentId: overrides.selectedAgentId ?? null,
     onSelectAgent: overrides.onSelectAgent ?? (() => {}),
+    focusedToolInvocationId: overrides.focusedToolInvocationId ?? null,
+    onFocusToolInvocation: overrides.onFocusToolInvocation ?? (() => {}),
     contextPanelId: overrides.contextPanelId ?? "context-bundles",
     contextBundles: overrides.contextBundles ?? [],
     isContextPanelCollapsed: overrides.isContextPanelCollapsed ?? false,
@@ -83,6 +85,7 @@ describe("AgentToolsDrawer", () => {
   it("renders drawer headings and forwards panel props", () => {
     const handleSelectAgent = vi.fn();
     const handleTogglePanel = vi.fn();
+    const handleFocusTool = vi.fn();
 
     const state = createEmptyExecutionTreeState();
     renderDrawer(
@@ -90,6 +93,7 @@ describe("AgentToolsDrawer", () => {
         executionTreeState: state,
         selectedAgentId: "agent-42",
         onSelectAgent: handleSelectAgent,
+        onFocusToolInvocation: handleFocusTool,
         contextBundles: [
           {
             id: "bundle-1",
@@ -122,9 +126,12 @@ describe("AgentToolsDrawer", () => {
     expect(executionTreeProps[0]).toMatchObject({
       state,
       selectedAgentId: "agent-42",
+      focusedInvocationId: null,
     });
     executionTreeProps[0].onSelectAgent("agent-1");
     expect(handleSelectAgent).toHaveBeenCalledWith("agent-1");
+    executionTreeProps[0].onFocusInvocation?.("invocation-1");
+    expect(handleFocusTool).toHaveBeenCalledWith("invocation-1");
 
     expect(contextPanelProps).toHaveLength(1);
     expect(contextPanelProps[0]).toMatchObject({

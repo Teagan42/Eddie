@@ -9,7 +9,21 @@ import { TooltipProvider } from '@radix-ui/react-tooltip';
 
 import { ChatWindow, type ChatWindowProps } from '../ChatWindow';
 
-function createMessage(partial?: Partial<ChatMessageDto>): ChatMessageDto {
+type TestMessage = ChatMessageDto & {
+  metadata?: {
+    agent?: {
+      name?: string | null;
+      parentName?: string | null;
+    } | null;
+    tool?: {
+      id?: string | null;
+      name?: string | null;
+      status?: string | null;
+    } | null;
+  } | null;
+};
+
+function createMessage(partial?: Partial<TestMessage>): TestMessage {
   return {
     id: 'message-1',
     sessionId: 'session-1',
@@ -17,7 +31,7 @@ function createMessage(partial?: Partial<ChatMessageDto>): ChatMessageDto {
     content: 'Test message',
     createdAt: new Date().toISOString(),
     ...partial,
-  } as ChatMessageDto;
+  } as TestMessage;
 }
 
 beforeAll(() => {
@@ -47,6 +61,7 @@ describe('ChatWindow', () => {
       composerSubmitDisabled: false,
       composerPlaceholder: 'Send a message to the orchestrator',
       onComposerSubmit: vi.fn(),
+      onInspectToolInvocation: vi.fn(),
     };
 
     return render(
@@ -78,6 +93,128 @@ describe('ChatWindow', () => {
     await user.click(screen.getByRole('button', { name: 'Re-issue command' }));
 
     expect(handleReissue).toHaveBeenCalledWith(message);
+  });
+
+  it('shows agent provenance for tool messages', () => {
+    const messages: TestMessage[] = [
+      createMessage({
+        id: 'message-user',
+        role: 'user',
+        content: 'How is progress?'
+      }),
+      createMessage({
+        id: 'message-tool',
+        role: 'tool',
+        content: 'Gathering results',
+        metadata: {
+          agent: {
+            name: 'Researcher',
+            parentName: 'Orchestrator'
+          }
+        }
+      }),
+    ];
+
+    renderChatWindow({ messages });
+
+    const logRegion = screen.getByRole('log');
+    expect(within(logRegion).getByText('Researcher')).toBeInTheDocument();
+    expect(within(logRegion).getByText('Orchestrator')).toBeInTheDocument();
+    expect(within(logRegion).getByText('Tool invocation')).toBeInTheDocument();
+    expect(within(logRegion).getByText('Unknown')).toBeInTheDocument();
+    expect(screen.queryByText('Gathering results')).not.toBeInTheDocument();
+  });
+
+  it('summarizes tool messages without rendering raw payloads', () => {
+    const toolMessage = createMessage({
+      id: 'message-tool',
+      role: 'tool',
+      content: '{"result":"hidden"}',
+      name: 'web_search',
+      toolCallId: 'tool-1',
+      metadata: {
+        agent: {
+          name: 'Researcher',
+          parentName: 'Orchestrator',
+        },
+        tool: {
+          id: 'tool-1',
+          name: 'Browser',
+          status: 'completed',
+        },
+      },
+    });
+
+    renderChatWindow({ messages: [toolMessage] });
+
+    const logRegion = screen.getByRole('log');
+    expect(within(logRegion).getByText('Researcher')).toBeInTheDocument();
+    expect(within(logRegion).getByText('Orchestrator')).toBeInTheDocument();
+    expect(within(logRegion).getByText('Browser')).toBeInTheDocument();
+    expect(within(logRegion).getByText('Completed')).toBeInTheDocument();
+    expect(screen.queryByText('hidden')).not.toBeInTheDocument();
+  });
+
+  it('opens the tool drawer when clicking a tool message', async () => {
+    const user = userEvent.setup();
+    const handleInspectTool = vi.fn();
+    const toolMessage = createMessage({
+      id: 'message-tool',
+      role: 'tool',
+      content: 'irrelevant',
+      name: 'bash',
+      toolCallId: 'call-123',
+      metadata: {
+        tool: {
+          id: 'call-123',
+          name: 'Shell',
+          status: 'running',
+        },
+      },
+    });
+
+    renderChatWindow({
+      messages: [toolMessage],
+      onInspectToolInvocation: handleInspectTool,
+    });
+
+    const toolMessageCard = screen.getByRole('button', {
+      name: /shell tool invocation/i,
+    });
+
+    await user.click(toolMessageCard);
+
+    expect(handleInspectTool).toHaveBeenCalledWith('call-123');
+  });
+
+  it('falls back to metadata tool id when toolCallId is missing', async () => {
+    const user = userEvent.setup();
+    const handleInspectTool = vi.fn();
+    const toolMessage = createMessage({
+      id: 'tool-with-metadata-only',
+      role: 'tool',
+      content: 'payload',
+      metadata: {
+        tool: {
+          id: 'meta-tool-id',
+          name: 'Meta tool',
+          status: 'completed',
+        },
+      },
+    });
+
+    renderChatWindow({
+      messages: [toolMessage],
+      onInspectToolInvocation: handleInspectTool,
+    });
+
+    const toolMessageCard = screen.getByRole('button', {
+      name: /meta tool tool invocation/i,
+    });
+
+    await user.click(toolMessageCard);
+
+    expect(handleInspectTool).toHaveBeenCalledWith('meta-tool-id');
   });
 
   it('renders the agent activity indicator and segmented role control', async () => {

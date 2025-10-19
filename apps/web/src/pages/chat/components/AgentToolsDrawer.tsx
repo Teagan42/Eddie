@@ -34,6 +34,8 @@ export interface AgentToolsDrawerProps {
   executionTreeState: AgentExecutionTreeProps['state'];
   selectedAgentId: AgentExecutionTreeProps['selectedAgentId'];
   onSelectAgent: AgentExecutionTreeProps['onSelectAgent'];
+  focusedToolInvocationId: string | null;
+  onFocusToolInvocation: (invocationId: string | null) => void;
   contextPanelId: ContextBundlesPanelProps['id'];
   contextBundles?: ContextBundlesPanelProps['bundles'];
   isContextPanelCollapsed: ContextBundlesPanelProps['collapsed'];
@@ -44,6 +46,8 @@ export function AgentToolsDrawer({
   executionTreeState,
   selectedAgentId,
   onSelectAgent,
+  focusedToolInvocationId,
+  onFocusToolInvocation,
   contextPanelId,
   contextBundles,
   isContextPanelCollapsed,
@@ -80,6 +84,8 @@ export function AgentToolsDrawer({
                 state={executionTreeState}
                 selectedAgentId={selectedAgentId}
                 onSelectAgent={onSelectAgent}
+                focusedInvocationId={focusedToolInvocationId}
+                onFocusInvocation={onFocusToolInvocation}
               />
             </Box>
             <ContextBundlesPanel

@@ -215,6 +215,8 @@ export function ChatPage(): JSX.Element {
     lastFailureAt: null,
   });
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [isAgentToolsOpen, setAgentToolsOpen] = useState(false);
+  const [focusedToolInvocationId, setFocusedToolInvocationId] = useState<string | null>(null);
   const setAutoSessionAttemptState = useCallback(
     (updates: Partial<AutoSessionAttemptState>) => {
       setAutoSessionAttempt((previous) => ({ ...previous, ...updates }));
@@ -1014,13 +1016,16 @@ export function ChatPage(): JSX.Element {
 
   const selectedModel = activeSettings.model ?? modelOptions[0] ?? '';
 
-  const messages = messagesQuery.data ?? [];
+  const messagesWithMetadata = useMemo(() => {
+    const baseMessages = messagesQuery.data ?? [];
+    return enrichMessagesWithExecutionTree(baseMessages, executionTreeState);
+  }, [executionTreeState, messagesQuery.data]);
   const selectedContextBundles = useMemo(
     () => getSessionContextBundles(selectedSessionId ?? null),
     [getSessionContextBundles, selectedSessionId],
   );
   const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
-  const lastMessage = messages[messages.length - 1] ?? null;
+  const lastMessage = messagesWithMetadata[messagesWithMetadata.length - 1] ?? null;
   const agentActivityState = useMemo<AgentActivityState>(() => {
     if (sendMessageMutation.isPending) {
       return 'sending';
@@ -1044,7 +1049,7 @@ export function ChatPage(): JSX.Element {
     }
 
     scrollMessageViewportToBottom(scrollAnchor);
-  }, [lastMessage, lastMessage?.content, lastMessage?.id, messages.length]);
+  }, [lastMessage, lastMessage?.content, lastMessage?.id, messagesWithMetadata.length]);
 
   const handleSelectSession = useCallback(
     (sessionId: string) => {
@@ -1108,6 +1113,28 @@ export function ChatPage(): JSX.Element {
       handleSendMessage();
     },
     [handleSendMessage],
+  );
+
+  const handleInspectToolInvocation = useCallback(
+    (toolCallId: string | null) => {
+      if (!toolCallId) {
+        setFocusedToolInvocationId(null);
+        setAgentToolsOpen(true);
+        return;
+      }
+
+      setFocusedToolInvocationId(toolCallId);
+
+      const invocation = executionTreeState
+        ? findToolInvocationById(executionTreeState.toolInvocations, toolCallId)
+        : null;
+      if (invocation?.agentId) {
+        setSelectedAgentId(invocation.agentId);
+      }
+
+      setAgentToolsOpen(true);
+    },
+    [executionTreeState, setSelectedAgentId],
   );
 
   const handleProviderChange = useCallback(
@@ -1298,7 +1325,15 @@ export function ChatPage(): JSX.Element {
   const isContextBundlesCollapsed = Boolean(collapsedPanels[PANEL_IDS.context]);
 
   return (
-    <Sheet>
+    <Sheet
+      open={isAgentToolsOpen}
+      onOpenChange={(open) => {
+        setAgentToolsOpen(open);
+        if (!open) {
+          setFocusedToolInvocationId(null);
+        }
+      }}
+    >
       <div className={cn(getSurfaceLayoutClasses('chat'), SURFACE_CONTENT_CLASS)}>
         <Flex direction="column" className="gap-6">
           <Flex align="center" gap="4">
@@ -1431,7 +1466,7 @@ export function ChatPage(): JSX.Element {
               }
             >
               <ChatWindow
-                messages={messages}
+                messages={messagesWithMetadata}
                 onReissueCommand={handleReissueCommand}
                 scrollAnchorRef={scrollAnchorRef}
                 agentActivityState={agentActivityState}
@@ -1444,6 +1479,7 @@ export function ChatPage(): JSX.Element {
                 composerSubmitDisabled={composerSubmitDisabled}
                 composerPlaceholder="Send a message to the orchestrator"
                 onComposerSubmit={handleComposerSubmit}
+                onInspectToolInvocation={handleInspectToolInvocation}
               />
             </Panel>
           </div>
@@ -1454,6 +1490,8 @@ export function ChatPage(): JSX.Element {
         executionTreeState={executionTreeState}
         selectedAgentId={selectedAgentId}
         onSelectAgent={setSelectedAgentId}
+        focusedToolInvocationId={focusedToolInvocationId}
+        onFocusToolInvocation={setFocusedToolInvocationId}
         contextPanelId={PANEL_IDS.context}
         contextBundles={selectedContextBundles}
         isContextPanelCollapsed={isContextBundlesCollapsed}
@@ -1462,6 +1500,211 @@ export function ChatPage(): JSX.Element {
     </Sheet>
   );
 }
+
+type MessageMetadataAgent = {
+  id?: string | null;
+  name?: string | null;
+  parentId?: string | null;
+  parentName?: string | null;
+  lineage?: string[] | null;
+};
+
+type MessageMetadataTool = {
+  id?: string | null;
+  name?: string | null;
+  status?: string | null;
+};
+
+type ChatMessageWithMetadata = ChatMessageDto & {
+  metadata?: {
+    agent?: MessageMetadataAgent | null;
+    tool?: MessageMetadataTool | null;
+  } | null;
+};
+
+type AgentHierarchyNode = ExecutionTreeState['agentHierarchy'][number];
+type ToolInvocationNode = ExecutionTreeState['toolInvocations'][number];
+
+function enrichMessagesWithExecutionTree(
+  messages: ChatMessageDto[],
+  executionTree: ExecutionTreeState | null,
+): ChatMessageWithMetadata[] {
+  if (!executionTree) {
+    return messages as ChatMessageWithMetadata[];
+  }
+
+  const toolLookup = indexToolInvocationsById(executionTree.toolInvocations);
+  const agentLookup = indexAgentHierarchyById(executionTree.agentHierarchy);
+
+  if (toolLookup.size === 0 && agentLookup.size === 0) {
+    return messages as ChatMessageWithMetadata[];
+  }
+
+  return messages.map((message) => {
+    if (message.role !== 'tool') {
+      return message as ChatMessageWithMetadata;
+    }
+
+    const toolCallId = message.toolCallId ?? null;
+    const invocation = toolCallId ? toolLookup.get(toolCallId) ?? null : null;
+    const metadataUpdates: Partial<NonNullable<ChatMessageWithMetadata['metadata']>> = {};
+
+    if (invocation) {
+      metadataUpdates.tool = {
+        id: invocation.id ?? toolCallId,
+        name: invocation.name ?? message.name ?? null,
+        status: invocation.status ?? null,
+      };
+
+      const agentId = invocation.agentId ?? null;
+      if (agentId) {
+        const agentNode = agentLookup.get(agentId) ?? null;
+        if (agentNode) {
+          const lineage = [...agentNode.lineage];
+          const parentId = lineage.length >= 2 ? lineage[lineage.length - 2] ?? null : null;
+          const parentName = parentId ? agentLookup.get(parentId)?.name ?? null : null;
+          metadataUpdates.agent = {
+            id: agentNode.id,
+            name: agentNode.name ?? null,
+            parentId,
+            parentName,
+            lineage,
+          };
+        }
+      }
+    } else if (toolCallId || message.name) {
+      metadataUpdates.tool = {
+        id: toolCallId ?? message.name ?? null,
+        name: message.name ?? toolCallId ?? null,
+        status: null,
+      };
+    }
+
+    if (!metadataUpdates.agent && !metadataUpdates.tool) {
+      return message as ChatMessageWithMetadata;
+    }
+
+    const mergedMetadata = mergeMessageMetadata(message.metadata, metadataUpdates);
+    return mergedMetadata === message.metadata
+      ? (message as ChatMessageWithMetadata)
+      : { ...message, metadata: mergedMetadata };
+  });
+}
+
+function mergeMessageMetadata(
+  current: ChatMessageWithMetadata['metadata'],
+  incoming: Partial<NonNullable<ChatMessageWithMetadata['metadata']>>,
+): ChatMessageWithMetadata['metadata'] {
+  const base: NonNullable<ChatMessageWithMetadata['metadata']> =
+    current && typeof current === 'object' ? { ...current } : {};
+
+  let changed = false;
+
+  if (incoming.agent) {
+    const existingAgent = base.agent ?? null;
+    const mergedAgent = { ...(existingAgent ?? {}), ...incoming.agent };
+    if (!shallowEqualRecord(existingAgent, mergedAgent)) {
+      changed = true;
+    }
+    base.agent = mergedAgent;
+  }
+  if (incoming.tool) {
+    const existingTool = base.tool ?? null;
+    const mergedTool = { ...(existingTool ?? {}), ...incoming.tool };
+    if (!shallowEqualRecord(existingTool, mergedTool)) {
+      changed = true;
+    }
+    base.tool = mergedTool;
+  }
+
+  if (!base.agent && !base.tool) {
+    return current ?? null;
+  }
+
+  if (!changed && current) {
+    return current;
+  }
+
+  return base;
+}
+
+function shallowEqualRecord(
+  left: Record<string, unknown> | null,
+  right: Record<string, unknown> | null,
+): boolean {
+  if (left === right) {
+    return true;
+  }
+  if (!left || !right) {
+    return false;
+  }
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  if (leftKeys.length !== rightKeys.length) {
+    return false;
+  }
+  for (const key of leftKeys) {
+    if (left[key] !== right[key]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function indexAgentHierarchyById(
+  nodes: ExecutionTreeState['agentHierarchy'],
+): Map<string, AgentHierarchyNode> {
+  const map = new Map<string, AgentHierarchyNode>();
+
+  const visit = (node: AgentHierarchyNode) => {
+    map.set(node.id, node);
+    for (const child of node.children ?? []) {
+      visit(child);
+    }
+  };
+
+  for (const node of nodes) {
+    visit(node);
+  }
+
+  return map;
+}
+
+function indexToolInvocationsById(
+  nodes: ExecutionTreeState['toolInvocations'],
+): Map<string, ToolInvocationNode> {
+  const map = new Map<string, ToolInvocationNode>();
+
+  const visit = (node: ToolInvocationNode) => {
+    map.set(node.id, node);
+    for (const child of node.children ?? []) {
+      visit(child);
+    }
+  };
+
+  for (const node of nodes) {
+    visit(node);
+  }
+
+  return map;
+}
+
+function findToolInvocationById(
+  nodes: ExecutionTreeState['toolInvocations'],
+  id: string,
+): ToolInvocationNode | null {
+  for (const node of nodes) {
+    if (node.id === id) {
+      return node;
+    }
+    const child = findToolInvocationById(node.children ?? [], id);
+    if (child) {
+      return child;
+    }
+  }
+  return null;
+}
+
 function mergeSessionList(
   previous: ChatSessionDto[],
   session: ChatSessionDto,
