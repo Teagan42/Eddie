@@ -4,6 +4,8 @@ import { ChatMessagesGateway } from "./chat-messages.gateway";
 import type { ChatMessageDto } from "./dto/chat-session.dto";
 import {
   ChatMessagePartialEvent,
+  ChatMessageReasoningCompleteEvent,
+  ChatMessageReasoningPartialEvent,
   ChatSessionToolCallEvent,
   ChatSessionToolResultEvent,
 } from "@eddie/types";
@@ -13,6 +15,8 @@ import { CompleteToolCallCommand } from "../tools/commands/complete-tool-call.co
 @Injectable()
 @EventsHandler(
   ChatMessagePartialEvent,
+  ChatMessageReasoningPartialEvent,
+  ChatMessageReasoningCompleteEvent,
   ChatSessionToolCallEvent,
   ChatSessionToolResultEvent,
 )
@@ -20,6 +24,8 @@ export class ChatSessionEventsService
 implements
     IEventHandler<
       | ChatMessagePartialEvent
+      | ChatMessageReasoningPartialEvent
+      | ChatMessageReasoningCompleteEvent
       | ChatSessionToolCallEvent
       | ChatSessionToolResultEvent
     > {
@@ -31,11 +37,23 @@ implements
   handle(
     event:
       | ChatMessagePartialEvent
+      | ChatMessageReasoningPartialEvent
+      | ChatMessageReasoningCompleteEvent
       | ChatSessionToolCallEvent
       | ChatSessionToolResultEvent
   ): void {
     if (event instanceof ChatMessagePartialEvent) {
       this.emitPartial(event.message as ChatMessageDto);
+      return;
+    }
+
+    if (event instanceof ChatMessageReasoningPartialEvent) {
+      this.emitReasoningPartial(event);
+      return;
+    }
+
+    if (event instanceof ChatMessageReasoningCompleteEvent) {
+      this.emitReasoningComplete(event);
       return;
     }
 
@@ -70,6 +88,22 @@ implements
   private emitPartial(message: ChatMessageDto): void {
     try {
       this.messagesGateway.emitPartial(message);
+    } catch {
+      // Ignore gateway errors to keep stream rendering resilient.
+    }
+  }
+
+  private emitReasoningPartial(event: ChatMessageReasoningPartialEvent): void {
+    try {
+      this.messagesGateway.emitReasoningPartial(event);
+    } catch {
+      // Ignore gateway errors to keep stream rendering resilient.
+    }
+  }
+
+  private emitReasoningComplete(event: ChatMessageReasoningCompleteEvent): void {
+    try {
+      this.messagesGateway.emitReasoningComplete(event);
     } catch {
       // Ignore gateway errors to keep stream rendering resilient.
     }

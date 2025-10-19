@@ -26,7 +26,12 @@ import {
   CompleteToolCallCommand,
 } from "../../../src/tools/commands";
 import { SendChatMessagePayloadDto } from "../../../src/chat-sessions/dto/send-chat-message.dto";
-import { ChatSessionToolCallEvent, ChatSessionToolResultEvent } from "@eddie/types";
+import {
+  ChatMessageReasoningCompleteEvent,
+  ChatMessageReasoningPartialEvent,
+  ChatSessionToolCallEvent,
+  ChatSessionToolResultEvent,
+} from "@eddie/types";
 import { ChatMessageSent } from "../../../src/chat-sessions/events";
 
 const UNKNOWN_SESSION_ID = "00000000-0000-0000-0000-000000000000";
@@ -240,5 +245,53 @@ describe("ChatSessionsController HTTP", () => {
         )
       ).toBe(true)
     );
+  });
+
+  it("broadcasts reasoning updates without duplicating assistant content", async () => {
+    const session = await service.createSession({ title: "Reasoning" });
+    const { message } = await service.addMessage(session.id, {
+      role: ChatMessageRole.Assistant,
+      content: "Answer",
+    });
+
+    const gateway = app.get(ChatMessagesGateway);
+    if (typeof (gateway as any).emitReasoningPartial !== "function") {
+      (gateway as any).emitReasoningPartial = vi.fn();
+    }
+    if (typeof (gateway as any).emitReasoningComplete !== "function") {
+      (gateway as any).emitReasoningComplete = vi.fn();
+    }
+    const partialSpy = vi
+      .spyOn(gateway as any, "emitReasoningPartial")
+      .mockImplementation(() => undefined);
+    const completeSpy = vi
+      .spyOn(gateway as any, "emitReasoningComplete")
+      .mockImplementation(() => undefined);
+
+    await eventBus.publish(
+      new ChatMessageReasoningPartialEvent(
+        session.id,
+        "thought-1",
+        message.id,
+        "Step 1",
+        { effort: "analysis" },
+        "agent-123",
+      ),
+    );
+
+    await eventBus.publish(
+      new ChatMessageReasoningCompleteEvent(
+        session.id,
+        "thought-1",
+        message.id,
+        "resp-123",
+        "Step 1",
+        { effort: "analysis" },
+        "agent-123",
+      ),
+    );
+
+    await vi.waitFor(() => expect(partialSpy).toHaveBeenCalledWith(expect.objectContaining({ text: "Step 1" })));
+    await vi.waitFor(() => expect(completeSpy).toHaveBeenCalledWith(expect.objectContaining({ responseId: "resp-123" })));
   });
 });

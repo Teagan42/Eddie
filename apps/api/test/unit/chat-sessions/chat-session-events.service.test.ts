@@ -5,6 +5,8 @@ import type { ChatMessagesGateway } from "../../../src/chat-sessions/chat-messag
 import type { ChatMessageDto } from "../../../src/chat-sessions/dto/chat-session.dto";
 import {
   ChatMessagePartialEvent,
+  ChatMessageReasoningCompleteEvent,
+  ChatMessageReasoningPartialEvent,
   ChatSessionToolCallEvent,
   ChatSessionToolResultEvent,
 } from "@eddie/types";
@@ -98,5 +100,38 @@ describe("ChatSessionEventsService", () => {
         new ChatSessionToolResultEvent("s1", "t1", "tool", "ok", undefined, "agent-42"),
       ),
     ).not.toThrow();
+  });
+
+  it("forwards reasoning events to the chat messages gateway", () => {
+    const gateway = {
+      emitPartial: vi.fn(),
+      emitReasoningPartial: vi.fn(),
+      emitReasoningComplete: vi.fn(),
+    } as unknown as ChatMessagesGateway;
+    const events = new ChatSessionEventsService(gateway);
+
+    const partial = new ChatMessageReasoningPartialEvent(
+      "s1",
+      "thought-1",
+      "m1",
+      "first step",
+      { effort: "analysis" },
+      "agent-42",
+    );
+    const complete = new ChatMessageReasoningCompleteEvent(
+      "s1",
+      "thought-1",
+      "m1",
+      "resp-123",
+      "final reasoning",
+      { effort: "analysis" },
+      "agent-42",
+    );
+
+    events.handle(partial);
+    events.handle(complete);
+
+    expect((gateway.emitReasoningPartial as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(partial);
+    expect((gateway.emitReasoningComplete as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(complete);
   });
 });

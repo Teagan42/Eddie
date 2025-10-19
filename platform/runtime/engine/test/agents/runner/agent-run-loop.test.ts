@@ -211,4 +211,42 @@ describe("AgentRunLoop", () => {
     );
     expect(traceEvents.some((event) => event.phase === "agent_complete")).toBe(true);
   });
+
+  it("publishes reasoning events without polluting assistant transcripts", async () => {
+    const invocation = createInvocation();
+    const descriptor = createDescriptor({
+      provider: {
+        name: "mock", 
+        stream: vi.fn().mockReturnValue(
+          createStream([
+            { type: "reasoning_delta", id: "thought-1", text: "Step", agentId: "agent-1" },
+            { type: "delta", text: "Answer", agentId: "agent-1" },
+            { type: "reasoning_delta", id: "thought-1", text: " done", agentId: "agent-1" },
+            { type: "reasoning_end", responseId: "resp-1", metadata: { score: 0.5 }, agentId: "agent-1" },
+            { type: "end", responseId: "resp-1", agentId: "agent-1" },
+          ])
+        ),
+      },
+    });
+
+    const { runner, publish } = createAgentRunnerTestContext({ invocation, descriptor });
+
+    await runner.run();
+
+    const published = collectPublishedEvents(publish);
+    const reasoningEvents = published.filter((event) =>
+      event.event.type === "reasoning_delta" || event.event.type === "reasoning_end"
+    );
+    expect(reasoningEvents).toHaveLength(3);
+    expect(reasoningEvents.map((event) => event.event.type)).toEqual([
+      "reasoning_delta",
+      "reasoning_delta",
+      "reasoning_end",
+    ]);
+
+    expect(invocation.messages.at(-1)).toMatchObject({
+      role: "assistant",
+      content: "Answer",
+    });
+  });
 });

@@ -4,6 +4,8 @@ import { EventBus } from "@nestjs/cqrs";
 import type { StreamEvent } from "@eddie/types";
 import {
   ChatMessagePartialEvent,
+  ChatMessageReasoningCompleteEvent,
+  ChatMessageReasoningPartialEvent,
   ChatSessionToolCallEvent,
   ChatSessionToolResultEvent,
 } from "@eddie/types";
@@ -11,6 +13,17 @@ import { ChatSessionsService } from "./chat-sessions.service";
 import type { AgentActivityState } from "./chat-session.types";
 import { ChatMessageRole } from "./dto/create-chat-message.dto";
 import type { ChatMessageDto } from "./dto/chat-session.dto";
+
+type ReasoningId = string | null;
+
+interface ReasoningBuffer {
+  id: ReasoningId;
+  text: string;
+  metadata?: Record<string, unknown>;
+  messageId?: string;
+  agentId: string | null | undefined;
+  emittedText?: string;
+}
 
 interface StreamState {
   sessionId: string;
@@ -23,6 +36,8 @@ interface StreamState {
     content: string;
   };
   toolTimestamps: Map<string, string>;
+  reasoning: Map<ReasoningId, ReasoningBuffer>;
+  lastReasoningId: ReasoningId;
 }
 
 export interface StreamCaptureResult<T> {
@@ -50,6 +65,8 @@ export class ChatSessionStreamRendererService {
       activity: "idle",
       pending: [],
       toolTimestamps: new Map<string, string>(),
+      reasoning: new Map<ReasoningId, ReasoningBuffer>(),
+      lastReasoningId: null,
     };
     let result: T | undefined;
     let error: unknown;
@@ -103,6 +120,14 @@ export class ChatSessionStreamRendererService {
     event: StreamEvent
   ): Promise<void> {
     switch (event.type) {
+      case "reasoning_delta": {
+        await this.handleReasoningDelta(state, event);
+        break;
+      }
+      case "reasoning_end": {
+        await this.handleReasoningEnd(state, event);
+        break;
+      }
       case "delta": {
         if (!event.text) return;
         state.buffer += event.text;
@@ -160,6 +185,132 @@ export class ChatSessionStreamRendererService {
     }
   }
 
+  private async handleReasoningDelta(
+    state: StreamState,
+    event: Extract<StreamEvent, { type: "reasoning_delta" }>,
+  ): Promise<void> {
+    const reasoningId: ReasoningId = event.id ?? null;
+    const buffer = this.getOrCreateReasoningBuffer(state, reasoningId, event.agentId ?? null);
+    buffer.agentId = event.agentId ?? buffer.agentId ?? null;
+    if (event.text) {
+      buffer.text += event.text;
+    }
+    buffer.metadata = event.metadata ?? buffer.metadata;
+    state.lastReasoningId = reasoningId;
+
+    if (this.linkReasoningBufferToCurrentMessage(state, buffer)) {
+      this.emitReasoningPartial(state, buffer);
+    }
+  }
+
+  private async handleReasoningEnd(
+    state: StreamState,
+    event: Extract<StreamEvent, { type: "reasoning_end" }>,
+  ): Promise<void> {
+    const reasoningId: ReasoningId = state.lastReasoningId ?? null;
+    const buffer = state.reasoning.get(reasoningId);
+
+    if (!buffer) {
+      state.reasoning.delete(reasoningId);
+      state.lastReasoningId = null;
+      return;
+    }
+
+    buffer.metadata = event.metadata ?? buffer.metadata;
+    buffer.agentId = event.agentId ?? buffer.agentId ?? null;
+
+    if (this.linkReasoningBufferToCurrentMessage(state, buffer)) {
+      this.emitReasoningPartial(state, buffer);
+      this.emitReasoningComplete(state, buffer, event.responseId);
+    }
+
+    state.reasoning.delete(reasoningId);
+    state.lastReasoningId = null;
+  }
+
+  private getOrCreateReasoningBuffer(
+    state: StreamState,
+    reasoningId: ReasoningId,
+    agentId: string | null,
+  ): ReasoningBuffer {
+    const existing = state.reasoning.get(reasoningId);
+    if (existing) {
+      existing.agentId = agentId ?? existing.agentId ?? null;
+      return existing;
+    }
+
+    const buffer: ReasoningBuffer = {
+      id: reasoningId,
+      text: "",
+      agentId,
+    };
+    state.reasoning.set(reasoningId, buffer);
+    return buffer;
+  }
+
+  private emitReasoningPartial(state: StreamState, buffer: ReasoningBuffer): void {
+    if (!buffer.messageId) {
+      return;
+    }
+
+    if (buffer.text.length === 0 || buffer.text === buffer.emittedText) {
+      return;
+    }
+
+    buffer.emittedText = buffer.text;
+
+    this.eventBus.publish(
+      new ChatMessageReasoningPartialEvent(
+        state.sessionId,
+        buffer.id ?? undefined,
+        buffer.messageId,
+        buffer.text,
+        buffer.metadata,
+        buffer.agentId ?? null,
+      )
+    );
+  }
+
+  private emitReasoningComplete(
+    state: StreamState,
+    buffer: ReasoningBuffer,
+    responseId: string | undefined,
+  ): void {
+    if (!buffer.messageId) {
+      return;
+    }
+
+    this.eventBus.publish(
+      new ChatMessageReasoningCompleteEvent(
+        state.sessionId,
+        buffer.id ?? undefined,
+        buffer.messageId,
+        responseId,
+        buffer.text,
+        buffer.metadata,
+        buffer.agentId ?? null,
+      )
+    );
+  }
+
+  private attachReasoningBuffersToMessage(state: StreamState): void {
+    for (const buffer of state.reasoning.values()) {
+      if (this.linkReasoningBufferToCurrentMessage(state, buffer) && buffer.text.length > 0) {
+        this.emitReasoningPartial(state, buffer);
+      }
+    }
+  }
+
+  private linkReasoningBufferToCurrentMessage(
+    state: StreamState,
+    buffer: ReasoningBuffer,
+  ): boolean {
+    if (state.messageId && buffer.messageId !== state.messageId) {
+      buffer.messageId = state.messageId;
+    }
+    return buffer.messageId !== undefined;
+  }
+
   private async upsertMessage(state: StreamState): Promise<void> {
     if (!state.messageId) {
       const result = await this.chatSessions.addMessage(state.sessionId, {
@@ -169,6 +320,7 @@ export class ChatSessionStreamRendererService {
       const message = result.message;
       state.messageId = message.id;
       this.emitPartial(state, message);
+      this.attachReasoningBuffersToMessage(state);
       return;
     }
 
@@ -178,6 +330,9 @@ export class ChatSessionStreamRendererService {
       state.buffer
     );
     this.emitPartial(state, message);
+    if (message) {
+      this.attachReasoningBuffersToMessage(state);
+    }
   }
 
   private emitPartial(

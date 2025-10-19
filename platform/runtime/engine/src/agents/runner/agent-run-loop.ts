@@ -100,10 +100,35 @@ export class AgentRunLoop {
         });
 
         let assistantBuffer = "";
+        const reasoningBuffers = new Map<string | null, string>();
+        let lastReasoningId: string | null = null;
 
         for await (const event of stream) {
           if (event.type === "delta") {
             assistantBuffer += event.text;
+            publishWithAgent(event);
+            continue;
+          }
+
+          if (event.type === "reasoning_delta") {
+            const reasoningId = event.id ?? null;
+            const previous = reasoningBuffers.get(reasoningId) ?? "";
+            if (event.text) {
+              reasoningBuffers.set(reasoningId, previous + event.text);
+            } else if (!reasoningBuffers.has(reasoningId)) {
+              reasoningBuffers.set(reasoningId, previous);
+            }
+            lastReasoningId = reasoningId;
+            publishWithAgent(event);
+            continue;
+          }
+
+          if (event.type === "reasoning_end") {
+            const reasoningId = lastReasoningId ?? null;
+            if (reasoningBuffers.has(reasoningId)) {
+              reasoningBuffers.delete(reasoningId);
+            }
+            lastReasoningId = null;
             publishWithAgent(event);
             continue;
           }

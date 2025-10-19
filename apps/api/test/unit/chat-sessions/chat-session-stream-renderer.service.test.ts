@@ -3,6 +3,8 @@ import type { EventBus } from "@nestjs/cqrs";
 import type { StreamEvent } from "@eddie/types";
 import {
   ChatMessagePartialEvent,
+  ChatMessageReasoningCompleteEvent,
+  ChatMessageReasoningPartialEvent,
   ChatSessionToolCallEvent,
   ChatSessionToolResultEvent,
 } from "@eddie/types";
@@ -24,6 +26,18 @@ describe("ChatSessionStreamRendererService", () => {
     getPublishedEvents().filter(
       (event): event is ChatMessagePartialEvent =>
         event instanceof ChatMessagePartialEvent
+    );
+
+  const getReasoningPartials = () =>
+    getPublishedEvents().filter(
+      (event): event is ChatMessageReasoningPartialEvent =>
+        event instanceof ChatMessageReasoningPartialEvent
+    );
+
+  const getReasoningCompletes = () =>
+    getPublishedEvents().filter(
+      (event): event is ChatMessageReasoningCompleteEvent =>
+        event instanceof ChatMessageReasoningCompleteEvent
     );
 
   const getActivityEvents = () =>
@@ -176,6 +190,70 @@ describe("ChatSessionStreamRendererService", () => {
       name: "echo",
       id: "t1",
       agentId: "agent-alpha",
+    });
+  });
+
+  it("publishes reasoning updates without mutating assistant content", async () => {
+    const reasoningDelta: StreamEvent = {
+      type: "reasoning_delta",
+      id: "thought-1",
+      text: "Step 1",
+      metadata: { effort: "analysis" },
+      agentId: "agent-alpha",
+    };
+    const reasoningFollowUp: StreamEvent = {
+      type: "reasoning_delta",
+      id: "thought-1",
+      text: " → Step 2",
+      metadata: { effort: "analysis" },
+      agentId: "agent-alpha",
+    };
+    const reasoningEnd: StreamEvent = {
+      type: "reasoning_end",
+      responseId: "resp-123",
+      metadata: { score: 0.9 },
+      agentId: "agent-alpha",
+    };
+
+    await renderer.capture(sessionId, async () => {
+      renderer.render(reasoningDelta);
+      renderer.render({ type: "delta", text: "Final answer", agentId: "agent-alpha" });
+      renderer.render(reasoningFollowUp);
+      renderer.render(reasoningEnd);
+      renderer.render({ type: "end", responseId: "resp-123", agentId: "agent-alpha" });
+    });
+
+    const messages = await service.listMessages(sessionId);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.content).toBe("Final answer");
+
+    const reasoningPartials = getReasoningPartials();
+    expect(reasoningPartials).toHaveLength(2);
+    const [ first, second ] = reasoningPartials;
+    expect(first).toMatchObject({
+      sessionId,
+      messageId: messages[0]?.id,
+      reasoningId: "thought-1",
+      text: "Step 1",
+      agentId: "agent-alpha",
+    });
+    expect(second).toMatchObject({
+      sessionId,
+      messageId: messages[0]?.id,
+      reasoningId: "thought-1",
+      text: "Step 1 → Step 2",
+      agentId: "agent-alpha",
+    });
+
+    const [ complete ] = getReasoningCompletes();
+    expect(complete).toMatchObject({
+      sessionId,
+      messageId: messages[0]?.id,
+      reasoningId: "thought-1",
+      responseId: "resp-123",
+      agentId: "agent-alpha",
+      text: "Step 1 → Step 2",
+      metadata: { score: 0.9 },
     });
   });
 

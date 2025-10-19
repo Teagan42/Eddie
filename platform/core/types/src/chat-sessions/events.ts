@@ -24,6 +24,29 @@ export class ChatMessagePartialEvent {
   constructor(public readonly message: unknown) {}
 }
 
+export class ChatMessageReasoningPartialEvent {
+  constructor(
+    public readonly sessionId: string,
+    public readonly reasoningId: string | undefined,
+    public readonly messageId: string | undefined,
+    public readonly text: string,
+    public readonly metadata: Record<string, unknown> | undefined,
+    public readonly agentId: string | null | undefined,
+  ) {}
+}
+
+export class ChatMessageReasoningCompleteEvent {
+  constructor(
+    public readonly sessionId: string,
+    public readonly reasoningId: string | undefined,
+    public readonly messageId: string | undefined,
+    public readonly responseId: string | undefined,
+    public readonly text: string,
+    public readonly metadata: Record<string, unknown> | undefined,
+    public readonly agentId: string | null | undefined,
+  ) {}
+}
+
 export class ChatSessionToolCallEvent {
   private readonly payload: unknown;
   constructor(
@@ -86,6 +109,8 @@ export const CHAT_SESSION_EVENT_CLASSES = [
   ChatSessionUpdatedEvent,
   ChatMessageCreatedEvent,
   ChatMessagePartialEvent,
+  ChatMessageReasoningPartialEvent,
+  ChatMessageReasoningCompleteEvent,
   ChatSessionToolCallEvent,
   ChatSessionToolResultEvent,
   ChatSessionReasoningDeltaEvent,
