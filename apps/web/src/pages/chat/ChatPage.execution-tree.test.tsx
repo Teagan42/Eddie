@@ -3,12 +3,13 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createExecutionTreeStateFromMetadata } from './execution-tree-state';
+import { createExecutionTreeStateFromMetadata, type ExecutionTreeState } from './execution-tree-state';
 import { createChatPageRenderer } from './test-utils';
 
 const listSessionsMock = vi.fn();
 const listMessagesMock = vi.fn();
 const getMetadataMock = vi.fn();
+const getExecutionStateMock = vi.fn();
 const catalogMock = vi.fn();
 
 const toolCallHandlers: Array<(payload: unknown) => void> = [];
@@ -69,6 +70,7 @@ vi.mock('@/api/api-provider', () => ({
       },
       orchestrator: {
         getMetadata: getMetadataMock,
+        getExecutionState: getExecutionStateMock,
       },
       providers: {
         catalog: catalogMock,
@@ -168,6 +170,7 @@ describe('ChatPage execution tree realtime updates', () => {
         },
       ],
     });
+    getExecutionStateMock.mockResolvedValue(null);
   });
 
   it('syncs execution tree snapshots from websocket events for the selected session', async () => {
@@ -236,6 +239,66 @@ describe('ChatPage execution tree realtime updates', () => {
 
     executionTreeUnsubscribes.forEach((unsubscribe) => {
       expect(unsubscribe).toHaveBeenCalled();
+    });
+  });
+
+  it('requests execution state when connecting to realtime updates', async () => {
+    const timestamp = '2024-07-15T09:00:00.000Z';
+    const executionState: ExecutionTreeState = {
+      agentHierarchy: [
+        {
+          id: 'agent-unique',
+          name: 'Unique agent',
+          provider: 'orchestrator',
+          model: 'delegate',
+          depth: 0,
+          lineage: [],
+          children: [],
+        },
+      ],
+      toolInvocations: [],
+      contextBundles: [],
+      agentLineageById: { 'agent-unique': [] },
+      toolGroupsByAgentId: {
+        'agent-unique': {
+          pending: [],
+          running: [],
+          completed: [],
+          failed: [],
+        },
+      },
+      contextBundlesByAgentId: {},
+      contextBundlesByToolCallId: {},
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+
+    getExecutionStateMock.mockResolvedValue(executionState);
+    getMetadataMock.mockResolvedValueOnce({
+      sessionId: 'session-1',
+      contextBundles: [],
+      toolInvocations: [],
+      agentHierarchy: [],
+    });
+
+    const { client } = renderChatPage();
+
+    await waitFor(() => {
+      expect(getExecutionStateMock).toHaveBeenCalledWith('session-1');
+    });
+
+    await waitFor(() => {
+      const snapshot = client.getQueryData([
+        'orchestrator-metadata',
+        'session-1',
+      ]) as { executionTree?: ExecutionTreeState } | undefined;
+      expect(snapshot?.executionTree).toMatchObject({
+        agentHierarchy: executionState.agentHierarchy,
+        updatedAt: executionState.updatedAt,
+      });
+      expect(
+        snapshot?.executionTree?.toolGroupsByAgentId?.['agent-unique'],
+      ).toBeDefined();
     });
   });
 

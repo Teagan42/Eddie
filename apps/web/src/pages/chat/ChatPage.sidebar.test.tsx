@@ -8,6 +8,7 @@ const catalogMock = vi.fn();
 const listSessionsMock = vi.fn();
 const listMessagesMock = vi.fn();
 const getMetadataMock = vi.fn();
+const getExecutionStateMock = vi.fn();
 
 class ResizeObserverMock {
   observe(): void {}
@@ -53,6 +54,7 @@ vi.mock("@/api/api-provider", () => ({
       },
       orchestrator: {
         getMetadata: getMetadataMock,
+        getExecutionState: getExecutionStateMock,
       },
       providers: {
         catalog: catalogMock,
@@ -83,6 +85,7 @@ describe("ChatPage sidebar accessibility", () => {
     vi.clearAllMocks();
     const now = new Date().toISOString();
 
+    getExecutionStateMock.mockResolvedValue(null);
     catalogMock.mockResolvedValue([]);
     listSessionsMock.mockResolvedValue([
       {
