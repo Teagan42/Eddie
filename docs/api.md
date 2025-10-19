@@ -106,6 +106,9 @@ All provider behaviour is driven by the new `api` section in `eddie.config.*`:
       "sqlite": {
         "filename": "./data/chat-sessions.sqlite"
       }
+    },
+    "demoSeeds": {
+      "files": ["./fixtures/demo-seed.json"]
     }
   }
 }
@@ -122,6 +125,10 @@ your deployment image still needs the native system packages those drivers
 depend on (for example libssl when connecting to PostgreSQL over TLS). Supply
 credentials directly in the config file or through environment variable
 interpolation as shown in the YAML examples below.
+
+Provide relative or absolute file paths under `api.demoSeeds.files` to preload
+demo data for local walkthroughs. The array can be left empty or omitted
+entirely in production deployments.
 
 ### Persistence drivers
 

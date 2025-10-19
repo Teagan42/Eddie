@@ -559,6 +559,20 @@
                 }
               }
             }
+          },
+          "demoSeeds": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "files": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minItems": 1
+              }
+            }
           }
         }
       },
@@ -2035,6 +2049,20 @@
                     "type": "boolean"
                   }
                 }
+              }
+            }
+          },
+          "demoSeeds": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "files": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minItems": 1
               }
             }
           }
