@@ -11,9 +11,17 @@ interface OverviewHeroProps {
   onToggleTheme: () => void;
   onRemoveApiKey: () => void;
   stats: OverviewStat[];
+  isToggleThemeDisabled?: boolean;
 }
 
-export function OverviewHero({ apiKey, apiUrl, onToggleTheme, onRemoveApiKey, stats }: OverviewHeroProps): JSX.Element {
+export function OverviewHero({
+  apiKey,
+  apiUrl,
+  onToggleTheme,
+  onRemoveApiKey,
+  stats,
+  isToggleThemeDisabled,
+}: OverviewHeroProps): JSX.Element {
   const consoleSeparatorClass = cn(
     "border-[color:var(--hero-console-separator)]",
     "dark:border-[color:var(--hero-console-separator-dark)]"
@@ -101,6 +109,7 @@ export function OverviewHero({ apiKey, apiUrl, onToggleTheme, onRemoveApiKey, st
                 "dark:hover:bg-[color:var(--hero-outline-bg-hover-dark)]"
               )}
               onClick={onToggleTheme}
+              disabled={isToggleThemeDisabled}
             >
               Cycle Theme
             </Button>

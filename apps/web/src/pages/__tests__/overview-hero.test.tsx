@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -21,7 +21,7 @@ vi.mock("@/api/api-provider", () => ({
 let initialTheme: RuntimeConfigDto["theme"] = "light";
 
 function ThemeHarness(): JSX.Element {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, isThemeStale } = useTheme();
   const handleToggleTheme = (): void => {
     const nextTheme = (theme === "dark" ? "light" : "dark") as RuntimeConfigDto["theme"];
     setTheme(nextTheme);
@@ -34,6 +34,7 @@ function ThemeHarness(): JSX.Element {
         apiUrl="https://api.example.com"
         onRemoveApiKey={vi.fn()}
         onToggleTheme={handleToggleTheme}
+        isToggleThemeDisabled={isThemeStale}
         stats={[
           {
             label: "Stat",
@@ -95,6 +96,76 @@ describe("OverviewHero", () => {
     await user.click(screen.getByRole("button", { name: /cycle theme/i }));
 
     await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
+
+    queryClient.clear();
+  });
+
+  it("keeps the toggled theme when the config query replays the previous value", async () => {
+    initialTheme = "light";
+    const user = userEvent.setup();
+    const queryClient = new QueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <ThemeHarness />
+        </ThemeProvider>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(false));
+
+    await user.click(screen.getByRole("button", { name: /cycle theme/i }));
+
+    await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
+
+    act(() => {
+      queryClient.setQueryData<Pick<RuntimeConfigDto, "theme">>(["config"], { theme: "dark" });
+    });
+
+    await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
+
+    act(() => {
+      queryClient.setQueryData<Pick<RuntimeConfigDto, "theme">>(["config"], { theme: "light" });
+    });
+
+    await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
+
+    queryClient.clear();
+  });
+
+  it("disables the cycle theme button while stale config theme is replayed", async () => {
+    initialTheme = "light";
+    const user = userEvent.setup();
+    const queryClient = new QueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <ThemeHarness />
+        </ThemeProvider>
+      </QueryClientProvider>
+    );
+
+    const toggleButton = await screen.findByRole("button", { name: /cycle theme/i });
+
+    await waitFor(() => expect(toggleButton).not.toBeDisabled());
+
+    await user.click(toggleButton);
+
+    await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
+
+    act(() => {
+      queryClient.setQueryData<Pick<RuntimeConfigDto, "theme">>(["config"], { theme: "light" });
+    });
+
+    await waitFor(() => expect(toggleButton).toBeDisabled());
+
+    act(() => {
+      queryClient.setQueryData<Pick<RuntimeConfigDto, "theme">>(["config"], { theme: "dark" });
+    });
+
+    await waitFor(() => expect(toggleButton).not.toBeDisabled());
 
     queryClient.clear();
   });

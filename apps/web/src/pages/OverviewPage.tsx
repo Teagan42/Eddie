@@ -231,7 +231,7 @@ export function OverviewPage(): JSX.Element {
     },
   });
 
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, isThemeStale } = useTheme();
 
   const activeSession = useMemo<ChatSessionDto | null>(() => {
     if (!selectedSessionId) {
@@ -278,6 +278,7 @@ export function OverviewPage(): JSX.Element {
         onToggleTheme={handleToggleTheme}
         onRemoveApiKey={() => setApiKey(null)}
         stats={stats}
+        isToggleThemeDisabled={isThemeStale}
       />
 
       <OverviewAuthPanel apiKey={apiKey} onApiKeyChange={setApiKey} />
