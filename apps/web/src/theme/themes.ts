@@ -1,5 +1,7 @@
 import type { RuntimeConfigDto } from "@eddie/api-client";
 
+export type ThemeAccentColor = "amber" | "iris" | "jade";
+
 export const AVAILABLE_THEMES = [
   "light",
   "dark",
@@ -19,4 +21,18 @@ export function getNextTheme(theme: RuntimeConfigDto["theme"]): RuntimeConfigDto
     return AVAILABLE_THEMES[0];
   }
   return AVAILABLE_THEMES[(index + 1) % AVAILABLE_THEMES.length];
+}
+
+export function getThemeAccentColor(theme: RuntimeConfigDto["theme"]): ThemeAccentColor {
+  if (theme === "aurora") {
+    return "amber";
+  }
+  if (theme === "midnight") {
+    return "iris";
+  }
+  return "jade";
+}
+
+export function getThemeAppearance(theme: RuntimeConfigDto["theme"]): "light" | "dark" {
+  return isDarkTheme(theme) ? "dark" : "light";
 }
