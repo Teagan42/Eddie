@@ -280,7 +280,7 @@ export function SessionSelector({
           </Flex>
         </Button>
         <DropdownMenu.Root modal={false}>
-          <DropdownMenu.Trigger>
+          <DropdownMenu.Trigger asChild>
             <IconButton
               variant="ghost"
               color="gray"
