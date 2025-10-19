@@ -3,8 +3,13 @@ import { RuntimeConfigDto } from "./dto/runtime-config.dto";
 
 type RuntimeTheme = RuntimeConfigDto["theme"];
 
+const RUNTIME_THEMES = new Set<RuntimeTheme>(["light", "dark", "midnight", "aurora"]);
+
 function coerceTheme(value: string | undefined): RuntimeTheme {
-  return value === "light" || value === "dark" ? value : "dark";
+  if (value && RUNTIME_THEMES.has(value as RuntimeTheme)) {
+    return value as RuntimeTheme;
+  }
+  return "dark";
 }
 
 function coerceBoolean(value: string | undefined, fallback: boolean): boolean {

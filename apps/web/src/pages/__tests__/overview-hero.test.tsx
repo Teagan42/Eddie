@@ -5,7 +5,13 @@ import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { RuntimeConfigDto } from "@eddie/api-client";
 import { OverviewHero } from "../components";
-import { ThemeProvider, useTheme } from "@/theme";
+import {
+  AVAILABLE_THEMES,
+  ThemeProvider,
+  getNextTheme,
+  isDarkTheme,
+  useTheme,
+} from "@/theme";
 
 vi.mock("@/api/api-provider", () => ({
   useApi: () => ({
@@ -23,8 +29,7 @@ let initialTheme: RuntimeConfigDto["theme"] = "light";
 function ThemeHarness(): JSX.Element {
   const { theme, setTheme, isThemeStale } = useTheme();
   const handleToggleTheme = (): void => {
-    const nextTheme = (theme === "dark" ? "light" : "dark") as RuntimeConfigDto["theme"];
-    setTheme(nextTheme);
+    setTheme(getNextTheme(theme));
   };
 
   return (
@@ -49,7 +54,7 @@ function ThemeHarness(): JSX.Element {
 }
 
 describe("OverviewHero", () => {
-  it("cycles the theme via provider when button clicked", async () => {
+  it("cycles through all available themes when button clicked", async () => {
     const user = userEvent.setup();
     const queryClient = new QueryClient();
 
@@ -61,11 +66,16 @@ describe("OverviewHero", () => {
       </QueryClientProvider>
     );
 
-    await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(false));
+    const button = await screen.findByRole("button", { name: /cycle theme/i });
+    await waitFor(() => expect(document.documentElement.dataset.theme).toBe(AVAILABLE_THEMES[0]));
 
-    await user.click(screen.getByRole("button", { name: /cycle theme/i }));
+    const sequence = [...AVAILABLE_THEMES.slice(1), AVAILABLE_THEMES[0]];
 
-    await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
+    for (const nextTheme of sequence) {
+      await user.click(button);
+      await waitFor(() => expect(document.documentElement.dataset.theme).toBe(nextTheme));
+      expect(document.documentElement.classList.contains("dark")).toBe(isDarkTheme(nextTheme));
+    }
 
     queryClient.clear();
   });
