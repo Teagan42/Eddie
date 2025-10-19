@@ -40,7 +40,6 @@ import {
   type EddieConfigPreviewDto,
   type EddieConfigSchemaDto,
   type EddieConfigSourceDto,
-  type ProviderCatalogEntryDto,
   type UpdateEddieConfigPayload,
 } from "@eddie/api-client";
 import { useApi } from "@/api/api-provider";
@@ -52,6 +51,60 @@ import {
 } from "@/styles/surfaces";
 
 const YAML_OPTIONS = { lineWidth: 120, noRefs: true } as const;
+
+interface ProviderProfileSnapshot {
+  provider?: {
+    name?: string;
+    [key: string]: unknown;
+  };
+  model?: string;
+  [key: string]: unknown;
+}
+
+interface ProviderOption {
+  value: string;
+  label: string;
+  defaultModel?: string;
+}
+
+function extractProviderProfiles(
+  config: EddieConfigSourceDto['config'] | undefined | null,
+): Record<string, ProviderProfileSnapshot> {
+  if (!config || typeof config !== 'object') {
+    return {};
+  }
+
+  const candidate = (config as { providers?: unknown }).providers;
+  if (!candidate || typeof candidate !== 'object') {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(candidate).filter((entry): entry is [string, ProviderProfileSnapshot] => {
+      const [, profile] = entry;
+      return typeof profile === 'object' && profile !== null;
+    }),
+  );
+}
+
+function uniqueProviderNames(
+  ...candidates: Array<string | null | undefined>
+): string[] {
+  const names: string[] = [];
+  const seen = new Set<string>();
+  for (const candidate of candidates) {
+    if (typeof candidate !== 'string') {
+      continue;
+    }
+    const normalized = candidate.trim();
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    names.push(normalized);
+  }
+  return names;
+}
 
 function cloneInput(input?: EddieConfigInputDto): EddieConfigInputDto {
   return JSON.parse(JSON.stringify(input ?? {}));
@@ -124,12 +177,6 @@ export function ConfigPage(): JSX.Element {
   const sourceQuery = useQuery<EddieConfigSourceDto>({
     queryKey: ["config", "eddie", "source"],
     queryFn: () => api.http.config.loadEddieConfig(),
-  });
-
-  const providerCatalogQuery = useQuery<ProviderCatalogEntryDto[]>({
-    queryKey: ["providers", "catalog"],
-    queryFn: () => api.http.providers.catalog(),
-    staleTime: 300_000,
   });
 
   const [mode, setMode] = useState<ConfigFileFormat>("yaml");
@@ -324,9 +371,10 @@ export function ConfigPage(): JSX.Element {
 
   const currentConfig = previewData?.config;
   const effectiveInput = parsedInput ?? {};
-  const providerCatalog = useMemo(
-    () => providerCatalogQuery.data ?? [],
-    [providerCatalogQuery.data]
+  const resolvedConfig = previewData?.config ?? sourceQuery.data?.config ?? null;
+  const providerProfiles = useMemo(
+    () => extractProviderProfiles(resolvedConfig),
+    [resolvedConfig],
   );
   const selectedProviderName = effectiveInput.provider?.name ?? null;
   const autoApproveChecked =
@@ -336,14 +384,57 @@ export function ConfigPage(): JSX.Element {
     currentConfig?.agents?.enableSubagents ??
     false;
 
-  const providerOptions = useMemo(
-    () =>
-      providerCatalog.map((entry) => ({
-        value: entry.name,
-        label: entry.label ?? entry.name,
-      })),
-    [providerCatalog]
-  );
+  const providerOptions = useMemo(() => {
+    const entries = Object.entries(providerProfiles);
+    if (entries.length === 0) {
+      return [];
+    }
+
+    const options = entries.reduce<ProviderOption[]>((acc, [profileId, profile]) => {
+      const providerName = profile?.provider?.name;
+      if (!providerName) {
+        return acc;
+      }
+
+      acc.push({
+        value: providerName,
+        label: profileId,
+        defaultModel: typeof profile.model === 'string' ? profile.model : undefined,
+      });
+      return acc;
+    }, []);
+
+    const seen = new Set(options.map((option) => option.value));
+    const fallbacks: ProviderOption[] = [];
+
+    for (const fallbackName of uniqueProviderNames(
+      selectedProviderName,
+      baselineInput.provider?.name,
+      currentConfig?.provider?.name,
+    )) {
+      if (seen.has(fallbackName)) {
+        continue;
+      }
+      seen.add(fallbackName);
+      fallbacks.push({ value: fallbackName, label: fallbackName });
+    }
+
+    return [...fallbacks, ...options];
+  }, [
+    providerProfiles,
+    selectedProviderName,
+    baselineInput.provider?.name,
+    currentConfig?.provider?.name,
+  ]);
+
+
+  const providerOptionsByValue = useMemo(() => {
+    const map = new Map<string, ProviderOption>();
+    for (const option of providerOptions) {
+      map.set(option.value, option);
+    }
+    return map;
+  }, [providerOptions]);
   const includeEntries =
     effectiveInput.context?.include ??
     baselineInput.context?.include ??
@@ -806,66 +897,101 @@ export function ConfigPage(): JSX.Element {
               <Separator className="opacity-30" />
               <Flex direction="column" gap="3">
                 <Text size="2" color="gray">
-                Provider configuration
+                  Provider configuration
                 </Text>
-                <Select.Root
-                  value={selectedProviderName ?? ""}
-                  onValueChange={(value) => {
-                    if (value === "__custom__") {
-                      const next = window.prompt(
-                        "Provider identifier",
-                        selectedProviderName ?? ""
-                      );
-                      const manual = next?.trim() ?? "";
-                      if (!manual) {
+                {providerOptions.length > 0 ? (
+                  <Select.Root
+                    value={selectedProviderName ?? ""}
+                    onValueChange={(value) => {
+                      if (value === "__custom__") {
+                        const next = window.prompt(
+                          "Provider identifier",
+                          selectedProviderName ?? ""
+                        );
+                        const manual = next?.trim() ?? "";
+                        if (!manual) {
+                          return;
+                        }
+                        updateInput((draft) => {
+                          draft.provider = { ...(draft.provider ?? {}) };
+                          draft.provider.name = manual;
+                          delete draft.provider.model;
+                          if (Object.keys(draft.provider).length === 0) {
+                            delete draft.provider;
+                          }
+                        });
+                        return;
+                      }
+                      if (value === "__clear__") {
+                        updateInput((draft) => {
+                          draft.provider = { ...(draft.provider ?? {}) };
+                          delete draft.provider.name;
+                          delete draft.provider.model;
+                          if (Object.keys(draft.provider).length === 0) {
+                            delete draft.provider;
+                          }
+                        });
                         return;
                       }
                       updateInput((draft) => {
                         draft.provider = { ...(draft.provider ?? {}) };
-                        draft.provider.name = manual;
-                      });
-                      return;
-                    }
-                    if (value === "__clear__") {
-                      updateInput((draft) => {
-                        draft.provider = { ...(draft.provider ?? {}) };
-                        delete draft.provider.name;
+                        if (value) {
+                          draft.provider.name = value;
+                          const option = providerOptionsByValue.get(value);
+                          if (option?.defaultModel) {
+                            draft.provider.model = option.defaultModel;
+                          } else {
+                            delete draft.provider.model;
+                          }
+                        } else {
+                          delete draft.provider.name;
+                          delete draft.provider.model;
+                        }
                         if (Object.keys(draft.provider).length === 0) {
                           delete draft.provider;
                         }
                       });
-                      return;
+                    }}
+                  >
+                    <Select.Trigger
+                      aria-label="Provider"
+                      placeholder={currentConfig?.provider?.name ?? "Provider"}
+                    />
+                    <Select.Content>
+                      {providerOptions.map((option) => (
+                        <Select.Item key={option.value} value={option.value}>
+                          {option.label}
+                        </Select.Item>
+                      ))}
+                      <Select.Separator />
+                      <Select.Item value="__custom__">Custom provider…</Select.Item>
+                      {selectedProviderName ? (
+                        <Select.Item value="__clear__">Clear provider</Select.Item>
+                      ) : null}
+                    </Select.Content>
+                  </Select.Root>
+                ) : null}
+                {selectedProviderName ? (
+                  <TextField.Root
+                    value={effectiveInput.provider?.model ?? ""}
+                    onChange={(event) =>
+                      updateInput((draft) => {
+                        draft.provider = { ...(draft.provider ?? {}) };
+                        const next = event.target.value.trim();
+                        if (next) {
+                          draft.provider.model = next;
+                        } else {
+                          delete draft.provider.model;
+                        }
+                        if (Object.keys(draft.provider).length === 0) {
+                          delete draft.provider;
+                        }
+                      })
                     }
-                    updateInput((draft) => {
-                      draft.provider = { ...(draft.provider ?? {}) };
-                      if (value) {
-                        draft.provider.name = value;
-                      } else {
-                        delete draft.provider.name;
-                      }
-                      if (Object.keys(draft.provider).length === 0) {
-                        delete draft.provider;
-                      }
-                    });
-                  }}
-                >
-                  <Select.Trigger
-                    aria-label="Provider"
-                    placeholder={currentConfig?.provider?.name ?? "Provider"}
+                    placeholder="Provider model (optional)"
+                    aria-label="Provider model"
                   />
-                  <Select.Content>
-                    {providerOptions.map((option) => (
-                      <Select.Item key={option.value} value={option.value}>
-                        {option.label}
-                      </Select.Item>
-                    ))}
-                    {providerOptions.length > 0 ? <Select.Separator /> : null}
-                    <Select.Item value="__custom__">Custom provider…</Select.Item>
-                    {selectedProviderName ? (
-                      <Select.Item value="__clear__">Clear provider</Select.Item>
-                    ) : null}
-                  </Select.Content>
-                </Select.Root>
+                ) : null}
                 <TextField.Root
                   value={effectiveInput.provider?.baseUrl ?? ""}
                   onChange={(event) =>

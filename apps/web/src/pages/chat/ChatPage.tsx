@@ -20,7 +20,7 @@ import type {
   ChatSessionDto,
   CreateChatMessageDto,
   CreateChatSessionDto,
-  ProviderCatalogEntryDto,
+  EddieConfigSourceDto,
 } from '@eddie/api-client';
 import { useApi } from '@/api/api-provider';
 import { useAuth } from '@/auth/auth-context';
@@ -76,6 +76,42 @@ const PANEL_IDS = {
 const SCROLL_VIEWPORT_SELECTOR = '[data-radix-scroll-area-viewport]';
 
 const CHAT_SESSIONS_QUERY_KEY = ['chat-sessions'] as const;
+const CONFIG_EDITOR_QUERY_KEY = ['config', 'editor'] as const;
+
+interface ProviderProfileSnapshot {
+  provider?: {
+    name?: string;
+    [key: string]: unknown;
+  };
+  model?: string;
+  [key: string]: unknown;
+}
+
+interface ProviderOption {
+  value: string;
+  label: string;
+  defaultModel?: string;
+}
+
+function extractProviderProfiles(
+  config: EddieConfigSourceDto['config'] | undefined | null,
+): Record<string, ProviderProfileSnapshot> {
+  if (!config || typeof config !== 'object') {
+    return {};
+  }
+
+  const candidate = (config as { providers?: unknown }).providers;
+  if (!candidate || typeof candidate !== 'object') {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(candidate).filter((entry): entry is [string, ProviderProfileSnapshot] => {
+      const [, profile] = entry;
+      return typeof profile === 'object' && profile !== null;
+    }),
+  );
+}
 
 const scrollMessageViewportToBottom = (anchor: HTMLElement): void => {
   const viewport = anchor.closest(SCROLL_VIEWPORT_SELECTOR);
@@ -1022,24 +1058,39 @@ export function ChatPage(): JSX.Element {
   const sessionSettings = preferences.chat?.sessionSettings ?? {};
   const templates = useMemo(() => preferences.chat?.templates ?? {}, [preferences.chat?.templates]);
 
-  const providerCatalogQuery = useQuery<ProviderCatalogEntryDto[]>({
-    queryKey: ['providers', 'catalog'],
-    queryFn: () => api.http.providers.catalog(),
+  const configSourceQuery = useQuery<EddieConfigSourceDto>({
+    queryKey: CONFIG_EDITOR_QUERY_KEY,
+    queryFn: () => api.http.config.loadEddieConfig(),
     staleTime: 300_000,
   });
 
-  const providerCatalog = useMemo(
-    () => providerCatalogQuery.data ?? [],
-    [providerCatalogQuery.data],
+  const providerProfiles = useMemo(
+    () => extractProviderProfiles(configSourceQuery.data?.config ?? null),
+    [configSourceQuery.data?.config],
   );
 
   const activeSettings = selectedSessionId ? (sessionSettings[selectedSessionId] ?? {}) : {};
 
-  const providerOptions = useMemo(() => {
-    const options = providerCatalog.map((entry) => ({
-      label: entry.label ?? entry.name,
-      value: entry.name,
-    }));
+  const providerOptions = useMemo<ProviderOption[]>(() => {
+    const entries = Object.entries(providerProfiles);
+    if (entries.length === 0) {
+      return [];
+    }
+
+    const options: ProviderOption[] = entries.reduce<ProviderOption[]>((acc, [profileId, profile]) => {
+      const providerName = profile?.provider?.name;
+      if (!providerName) {
+        return acc;
+      }
+
+      acc.push({
+        value: providerName,
+        label: profileId,
+        defaultModel: typeof profile.model === 'string' ? profile.model : undefined,
+      });
+      return acc;
+    }, []);
+
     if (
       activeSettings.provider &&
       !options.some((option) => option.value === activeSettings.provider)
@@ -1047,10 +1098,21 @@ export function ChatPage(): JSX.Element {
       options.unshift({
         label: activeSettings.provider,
         value: activeSettings.provider,
+        defaultModel:
+          typeof activeSettings.model === 'string' ? activeSettings.model : undefined,
       });
     }
+
     return options;
-  }, [activeSettings.provider, providerCatalog]);
+  }, [activeSettings.model, activeSettings.provider, providerProfiles]);
+
+  const providerOptionsByValue = useMemo(() => {
+    const map = new Map<string, ProviderOption>();
+    for (const option of providerOptions) {
+      map.set(option.value, option);
+    }
+    return map;
+  }, [providerOptions]);
 
   const selectedProvider = activeSettings.provider ?? providerOptions[0]?.value ?? '';
 
@@ -1191,13 +1253,9 @@ export function ChatPage(): JSX.Element {
         }
       }
 
-      const entry = providerCatalog.find((item) => item.name === providerValue);
-      const models = entry?.models ?? [];
-      const nextModel = models.length
-        ? models.includes(activeSettings.model ?? '')
-          ? activeSettings.model
-          : models[0]
-        : activeSettings.model;
+      const option = providerOptionsByValue.get(providerValue);
+      const defaultModel = option?.defaultModel;
+      const nextModel = defaultModel ?? activeSettings.model;
 
       applyChatUpdate((chat) => {
         const nextSettings = { ...(chat.sessionSettings ?? {}) };
@@ -1219,7 +1277,7 @@ export function ChatPage(): JSX.Element {
       activeSettings.model,
       activeSettings.provider,
       applyChatUpdate,
-      providerCatalog,
+      providerOptionsByValue,
       selectedSessionId,
     ],
   );
@@ -1415,31 +1473,35 @@ export function ChatPage(): JSX.Element {
               }
               actions={
                 <Flex align="center" gap="3" wrap="wrap">
-                  <Select.Root
-                    value={selectedProvider}
-                    onValueChange={handleProviderChange}
-                    disabled={!selectedSessionId}
-                  >
-                    <Select.Trigger placeholder="Provider" />
-                    <Select.Content>
-                      {providerOptions.map((option) => (
-                        <Select.Item key={option.value} value={option.value}>
-                          {option.label}
-                        </Select.Item>
-                      ))}
-                      {providerOptions.length > 0 ? <Select.Separator /> : null}
-                      <Select.Item value="__custom__">Custom provider…</Select.Item>
-                    </Select.Content>
-                  </Select.Root>
-                  <TextField.Root
-                    value={activeSettings.model ?? ''}
-                    onChange={(event) =>
-                      handleModelInputChange(event.target.value)
-                    }
-                    placeholder="Model identifier"
-                    aria-label="Model"
-                    disabled={!selectedSessionId}
-                  />
+                  {providerOptions.length > 0 ? (
+                    <Select.Root
+                      value={selectedProvider}
+                      onValueChange={handleProviderChange}
+                      disabled={!selectedSessionId}
+                    >
+                      <Select.Trigger aria-label="Provider" placeholder="Provider" />
+                      <Select.Content>
+                        {providerOptions.map((option) => (
+                          <Select.Item key={option.value} value={option.value}>
+                            {option.label}
+                          </Select.Item>
+                        ))}
+                        <Select.Separator />
+                        <Select.Item value="__custom__">Custom provider…</Select.Item>
+                      </Select.Content>
+                    </Select.Root>
+                  ) : null}
+                  {selectedProvider ? (
+                    <TextField.Root
+                      value={activeSettings.model ?? ''}
+                      onChange={(event) =>
+                        handleModelInputChange(event.target.value)
+                      }
+                      placeholder="Model identifier"
+                      aria-label="Model"
+                      disabled={!selectedSessionId}
+                    />
+                  ) : null}
                   <Select.Root
                     value={templateSelection}
                     onValueChange={handleTemplateSelection}

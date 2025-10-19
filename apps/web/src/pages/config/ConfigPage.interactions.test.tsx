@@ -40,6 +40,16 @@ const baseSourceResponse = {
       enableSubagents: true,
     },
     logging: { level: "info" },
+    providers: {
+      "api-provider": {
+        provider: { name: "api-provider" },
+        model: "api-model-2",
+      },
+      "profile-openai": {
+        provider: { name: "openai" },
+        model: "gpt-4.1",
+      },
+    },
   },
   error: null,
 };
@@ -145,7 +155,7 @@ describe("ConfigPage interactions", () => {
     });
   });
 
-  it("uses a provider dropdown populated from the catalog", async () => {
+  it("uses a provider dropdown populated from configuration profiles", async () => {
     const user = userEvent.setup();
     renderConfigPage();
 
@@ -153,8 +163,53 @@ describe("ConfigPage interactions", () => {
     await user.click(trigger);
 
     expect(
-      await screen.findByRole("option", { name: "Provider From API" })
+      await screen.findByRole("option", { name: "api-provider" })
     ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: "profile-openai" })
+    ).toBeInTheDocument();
+  });
+
+  it("retains manual provider selections missing from profiles", async () => {
+    const user = userEvent.setup();
+    const customSource = cloneSourceResponse();
+    customSource.input.provider = { name: "custom-provider" };
+    customSource.config.provider = { name: "custom-provider" };
+    customSource.config.providers = {
+      "profile-openai": {
+        provider: { name: "openai" },
+        model: "gpt-4.1",
+      },
+    };
+    loadSourceMock.mockResolvedValueOnce(customSource);
+
+    renderConfigPage();
+
+    const trigger = await screen.findByRole("combobox", { name: /provider/i });
+    await user.click(trigger);
+
+    expect(
+      await screen.findByRole("option", { name: "custom-provider" })
+    ).toBeInTheDocument();
+  });
+
+  it("shows a provider model input when a profile is selected", async () => {
+    const user = userEvent.setup();
+    renderConfigPage();
+
+    const trigger = await screen.findByRole("combobox", { name: /provider/i });
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("option", { name: "profile-openai" })
+    );
+
+    const modelInput = await screen.findByLabelText(/provider model/i);
+    await waitFor(() => expect(modelInput).toHaveValue("gpt-4.1"));
+
+    await user.clear(modelInput);
+    await user.type(modelInput, "gpt-4.2");
+
+    expect(modelInput).toHaveValue("gpt-4.2");
   });
 
   it("supports adding and removing include entries with dedicated controls", async () => {

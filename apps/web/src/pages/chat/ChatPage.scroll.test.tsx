@@ -21,6 +21,7 @@ const listSessionsMock = vi.fn();
 const listMessagesMock = vi.fn();
 const getMetadataMock = vi.fn();
 const getExecutionStateMock = vi.fn();
+const loadConfigMock = vi.fn();
 const onSessionCreatedMock = vi.fn().mockImplementation(() => () => {});
 const onSessionUpdatedMock = vi.fn().mockImplementation(() => () => {});
 const onMessageCreatedMock = vi.fn().mockImplementation(() => () => {});
@@ -64,6 +65,9 @@ vi.mock("@/api/api-provider", () => ({
         getMetadata: getMetadataMock,
         getExecutionState: getExecutionStateMock,
       },
+      config: {
+        loadEddieConfig: loadConfigMock,
+      },
       providers: {
         catalog: catalogMock,
       },
@@ -103,6 +107,21 @@ describe("ChatPage message scrolling", () => {
     getExecutionStateMock.mockResolvedValue(null);
     const timestamp = new Date().toISOString();
     catalogMock.mockResolvedValue([]);
+    loadConfigMock.mockResolvedValue({
+      path: null,
+      format: "yaml" as const,
+      content: "",
+      input: {},
+      config: {
+        providers: {
+          "profile-openai": {
+            provider: { name: "openai" },
+            model: "gpt-4.1",
+          },
+        },
+      },
+      error: null,
+    });
     listSessionsMock.mockResolvedValue([
       {
         id: "session-1",
