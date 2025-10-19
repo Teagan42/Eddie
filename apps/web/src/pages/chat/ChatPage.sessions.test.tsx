@@ -2,7 +2,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient } from "@tanstack/react-query";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ChatSessionDto } from "@eddie/api-client";
+import type { ChatSessionDto, LayoutPreferencesDto } from "@eddie/api-client";
 import { createChatPageRenderer } from "./test-utils";
 
 const sessionCreatedHandlers: Array<(session: unknown) => void> = [];
@@ -11,6 +11,15 @@ const messageCreatedHandlers: Array<(message: any) => void> = [];
 const messageUpdatedHandlers: Array<(message: any) => void> = [];
 
 const updatePreferencesMock = vi.fn();
+
+let preferencesState: LayoutPreferencesDto = {
+  chat: {
+    selectedSessionId: "session-1",
+    sessionSettings: {},
+    collapsedPanels: {},
+    templates: {},
+  },
+};
 
 const catalogMock = vi.fn();
 const listSessionsMock = vi.fn();
@@ -40,15 +49,15 @@ Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
 
 vi.mock("@/hooks/useLayoutPreferences", () => ({
   useLayoutPreferences: () => ({
-    preferences: {
-      chat: {
-        selectedSessionId: "session-1",
-        sessionSettings: {},
-        collapsedPanels: {},
-        templates: {},
-      },
+    preferences: preferencesState,
+    updatePreferences: (
+      updater: (previous: LayoutPreferencesDto) => LayoutPreferencesDto,
+    ) => {
+      updatePreferencesMock(updater);
+      const next = updater(preferencesState);
+      preferencesState = next ?? preferencesState;
+      return preferencesState;
     },
-    updatePreferences: updatePreferencesMock,
     isSyncing: false,
     isRemoteAvailable: true,
   }),
@@ -175,6 +184,14 @@ describe("ChatPage session creation", () => {
     messageCreatedHandlers.length = 0;
     messageUpdatedHandlers.length = 0;
     updatePreferencesMock.mockReset();
+    preferencesState = {
+      chat: {
+        selectedSessionId: "session-1",
+        sessionSettings: {},
+        collapsedPanels: {},
+        templates: {},
+      },
+    };
     toastMock.mockReset();
     renameSessionMock.mockReset();
     deleteSessionMock.mockReset();
@@ -355,6 +372,87 @@ describe("ChatPage session creation", () => {
       expect(updatedBadge).toHaveTextContent("1");
       expect(updatedBadge.closest('[data-highlighted="true"]')).not.toBeNull();
     });
+  });
+
+  it("notifies and clears the selected session when fetching messages returns 404", async () => {
+    listMessagesMock.mockRejectedValueOnce({ status: 404, message: "missing" });
+
+    const { client } = renderChatPage();
+
+    await waitFor(() =>
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Session no longer available",
+          variant: "warning",
+        }),
+      ),
+    );
+
+    await waitFor(() => expect(updatePreferencesMock).toHaveBeenCalled());
+
+    await waitFor(() =>
+      expect(preferencesState.chat?.selectedSessionId ?? null).toBeNull(),
+    );
+    expect(preferencesState.chat?.sessionSettings ?? {}).not.toHaveProperty("session-1");
+    expect(preferencesState.chat?.templates ?? {}).not.toHaveProperty("session-1");
+
+    expect(
+      client.getQueryData(["chat-session", "session-1", "messages"]),
+    ).toBeUndefined();
+  });
+
+  it("notifies and prunes sessions missing from the server response", async () => {
+    const now = new Date().toISOString();
+    const sessionOne = buildSessionDto("session-1", "Session 1", now);
+    const sessionTwo = buildSessionDto("session-2", "Session 2", now);
+
+    listSessionsMock.mockResolvedValueOnce([sessionOne, sessionTwo]);
+    listSessionsMock.mockResolvedValueOnce([sessionOne]);
+
+    preferencesState = {
+      chat: {
+        selectedSessionId: "session-1",
+        sessionSettings: {
+          "session-1": { provider: "openai" },
+          "session-2": { provider: "openai" },
+        },
+        collapsedPanels: {},
+        templates: {
+          "session-2": { name: "Template 2" },
+        },
+      },
+    };
+
+    const { client } = renderChatPage();
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Session 2" })).toBeInTheDocument(),
+    );
+
+    await act(async () => {
+      await client.invalidateQueries({ queryKey: ["chat-sessions"] });
+    });
+
+    await waitFor(() => expect(listSessionsMock).toHaveBeenCalledTimes(2));
+
+    await waitFor(() =>
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Sessions no longer available",
+          variant: "warning",
+        }),
+      ),
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Session 2" })).not.toBeInTheDocument(),
+    );
+
+    expect(preferencesState.chat?.sessionSettings ?? {}).not.toHaveProperty("session-2");
+    expect(preferencesState.chat?.templates ?? {}).not.toHaveProperty("session-2");
+
+    const sessions = client.getQueryData<ChatSessionDto[]>(["chat-sessions"]) ?? [];
+    expect(sessions.some((session) => session.id === "session-2")).toBe(false);
   });
 
   it("highlights metrics when orchestrator metadata updates", async () => {
