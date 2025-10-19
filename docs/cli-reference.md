@@ -124,6 +124,17 @@ Flags typed on the command line still win, so `eddie run "Deploy" --provider ant
 - Pass `--config relative/or/absolute/path.yaml` when you need to pin a specific file; the CLI validates the path and fails fast if it does not exist.【F:platform/core/config/src/config-path.ts†L31-L58】
 - Once a file is loaded, `ConfigService` layers defaults, file contents, and runtime overrides so feature-specific defaults (such as provider profiles) remain intact until you explicitly change them.【F:platform/core/config/src/config.service.ts†L123-L133】【F:platform/core/config/src/config.service.ts†L145-L156】
 
+## Notification stream output
+
+`[notification]` lines appear in the CLI whenever the engine forwards advisory events without failing the run. The renderer prints them in yellow, preserving any structured metadata so operators can see which agent emitted the notice and whether extra context was provided.【F:platform/runtime/io/src/stream-renderer.service.ts†L18-L76】 `[error]` records, by contrast, are written to `stderr` and accompany stream termination, so treat notifications as recoverable hints rather than fatal conditions.【F:platform/runtime/io/src/stream-renderer.service.ts†L69-L76】【F:platform/runtime/engine/src/agents/runner/agent-run-loop.ts†L140-L205】
+
+Upstream sources feed two primary notification categories:
+
+- **Provider notifications** – The provider integrator walks every streamed payload and promotes embedded `notification`, `notifications[]`, or `type: "…notification"` objects into `StreamEvent` records. The resulting events keep any metadata that the provider supplied so the CLI can display severity levels, target resources, or deprecation warnings alongside the payload.【F:platform/integrations/providers/src/notifications.ts†L14-L94】
+- **Tool failure notifications** – When a tool throws, the tool error handling path records an error, adds the tool name, call ID, and a `severity: "error"` flag, and emits a notification before continuing with the conversation. The JSONL trace also records the failure for later auditing while metrics count the error path.【F:platform/runtime/engine/src/agents/runner/tool-call-handler.ts†L150-L202】
+
+Integrators can capture or reroute these events through the hook system. `HOOK_EVENTS.notification` delivers the full payload (including agent ID, iteration number, and metadata) to custom listeners so logging pipelines or alerting systems can react without scraping CLI output.【F:platform/core/types/src/hooks.ts†L195-L220】 Configure hook modules in `eddie.config.*` via the `hooks.modules` array (and optional `hooks.directory`) to register handlers that forward notifications to Slack, webhooks, or other sinks before a run starts.【F:platform/core/config/src/defaults.ts†L81-L104】【F:platform/core/config/src/schema.ts†L520-L547】【F:platform/runtime/hooks/src/hooks-loader.service.ts†L24-L78】
+
 ## Error handling and troubleshooting
 
 - Missing prompts for `ask` or `run` raise clear errors before contacting a model, so scripts can exit early with actionable feedback.【F:apps/cli/src/cli/commands/ask.command.ts†L19-L27】【F:apps/cli/src/cli/commands/run.command.ts†L19-L27】

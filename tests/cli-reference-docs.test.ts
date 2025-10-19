@@ -46,4 +46,17 @@ describe("cli reference documentation", () => {
     expect(cliReferenceContent).toMatch(/maxFiles/i);
     expect(cliReferenceContent).toMatch(/maxBytes/i);
   });
+
+  it("documents notification stream records and hooks", () => {
+    const patterns = [
+      /\[notification\]/i,
+      /HOOK_EVENTS\.notification/,
+      /provider notifications/i,
+      /tool (?:error|failure) handling/i,
+    ];
+
+    for (const pattern of patterns) {
+      expect(cliReferenceContent).toMatch(pattern);
+    }
+  });
 });
