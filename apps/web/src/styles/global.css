@@ -238,7 +238,7 @@ a:focus-visible {
     --overview-composer-input-bg: hsl(var(--card) / 0.65);
     --overview-composer-hint-active: rgba(16, 185, 129, 0.85);
     --overview-composer-hint-disabled: hsl(var(--muted-foreground));
-    --overview-composer-cta-foreground: hsl(var(--hero-cta-foreground));
+    --overview-composer-cta-foreground: var(--hero-cta-foreground);
     --overview-composer-cta-shadow: var(--hero-cta-shadow);
     --overview-composer-cta-shine: rgba(255, 255, 255, 0.25);
     --overview-stat-card-border: hsl(var(--border) / 0.18);
@@ -350,7 +350,7 @@ a:focus-visible {
     --overview-composer-input-bg: hsl(var(--card) / 0.26);
     --overview-composer-hint-active: rgba(167, 243, 208, 0.85);
     --overview-composer-hint-disabled: rgba(191, 219, 254, 0.75);
-    --overview-composer-cta-foreground: hsl(var(--hero-cta-foreground));
+    --overview-composer-cta-foreground: var(--hero-cta-foreground);
     --overview-composer-cta-shadow: var(--hero-cta-shadow);
     --overview-composer-cta-shine: rgba(148, 163, 184, 0.3);
     --overview-stat-card-border: hsl(var(--border) / 0.42);
