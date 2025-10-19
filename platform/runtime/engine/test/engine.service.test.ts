@@ -28,7 +28,10 @@ const baseConfig: EddieConfig = {
   transcript: {},
 };
 
-function createService(overrides: Partial<EddieConfig> = {}) {
+function createService(
+  overrides: Partial<EddieConfig> = {},
+  options: { includeDemoSeedReplayService?: boolean } = {}
+) {
   const config: EddieConfig = { ...baseConfig, ...overrides };
   const configStore = { getSnapshot: vi.fn(() => config) };
   const contextService = {
@@ -88,9 +91,13 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     })),
   };
 
-  const demoSeedReplayService = {
-    replayIfEnabled: vi.fn(async () => undefined),
-  };
+  const { includeDemoSeedReplayService = true } = options;
+
+  const demoSeedReplayService = includeDemoSeedReplayService
+    ? {
+        replayIfEnabled: vi.fn(async () => undefined),
+      }
+    : undefined;
 
   const service = new EngineService(
     configStore as any,
@@ -104,7 +111,7 @@ function createService(overrides: Partial<EddieConfig> = {}) {
     agentOrchestrator as any,
     mcpToolSourceService as any,
     metrics as any,
-    demoSeedReplayService as any,
+    includeDemoSeedReplayService ? (demoSeedReplayService as any) : undefined,
   );
 
   return {
@@ -169,7 +176,7 @@ describe("EngineService", () => {
       metrics,
     } = createService();
 
-    demoSeedReplayService.replayIfEnabled.mockResolvedValue({
+    demoSeedReplayService!.replayIfEnabled.mockResolvedValue({
       messages: [
         { role: "system", content: "You are Eddie." },
         { role: "assistant", content: "Demo" },
@@ -184,6 +191,17 @@ describe("EngineService", () => {
     expect(result.messages).toHaveLength(2);
     expect(result.tracePath).toBe("/tmp/demo-trace.jsonl");
     expect(metrics.countMessage).toHaveBeenCalledWith("assistant");
+  });
+
+  it("treats DemoSeedReplayService as optional", async () => {
+    const { service, agentOrchestrator } = createService({}, {
+      includeDemoSeedReplayService: false,
+    });
+
+    const result = await service.run("prompt");
+
+    expect(agentOrchestrator.runAgent).toHaveBeenCalledTimes(1);
+    expect(result.messages).toEqual([]);
   });
 
   it("skips MCP resources that exceed context byte budget", async () => {

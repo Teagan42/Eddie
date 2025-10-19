@@ -22,6 +22,17 @@ interface TraceEntity {
   updatedAt: Date;
 }
 
+export interface TraceSeedInput {
+  id: string;
+  sessionId?: string;
+  name: string;
+  status: TraceEntity["status"];
+  durationMs?: number;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
 const MAX_METADATA_DEPTH = 1_000;
 
 function deepClone<T>(value: T): T {
@@ -181,6 +192,26 @@ export class TracesService {
       metadata: cloneMetadata(partial.metadata),
       createdAt: now,
       updatedAt: now,
+    };
+    this.traces.set(entity.id, entity);
+    const dto = this.toDto(entity);
+    this.notifyCreated(dto);
+    return dto;
+  }
+
+  /**
+   * @internal Intended for deterministic trace seeding.
+   */
+  seedTrace(snapshot: TraceSeedInput): TraceDto {
+    const entity: TraceEntity = {
+      id: snapshot.id,
+      name: snapshot.name,
+      sessionId: snapshot.sessionId,
+      status: snapshot.status,
+      durationMs: snapshot.durationMs,
+      metadata: cloneMetadata(snapshot.metadata),
+      createdAt: new Date(snapshot.createdAt),
+      updatedAt: new Date(snapshot.updatedAt),
     };
     this.traces.set(entity.id, entity);
     const dto = this.toDto(entity);

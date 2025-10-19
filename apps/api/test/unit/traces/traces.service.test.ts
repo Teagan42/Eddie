@@ -64,4 +64,42 @@ describe("TracesService", () => {
 
     expect(service.list()).toEqual([]);
   });
+
+  it("seeds traces with deterministic identifiers and timestamps", () => {
+    const service = new TracesService();
+    const createdAt = new Date("2024-03-03T09:00:00.000Z");
+    const updatedAt = new Date("2024-03-03T09:05:00.000Z");
+    const createdEvents: string[] = [];
+    const updatedEvents: string[] = [];
+
+    service.registerListener({
+      onTraceCreated: (trace) => createdEvents.push(trace.id),
+      onTraceUpdated: (trace) => updatedEvents.push(trace.id),
+    });
+
+    service.seedTrace({
+      id: "trace-seeded",
+      name: "Seeded trace",
+      status: "completed",
+      sessionId: "session-seeded",
+      durationMs: 123,
+      metadata: { source: "fixture" },
+      createdAt: createdAt.toISOString(),
+      updatedAt: updatedAt.toISOString(),
+    });
+
+    const trace = service.get("trace-seeded");
+    expect(trace).toMatchObject({
+      id: "trace-seeded",
+      name: "Seeded trace",
+      status: "completed",
+      sessionId: "session-seeded",
+      durationMs: 123,
+      createdAt: createdAt.toISOString(),
+      updatedAt: updatedAt.toISOString(),
+    });
+    expect(trace.metadata).toEqual({ source: "fixture" });
+    expect(createdEvents).toEqual(["trace-seeded"]);
+    expect(updatedEvents).toEqual([]);
+  });
 });

@@ -18,4 +18,26 @@ describe("LogsService", () => {
     expect(publish).toHaveBeenCalledTimes(1);
     expect(publish).toHaveBeenCalledWith(new LogCreatedEvent(entry));
   });
+
+  it("seeds deterministic entries while preserving identifiers", () => {
+    const createdAt = new Date("2024-03-02T10:11:12.000Z");
+    const { service, publish } = createService();
+
+    const entry = service.seedEntry({
+      id: "log-seeded",
+      level: "warn",
+      message: "preloaded",
+      context: { source: "fixture" },
+      createdAt: createdAt.toISOString(),
+    });
+
+    expect(entry).toMatchObject({
+      id: "log-seeded",
+      level: "warn",
+      message: "preloaded",
+      createdAt: createdAt.toISOString(),
+    });
+    expect(service.list({ limit: 1 })).toEqual([entry]);
+    expect(publish).toHaveBeenCalledWith(new LogCreatedEvent(entry));
+  });
 });
