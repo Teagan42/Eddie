@@ -199,6 +199,55 @@ describe("OpenAIAdapter stream tool calls", () => {
     expect(payload).toMatchObject({ previous_response_id: "resp_prev" });
   });
 
+  it("emits reasoning events before assistant deltas", async () => {
+    const events: StreamEventLike[] = [
+      { type: "response.created", response: { id: "resp_reason" } },
+      {
+        type: "response.reasoning_text.delta",
+        delta: "Thinking step",
+        response: { id: "resp_reason" },
+      },
+      { type: "response.output_text.delta", delta: "Final answer" },
+      {
+        type: "response.completed",
+        response: {
+          id: "resp_reason",
+          status: "completed",
+          reasoning: { text: "Thinking step" },
+        },
+      },
+    ];
+
+    const finalResponse = {
+      id: "resp_reason",
+      status: "completed",
+      output: [],
+      reasoning: { text: "Thinking step" },
+    } as const;
+
+    streamMock.mockResolvedValueOnce(createStream(events, finalResponse));
+
+    const adapter = new OpenAIAdapter({});
+    const result = await collectStream(
+      adapter.stream({ model: "gpt-4o-mini", messages: [] }),
+    );
+
+    expect(result).toEqual([
+      { type: "reasoning_delta", text: "Thinking step" },
+      { type: "delta", text: "Final answer" },
+      expect.objectContaining({
+        type: "reasoning_end",
+        metadata: { text: "Thinking step" },
+        responseId: "resp_reason",
+      }),
+      expect.objectContaining({
+        type: "end",
+        reason: "completed",
+        responseId: "resp_reason",
+      }),
+    ]);
+  });
+
   it("emits tool calls using call_id once available and surfaces the response id", async () => {
     const finalResponse = {
       id: "resp_123",

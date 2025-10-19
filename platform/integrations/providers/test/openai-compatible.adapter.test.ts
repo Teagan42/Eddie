@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StreamOptions } from "@eddie/types";
 import { OpenAICompatibleAdapter } from "../src/openai_compatible";
 
@@ -16,6 +16,28 @@ const createResponse = () => ({
     }),
   },
 });
+
+const createStreamingResponse = (chunks: string[]) => {
+  const encoder = new TextEncoder();
+  let index = 0;
+  const read = vi.fn(async () => {
+    if (index >= chunks.length) {
+      return { done: true, value: undefined };
+    }
+
+    const value = encoder.encode(chunks[index++]);
+    return { done: false, value };
+  });
+
+  return {
+    ok: true,
+    status: 200,
+    statusText: "OK",
+    body: {
+      getReader: () => ({ read }),
+    },
+  };
+};
 
 describe("OpenAICompatibleAdapter", () => {
   beforeEach(() => {
@@ -52,5 +74,57 @@ describe("OpenAICompatibleAdapter", () => {
     const [, options] = fetchMock.mock.calls[0] ?? [];
     const body = options?.body ? JSON.parse(options.body as string) : {};
     expect(body.response_format).toEqual(spawnTool.outputSchema);
+  });
+
+  it("streams reasoning_content entries as reasoning events", async () => {
+    const chunks = [
+      'data: {"choices":[{"delta":{"reasoning_content":"Plan step"}}]}\n',
+      'data: {"choices":[{"delta":{"content":"Final"},"finish_reason":"stop"}],"usage":{"prompt_tokens":1}}\n',
+      'data: [DONE]\n',
+    ];
+
+    fetchMock.mockResolvedValueOnce(createStreamingResponse(chunks));
+
+    const adapter = new OpenAICompatibleAdapter({ baseUrl: "https://example.com", apiKey: "sk-test" });
+    const events: unknown[] = [];
+    for await (const event of adapter.stream({ model: "gpt-test", messages: [] } as StreamOptions)) {
+      events.push(event);
+    }
+
+    expect(events).toEqual([
+      { type: "reasoning_delta", text: "Plan step" },
+      { type: "delta", text: "Final" },
+      expect.objectContaining({
+        type: "reasoning_end",
+        metadata: { text: "Plan step" },
+      }),
+      expect.objectContaining({ type: "end", reason: "stop", usage: { prompt_tokens: 1 } }),
+    ]);
+  });
+
+  it("strips <think> blocks from deltas while streaming reasoning events", async () => {
+    const chunks = [
+      'data: {"choices":[{"delta":{"content":"<think>Hidden</think>"}}]}\n',
+      'data: {"choices":[{"delta":{"content":"Visible"},"finish_reason":"stop"}]}\n',
+      'data: [DONE]\n',
+    ];
+
+    fetchMock.mockResolvedValueOnce(createStreamingResponse(chunks));
+
+    const adapter = new OpenAICompatibleAdapter({ baseUrl: "https://example.com", apiKey: "sk-test" });
+    const events: unknown[] = [];
+    for await (const event of adapter.stream({ model: "gpt-test", messages: [] } as StreamOptions)) {
+      events.push(event);
+    }
+
+    expect(events).toEqual([
+      { type: "reasoning_delta", text: "Hidden" },
+      { type: "delta", text: "Visible" },
+      expect.objectContaining({
+        type: "reasoning_end",
+        metadata: { text: "Hidden" },
+      }),
+      expect.objectContaining({ type: "end", reason: "stop" }),
+    ]);
   });
 });
