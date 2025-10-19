@@ -699,6 +699,159 @@ describe("AgentOrchestratorService", () => {
     });
   });
 
+  it("merges cached compactor history with live transcript for spawn results", async () => {
+    const agentDefinition = {
+      id: "agent-1",
+      systemPrompt: "You are helpful.",
+      tools: [],
+    };
+
+    const subagentDefinition = {
+      id: "subagent-1",
+      systemPrompt: "Assist with delegated work.",
+      tools: [],
+    };
+
+    const cachedHistory = [
+      { role: "system", content: subagentDefinition.systemPrompt },
+      { role: "user", content: "   Please help with the delegated task.   " },
+    ];
+
+    const childInvocation = {
+      definition: subagentDefinition,
+      prompt: "Handle the delegated task",
+      context: { files: [], totalBytes: 0, text: "" },
+      history: cachedHistory,
+      messages: [
+        { role: "system", content: subagentDefinition.systemPrompt },
+        { role: "user", content: "   Please help with the delegated task.   " },
+        { role: "assistant", content: "  Completed successfully.  " },
+      ],
+      children: [],
+      toolRegistry: { schemas: () => [], execute: vi.fn() },
+      setSpawnHandler: vi.fn(),
+      setRuntime: vi.fn(),
+      addChild: vi.fn(),
+      spawn: vi.fn(),
+      id: subagentDefinition.id,
+      isRoot: false,
+      parent: undefined,
+    } as unknown as AgentInvocation;
+
+    const invocation = {
+      definition: agentDefinition,
+      prompt: "List files",
+      context: { files: [], totalBytes: 0, text: "" },
+      history: [],
+      messages: [
+        { role: "system", content: agentDefinition.systemPrompt },
+        { role: "user", content: "List files" },
+      ],
+      children: [],
+      toolRegistry: { schemas: () => [], execute: vi.fn() },
+      setSpawnHandler: vi.fn(),
+      setRuntime: vi.fn(),
+      addChild: vi.fn(),
+      spawn: vi.fn().mockResolvedValue(childInvocation),
+      id: agentDefinition.id,
+      isRoot: true,
+      parent: undefined,
+    } as unknown as AgentInvocation;
+
+    const invocationFactory = {
+      create: vi.fn().mockResolvedValue(invocation),
+    };
+
+    const streamRenderer = {
+      render: vi.fn(),
+      flush: vi.fn(),
+    };
+
+    const traceWriter = {
+      write: vi.fn(),
+    };
+
+    const runnerDeps = createRunnerDependencies();
+    const orchestrator = new AgentOrchestratorService(
+      invocationFactory as any,
+      streamRenderer as any,
+      { publish: vi.fn() } as any,
+      traceWriter as any,
+      runnerDeps.runLoop,
+      runnerDeps.toolCallHandler,
+      runnerDeps.traceWriterDelegate,
+      createExecutionTreeTrackerFactory(),
+    );
+
+    const getFullHistoryFor = vi.fn().mockReturnValue(cachedHistory);
+
+    const runtime = {
+      catalog: {
+        enableSubagents: true,
+        getSubagent: vi.fn().mockReturnValue({
+          id: subagentDefinition.id,
+          definition: subagentDefinition,
+          model: "gpt-sub",
+          provider: { name: "openai", stream: vi.fn() },
+          metadata: { name: "Helper" },
+        }),
+        listSubagents: vi.fn().mockReturnValue([]),
+      },
+      hooks: { emitAsync: vi.fn().mockResolvedValue({ results: [] }) },
+      confirm: vi.fn(),
+      cwd: process.cwd(),
+      logger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      traceAppend: true,
+      tracePath: undefined,
+      metrics: createMetrics(),
+      transcriptCompaction: {
+        getFullHistoryFor,
+      },
+    } as unknown as Parameters<
+      AgentOrchestratorService["runAgent"]
+    >[1];
+
+    const parentDescriptor = {
+      id: agentDefinition.id,
+      definition: agentDefinition,
+      model: "gpt-root",
+      provider: { name: "openai", stream: vi.fn() },
+    } satisfies AgentRuntimeDescriptor;
+
+    const result = await (orchestrator as unknown as {
+      executeSpawnTool(
+        invocation: AgentInvocation,
+        runtime: typeof runtime,
+        event: Extract<StreamEvent, { type: "tool_call" }>,
+        parentDescriptor: AgentRuntimeDescriptor,
+      ): Promise<ToolResult>;
+    }).executeSpawnTool(
+      invocation,
+      runtime,
+      {
+        type: "tool_call",
+        name: "spawn_subagent",
+        id: "call-123",
+        arguments: {
+          agent: subagentDefinition.id,
+          prompt: "Handle the delegated task",
+        },
+      },
+      parentDescriptor,
+    );
+
+    expect(getFullHistoryFor).toHaveBeenCalledWith(
+      childInvocation,
+      expect.objectContaining({ id: subagentDefinition.id }),
+    );
+    expect(result.data?.history).toEqual([
+      { role: "system", content: subagentDefinition.systemPrompt },
+      { role: "user", content: "   Please help with the delegated task.   " },
+      { role: "assistant", content: "  Completed successfully.  " },
+    ]);
+    expect(result.data?.messageCount).toBe(3);
+  });
+
   it("collects invocations breadth-first without relying on Array.shift", () => {
     const runnerDeps = createRunnerDependencies();
     const orchestrator = new AgentOrchestratorService(
