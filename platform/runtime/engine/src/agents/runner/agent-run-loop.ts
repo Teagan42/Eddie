@@ -100,11 +100,29 @@ export class AgentRunLoop {
         });
 
         let assistantBuffer = "";
+        let reasoningBuffer = "";
 
         for await (const event of stream) {
           if (event.type === "delta") {
             assistantBuffer += event.text;
             publishWithAgent(event);
+            continue;
+          }
+
+          if (event.type === "reasoning_delta") {
+            if (event.text) {
+              reasoningBuffer += event.text;
+            }
+            publishWithAgent(event);
+            continue;
+          }
+
+          if (event.type === "reasoning_end") {
+            publishWithAgent(event);
+            if (reasoningBuffer.length > 0) {
+              streamRenderer.flush();
+              reasoningBuffer = "";
+            }
             continue;
           }
 
