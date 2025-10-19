@@ -64,6 +64,7 @@ interface ProviderProfileSnapshot {
 interface ProviderOption {
   value: string;
   label: string;
+  providerName: string;
   defaultModel?: string;
 }
 
@@ -377,6 +378,11 @@ export function ConfigPage(): JSX.Element {
     [resolvedConfig],
   );
   const selectedProviderName = effectiveInput.provider?.name ?? null;
+  const selectedProviderModel =
+    effectiveInput.provider?.model ??
+    baselineInput.provider?.model ??
+    currentConfig?.provider?.model ??
+    null;
   const autoApproveChecked =
     effectiveInput.tools?.autoApprove ?? currentConfig?.tools?.autoApprove ?? false;
   const enableSubagentsChecked =
@@ -397,14 +403,15 @@ export function ConfigPage(): JSX.Element {
       }
 
       acc.push({
-        value: providerName,
+        value: profileId,
         label: profileId,
+        providerName,
         defaultModel: typeof profile.model === 'string' ? profile.model : undefined,
       });
       return acc;
     }, []);
 
-    const seen = new Set(options.map((option) => option.value));
+    const seen = new Set(options.map((option) => option.providerName));
     const fallbacks: ProviderOption[] = [];
 
     for (const fallbackName of uniqueProviderNames(
@@ -416,7 +423,11 @@ export function ConfigPage(): JSX.Element {
         continue;
       }
       seen.add(fallbackName);
-      fallbacks.push({ value: fallbackName, label: fallbackName });
+      fallbacks.push({
+        value: fallbackName,
+        label: fallbackName,
+        providerName: fallbackName,
+      });
     }
 
     return [...fallbacks, ...options];
@@ -435,6 +446,29 @@ export function ConfigPage(): JSX.Element {
     }
     return map;
   }, [providerOptions]);
+  const selectedProviderOption = useMemo(() => {
+    if (!selectedProviderName) {
+      return null;
+    }
+
+    const activeModel =
+      typeof selectedProviderModel === "string" ? selectedProviderModel : undefined;
+    if (activeModel) {
+      const matchByModel = providerOptions.find(
+        (option) =>
+          option.providerName === selectedProviderName && option.defaultModel === activeModel,
+      );
+      if (matchByModel) {
+        return matchByModel;
+      }
+    }
+
+    return (
+      providerOptions.find((option) => option.providerName === selectedProviderName) ?? null
+    );
+  }, [providerOptions, selectedProviderModel, selectedProviderName]);
+  const selectedProviderValue =
+    selectedProviderOption?.value ?? (selectedProviderName ? selectedProviderName : "");
   const includeEntries =
     effectiveInput.context?.include ??
     baselineInput.context?.include ??
@@ -901,7 +935,7 @@ export function ConfigPage(): JSX.Element {
                 </Text>
                 {providerOptions.length > 0 ? (
                   <Select.Root
-                    value={selectedProviderName ?? ""}
+                    value={selectedProviderValue}
                     onValueChange={(value) => {
                       if (value === "__custom__") {
                         const next = window.prompt(
@@ -936,8 +970,9 @@ export function ConfigPage(): JSX.Element {
                       updateInput((draft) => {
                         draft.provider = { ...(draft.provider ?? {}) };
                         if (value) {
-                          draft.provider.name = value;
                           const option = providerOptionsByValue.get(value);
+                          const providerName = option?.providerName ?? value;
+                          draft.provider.name = providerName;
                           if (option?.defaultModel) {
                             draft.provider.model = option.defaultModel;
                           } else {

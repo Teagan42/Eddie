@@ -90,6 +90,7 @@ interface ProviderProfileSnapshot {
 interface ProviderOption {
   value: string;
   label: string;
+  providerName: string;
   defaultModel?: string;
 }
 
@@ -1084,8 +1085,9 @@ export function ChatPage(): JSX.Element {
       }
 
       acc.push({
-        value: providerName,
+        value: profileId,
         label: profileId,
+        providerName,
         defaultModel: typeof profile.model === 'string' ? profile.model : undefined,
       });
       return acc;
@@ -1093,11 +1095,12 @@ export function ChatPage(): JSX.Element {
 
     if (
       activeSettings.provider &&
-      !options.some((option) => option.value === activeSettings.provider)
+      !options.some((option) => option.providerName === activeSettings.provider)
     ) {
       options.unshift({
         label: activeSettings.provider,
         value: activeSettings.provider,
+        providerName: activeSettings.provider,
         defaultModel:
           typeof activeSettings.model === 'string' ? activeSettings.model : undefined,
       });
@@ -1114,7 +1117,34 @@ export function ChatPage(): JSX.Element {
     return map;
   }, [providerOptions]);
 
-  const selectedProvider = activeSettings.provider ?? providerOptions[0]?.value ?? '';
+  const selectedProviderOption = useMemo(() => {
+    if (providerOptions.length === 0) {
+      return null;
+    }
+
+    const providerName = activeSettings.provider ?? providerOptions[0]?.providerName;
+    if (!providerName) {
+      return providerOptions[0] ?? null;
+    }
+
+    const activeModel =
+      typeof activeSettings.model === 'string' ? activeSettings.model : undefined;
+    if (activeModel) {
+      const matchByModel = providerOptions.find(
+        (option) =>
+          option.providerName === providerName && option.defaultModel === activeModel,
+      );
+      if (matchByModel) {
+        return matchByModel;
+      }
+    }
+
+    return providerOptions.find((option) => option.providerName === providerName) ?? null;
+  }, [activeSettings.model, activeSettings.provider, providerOptions]);
+
+  const selectedProviderName = selectedProviderOption?.providerName ?? '';
+  const selectedProviderValue = selectedProviderOption?.value ??
+    (selectedProviderName ? selectedProviderName : providerOptions[0]?.value ?? '');
 
 
   const messagesWithMetadata = useMemo(() => {
@@ -1254,6 +1284,7 @@ export function ChatPage(): JSX.Element {
       }
 
       const option = providerOptionsByValue.get(providerValue);
+      const providerName = option?.providerName ?? providerValue;
       const defaultModel = option?.defaultModel;
       const nextModel = defaultModel ?? activeSettings.model;
 
@@ -1262,7 +1293,7 @@ export function ChatPage(): JSX.Element {
         const current = nextSettings[selectedSessionId] ?? {};
         const updated = {
           ...current,
-          provider: providerValue,
+          provider: providerName,
         } as { provider: string; model?: string };
         if (nextModel) {
           updated.model = nextModel;
@@ -1315,8 +1346,8 @@ export function ChatPage(): JSX.Element {
         };
         if (trimmedValue) {
           updated.model = trimmedValue;
-          if (!updated.provider && selectedProvider) {
-            updated.provider = selectedProvider;
+          if (!updated.provider && selectedProviderName) {
+            updated.provider = selectedProviderName;
           }
         } else {
           delete updated.model;
@@ -1325,7 +1356,7 @@ export function ChatPage(): JSX.Element {
         return { ...chat, sessionSettings: nextSettings };
       });
     },
-    [applyChatUpdate, selectedProvider, selectedSessionId],
+    [applyChatUpdate, selectedProviderName, selectedSessionId],
   );
 
   const handleSaveTemplate = useCallback(() => {
@@ -1340,7 +1371,7 @@ export function ChatPage(): JSX.Element {
     const template = {
       id: templateId,
       name: name.trim(),
-      provider: selectedProvider,
+      provider: selectedProviderName,
       model: activeSettings.model,
       prompt: composerValue,
       createdAt: new Date().toISOString(),
@@ -1354,7 +1385,7 @@ export function ChatPage(): JSX.Element {
     activeSettings.model,
     applyChatUpdate,
     composerValue,
-    selectedProvider,
+    selectedProviderName,
     selectedSessionId,
   ]);
 
@@ -1475,7 +1506,7 @@ export function ChatPage(): JSX.Element {
                 <Flex align="center" gap="3" wrap="wrap">
                   {providerOptions.length > 0 ? (
                     <Select.Root
-                      value={selectedProvider}
+                      value={selectedProviderValue}
                       onValueChange={handleProviderChange}
                       disabled={!selectedSessionId}
                     >
@@ -1491,7 +1522,7 @@ export function ChatPage(): JSX.Element {
                       </Select.Content>
                     </Select.Root>
                   ) : null}
-                  {selectedProvider ? (
+                  {selectedProviderName ? (
                     <TextField.Root
                       value={activeSettings.model ?? ''}
                       onChange={(event) =>

@@ -212,6 +212,40 @@ describe("ConfigPage interactions", () => {
     expect(modelInput).toHaveValue("gpt-4.2");
   });
 
+  it("distinguishes provider profiles that share a provider name", async () => {
+    const user = userEvent.setup();
+    const duplicateSource = cloneSourceResponse();
+    duplicateSource.config.providers = {
+      "profile-openai": {
+        provider: { name: "openai" },
+        model: "gpt-4.1",
+      },
+      "profile-openai-fast": {
+        provider: { name: "openai" },
+        model: "gpt-4.0-mini",
+      },
+    };
+    loadSourceMock.mockResolvedValueOnce(duplicateSource);
+
+    renderConfigPage();
+
+    const trigger = await screen.findByRole("combobox", { name: /provider/i });
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("option", { name: "profile-openai" })
+    );
+
+    const modelInput = await screen.findByLabelText(/provider model/i);
+    await waitFor(() => expect(modelInput).toHaveValue("gpt-4.1"));
+
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("option", { name: "profile-openai-fast" })
+    );
+
+    await waitFor(() => expect(modelInput).toHaveValue("gpt-4.0-mini"));
+  });
+
   it("supports adding and removing include entries with dedicated controls", async () => {
     const user = userEvent.setup();
     renderConfigPage();
