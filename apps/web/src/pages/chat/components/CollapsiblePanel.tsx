@@ -11,6 +11,9 @@ import {
 const SIDEBAR_PANEL_CLASS =
   'relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-sky-500/12 via-slate-900/70 to-slate-900/40 shadow-[0_35px_65px_-45px_rgba(56,189,248,0.55)] backdrop-blur-xl';
 
+const COLLAPSIBLE_CONTENT_CLASS =
+  'grid text-sm text-slate-200/90 transition-all duration-500 ease-out data-[state=closed]:grid-rows-[0fr] data-[state=open]:grid-rows-[1fr] data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down';
+
 export interface CollapsiblePanelProps {
   id: string;
   title: string;
@@ -58,11 +61,8 @@ export function CollapsiblePanel({
             </CollapsibleTrigger>
           </Tooltip>
         </Flex>
-        <CollapsibleContent
-          asChild
-          className="text-sm text-slate-200/90 data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
-        >
-          <Box>{children}</Box>
+        <CollapsibleContent asChild className={COLLAPSIBLE_CONTENT_CLASS}>
+          <Box className="overflow-hidden">{children}</Box>
         </CollapsibleContent>
       </section>
     </Collapsible>
