@@ -19,7 +19,7 @@ export function MessageComposer({
   placeholder = "Send a message",
   submitDisabled = false,
 }: MessageComposerProps): JSX.Element {
-  const hintMessage = disabled ? "Sending in progress..." : "Press Enter or click Send";
+  const hintMessage = disabled ? "Sending in progress..." : "Press Alt+Enter or click Send";
   const isSubmitDisabled = disabled || submitDisabled;
   const glowClasses = [
     "pointer-events-none absolute -right-6 -top-8 h-32 w-32 rounded-full bg-emerald-400/30 blur-3xl",

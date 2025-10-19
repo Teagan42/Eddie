@@ -5,6 +5,7 @@ import { MessageComposer } from "./MessageComposer";
 
 describe("MessageComposer", () => {
   const noop = () => {};
+  const sendHintCopy = /press alt\+enter or click send/i;
 
   it("shows keyboard hint when interaction is allowed", () => {
     render(
@@ -16,7 +17,7 @@ describe("MessageComposer", () => {
       />,
     );
 
-    expect(screen.getByText(/press enter or click send/i)).toBeInTheDocument();
+    expect(screen.getByText(sendHintCopy)).toBeInTheDocument();
   });
 
   it("announces sending state when disabled", () => {
@@ -30,7 +31,7 @@ describe("MessageComposer", () => {
     );
 
     expect(screen.getByText(/sending in progress/i)).toBeInTheDocument();
-    expect(screen.queryByText(/press enter or click send/i)).toBeNull();
+    expect(screen.queryByText(sendHintCopy)).toBeNull();
   });
 
   it("does not submit when Enter is pressed without modifiers", () => {
