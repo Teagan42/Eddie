@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import { Buffer } from "buffer";
 import { randomUUID } from "crypto";
 import path from "path";
@@ -78,7 +78,8 @@ export class EngineService {
         private readonly agentOrchestrator: AgentOrchestratorService,
         private readonly mcpToolSourceService: McpToolSourceService,
         private readonly metrics: MetricsService,
-        private readonly demoSeedReplayService: DemoSeedReplayService
+        @Optional()
+        private readonly demoSeedReplayService?: DemoSeedReplayService
   ) {}
 
   /**
@@ -248,13 +249,19 @@ export class EngineService {
         }
       );
 
-      const demoReplay = await this.demoSeedReplayService.replayIfEnabled({
-        config: cfg,
-        prompt,
-        projectDir,
-        tracePath,
-        logger,
-      });
+      let demoReplay:
+        | Awaited<ReturnType<DemoSeedReplayService["replayIfEnabled"]>>
+        | undefined;
+
+      if (this.demoSeedReplayService) {
+        demoReplay = await this.demoSeedReplayService.replayIfEnabled({
+          config: cfg,
+          prompt,
+          projectDir,
+          tracePath,
+          logger,
+        });
+      }
 
       if (demoReplay) {
         for (let index = 0; index < demoReplay.assistantMessages; index += 1) {

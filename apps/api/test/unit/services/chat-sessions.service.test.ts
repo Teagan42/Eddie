@@ -225,4 +225,89 @@ describe("ChatSessionsService", () => {
       )
     ).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it("imports chat session snapshots without mutating ids or timestamps", async () => {
+    const createdAt = new Date("2024-03-01T12:00:00.000Z");
+    const updatedAt = new Date("2024-03-01T13:30:00.000Z");
+    const messageCreatedAt = new Date("2024-03-01T13:31:00.000Z");
+
+    await (service as unknown as {
+      seedSessionSnapshot(input: {
+        session: {
+          id: string;
+          title: string;
+          description?: string;
+          status: "active" | "archived";
+          createdAt: string;
+          updatedAt: string;
+        };
+        messages: Array<{
+          id: string;
+          sessionId: string;
+          role: "user" | "assistant" | "system" | "tool";
+          content: string;
+          createdAt: string;
+          toolCallId?: string;
+          name?: string;
+        }>;
+        agentInvocations?: AgentInvocationSnapshot[];
+      }): Promise<void>;
+    }).seedSessionSnapshot({
+      session: {
+        id: "session-seeded",
+        title: "Seeded session",
+        description: "from snapshot",
+        status: "archived",
+        createdAt: createdAt.toISOString(),
+        updatedAt: updatedAt.toISOString(),
+      },
+      messages: [
+        {
+          id: "message-seeded",
+          sessionId: "session-seeded",
+          role: "assistant",
+          content: "seeded message",
+          createdAt: messageCreatedAt.toISOString(),
+          toolCallId: "tool-call-123",
+          name: "file_writer",
+        },
+      ],
+      agentInvocations: [
+        {
+          id: "root",
+          messages: [],
+          children: [],
+        },
+      ],
+    });
+
+    const session = await service.getSession("session-seeded");
+    expect(session).toMatchObject({
+      id: "session-seeded",
+      title: "Seeded session",
+      description: "from snapshot",
+      status: "archived",
+      createdAt: createdAt.toISOString(),
+      updatedAt: updatedAt.toISOString(),
+    });
+
+    const [message] = await service.listMessages("session-seeded");
+    expect(message).toMatchObject({
+      id: "message-seeded",
+      sessionId: "session-seeded",
+      content: "seeded message",
+      createdAt: messageCreatedAt.toISOString(),
+    });
+    expect((message as Record<string, unknown>).toolCallId).toBe("tool-call-123");
+    expect((message as Record<string, unknown>).name).toBe("file_writer");
+
+    const invocations = await service.listAgentInvocations("session-seeded");
+    expect(invocations).toEqual([
+      {
+        id: "root",
+        messages: [],
+        children: [],
+      },
+    ]);
+  });
 });
