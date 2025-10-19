@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760900538708,
+  "lastUpdate": 1760903496023,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -166,6 +166,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 24.88,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bcbf37307b693a4f29bda112caa21f62502e16ab",
+          "message": "Add demo-web preset and screenshot seed fixtures (#607)\n\n* refactor(docs): link demo dataset README\n\n* chore: update config schema diagram\n\n* feat(engine): replay demo seeds in runtime\n\n* fix(engine): ensure replay logging uses statements\n\n* Codex/extend eddieconfig with api.demoseeds (#618)\n\n* refactor(task-list): keep index exports grouped\n\n* fix(tools): satisfy lint in task list sanitiser (#604)\n\n* refactor(tools): clarify task insertion handling (#610)\n\n* refactor(tools): reuse shared task status guard (#612)\n\n* fix(runtime): preserve task timestamps on insert\n\n* fix(task-list-tools): align status update timestamps (#615)\n\n* refactor(config): extract schema property helper\n\n* refactor(engine): streamline demo seed helper options (#621)\n\n* fix(demo): handle symbol segments when formatting paths (#629)\n\n* fix(demo): allow seeder when config store missing (#634)\n\n* refactor(api-demo): share demo config store factory (#643)\n\n* refactor(demo): centralize demo seed fixture name (#648)",
+          "timestamp": "2025-10-19T19:40:31Z",
+          "tree_id": "abea807c9c46b2257d4c8ba0c90f68d96c4b70e4",
+          "url": "https://github.com/Teagan42/Eddie/commit/bcbf37307b693a4f29bda112caa21f62502e16ab"
+        },
+        "date": 1760903495682,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 48.985,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 31.933,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.316,
             "unit": "ms",
             "extra": "[object Object]"
           }
