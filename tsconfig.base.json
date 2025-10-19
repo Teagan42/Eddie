@@ -33,6 +33,8 @@
       "@eddie/templates/*": ["platform/core/templates/src/*"],
       "@eddie/tokenizers": ["platform/core/tokenizers/src"],
       "@eddie/tokenizers/*": ["platform/core/tokenizers/src/*"],
+      "@eddie/ui": ["platform/ui/src"],
+      "@eddie/ui/*": ["platform/ui/src/*"],
       "@eddie/tools": ["platform/runtime/tools/src"],
       "@eddie/tools/*": ["platform/runtime/tools/src/*"],
       "@eddie/types": [

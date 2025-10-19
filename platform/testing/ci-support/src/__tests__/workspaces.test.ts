@@ -22,6 +22,7 @@ const EXPECTED_NAMES = [
   "@eddie/tokenizers",
   "@eddie/tools",
   "@eddie/types",
+  "@eddie/ui",
   "@eddie/api-client",
 ];
 

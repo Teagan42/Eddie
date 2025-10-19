@@ -127,6 +127,15 @@
     "tsconfig": "platform/core/types/tsconfig.build.json"
   },
   {
+    "name": "@eddie/ui",
+    "path": "platform/ui",
+    "coverage": "coverage/ui",
+    "coverageArtifact": "coverage-eddie-ui",
+    "dist": "platform/ui/dist",
+    "tsbuildinfo": "platform/ui/dist/tsconfig.tsbuildinfo",
+    "tsconfig": "platform/ui/tsconfig.build.json"
+  },
+  {
     "name": "@eddie/api-client",
     "path": "platform/integrations/api-client",
     "coverage": "platform/integrations/api-client/coverage",
