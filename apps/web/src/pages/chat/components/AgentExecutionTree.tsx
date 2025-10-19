@@ -604,9 +604,18 @@ function resolveInvocationPreviewSource(
   entry: ToolInvocationNode,
 ): unknown {
   const isTerminal = status === 'completed' || status === 'failed';
-  const primary = isTerminal ? entry.result : entry.args;
-  const secondary = isTerminal ? entry.args : entry.result;
-  return primary ?? secondary ?? null;
+  const metadata = entry.metadata as { args?: unknown; result?: unknown } | undefined;
+  const candidates = isTerminal
+    ? [entry.result, entry.args, metadata?.result, metadata?.args]
+    : [entry.args, entry.result, metadata?.args, metadata?.result];
+
+  for (const candidate of candidates) {
+    if (candidate !== null && candidate !== undefined) {
+      return candidate;
+    }
+  }
+
+  return null;
 }
 
 function resolveInvocationTimestamp(entry: ToolInvocationNode): number {
