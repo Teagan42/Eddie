@@ -113,4 +113,47 @@ describe("IntelligentTranscriptCompactor", () => {
     expect(childInvocation.messages[1]?.content).toContain("Key Decisions");
     expect(childInvocation.messages[1]?.content).toContain("Important Findings");
   });
+
+  it("retains full history across compactions for execution tree snapshots", async () => {
+    const compactor = new IntelligentTranscriptCompactor({
+      minMessagesBeforeCompaction: 1,
+    });
+
+    const initialMessages = [
+      message("system", "manager system"),
+      message("user", "Initial instruction"),
+      message("assistant", "Acknowledged"),
+      message("assistant", "tool_call:alpha", { tool_call_id: "alpha" }),
+      message("tool", "lookup result", { tool_call_id: "alpha", name: "search" }),
+      message("assistant", "Continuing work"),
+      message("user", "Second request"),
+      message("assistant", "tool_call:beta", { tool_call_id: "beta" }),
+      message("tool", "beta result", { tool_call_id: "beta", name: "search" }),
+      message("assistant", "Summary so far"),
+    ];
+    const invocation = buildInvocation("manager", initialMessages);
+
+    const firstPlan = await compactor.plan(invocation, 1);
+    expect(firstPlan).not.toBeNull();
+    firstPlan!.apply();
+
+    expect(compactor.getFullHistory(invocation)).toEqual(initialMessages);
+
+    const appendedMessages = [
+      message("user", "Need more detail"),
+      message("assistant", "Providing more detail"),
+      message("assistant", "tool_call:gamma", { tool_call_id: "gamma" }),
+      message("tool", "gamma result", { tool_call_id: "gamma", name: "search" }),
+    ];
+    invocation.messages.push(...appendedMessages);
+
+    const secondPlan = await compactor.plan(invocation, 2);
+    expect(secondPlan).not.toBeNull();
+    secondPlan!.apply();
+
+    expect(compactor.getFullHistory(invocation)).toEqual([
+      ...initialMessages,
+      ...appendedMessages,
+    ]);
+  });
 });

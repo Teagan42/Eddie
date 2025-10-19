@@ -88,6 +88,7 @@ export interface BuildSubagentResultOptions {
   descriptor: AgentRuntimeDescriptor;
   parentDescriptor: AgentRuntimeDescriptor;
   request: SubagentRequestDetails;
+  fullHistory?: ChatMessage[];
 }
 
 interface SpawnResultData extends Record<string, unknown> {
@@ -228,7 +229,8 @@ export class AgentRunner {
       ? createContextSnapshot(request.context)
       : undefined;
     const requestContextClone = requestSnapshot?.clone;
-    const historyClone = cloneHistory(child.messages);
+    const historySource = options.fullHistory ?? child.messages;
+    const historyClone = cloneHistory(historySource);
 
     const variablesClone = request.variables && Object.keys(request.variables).length > 0
       ? { ...request.variables }
@@ -276,7 +278,7 @@ export class AgentRunner {
 
     const data: SpawnResultData = {
       agentId: descriptor.id,
-      messageCount: child.messages.length,
+      messageCount: historySource.length,
       prompt: request.prompt,
       context: contextClone,
     };

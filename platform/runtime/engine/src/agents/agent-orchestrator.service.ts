@@ -537,6 +537,11 @@ export class AgentOrchestratorService {
 
     const child = await invocation.spawn(descriptor.definition, spawnOptions);
 
+    const fullHistory = runtime.transcriptCompaction?.getFullHistoryFor(
+      child,
+      descriptor,
+    );
+
     return AgentRunner.buildSubagentResult({
       child,
       descriptor,
@@ -547,6 +552,7 @@ export class AgentOrchestratorService {
         context: overrides.contextProvided ? overrides.context : undefined,
         metadata: args.metadata,
       },
+      fullHistory,
     });
   }
 

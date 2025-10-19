@@ -1,4 +1,4 @@
-import type { AgentRuntimeDescriptor } from "@eddie/types";
+import type { AgentRuntimeDescriptor, ChatMessage } from "@eddie/types";
 import type { AgentInvocation } from "../agents/agent-invocation";
 import type {
   AgentContextRequirements as ConfigAgentContextRequirements,
@@ -29,6 +29,9 @@ export interface TranscriptCompactor {
     TranscriptCompactionPlan |
     null |
     undefined;
+  getFullHistory?(
+    invocation: AgentInvocation,
+  ): ChatMessage[] | undefined;
 }
 
 export type TranscriptCompactorSelector =
