@@ -68,6 +68,9 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
     const toolBuffer = new Map<number, ToolAccumulator>();
     const reasoningSegments: string[] = [];
     let reasoningCompleted = false;
+    const LOOKAHEAD_WINDOW = 10;
+    let pendingAssistantContent = "";
+    let reasoningRecentlyEmitted = false;
 
     const pushReasoningChunk = (chunk: string | undefined): StreamEvent | undefined => {
       if (typeof chunk !== "string") {
@@ -80,6 +83,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
       }
 
       reasoningSegments.push(normalized);
+      reasoningRecentlyEmitted = true;
       return { type: "reasoning_delta", text: normalized };
     };
 
@@ -143,6 +147,117 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
       return { reasoning, remainder };
     };
 
+    const escapeForRegex = (value: string): string =>
+      value.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
+
+    const findIncompleteThinkStart = (text: string): number | undefined => {
+      const pattern = /<([\w:.-]*?)think>/gi;
+      let match: RegExpExecArray | null;
+      let lastMatch: RegExpExecArray | null = null;
+
+      while ((match = pattern.exec(text)) !== null) {
+        lastMatch = match;
+      }
+
+      if (!lastMatch) {
+        return undefined;
+      }
+
+      const prefix = lastMatch[1] ?? "";
+      const closingPattern = new RegExp(`</${escapeForRegex(prefix)}think>`, "i");
+      if (closingPattern.test(text.slice(lastMatch.index + lastMatch[0].length))) {
+        return undefined;
+      }
+
+      return lastMatch.index;
+    };
+
+    const findPartialClosingTag = (text: string): number | undefined => {
+      const lastOpen = text.lastIndexOf("<");
+      if (lastOpen === -1) {
+        return undefined;
+      }
+
+      const tail = text.slice(lastOpen);
+      if (/^<\/[\w:.-]*?think>?$/i.test(tail) && !tail.endsWith(">")) {
+        return lastOpen;
+      }
+
+      return undefined;
+    };
+
+    const emitContentSegment = (segment: string): StreamEvent[] => {
+      const emitted: StreamEvent[] = [];
+      const { reasoning, remainder } = extractThinkSegments(segment);
+
+      for (const chunk of reasoning) {
+        const event = pushReasoningChunk(chunk);
+        if (event) {
+          emitted.push(event);
+        }
+      }
+
+      const cleaned =
+        reasoning.length > 0 || reasoningRecentlyEmitted
+          ? remainder.replace(/^\s+/, "")
+          : remainder;
+
+      if (cleaned.length > 0) {
+        emitted.push({ type: "delta", text: cleaned });
+        reasoningRecentlyEmitted = false;
+      }
+
+      return emitted;
+    };
+
+    const flushPendingAssistantContent = (force = false): StreamEvent[] => {
+      const events: StreamEvent[] = [];
+
+      while (pendingAssistantContent.length > 0) {
+        let processLength = force
+          ? pendingAssistantContent.length
+          : pendingAssistantContent.length - LOOKAHEAD_WINDOW;
+
+        if (processLength <= 0) {
+          break;
+        }
+
+        let segment = pendingAssistantContent.slice(0, processLength);
+        if (!force) {
+          const incompleteIndex = findIncompleteThinkStart(segment);
+          if (incompleteIndex !== undefined) {
+            processLength = incompleteIndex;
+            segment = pendingAssistantContent.slice(0, processLength);
+          }
+
+          const partialClosingIndex = findPartialClosingTag(segment);
+          if (partialClosingIndex !== undefined) {
+            processLength = partialClosingIndex;
+            segment = pendingAssistantContent.slice(0, processLength);
+          }
+        }
+
+        if (processLength <= 0) {
+          break;
+        }
+
+        pendingAssistantContent = pendingAssistantContent.slice(processLength);
+
+        if (segment.length === 0) {
+          continue;
+        }
+
+        events.push(...emitContentSegment(segment));
+      }
+
+      return events;
+    };
+
+    const appendAssistantContent = (content: string): StreamEvent[] => {
+      pendingAssistantContent += content;
+      return flushPendingAssistantContent();
+    };
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -156,6 +271,9 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
         if (!trimmed.startsWith("data:")) continue;
         const payload = trimmed.slice(5).trim();
         if (!payload || payload === "[DONE]") {
+          for (const event of flushPendingAssistantContent(true)) {
+            yield event;
+          }
           const reasoningEnd = emitReasoningEnd();
           if (reasoningEnd) {
             yield reasoningEnd;
@@ -184,34 +302,15 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
             }
           }
 
-          const emitAssistantContent = (content: string): StreamEvent[] => {
-            const emitted: StreamEvent[] = [];
-            const { reasoning, remainder } = extractThinkSegments(content);
-            for (const chunk of reasoning) {
-              const event = pushReasoningChunk(chunk);
-              if (event) {
-                emitted.push(event);
-              }
-            }
-
-            const cleaned =
-              reasoning.length > 0 ? remainder.replace(/^\s+/, "") : remainder;
-            if (cleaned.length > 0) {
-              emitted.push({ type: "delta", text: cleaned });
-            }
-
-            return emitted;
-          };
-
           const deltaContent = delta?.content;
           if (typeof deltaContent === "string") {
-            for (const event of emitAssistantContent(deltaContent)) {
+            for (const event of appendAssistantContent(deltaContent)) {
               yield event;
             }
           } else if (Array.isArray(deltaContent)) {
             for (const item of deltaContent) {
               if (typeof item === "string") {
-                for (const event of emitAssistantContent(item)) {
+                for (const event of appendAssistantContent(item)) {
                   yield event;
                 }
                 continue;
@@ -220,7 +319,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
               if (item && typeof item === "object") {
                 const text = (item as { text?: unknown }).text;
                 if (typeof text === "string") {
-                  for (const event of emitAssistantContent(text)) {
+                  for (const event of appendAssistantContent(text)) {
                     yield event;
                   }
                 }
@@ -266,6 +365,9 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
           }
 
           if (choice?.finish_reason === "stop") {
+            for (const event of flushPendingAssistantContent(true)) {
+              yield event;
+            }
             const reasoningEnd = emitReasoningEnd();
             if (reasoningEnd) {
               yield reasoningEnd;
