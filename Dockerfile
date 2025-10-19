@@ -25,7 +25,7 @@ WORKDIR /workspace
 ENV NODE_ENV=production
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 COPY --from=base /workspace/apps ./apps
 COPY --from=base /workspace/platform ./platform
@@ -39,5 +39,6 @@ COPY --from=base /workspace/eslint.config.cjs ./eslint.config.cjs
 COPY --from=base /workspace/README.md ./README.md
 
 RUN npm run build --workspace @eddie/api --if-present
+RUN npm prune --omit=dev
 EXPOSE 3000
 CMD ["npm", "run", "start:api"]
