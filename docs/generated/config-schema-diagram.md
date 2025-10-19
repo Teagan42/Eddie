@@ -125,6 +125,10 @@ graph LR
   api__cors__methods["methods: oneOf"]
   api__cors --> api__cors__origin
   api__cors__origin["origin: oneOf"]
+  api --> api__demoSeeds
+  api__demoSeeds["demoSeeds: object"]
+  api__demoSeeds --> api__demoSeeds__files
+  api__demoSeeds__files["files: array<string>"]
   api --> api__host
   api__host["host: string"]
   api --> api__persistence

@@ -109,6 +109,10 @@ export type ApiPersistenceConfig =
   | { driver: "mysql"; mysql: ApiPersistenceSqlConfig }
   | { driver: "mariadb"; mariadb: ApiPersistenceSqlConfig };
 
+export interface ApiDemoSeedsConfig {
+  files?: string[];
+}
+
 export interface ApiConfig {
   host?: string;
   port?: number;
@@ -118,6 +122,7 @@ export interface ApiConfig {
   auth?: ApiAuthConfig;
   cors?: ApiCorsConfig;
   persistence?: ApiPersistenceConfig;
+  demoSeeds?: ApiDemoSeedsConfig;
 }
 
 export interface ProviderConfig {

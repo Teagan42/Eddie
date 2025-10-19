@@ -47,6 +47,19 @@ export interface ReadTaskListDocumentOptions {
 export interface WriteTaskListDocumentOptions
   extends ReadTaskListDocumentOptions {
   document: TaskListDocumentPayload;
+  preserveTaskUpdatedAt?: boolean;
+}
+
+export interface InsertTaskPayloadOptions {
+  tasks: readonly (TaskListTaskPayload | TaskListTask)[];
+  task: TaskListTaskPayload;
+  beforeTaskId?: string;
+  position?: number;
+}
+
+export interface InsertTaskPayloadResult {
+  tasks: TaskListTaskPayload[];
+  index: number;
 }
 
 export const TASK_LIST_RESULT_SCHEMA = {
@@ -105,6 +118,33 @@ const assertValidTaskListName = (listName: string): void => {
   }
 };
 
+export const sanitiseTaskListName = (value: unknown): string => {
+  if (typeof value !== "string") {
+    throw new Error("task list name must be a string");
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new Error("task list name must be provided");
+  }
+
+  try {
+    assertValidTaskListName(trimmed);
+  } catch {
+    throw new Error("task list name must not include path separators");
+  }
+
+  return trimmed;
+};
+
+export const sanitiseTaskId = (value: unknown): string => {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error("taskId must be provided");
+  }
+
+  return value.trim();
+};
+
 const resolveTaskListDirectory = (rootDir: string): string =>
   path.join(rootDir, DEFAULT_TASK_LIST_DIRECTORY);
 
@@ -131,6 +171,11 @@ const normaliseOptionalText = (value: unknown): string | null => {
 
   return null;
 };
+
+export const isTaskListTaskStatus = (
+  value: unknown,
+): value is TaskListTaskStatus =>
+  typeof value === "string" && TASK_STATUS_SET.has(value);
 
 const normaliseTaskStatus = (value: unknown): TaskListTaskStatus => {
   if (typeof value === "string" && TASK_STATUS_SET.has(value)) {
@@ -173,6 +218,7 @@ const normaliseTimestamp = (value: unknown, fallback: string): string => {
 const normaliseTaskForWrite = (
   task: TaskListTaskPayload,
   timestamp: string,
+  preserveUpdatedAt: boolean,
 ): TaskListTask => ({
   id: normaliseTaskId(task.id),
   title: normaliseTaskTitle(task.title),
@@ -181,7 +227,10 @@ const normaliseTaskForWrite = (
   details: normaliseOptionalText(task.details),
   metadata: normaliseTaskMetadata(task.metadata),
   createdAt: normaliseTimestamp(task.createdAt, timestamp),
-  updatedAt: timestamp,
+  updatedAt:
+    preserveUpdatedAt && typeof task.updatedAt === "string" && task.updatedAt.length > 0
+      ? task.updatedAt
+      : timestamp,
 });
 
 const normaliseTaskFromStorage = (
@@ -217,9 +266,12 @@ const normaliseDocumentMetadata = (
 const prepareDocumentForWrite = (
   payload: TaskListDocumentPayload,
   timestamp: string,
+  preserveTaskUpdatedAt: boolean,
 ): TaskListDocument => {
   const tasksInput = Array.isArray(payload.tasks) ? payload.tasks : [];
-  const tasks = tasksInput.map((task) => normaliseTaskForWrite(task, timestamp));
+  const tasks = tasksInput.map((task) =>
+    normaliseTaskForWrite(task, timestamp, preserveTaskUpdatedAt),
+  );
 
   return {
     metadata: normaliseDocumentMetadata(payload.metadata),
@@ -249,6 +301,51 @@ const normaliseDocumentFromStorage = (
     createdAt: normaliseTimestamp(source.createdAt, fallbackTimestamp),
     updatedAt: normaliseTimestamp(source.updatedAt, fallbackTimestamp),
   };
+};
+
+const cloneTaskPayload = (
+  task: TaskListTaskPayload | TaskListTask,
+): TaskListTaskPayload => ({
+  ...task,
+});
+
+const clampPosition = (value: number, upperBound: number): number => {
+  if (!Number.isInteger(value) || value < 0) {
+    return upperBound;
+  }
+
+  if (value > upperBound) {
+    return upperBound;
+  }
+
+  return value;
+};
+
+export const insertTaskPayload = (
+  options: InsertTaskPayloadOptions,
+): InsertTaskPayloadResult => {
+  const nextTasks = options.tasks.map(cloneTaskPayload);
+  const candidate = cloneTaskPayload(options.task);
+
+  let insertIndex = nextTasks.length;
+
+  if (options.beforeTaskId) {
+    const matchedIndex = nextTasks.findIndex(
+      (task) => task.id === options.beforeTaskId,
+    );
+
+    if (matchedIndex >= 0) {
+      insertIndex = matchedIndex;
+    }
+  }
+
+  if (insertIndex === nextTasks.length && typeof options.position === "number") {
+    insertIndex = clampPosition(options.position, nextTasks.length);
+  }
+
+  nextTasks.splice(insertIndex, 0, candidate);
+
+  return { tasks: nextTasks, index: insertIndex };
 };
 
 export const readTaskListDocument = async (
@@ -286,11 +383,74 @@ export const writeTaskListDocument = async (
   const timestamp = nowIsoString();
   const filePath = resolveTaskListPath(options.rootDir, options.listName);
   await fs.mkdir(resolveTaskListDirectory(options.rootDir), { recursive: true });
-  const document = prepareDocumentForWrite(options.document, timestamp);
+  const document = prepareDocumentForWrite(
+    options.document,
+    timestamp,
+    options.preserveTaskUpdatedAt ?? false,
+  );
   await fs.writeFile(
     filePath,
     `${JSON.stringify(document, null, 2)}\n`,
     "utf-8",
   );
   return document;
+};
+
+const summariseNextActionableTask = (tasks: TaskListTask[]): string => {
+  const next = tasks.find((task) => task.status !== "complete");
+
+  if (!next) {
+    return "All tasks are complete.";
+  }
+
+  return `Next task: ${next.title} (${next.status}).`;
+};
+
+const formatStatusCounts = (tasks: TaskListTask[]): string => {
+  const counts = tasks.reduce(
+    (totals, task) => {
+      totals[task.status] += 1;
+      return totals;
+    },
+    { pending: 0, in_progress: 0, complete: 0 } satisfies Record<TaskListTaskStatus, number>,
+  );
+
+  return `pending ${counts.pending}, in_progress ${counts.in_progress}, complete ${counts.complete}`;
+};
+
+const formatTaskLine = (task: TaskListTask, index: number): string => {
+  const bullet =
+    task.status === "complete"
+      ? "✓"
+      : task.status === "in_progress"
+        ? "…"
+        : "•";
+
+  const summary = task.summary ? ` — ${task.summary}` : "";
+
+  return `${index + 1}. ${bullet} [${task.status}] ${task.title}${summary}`;
+};
+
+export interface RenderTaskListContentOptions {
+  listName: string;
+  document: TaskListDocument;
+  abridged?: boolean;
+}
+
+export const renderTaskListContent = (
+  options: RenderTaskListContentOptions,
+): string => {
+  const { listName, document, abridged = false } = options;
+  const summary = summariseNextActionableTask(document.tasks);
+
+  if (abridged) {
+    return `Task list "${listName}" — ${summary}`;
+  }
+
+  const statusCounts = formatStatusCounts(document.tasks);
+  const totalLine = `Tasks: ${document.tasks.length} total (${statusCounts})`;
+  const taskLines = document.tasks.map(formatTaskLine);
+  const body = taskLines.length > 0 ? `\n${taskLines.join("\n")}` : "";
+
+  return `Task list "${listName}"\n${summary}\n${totalLine}${body}`;
 };

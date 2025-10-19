@@ -52,6 +52,7 @@ Use the session list to rename or delete chat sessions; changes are broadcast im
   - `file_search` for filtered, paginated code and text lookups
   - `get_folder_tree_structure` for directory maps that respect dependency exclusions
   - `get_plan` for reading structured task plans maintained alongside code
+  - `agent__new_task_list` for seeding workspace task documents with optional metadata
   - `update_plan` for incrementally persisting plan edits and status changes
   - `complete_task` for marking plan items finished with optional notes
 - Jinja prompt templating with reusable layouts, partials, and inline variables
