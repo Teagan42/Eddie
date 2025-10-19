@@ -53,6 +53,10 @@ describe('README documentation', () => {
       '`update_plan`',
       '`complete_task`',
       '`agent__new_task_list`',
+      '`agent__get_task_list`',
+      '`agent__new_task`',
+      '`agent__set_task_status`',
+      '`agent__delete_task`',
     ];
 
     for (const tool of builtinTools) {

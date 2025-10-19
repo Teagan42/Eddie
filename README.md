@@ -52,6 +52,11 @@ Use the session list to rename or delete chat sessions; changes are broadcast im
   - `file_search` for filtered, paginated code and text lookups
   - `get_folder_tree_structure` for directory maps that respect dependency exclusions
   - `get_plan` for reading structured task plans maintained alongside code
+  - `agent__get_task_list` for retrieving shared task lists with optional abridged summaries
+  - `agent__new_task_list` for seeding workspace task documents with optional metadata
+  - `agent__new_task` for inserting work items with metadata, summaries, and ordering hints
+  - `agent__set_task_status` for updating workflow states with confirmation prompts
+  - `agent__delete_task` for removing completed or invalid tasks after review
   - `agent__new_task_list` for seeding workspace task documents with optional metadata
   - `update_plan` for incrementally persisting plan edits and status changes
   - `complete_task` for marking plan items finished with optional notes
