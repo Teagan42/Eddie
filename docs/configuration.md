@@ -5,6 +5,10 @@ Eddie's runtime is driven by a strongly typed JSON schema that governs the
 configuration reference below to explore how sections such as `agents`,
 `provider`, and `tools` fit together.
 
+If you're starting from scratch, run [`eddie config`](./cli-reference.md#config-command)
+to launch the configuration wizard, then follow the [wizard guide](./configuration-wizard.md)
+for deeper walkthroughs before refining values by hand.
+
 ## Schema visualization
 
 The configuration schema diagram is generated automatically from the

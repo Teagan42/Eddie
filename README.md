@@ -277,6 +277,7 @@ output:
 - `eddie chat` – Interactive multi-turn session retaining history
 - `eddie context` – Preview which files/globs will be sent as context
 - `eddie trace` – Inspect the most recent JSONL trace file
+- `eddie config` – Launch the interactive [configuration wizard](docs/configuration-wizard.md) to scaffold config files
 
 ## Observability & Agent Hierarchies
 

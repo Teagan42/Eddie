@@ -302,6 +302,74 @@ describe('ChatPage execution tree realtime updates', () => {
     });
   });
 
+  it('ignores stale execution states that resolve after fresher realtime updates', async () => {
+    const staleTimestamp = '2024-07-15T09:10:00.000Z';
+    const freshTimestamp = '2024-07-15T09:15:00.000Z';
+
+    const staleState = createExecutionTreeStateFromMetadata({
+      sessionId: 'session-1',
+      capturedAt: staleTimestamp,
+      contextBundles: [],
+      toolInvocations: [],
+      agentHierarchy: [],
+    });
+
+    const freshState = createExecutionTreeStateFromMetadata({
+      sessionId: 'session-1',
+      capturedAt: freshTimestamp,
+      contextBundles: [],
+      toolInvocations: [],
+      agentHierarchy: [],
+    });
+
+    let resolveExecutionState: ((state: ExecutionTreeState) => void) | undefined;
+    const executionStatePromise = new Promise<ExecutionTreeState>((resolve) => {
+      resolveExecutionState = resolve;
+    });
+
+    getExecutionStateMock.mockImplementation(() => executionStatePromise);
+
+    const { client } = renderChatPage();
+
+    await waitFor(() => {
+      expect(getExecutionStateMock).toHaveBeenCalledWith('session-1');
+    });
+
+    await waitFor(() => {
+      expect(typeof resolveExecutionState).toBe('function');
+    });
+
+    await act(async () => {
+      executionTreeHandlers.forEach((handler) =>
+        handler({
+          sessionId: 'session-1',
+          state: freshState,
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      const snapshot = client.getQueryData([
+        'orchestrator-metadata',
+        'session-1',
+      ]) as { executionTree?: ExecutionTreeState; capturedAt?: string } | undefined;
+      expect(snapshot?.capturedAt).toBe(freshState.updatedAt);
+    });
+
+    await act(async () => {
+      resolveExecutionState?.(staleState);
+    });
+
+    await waitFor(() => {
+      const snapshot = client.getQueryData([
+        'orchestrator-metadata',
+        'session-1',
+      ]) as { executionTree?: ExecutionTreeState; capturedAt?: string } | undefined;
+      expect(snapshot?.capturedAt).toBe(freshState.updatedAt);
+      expect(snapshot?.executionTree).toEqual(freshState);
+    });
+  });
+
   it('coerces execution tree updates that omit context bundle arrays', async () => {
     const { client } = renderChatPage();
 

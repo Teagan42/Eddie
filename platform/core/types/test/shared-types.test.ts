@@ -15,6 +15,7 @@ import type {
   ExecutionTreeState,
   HookEventMap,
   MCPToolSourceConfig,
+  StreamEvent,
   ProviderAdapter,
   ProviderAdapterFactory,
   ProviderConfig,
@@ -60,6 +61,37 @@ describe("@eddie/types shared contracts", () => {
     expectTypeOf<AgentLifecyclePayload>().toHaveProperty("metadata").toMatchTypeOf<{
       id: string;
     }>();
+  });
+
+  it("includes reasoning stream events with agent scoping", () => {
+    type ReasoningDelta = Extract<StreamEvent, { type: "reasoning_delta" }>;
+    type ReasoningEnd = Extract<StreamEvent, { type: "reasoning_end" }>;
+
+    const reasoningDelta: ReasoningDelta = {
+      type: "reasoning_delta",
+      text: "thinking",
+      agentId: "agent-1",
+    };
+
+    expectTypeOf(reasoningDelta).toMatchTypeOf<{
+      type: "reasoning_delta";
+      text: string;
+      agentId?: string | undefined;
+    }>();
+
+    const reasoningEnd: ReasoningEnd = {
+      type: "reasoning_end",
+      metadata: { stage: "final" },
+    };
+
+    expectTypeOf(reasoningEnd).toMatchTypeOf<{
+      type: "reasoning_end";
+      metadata?: Record<string, unknown> | undefined;
+      agentId?: string | undefined;
+    }>();
+
+    void reasoningDelta;
+    void reasoningEnd;
   });
 
   it("exposes API DTO payload shapes", () => {

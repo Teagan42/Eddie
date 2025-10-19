@@ -55,12 +55,26 @@ type AgentScopedEvent = {
   agentId?: string;
 };
 
+type ReasoningStreamEvent =
+  | ({
+        type: "reasoning_delta";
+        text: string;
+        id?: string;
+        metadata?: Record<string, unknown>;
+      } & AgentScopedEvent)
+  | ({
+        type: "reasoning_end";
+        metadata?: Record<string, unknown>;
+        responseId?: string;
+      } & AgentScopedEvent);
+
 export type StreamEvent =
   | ({
         type: "delta";
         text: string;
         id?: string;
       } & AgentScopedEvent)
+  | ReasoningStreamEvent
   | ({
         type: "tool_call";
         name: string;

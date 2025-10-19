@@ -15,6 +15,7 @@ describe("cli reference documentation", () => {
       "chat command",
       "context command",
       "trace command",
+      "config command",
     ];
 
     it.each(commandHeadings)("documents %s", (heading) => {
@@ -58,6 +59,13 @@ describe("cli reference documentation", () => {
     for (const pattern of patterns) {
       expect(cliReferenceContent).toMatch(pattern);
     }
+  });
+  
+  it("documents the configuration wizard and positional rules for config", () => {
+    expect(cliReferenceContent).toMatch(/###\s+config command/i);
+    expect(cliReferenceContent).toMatch(/configuration wizard/i);
+    expect(cliReferenceContent).toMatch(/takes no positional arguments/i);
+    expect(cliReferenceContent).toMatch(/\.\/configuration-wizard\.md/i);
   });
 
   it("details metrics backend flag options and advanced configuration link", () => {

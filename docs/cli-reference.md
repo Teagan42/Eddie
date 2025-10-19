@@ -85,6 +85,12 @@ These combinations layer on top of `eddie.config.*` and the defaults shown above
 - Reports totals for matched files, bytes, and approximate tokens so you can trim context before executing an expensive run.【F:apps/cli/src/cli/commands/context.command.ts†L41-L55】
 - Emits `No context files matched the current configuration.` when your globs produce an empty set, making it easy to diagnose missing include patterns.【F:apps/cli/src/cli/commands/context.command.ts†L41-L44】
 
+### config command
+
+- Launches an interactive configuration wizard that scaffolds `eddie.config.(yaml|json)` files by walking through preset, format, project directory, model, and provider prompts.【F:apps/cli/src/cli/commands/config.command.ts†L44-L114】
+- Takes no positional arguments; the CLI throws `The config command does not accept positional arguments.` when extra values are provided, so run it without trailing words.【F:apps/cli/src/cli/commands/config.command.ts†L38-L42】
+- Writes the generated file via `ConfigService.writeSource`, respecting `CONFIG_ROOT`, and prints the final path—see the [configuration wizard guide](./configuration-wizard.md) for walkthroughs and advanced usage.【F:apps/cli/src/cli/commands/config.command.ts†L18-L37】【F:apps/cli/src/cli/commands/config.command.ts†L30-L76】
+
 ### trace command
 
 - Reads the most recent entries from the JSONL trace file determined by CLI flags, environment variables, or configuration defaults and pretty-prints each record.【F:apps/cli/src/cli/commands/trace.command.ts†L24-L41】
