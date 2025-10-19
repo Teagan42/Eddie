@@ -33,10 +33,16 @@ const PANEL_BADGE_DOT_CLASS = [
   "shadow-[var(--hero-cta-shadow)]",
 ].join(" ");
 
-const PANEL_OVERLAY_CLASS =
-  "pointer-events-none absolute inset-0 -z-10 bg-[var(--overview-panel-overlay)] opacity-40 transition-opacity duration-500 group-hover:opacity-80";
-const PANEL_GLARE_CLASS =
-  "absolute inset-0 -z-10 bg-[var(--overview-panel-glare)] opacity-0 transition-opacity duration-500 group-hover:opacity-70";
+const PANEL_OVERLAY_CLASS = [
+  "pointer-events-none absolute inset-0 -z-10",
+  "bg-[var(--hero-surface-overlay)]",
+  "dark:bg-[var(--hero-surface-overlay-dark)]",
+].join(" ");
+const PANEL_GLARE_CLASS = [
+  "pointer-events-none absolute inset-0 -z-10 opacity-80 blur-2xl",
+  "[background:var(--hero-surface-lens)]",
+  "dark:[background:var(--hero-surface-lens-dark)]",
+].join(" ");
 const PANEL_BODY_CLASS = "flex-1 text-sm text-[color:var(--overview-panel-foreground)]";
 
 interface PanelProps {
