@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Box } from "@radix-ui/themes";
 import { clsx } from "clsx";
 
 const PANEL_SURFACE_CLASS = [
@@ -52,30 +53,34 @@ export function Panel({
   id,
   children,
 }: PanelProps): JSX.Element {
+  const surfaceClassName = clsx(PANEL_SURFACE_CLASS, className);
+
   return (
-    <section id={id} className={clsx(PANEL_SURFACE_CLASS, className)}>
-      <div className={PANEL_OVERLAY_CLASS} aria-hidden />
-      <div className={PANEL_GLARE_CLASS} aria-hidden />
-      <div className={PANEL_CONTENT_CLASS}>
-        <header className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="max-w-xl space-y-1">
-            <div className={PANEL_BADGE_CLASS}>
-              <span className={PANEL_BADGE_DOT_CLASS} />
-              Live Surface
+    <Box asChild className={surfaceClassName}>
+      <section id={id}>
+        <div className={PANEL_OVERLAY_CLASS} aria-hidden />
+        <div className={PANEL_GLARE_CLASS} aria-hidden />
+        <div className={PANEL_CONTENT_CLASS}>
+          <header className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="max-w-xl space-y-1">
+              <div className={PANEL_BADGE_CLASS}>
+                <span className={PANEL_BADGE_DOT_CLASS} />
+                Live Surface
+              </div>
+              <h2 className="text-2xl font-semibold tracking-tight text-[color:var(--overview-panel-foreground)] drop-shadow-sm">
+                {title}
+              </h2>
+              {description ? (
+                <p className="text-sm text-[color:var(--overview-panel-muted)]">
+                  {description}
+                </p>
+              ) : null}
             </div>
-            <h2 className="text-2xl font-semibold tracking-tight text-[color:var(--overview-panel-foreground)] drop-shadow-sm">
-              {title}
-            </h2>
-            {description ? (
-              <p className="text-sm text-[color:var(--overview-panel-muted)]">
-                {description}
-              </p>
-            ) : null}
-          </div>
-          {actions ?? null}
-        </header>
-        <div className={PANEL_BODY_CLASS}>{children}</div>
-      </div>
-    </section>
+            {actions ?? null}
+          </header>
+          <div className={PANEL_BODY_CLASS}>{children}</div>
+        </div>
+      </section>
+    </Box>
   );
 }

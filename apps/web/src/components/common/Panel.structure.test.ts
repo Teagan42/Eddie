@@ -13,4 +13,11 @@ describe("panel header layout", () => {
       'className="flex items-center gap-2"'
     );
   });
+
+  it("wraps the surface with a Radix UI Box for consistent hero styling", () => {
+    const source = readFileSync(resolve(__dirname, "./Panel.tsx"), "utf8");
+
+    expect(source).toContain('import { Box } from "@radix-ui/themes"');
+    expect(source).toContain("<Box");
+  });
 });
