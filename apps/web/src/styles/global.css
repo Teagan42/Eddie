@@ -192,13 +192,55 @@ a:focus-visible {
     --hero-console-separator-dark: hsl(var(--border) / 0.35);
     --overview-panel-border: hsl(var(--border) / 0.35);
     --overview-panel-bg: hsl(var(--card) / 0.85);
+    --overview-panel-overlay: radial-gradient(
+      circle at top left,
+      rgba(56, 189, 248, 0.3),
+      transparent 60%
+    ),
+      radial-gradient(
+        circle at bottom right,
+        rgba(16, 185, 129, 0.28),
+        transparent 55%
+      );
+    --overview-panel-glare: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.2),
+      transparent 60%
+    );
     --overview-panel-shadow: 0 35px 70px -60px rgba(56, 189, 248, 0.35);
+    --overview-panel-foreground: hsl(var(--foreground));
     --overview-panel-item-border: hsl(var(--border) / 0.22);
     --overview-panel-item-bg: hsl(var(--card) / 0.7);
     --overview-panel-item-shadow: 0 28px 60px -45px rgba(15, 23, 42, 0.22);
     --overview-panel-muted: hsl(var(--muted-foreground));
     --overview-panel-code: hsl(160 70% 35%);
     --overview-panel-divider: hsl(var(--border) / 0.25);
+    --overview-message-overlay: radial-gradient(
+      circle at top,
+      rgba(56, 189, 248, 0.18),
+      transparent 65%
+    );
+    --overview-message-border: hsl(var(--border) / 0.28);
+    --overview-message-bg: hsl(var(--card) / 0.72);
+    --overview-message-shadow: 0 25px 65px -55px rgba(59, 130, 246, 0.45);
+    --overview-message-label: rgba(14, 165, 233, 0.75);
+    --overview-message-timestamp: hsl(var(--muted-foreground));
+    --overview-message-accent: rgba(34, 197, 94, 0.85);
+    --overview-message-glow: rgba(34, 197, 94, 0.18);
+    --overview-message-badge-bg: rgba(16, 185, 129, 0.18);
+    --overview-message-badge-fg: rgba(15, 23, 42, 0.88);
+    --overview-composer-border: hsl(var(--border) / 0.28);
+    --overview-composer-bg: hsl(var(--card) / 0.78);
+    --overview-composer-shadow: 0 20px 60px -30px rgba(34, 197, 94, 0.35);
+    --overview-composer-glow-primary: rgba(34, 197, 94, 0.25);
+    --overview-composer-glow-secondary: rgba(59, 130, 246, 0.18);
+    --overview-composer-input-border: hsl(var(--border) / 0.25);
+    --overview-composer-input-bg: hsl(var(--card) / 0.65);
+    --overview-composer-hint-active: rgba(16, 185, 129, 0.85);
+    --overview-composer-hint-disabled: hsl(var(--muted-foreground));
+    --overview-composer-cta-foreground: hsl(var(--hero-cta-foreground));
+    --overview-composer-cta-shadow: var(--hero-cta-shadow);
+    --overview-composer-cta-shine: rgba(255, 255, 255, 0.25);
     --overview-stat-card-border: hsl(var(--border) / 0.18);
     --overview-stat-card-bg: hsl(var(--card) / 0.75);
     --overview-stat-card-shadow: 0 35px 70px -55px rgba(56, 189, 248, 0.45);
@@ -262,13 +304,55 @@ a:focus-visible {
     --hero-console-separator: hsl(var(--border) / 0.35);
     --overview-panel-border: hsl(var(--border) / 0.45);
     --overview-panel-bg: hsl(var(--card) / 0.18);
+    --overview-panel-overlay: radial-gradient(
+      circle at top left,
+      rgba(56, 189, 248, 0.32),
+      transparent 60%
+    ),
+      radial-gradient(
+        circle at bottom right,
+        rgba(16, 185, 129, 0.32),
+        transparent 55%
+      );
+    --overview-panel-glare: linear-gradient(
+      135deg,
+      rgba(148, 163, 184, 0.18),
+      transparent 65%
+    );
     --overview-panel-shadow: 0 35px 70px -60px rgba(14, 116, 144, 0.58);
+    --overview-panel-foreground: hsl(var(--foreground));
     --overview-panel-item-border: hsl(var(--border) / 0.35);
     --overview-panel-item-bg: hsl(var(--card) / 0.24);
     --overview-panel-item-shadow: 0 28px 60px -45px rgba(15, 118, 110, 0.45);
     --overview-panel-muted: rgba(226, 232, 240, 0.8);
     --overview-panel-code: rgba(134, 239, 172, 0.88);
     --overview-panel-divider: hsl(var(--border) / 0.4);
+    --overview-message-overlay: radial-gradient(
+      circle at top,
+      rgba(56, 189, 248, 0.24),
+      transparent 65%
+    );
+    --overview-message-border: hsl(var(--border) / 0.38);
+    --overview-message-bg: hsl(var(--card) / 0.26);
+    --overview-message-shadow: 0 25px 65px -55px rgba(37, 99, 235, 0.55);
+    --overview-message-label: rgba(167, 243, 208, 0.75);
+    --overview-message-timestamp: rgba(191, 219, 254, 0.75);
+    --overview-message-accent: rgba(16, 185, 129, 0.9);
+    --overview-message-glow: rgba(34, 197, 94, 0.22);
+    --overview-message-badge-bg: rgba(34, 197, 94, 0.22);
+    --overview-message-badge-fg: rgba(240, 253, 244, 0.92);
+    --overview-composer-border: hsl(var(--border) / 0.4);
+    --overview-composer-bg: hsl(var(--card) / 0.2);
+    --overview-composer-shadow: 0 20px 60px -30px rgba(45, 212, 191, 0.45);
+    --overview-composer-glow-primary: rgba(34, 197, 94, 0.3);
+    --overview-composer-glow-secondary: rgba(59, 130, 246, 0.25);
+    --overview-composer-input-border: hsl(var(--border) / 0.35);
+    --overview-composer-input-bg: hsl(var(--card) / 0.26);
+    --overview-composer-hint-active: rgba(167, 243, 208, 0.85);
+    --overview-composer-hint-disabled: rgba(191, 219, 254, 0.75);
+    --overview-composer-cta-foreground: hsl(var(--hero-cta-foreground));
+    --overview-composer-cta-shadow: var(--hero-cta-shadow);
+    --overview-composer-cta-shine: rgba(148, 163, 184, 0.3);
     --overview-stat-card-border: hsl(var(--border) / 0.42);
     --overview-stat-card-bg: hsl(var(--card) / 0.22);
     --overview-stat-card-shadow: 0 35px 70px -55px rgba(14, 116, 144, 0.65);
@@ -337,6 +421,22 @@ a:focus-visible {
     --app-shell-main-overlay: circle_at_top_right, rgba(251, 191, 36, 0.14), transparent 65%;
     --overview-panel-border: hsla(40, 86%, 70%, 0.45);
     --overview-panel-bg: hsla(42, 94%, 92%, 0.85);
+    --overview-panel-overlay: radial-gradient(
+      circle at top left,
+      rgba(249, 115, 22, 0.24),
+      transparent 60%
+    ),
+      radial-gradient(
+        circle at bottom right,
+        rgba(16, 185, 129, 0.22),
+        transparent 55%
+      );
+    --overview-panel-glare: linear-gradient(
+      135deg,
+      rgba(253, 244, 215, 0.35),
+      transparent 60%
+    );
+    --overview-panel-foreground: rgba(82, 47, 7, 0.92);
     --overview-panel-shadow: 0 35px 70px -60px rgba(249, 115, 22, 0.32);
     --overview-panel-item-border: hsla(35, 80%, 72%, 0.45);
     --overview-panel-item-bg: hsla(48, 94%, 90%, 0.78);
@@ -344,6 +444,32 @@ a:focus-visible {
     --overview-panel-muted: rgba(120, 53, 15, 0.78);
     --overview-panel-code: rgba(250, 204, 21, 0.92);
     --overview-panel-divider: hsla(35, 78%, 72%, 0.5);
+    --overview-message-overlay: radial-gradient(
+      circle at top,
+      rgba(253, 186, 116, 0.26),
+      transparent 65%
+    );
+    --overview-message-border: hsla(35, 80%, 72%, 0.45);
+    --overview-message-bg: hsla(48, 94%, 90%, 0.82);
+    --overview-message-shadow: 0 25px 65px -55px rgba(249, 115, 22, 0.35);
+    --overview-message-label: rgba(234, 88, 12, 0.7);
+    --overview-message-timestamp: rgba(120, 53, 15, 0.7);
+    --overview-message-accent: rgba(251, 191, 36, 0.85);
+    --overview-message-glow: rgba(251, 191, 36, 0.2);
+    --overview-message-badge-bg: rgba(253, 186, 116, 0.24);
+    --overview-message-badge-fg: rgba(88, 28, 0, 0.85);
+    --overview-composer-border: hsla(35, 80%, 72%, 0.5);
+    --overview-composer-bg: hsla(48, 96%, 92%, 0.88);
+    --overview-composer-shadow: 0 20px 60px -30px rgba(249, 115, 22, 0.35);
+    --overview-composer-glow-primary: rgba(253, 186, 116, 0.3);
+    --overview-composer-glow-secondary: rgba(249, 115, 22, 0.2);
+    --overview-composer-input-border: hsla(35, 78%, 72%, 0.55);
+    --overview-composer-input-bg: hsla(45, 96%, 92%, 0.8);
+    --overview-composer-hint-active: rgba(201, 100, 32, 0.85);
+    --overview-composer-hint-disabled: rgba(120, 53, 15, 0.7);
+    --overview-composer-cta-foreground: rgba(82, 47, 7, 0.9);
+    --overview-composer-cta-shadow: 0 20px 60px -30px rgba(249, 115, 22, 0.4);
+    --overview-composer-cta-shine: rgba(253, 244, 215, 0.35);
     --overview-stat-card-shadow: 0 35px 70px -55px rgba(249, 115, 22, 0.45);
     --overview-stat-card-overlay: radial-gradient(circle at top, rgba(253, 186, 116, 0.26), transparent 65%);
     --overview-stat-icon-bg: rgba(253, 186, 116, 0.26);
@@ -386,6 +512,22 @@ a:focus-visible {
     --app-shell-overlay-dark: circle_at_top, rgba(91, 33, 182, 0.28), transparent 60%;
     --app-shell-main-overlay-dark: circle_at_top_right, rgba(59, 130, 246, 0.14), transparent 60%;
     --overview-panel-shadow: 0 35px 70px -60px rgba(76, 29, 149, 0.55);
+    --overview-panel-overlay: radial-gradient(
+      circle at top left,
+      rgba(129, 140, 248, 0.32),
+      transparent 60%
+    ),
+      radial-gradient(
+        circle at bottom right,
+        rgba(76, 29, 149, 0.28),
+        transparent 55%
+      );
+    --overview-panel-glare: linear-gradient(
+      135deg,
+      rgba(224, 231, 255, 0.22),
+      transparent 65%
+    );
+    --overview-panel-foreground: rgba(224, 231, 255, 0.94);
     --overview-panel-item-shadow: 0 28px 60px -45px rgba(129, 140, 248, 0.32);
     --overview-panel-muted: rgba(196, 181, 253, 0.85);
     --overview-panel-code: rgba(165, 180, 252, 0.92);
@@ -395,6 +537,32 @@ a:focus-visible {
     --overview-stat-icon-bg: rgba(129, 140, 248, 0.38);
     --overview-stat-icon-fg: rgba(224, 231, 255, 0.96);
     --overview-stat-hint: rgba(196, 181, 253, 0.82);
+    --overview-message-overlay: radial-gradient(
+      circle at top,
+      rgba(129, 140, 248, 0.32),
+      transparent 65%
+    );
+    --overview-message-border: hsla(240, 67%, 72%, 0.35);
+    --overview-message-bg: hsla(249, 65%, 20%, 0.6);
+    --overview-message-shadow: 0 25px 65px -55px rgba(91, 33, 182, 0.45);
+    --overview-message-label: rgba(196, 181, 253, 0.8);
+    --overview-message-timestamp: rgba(165, 180, 252, 0.75);
+    --overview-message-accent: rgba(129, 140, 248, 0.9);
+    --overview-message-glow: rgba(129, 140, 248, 0.25);
+    --overview-message-badge-bg: rgba(129, 140, 248, 0.24);
+    --overview-message-badge-fg: rgba(224, 231, 255, 0.92);
+    --overview-composer-border: hsla(240, 60%, 68%, 0.4);
+    --overview-composer-bg: hsla(249, 60%, 18%, 0.6);
+    --overview-composer-shadow: 0 20px 60px -30px rgba(91, 33, 182, 0.45);
+    --overview-composer-glow-primary: rgba(129, 140, 248, 0.32);
+    --overview-composer-glow-secondary: rgba(59, 130, 246, 0.25);
+    --overview-composer-input-border: hsla(240, 65%, 70%, 0.5);
+    --overview-composer-input-bg: hsla(249, 58%, 22%, 0.65);
+    --overview-composer-hint-active: rgba(196, 181, 253, 0.85);
+    --overview-composer-hint-disabled: rgba(165, 180, 252, 0.75);
+    --overview-composer-cta-foreground: rgba(224, 231, 255, 0.95);
+    --overview-composer-cta-shadow: 0 20px 60px -30px rgba(91, 33, 182, 0.5);
+    --overview-composer-cta-shine: rgba(129, 140, 248, 0.35);
   }
 }
 
