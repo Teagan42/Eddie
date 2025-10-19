@@ -239,8 +239,9 @@ function mergeCompletedReasoning(
   const hasText = typeof payload.text === "string";
   const normalizedText = hasText ? payload.text : "";
   const trimmed = normalizedText.trim();
+  const hasRenderableText = hasText && trimmed.length > 0;
 
-  if (hasText && trimmed.length === 0) {
+  if (hasText && !hasRenderableText) {
     if (last) {
       nextSegments = updateLastReasoningSegment(segments, {
         metadata: payload.metadata ?? last.metadata,
@@ -248,7 +249,7 @@ function mergeCompletedReasoning(
         agentId,
       });
     }
-  } else if (hasText) {
+  } else if (hasRenderableText) {
     const segment: MessageReasoningSegment = {
       text: normalizedText,
       metadata: payload.metadata,
