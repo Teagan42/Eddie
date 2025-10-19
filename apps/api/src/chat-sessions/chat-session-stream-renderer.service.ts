@@ -135,7 +135,9 @@ export class ChatSessionStreamRendererService {
         break;
       }
       case "error": {
-        await this.updateActivity(state, "error");
+        if (state.activity !== "tool-error") {
+          await this.updateActivity(state, "error");
+        }
         break;
       }
       case "end": {

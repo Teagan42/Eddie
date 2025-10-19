@@ -31,6 +31,9 @@ describe("ChatSessionStreamRendererService", () => {
       (event): event is AgentActivity => event instanceof AgentActivity
     );
 
+  const getActivityStates = () =>
+    getActivityEvents().map(({ sessionId: id, state }) => ({ sessionId: id, state }));
+
   beforeEach(async () => {
     publish = vi.fn();
     eventBus = { publish } as unknown as EventBus;
@@ -240,9 +243,7 @@ describe("ChatSessionStreamRendererService", () => {
       renderer.render({ type: "end" });
     });
 
-    expect(
-      getActivityEvents().map(({ sessionId: id, state }) => ({ sessionId: id, state }))
-    ).toEqual([
+    expect(getActivityStates()).toEqual([
       { sessionId, state: "thinking" },
       { sessionId, state: "tool" },
       { sessionId, state: "thinking" },
@@ -250,22 +251,37 @@ describe("ChatSessionStreamRendererService", () => {
     ]);
   });
 
-  it("emits error activity for error and notification events", async () => {
+  it("emits agent error activity for non-tool failures", async () => {
     await renderer.capture(sessionId, async () => {
       renderer.render({ type: "delta", text: "Hi" });
       renderer.render({
         type: "notification",
-        payload: "Tool failed",
+        payload: "Agent failed",
         metadata: { severity: "error" },
       });
       renderer.render({ type: "error", message: "boom" });
     });
 
-    expect(
-      getActivityEvents().map(({ sessionId: id, state }) => ({ sessionId: id, state }))
-    ).toEqual([
+    expect(getActivityStates()).toEqual([
       { sessionId, state: "thinking" },
       { sessionId, state: "error" },
+    ]);
+  });
+
+  it("emits tool error activity when a tool failure notification arrives", async () => {
+    await renderer.capture(sessionId, async () => {
+      renderer.render({ type: "delta", text: "Hi" });
+      renderer.render({
+        type: "notification",
+        payload: "Tool failed",
+        metadata: { severity: "error", tool: "echo" },
+      });
+      renderer.render({ type: "error", message: "boom" });
+    });
+
+    expect(getActivityStates()).toEqual([
+      { sessionId, state: "thinking" },
+      { sessionId, state: "tool-error" },
     ]);
   });
 });
