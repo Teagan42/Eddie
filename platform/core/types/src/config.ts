@@ -36,6 +36,12 @@ export interface ConfigExtensionDescriptor {
   path?: string;
 }
 
+export type ConfigExtensionReference = string | ConfigExtensionDescriptor;
+
+export type ConfigExtensionEntry =
+  | { type: "preset"; id: string }
+  | { type: "file"; path: string };
+
 export interface ApiTelemetryConfig {
   enabled?: boolean;
   consoleExporter?: boolean;
@@ -346,7 +352,7 @@ export interface EddieConfigInput {
   agents?: AgentsConfigInput;
   transcript?: TranscriptConfig;
   metrics?: Partial<MetricsConfig>;
-  extends?: ConfigExtensionDescriptor[];
+  extends?: ConfigExtensionReference[];
 }
 
 export interface AgentsConfigInput {
