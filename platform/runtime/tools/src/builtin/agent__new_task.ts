@@ -101,6 +101,7 @@ export const agentNewTaskTool: ToolDefinition = {
         metadata: document.metadata,
         tasks,
       },
+      preserveTaskUpdatedAt: true,
     });
 
     const insertedIndex = Math.min(
