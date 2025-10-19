@@ -519,6 +519,7 @@ export class AgentOrchestratorService {
           provider: descriptor.provider.name,
           parentAgentId: parentDescriptor.id,
           blocked: true,
+          request: {},
         },
       };
     }
