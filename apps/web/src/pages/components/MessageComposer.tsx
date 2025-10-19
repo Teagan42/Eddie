@@ -7,10 +7,20 @@ export interface MessageComposerProps {
   value: string;
   onChange: (value: string) => void;
   onSubmit: FormEventHandler<HTMLFormElement>;
+  placeholder?: string;
+  submitDisabled?: boolean;
 }
 
-export function MessageComposer({ disabled, value, onChange, onSubmit }: MessageComposerProps): JSX.Element {
+export function MessageComposer({
+  disabled,
+  value,
+  onChange,
+  onSubmit,
+  placeholder = "Send a message",
+  submitDisabled = false,
+}: MessageComposerProps): JSX.Element {
   const hintMessage = disabled ? "Sending in progress..." : "Press Enter or click Send";
+  const isSubmitDisabled = disabled || submitDisabled;
   const glowClasses = [
     "pointer-events-none absolute -right-6 -top-8 h-32 w-32 rounded-full bg-emerald-400/30 blur-3xl",
     "pointer-events-none absolute -bottom-10 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-sky-500/20 blur-3xl",
@@ -41,7 +51,7 @@ export function MessageComposer({ disabled, value, onChange, onSubmit }: Message
 
     event.preventDefault();
 
-    if (disabled) {
+    if (disabled || submitDisabled) {
       return;
     }
 
@@ -65,7 +75,7 @@ export function MessageComposer({ disabled, value, onChange, onSubmit }: Message
       <Flex direction="column" gap="3" className="relative z-10">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-1">
           <TextArea
-            placeholder="Send a message"
+            placeholder={placeholder}
             value={value}
             onChange={(event) => onChange(event.target.value)}
             onKeyDown={handleKeyDown}
@@ -87,7 +97,7 @@ export function MessageComposer({ disabled, value, onChange, onSubmit }: Message
           <Button
             type="submit"
             size="3"
-            disabled={disabled}
+            disabled={isSubmitDisabled}
             className="group relative overflow-hidden rounded-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-sky-500 text-white shadow-[0_10px_30px_-12px_rgba(14,165,233,0.8)] transition-transform duration-150 ease-out hover:scale-[1.02]"
           >
             <span className="absolute inset-0 bg-white/15 opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100" />
