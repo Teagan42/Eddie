@@ -66,6 +66,82 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
     const decoder = new TextDecoder();
     let buffer = "";
     const toolBuffer = new Map<number, ToolAccumulator>();
+    const reasoningSegments: string[] = [];
+    let reasoningCompleted = false;
+
+    const pushReasoningChunk = (chunk: string | undefined): StreamEvent | undefined => {
+      if (typeof chunk !== "string") {
+        return undefined;
+      }
+
+      const normalized = chunk.trim();
+      if (normalized.length === 0) {
+        return undefined;
+      }
+
+      reasoningSegments.push(normalized);
+      return { type: "reasoning_delta", text: normalized };
+    };
+
+    const emitReasoningEnd = (): StreamEvent | undefined => {
+      if (reasoningCompleted) {
+        return undefined;
+      }
+
+      const text = reasoningSegments.join("");
+      if (text.length === 0) {
+        return undefined;
+      }
+
+      reasoningCompleted = true;
+      return { type: "reasoning_end", metadata: { text } };
+    };
+
+    const extractReasoningChunks = (value: unknown): string[] => {
+      const chunks: string[] = [];
+      const visit = (input: unknown): void => {
+        if (typeof input === "string") {
+          chunks.push(input);
+          return;
+        }
+
+        if (Array.isArray(input)) {
+          for (const item of input) {
+            visit(item);
+          }
+          return;
+        }
+
+        if (input && typeof input === "object") {
+          const record = input as Record<string, unknown>;
+          if (typeof record.text === "string") {
+            visit(record.text);
+          }
+        }
+      };
+
+      visit(value);
+      return chunks;
+    };
+
+    const extractThinkSegments = (value: string): {
+      reasoning: string[];
+      remainder: string;
+    } => {
+      const reasoning: string[] = [];
+      const remainder = value.replace(
+        /<([\w:.-]*?)think>([\s\S]*?)<\/\1think>/gi,
+        (_match, _prefix, inner) => {
+          const text = typeof inner === "string" ? inner.trim() : "";
+          if (text.length > 0) {
+            reasoning.push(text);
+          }
+          return "";
+        },
+      );
+
+      return { reasoning, remainder };
+    };
 
     while (true) {
       const { done, value } = await reader.read();
@@ -80,6 +156,10 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
         if (!trimmed.startsWith("data:")) continue;
         const payload = trimmed.slice(5).trim();
         if (!payload || payload === "[DONE]") {
+          const reasoningEnd = emitReasoningEnd();
+          if (reasoningEnd) {
+            yield reasoningEnd;
+          }
           yield { type: "end" };
           return;
         }
@@ -93,17 +173,57 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
 
           const delta = json.choices?.[0]?.delta;
           const choice = json.choices?.[0];
+
+          if (delta) {
+            const reasoningContent = (delta as { reasoning_content?: unknown }).reasoning_content;
+            for (const chunk of extractReasoningChunks(reasoningContent)) {
+              const event = pushReasoningChunk(chunk);
+              if (event) {
+                yield event;
+              }
+            }
+          }
+
+          const emitAssistantContent = (content: string): StreamEvent[] => {
+            const emitted: StreamEvent[] = [];
+            const { reasoning, remainder } = extractThinkSegments(content);
+            for (const chunk of reasoning) {
+              const event = pushReasoningChunk(chunk);
+              if (event) {
+                emitted.push(event);
+              }
+            }
+
+            const cleaned =
+              reasoning.length > 0 ? remainder.replace(/^\s+/, "") : remainder;
+            if (cleaned.length > 0) {
+              emitted.push({ type: "delta", text: cleaned });
+            }
+
+            return emitted;
+          };
+
           const deltaContent = delta?.content;
           if (typeof deltaContent === "string") {
-            yield { type: "delta", text: deltaContent };
+            for (const event of emitAssistantContent(deltaContent)) {
+              yield event;
+            }
           } else if (Array.isArray(deltaContent)) {
             for (const item of deltaContent) {
-              if (
-                item &&
-                typeof item === "object" &&
-                typeof (item as { text?: string }).text === "string"
-              ) {
-                yield { type: "delta", text: (item as { text: string }).text };
+              if (typeof item === "string") {
+                for (const event of emitAssistantContent(item)) {
+                  yield event;
+                }
+                continue;
+              }
+
+              if (item && typeof item === "object") {
+                const text = (item as { text?: unknown }).text;
+                if (typeof text === "string") {
+                  for (const event of emitAssistantContent(text)) {
+                    yield event;
+                  }
+                }
               }
             }
           }
@@ -146,6 +266,10 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
           }
 
           if (choice?.finish_reason === "stop") {
+            const reasoningEnd = emitReasoningEnd();
+            if (reasoningEnd) {
+              yield reasoningEnd;
+            }
             yield { type: "end", reason: "stop", usage: json.usage };
             return;
           }
