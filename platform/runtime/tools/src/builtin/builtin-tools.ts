@@ -8,6 +8,8 @@ import { completeTaskTool } from "./complete_task";
 import { updatePlanTool } from "./update_plan";
 import { agentNewTaskListTool } from "./agent__new_task_list";
 import { agentNewTaskTool } from "./agent__new_task";
+import { agentGetTaskListTool } from "./agent__get_task_list";
+import { agentSetTaskStatusTool } from "./agent__set_task_status";
 
 export const builtinTools = [
   bashTool,
@@ -20,4 +22,6 @@ export const builtinTools = [
   updatePlanTool,
   agentNewTaskListTool,
   agentNewTaskTool,
+  agentGetTaskListTool,
+  agentSetTaskStatusTool,
 ];

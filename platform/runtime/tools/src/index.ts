@@ -8,5 +8,7 @@ export * from "./builtin/file_write";
 export * from "./builtin/get_folder_tree_structure";
 export * from "./builtin/get_plan";
 export * from "./builtin/agent__new_task_list";
+export * from "./builtin/agent__get_task_list";
+export * from "./builtin/agent__set_task_status";
 export * from "./builtin/task_list";
 export * from "./builtin/update_plan";
