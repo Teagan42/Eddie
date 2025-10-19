@@ -13,6 +13,15 @@ import {
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const activeChildren = new Set<ChildProcess>();
 
+const parseTruthyEnv = (value: string | undefined): boolean => {
+  if (!value) {
+    return false;
+  }
+
+  const normalized = value.toLowerCase();
+  return normalized === '1' || normalized === 'true';
+};
+
 process.once('SIGINT', () => {
   for (const child of activeChildren) {
     child.kill('SIGINT');
@@ -93,18 +102,29 @@ export async function runWorkspaceScript(
   }
 
   const prioritizedWorkspaces = prioritizeWorkspaces(workspaces);
-  const prefixWidth = prioritizedWorkspaces.reduce(
+
+  const filterToChanged = parseTruthyEnv(process.env.WORKSPACE_ONLY_CHANGED);
+  const targetWorkspaces = filterToChanged
+    ? prioritizedWorkspaces.filter((workspace) => workspace.hasChanges)
+    : prioritizedWorkspaces;
+
+  if (targetWorkspaces.length === 0) {
+    console.log(`No workspaces with changes define the "${scriptName}" script.`);
+    return [];
+  }
+
+  const prefixWidth = targetWorkspaces.reduce(
     (width, workspace) => Math.max(width, workspace.name.length),
     0,
   );
-  const concurrency = determineConcurrency(prioritizedWorkspaces.length);
+  const concurrency = determineConcurrency(targetWorkspaces.length);
 
   console.log(
-    `Running "${scriptName}" in ${prioritizedWorkspaces.length} workspaces (concurrency ${concurrency})...`,
+    `Running "${scriptName}" in ${targetWorkspaces.length} workspaces (concurrency ${concurrency})...`,
   );
 
   return runWithConcurrency(
-    prioritizedWorkspaces.map((workspace) => () =>
+    targetWorkspaces.map((workspace) => () =>
       runWorkspaceCommand(scriptName, workspace, prefixWidth, forwardedArgs, spawnImpl),
     ),
     concurrency,

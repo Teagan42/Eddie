@@ -90,6 +90,26 @@ describe('workspace script runner', () => {
       '@pkg/unchanged-low',
     ]);
   });
+
+  it('filters to changed workspaces when WORKSPACE_ONLY_CHANGED is set', async () => {
+    process.env.WORKSPACE_ONLY_CHANGED = '1';
+
+    try {
+      await runWorkspaceScript('lint');
+    } finally {
+      delete process.env.WORKSPACE_ONLY_CHANGED;
+    }
+
+    expect(determineConcurrencyMock).toHaveBeenCalledWith(2);
+    expect(runWithConcurrencyMock).toHaveBeenCalled();
+
+    const [tasks, concurrency] = runWithConcurrencyMock.mock.calls[0];
+    expect(tasks).toHaveLength(2);
+    expect(concurrency).toBe(2);
+
+    const spawnWorkspaceOrder = spawnMock.mock.calls.map((call) => call[1][3]);
+    expect(spawnWorkspaceOrder).toEqual(['@pkg/changed-high', '@pkg/changed-low']);
+  });
 });
 
 describe('argument parsing', () => {
