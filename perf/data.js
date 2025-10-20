@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760942148537,
+  "lastUpdate": 1760944253481,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -710,6 +710,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 23.33,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d938e16fecb7b1e63166b354d476205b3a8e8408",
+          "message": "Expose running tool calls in orchestrator metadata snapshots (#669)\n\n* refactor(orchestrator): reuse store invocations cache\n\n* fix(api): surface running tool calls alongside snapshots",
+          "timestamp": "2025-10-20T00:59:55-06:00",
+          "tree_id": "81442f2d62b93ed8caf7f99b98d80966d36a685f",
+          "url": "https://github.com/Teagan42/Eddie/commit/d938e16fecb7b1e63166b354d476205b3a8e8408"
+        },
+        "date": 1760944252972,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 49.137,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 34.603,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.895,
             "unit": "ms",
             "extra": "[object Object]"
           }
