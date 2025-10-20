@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import {
   ChatSessionsService,
   type AgentInvocationSnapshot,
@@ -19,6 +19,7 @@ import type {
   ExecutionToolInvocationNode,
   ExecutionContextBundle,
 } from "@eddie/types";
+import { ToolCallStore, type ToolCallState } from "../tools/tool-call.store";
 
 interface SpawnDetails {
   provider?: string;
@@ -35,6 +36,7 @@ export class OrchestratorMetadataService {
   constructor(
     private readonly chatSessions: ChatSessionsService,
     private readonly executionTreeStateStore?: ExecutionTreeStateStore,
+    @Optional() private readonly toolCallStore?: ToolCallStore,
   ) {}
 
   async getMetadata(sessionId?: string): Promise<OrchestratorMetadataDto> {
@@ -200,7 +202,12 @@ export class OrchestratorMetadataService {
     messages: ChatMessageDto[],
     agentInvocations: AgentInvocationSnapshot[],
   ): ToolCallNodeDto[] {
+    const fromStore = this.createToolInvocationsFromStore(sessionId);
+
     if (agentInvocations.length === 0) {
+      if (fromStore.length > 0) {
+        return fromStore;
+      }
       return this.createToolInvocationsFromMessages(sessionId, messages);
     }
 
@@ -209,7 +216,46 @@ export class OrchestratorMetadataService {
       return fromAgents;
     }
 
+    if (fromStore.length > 0) {
+      return fromStore;
+    }
+
     return this.createToolInvocationsFromMessages(sessionId, messages);
+  }
+
+  private createToolInvocationsFromStore(sessionId: string): ToolCallNodeDto[] {
+    if (!this.toolCallStore) {
+      return [];
+    }
+
+    const states = this.toolCallStore.list(sessionId);
+    if (states.length === 0) {
+      return [];
+    }
+
+    return states.map((state, index) => this.mapToolCallState(state, sessionId, index));
+  }
+
+  private mapToolCallState(
+    state: ToolCallState,
+    sessionId: string,
+    index: number,
+  ): ToolCallNodeDto {
+    const node = new ToolCallNodeDto();
+    node.id = state.toolCallId ?? `${sessionId}-tool-${index}`;
+    node.name = state.name ?? node.id;
+    node.status = this.mapToolStatus(state.status);
+    const metadata: Record<string, unknown> = {
+      ...(state.toolCallId ? { toolCallId: state.toolCallId } : {}),
+      ...(state.arguments !== undefined ? { arguments: state.arguments } : {}),
+      ...(state.result !== undefined ? { result: state.result } : {}),
+      ...(state.agentId !== undefined ? { agentId: state.agentId } : {}),
+      startedAt: state.startedAt,
+      updatedAt: state.updatedAt,
+    };
+    node.metadata = metadata;
+    node.children = [];
+    return node;
   }
 
   private createToolInvocationsFromMessages(

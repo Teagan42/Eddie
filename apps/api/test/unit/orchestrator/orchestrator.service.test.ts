@@ -8,6 +8,7 @@ import type {
 } from "../../../src/chat-sessions/dto/chat-session.dto";
 import { OrchestratorMetadataService } from "../../../src/orchestrator/orchestrator.service";
 import { ToolCallStatusDto } from "../../../src/orchestrator/dto/orchestrator-metadata.dto";
+import { ToolCallStore } from "../../../src/tools/tool-call.store";
 import type { ExecutionTreeState } from "@eddie/types";
 import type { ExecutionTreeStateStore } from "../../../src/orchestrator/execution-tree-state.store";
 
@@ -150,6 +151,59 @@ describe("OrchestratorMetadataService", () => {
 
     expect(metadata.toolInvocations).toHaveLength(1);
     expect(metadata.toolInvocations[0]?.id).toBe("call-formatter");
+  });
+
+  it("includes running tool calls from the store before snapshots persist", async () => {
+    const session: ChatSessionDto = {
+      id: "session-running",
+      title: "Delegation in progress",
+      status: "active",
+      createdAt: new Date("2024-01-01T00:00:00.000Z").toISOString(),
+      updatedAt: new Date("2024-01-01T00:00:00.000Z").toISOString(),
+    };
+
+    const toolCallStore = new ToolCallStore();
+    const startedAt = new Date("2024-01-01T00:07:00.000Z").toISOString();
+    toolCallStore.start({
+      sessionId: session.id,
+      toolCallId: "call-001",
+      name: "search",
+      arguments: { query: "metadata" },
+      timestamp: startedAt,
+      agentId: "agent-orchestrator",
+    });
+
+    const chatSessions = {
+      getSession: async () => session,
+      listMessages: async () => [],
+      listAgentInvocations: async () => [],
+    } as unknown as ChatSessionsService;
+
+    const service = new (OrchestratorMetadataService as unknown as new (
+      chatSessions: ChatSessionsService,
+      executionTreeStateStore?: ExecutionTreeStateStore,
+      toolCallStore?: ToolCallStore,
+    ) => OrchestratorMetadataService)(
+      chatSessions,
+      undefined,
+      toolCallStore,
+    );
+
+    const metadata = await service.getMetadata(session.id);
+
+    expect(metadata.toolInvocations).toEqual([
+      expect.objectContaining({
+        id: "call-001",
+        name: "search",
+        status: ToolCallStatusDto.Running,
+        metadata: expect.objectContaining({
+          toolCallId: "call-001",
+          agentId: "agent-orchestrator",
+          arguments: { query: "metadata" },
+          startedAt,
+        }),
+      }),
+    ]);
   });
 
   it("uses the recorded tool call id for metadata nodes", async () => {
