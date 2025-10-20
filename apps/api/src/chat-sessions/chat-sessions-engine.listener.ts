@@ -64,23 +64,25 @@ implements IEventHandler<ChatMessageCreatedEvent> {
     message: ChatMessageDto,
     messages: ChatMessageDto[]
   ): Promise<void> {
+    const sessionId = message.sessionId;
     const history = this.createHistory(messages, message.id);
     const trace = await this.createTrace(message);
     const startedAt = Date.now();
 
     this.appendLog("info", "Engine run started", {
-      sessionId: message.sessionId,
+      sessionId,
       messageId: message.id,
     });
 
     let capture: StreamCaptureResult<EngineResult> | undefined;
 
     try {
-      capture = await this.streamRenderer.capture(message.sessionId, () =>
+      capture = await this.streamRenderer.capture(sessionId, () =>
         this.engine.run(message.content, {
           history,
           autoApprove: true,
           nonInteractive: true,
+          sessionId,
         })
       );
 
@@ -90,10 +92,7 @@ implements IEventHandler<ChatMessageCreatedEvent> {
 
       const result = capture.result!;
       const snapshots = this.snapshotAgentInvocations(result.agents);
-      await this.chatSessions.saveAgentInvocations(
-        message.sessionId,
-        snapshots
-      );
+      await this.chatSessions.saveAgentInvocations(sessionId, snapshots);
 
       const baseline = history.length + 2;
       const novelMessages = result.messages.slice(baseline);
@@ -142,17 +141,17 @@ implements IEventHandler<ChatMessageCreatedEvent> {
         responseCount,
       });
       this.appendLog("info", "Engine run completed", {
-        sessionId: message.sessionId,
+        sessionId,
         messageId: message.id,
         responseCount,
         durationMs: duration,
       });
     } catch (error) {
       const reason =
-                error instanceof Error ? error.message : DEFAULT_ENGINE_FAILURE_MESSAGE;
+        error instanceof Error ? error.message : DEFAULT_ENGINE_FAILURE_MESSAGE;
 
       this.logger.error(
-        `Engine execution failed for session ${ message.sessionId }: ${ reason }`,
+        `Engine execution failed for session ${ sessionId }: ${ reason }`,
         error instanceof Error ? error.stack : undefined
       );
 
@@ -160,20 +159,20 @@ implements IEventHandler<ChatMessageCreatedEvent> {
         error: reason,
       });
       this.appendLog("error", "Engine run failed", {
-        sessionId: message.sessionId,
+        sessionId,
         messageId: message.id,
         error: reason,
       });
 
       if (capture?.state.messageId) {
         await this.chatSessions.updateMessageContent(
-          message.sessionId,
+          sessionId,
           capture.state.messageId,
           DEFAULT_ENGINE_FAILURE_MESSAGE
         );
       } else {
         await this.appendAssistantMessage(
-          message.sessionId,
+          sessionId,
           DEFAULT_ENGINE_FAILURE_MESSAGE
         );
       }
