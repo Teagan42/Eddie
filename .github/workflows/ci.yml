@@ -230,6 +230,12 @@ jobs:
       - name: Install dependencies
         run: ./scripts/install.sh
 
+      - name: Cache license metadata
+        uses: actions/cache@v4
+        with:
+          path: .cache/license-check.json
+          key: ${{ runner.os }}-license-metadata-${{ hashFiles('package-lock.json') }}
+
       - name: Regenerate third-party notices
         run: npm run licenses:write
 
