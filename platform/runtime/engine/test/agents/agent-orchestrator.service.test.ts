@@ -455,6 +455,84 @@ describe("AgentOrchestratorService", () => {
     }
   });
 
+  it("lists allowed subagent ids in spawn tool schema", () => {
+    const runnerDeps = createRunnerDependencies();
+    const orchestrator = new AgentOrchestratorService(
+      { create: vi.fn() } as any,
+      { render: vi.fn(), flush: vi.fn() } as any,
+      { publish: vi.fn() } as any,
+      { write: vi.fn() } as any,
+      runnerDeps.runLoop,
+      runnerDeps.toolCallHandler,
+      runnerDeps.traceWriterDelegate,
+      createExecutionTreeTrackerFactory(),
+    );
+
+    const runtime = {
+      catalog: {
+        enableSubagents: true,
+        getManager: vi.fn(),
+        getAgent: vi.fn(),
+        getSubagent: vi.fn(),
+        listSubagents: vi.fn(),
+        listSpawnableSubagents: vi.fn().mockReturnValue([
+          {
+            id: "summariser",
+            definition: {
+              id: "summariser",
+              systemPrompt: "Summaries",
+              tools: [],
+            },
+            model: "gpt-summarise",
+            provider: { name: "openai", stream: vi.fn() },
+          },
+          {
+            id: "researcher",
+            definition: {
+              id: "researcher",
+              systemPrompt: "Research",
+              tools: [],
+            },
+            model: "gpt-research",
+            provider: { name: "openai", stream: vi.fn() },
+          },
+        ]),
+      },
+      hooks: { emitAsync: vi.fn() },
+      confirm: vi.fn(),
+      cwd: process.cwd(),
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      transcriptCompactor: undefined,
+      metrics: createMetrics(),
+    };
+
+    const descriptor = {
+      id: "manager",
+      definition: {
+        id: "manager",
+        systemPrompt: "Coordinate",
+        tools: [],
+      },
+      model: "gpt-planner",
+      provider: { name: "openai", stream: vi.fn() },
+    } as AgentRuntimeDescriptor;
+
+    const spawnSchema = (
+      orchestrator as unknown as {
+        createSpawnToolSchema: (
+          descriptor: AgentRuntimeDescriptor,
+          runtime: typeof runtime,
+        ) => { parameters?: unknown };
+      }
+    ).createSpawnToolSchema(descriptor, runtime);
+
+    const parameters = spawnSchema?.parameters as Record<string, unknown>;
+    const properties = parameters?.properties as Record<string, unknown>;
+    const agentProperty = properties?.agent as Record<string, unknown>;
+
+    expect(agentProperty?.enum).toEqual(["summariser", "researcher"]);
+  });
+
   it("omits spawn_subagent when the agent cannot delegate", () => {
     const runnerDeps = createRunnerDependencies();
     const orchestrator = new AgentOrchestratorService(

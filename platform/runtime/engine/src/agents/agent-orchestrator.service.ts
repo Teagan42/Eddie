@@ -294,7 +294,12 @@ export class AgentOrchestratorService {
       return undefined;
     }
 
-    const lines = subagents.map((agent) => {
+    const allowedIds = new Set<string>();
+    const lines: string[] = [];
+
+    for (const agent of subagents) {
+      allowedIds.add(agent.id);
+
       const nameLabel =
         agent.metadata?.name && agent.metadata.name !== agent.id
           ? `${agent.id} (${agent.metadata.name})`
@@ -302,8 +307,8 @@ export class AgentOrchestratorService {
       const description = agent.metadata?.description
         ? ` – ${ agent.metadata.description }`
         : "";
-      return `- ${ nameLabel }${ description }`;
-    });
+      lines.push(`- ${ nameLabel }${ description }`);
+    }
 
     const description = [
       "Spawn a configured subagent to handle part of the request.",
@@ -324,6 +329,7 @@ export class AgentOrchestratorService {
           agent: {
             type: "string",
             description: "Identifier of the configured subagent to launch.",
+            enum: Array.from(allowedIds.values()),
           },
           prompt: {
             type: "string",
