@@ -1,7 +1,6 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readCss } from "./read-css";
 
-const themeCss = readFileSync(resolve(process.cwd(), "src/styles/global.css"), "utf8");
+const themeCss = readCss("../../../../../platform/ui/src/theme/styles.css", import.meta.url);
 
 function readToken(name: string): string {
   const start = themeCss.indexOf(name);
