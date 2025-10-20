@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -38,8 +38,12 @@ function createTempDir(prefix: string) {
   return mkdtempSync(join(tmpdir(), prefix));
 }
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe('collectLicenses', () => {
-  it('extracts third-party dependencies from an npm lockfile', () => {
+  it('extracts third-party dependencies from an npm lockfile', async () => {
     const dir = createTempDir('license-lock-');
     const lockfilePath = join(dir, 'package-lock.json');
 
@@ -85,7 +89,7 @@ describe('collectLicenses', () => {
 
     writeFileSync(lockfilePath, JSON.stringify(lockfile, null, 2));
 
-    expect(collectLicenses(lockfilePath)).toEqual([
+    await expect(collectLicenses(lockfilePath)).resolves.toEqual([
       {
         name: 'alpha',
         version: '1.2.3',
@@ -107,7 +111,7 @@ describe('collectLicenses', () => {
     ]);
   });
 
-  it('reads package manifests to recover missing license metadata', () => {
+  it('reads package manifests to recover missing license metadata', async () => {
     const dir = createTempDir('license-lock-fallback-');
     const lockfilePath = join(dir, 'package-lock.json');
     const nodeModules = join(dir, 'node_modules');
@@ -135,12 +139,12 @@ describe('collectLicenses', () => {
 
     writeFileSync(lockfilePath, JSON.stringify(lockfile, null, 2));
 
-    expect(collectLicenses(lockfilePath, { rootDir: dir })).toEqual([
+    await expect(collectLicenses(lockfilePath, { rootDir: dir })).resolves.toEqual([
       { name: 'omega', version: '9.9.9', license: 'BSD-3-Clause', path: 'node_modules/omega' },
     ]);
   });
 
-  it('reads license files when package metadata omits the license field', () => {
+  it('reads license files when package metadata omits the license field', async () => {
     const dir = createTempDir('license-lock-license-fallback-');
     const lockfilePath = join(dir, 'package-lock.json');
     const nodeModules = join(dir, 'node_modules');
@@ -165,9 +169,138 @@ describe('collectLicenses', () => {
 
     writeFileSync(lockfilePath, JSON.stringify(lockfile, null, 2));
 
-    expect(collectLicenses(lockfilePath, { rootDir: dir })).toEqual([
+    await expect(collectLicenses(lockfilePath, { rootDir: dir })).resolves.toEqual([
       { name: 'theta', version: '1.0.0', license: 'MIT', path: 'node_modules/theta' },
     ]);
+  });
+
+  it('fetches license metadata from the npm registry when metadata is missing locally', async () => {
+    const dir = createTempDir('license-lock-registry-');
+    const lockfilePath = join(dir, 'package-lock.json');
+
+    const lockfile = {
+      name: 'fixture',
+      version: '0.0.0-test',
+      lockfileVersion: 3,
+      packages: {
+        '': { name: 'fixture', version: '0.0.0-test', license: 'BUSL-1.1' },
+        'node_modules/map-stream': {
+          name: 'map-stream',
+          version: '0.1.0',
+        },
+      },
+    };
+
+    writeFileSync(lockfilePath, JSON.stringify(lockfile, null, 2));
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ license: 'MIT' }),
+    });
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+
+    const result = await collectLicenses(lockfilePath, { rootDir: dir });
+
+    expect(result).toContainEqual({
+      name: 'map-stream',
+      version: '0.1.0',
+      license: 'MIT',
+      path: 'node_modules/map-stream',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to repository license metadata when the registry omits the license field', async () => {
+    const dir = createTempDir('license-lock-repo-');
+    const lockfilePath = join(dir, 'package-lock.json');
+
+    const lockfile = {
+      name: 'fixture',
+      version: '0.0.0-test',
+      lockfileVersion: 3,
+      packages: {
+        '': { name: 'fixture', version: '0.0.0-test', license: 'BUSL-1.1' },
+        'node_modules/union': {
+          name: 'union',
+          version: '0.5.0',
+        },
+      },
+    };
+
+    writeFileSync(lockfilePath, JSON.stringify(lockfile, null, 2));
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          repository: { type: 'git', url: 'git+https://github.com/substack/node-union.git' },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        text: async () => 'MIT License',
+      });
+
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+
+    const result = await collectLicenses(lockfilePath, { rootDir: dir });
+
+    expect(result).toContainEqual({
+      name: 'union',
+      version: '0.5.0',
+      license: 'MIT',
+      path: 'node_modules/union',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('reuses cached registry metadata to avoid repeat fetches', async () => {
+    const cachePath = join(process.cwd(), '.cache', 'license-check.json');
+    rmSync(cachePath, { force: true });
+
+    const dir = createTempDir('license-lock-cache-');
+    const lockfilePath = join(dir, 'package-lock.json');
+    const packageName = `cache-target-${Math.random().toString(36).slice(2, 8)}`;
+    const packagePath = `node_modules/${packageName}`;
+
+    const lockfile = {
+      name: 'fixture',
+      version: '0.0.0-test',
+      lockfileVersion: 3,
+      packages: {
+        '': { name: 'fixture', version: '0.0.0-test', license: 'BUSL-1.1' },
+        [packagePath]: {
+          name: packageName,
+          version: '1.0.0',
+        },
+      },
+    };
+
+    writeFileSync(lockfilePath, JSON.stringify(lockfile, null, 2));
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ license: 'MIT' }),
+    });
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+
+    const first = await collectLicenses(lockfilePath, { rootDir: dir });
+    expect(first).toContainEqual({
+      name: packageName,
+      version: '1.0.0',
+      license: 'MIT',
+      path: packagePath,
+    });
+
+    fetchMock.mockClear();
+
+    const second = await collectLicenses(lockfilePath, { rootDir: dir });
+    expect(second).toEqual(first);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(existsSync(cachePath)).toBe(true);
   });
 });
 
@@ -295,7 +428,7 @@ describe('renderNoticeMarkdown', () => {
 });
 
 describe('runLicenseCheck', () => {
-  it('writes the notice file when not in check mode', () => {
+  it('writes the notice file when not in check mode', async () => {
     const dir = createTempDir('license-run-');
     const lockfilePath = join(dir, 'package-lock.json');
     const outputPath = join(dir, 'THIRD_PARTY_NOTICES.md');
@@ -322,7 +455,7 @@ describe('runLicenseCheck', () => {
 
     writeFileSync(lockfilePath, JSON.stringify(lockfile, null, 2));
 
-    runLicenseCheck({
+    await runLicenseCheck({
       lockfilePath,
       outputPath,
       allowedLicenses: ['MIT', 'ISC', 'Apache-2.0', 'BUSL-1.1'],
@@ -333,7 +466,7 @@ describe('runLicenseCheck', () => {
     expect(content).toContain('## alpha@1.0.0');
   });
 
-  it('throws when check mode detects a stale notice file', () => {
+  it('throws when check mode detects a stale notice file', async () => {
     const dir = createTempDir('license-run-check-');
     const lockfilePath = join(dir, 'package-lock.json');
     const outputPath = join(dir, 'THIRD_PARTY_NOTICES.md');
@@ -361,7 +494,7 @@ describe('runLicenseCheck', () => {
     writeFileSync(lockfilePath, JSON.stringify(lockfile, null, 2));
     writeFileSync(outputPath, 'outdated');
 
-    expect(() =>
+    await expect(
       runLicenseCheck({
         lockfilePath,
         outputPath,
@@ -369,7 +502,7 @@ describe('runLicenseCheck', () => {
         rootDir: dir,
         check: true,
       }),
-    ).toThrowErrorMatchingInlineSnapshot(
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
       `[Error: THIRD_PARTY_NOTICES.md is out of date. Run the license check without --check to regenerate it.]`,
     );
   });
@@ -387,8 +520,8 @@ describe('repository automation', () => {
     expect(lintScript).not.toContain('lint:licenses');
   });
 
-  it('keeps third-party notices synchronized with the lockfile', () => {
-    expect(() =>
+  it('keeps third-party notices synchronized with the lockfile', async () => {
+    await expect(
       runLicenseCheck({
         lockfilePath: join(process.cwd(), 'package-lock.json'),
         outputPath: join(process.cwd(), 'THIRD_PARTY_NOTICES.md'),
@@ -396,7 +529,7 @@ describe('repository automation', () => {
         rootDir: process.cwd(),
         check: true,
       }),
-    ).not.toThrow();
+    ).resolves.toEqual({ updated: false });
   });
 });
 

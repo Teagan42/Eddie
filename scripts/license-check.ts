@@ -1,5 +1,5 @@
-import { readFileSync, existsSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 
 export interface PackageLicense {
   name: string;
@@ -129,7 +129,206 @@ function deriveNameFromPath(path: string) {
   return segments.replace(/\\/g, '/');
 }
 
-export function collectLicenses(lockfilePath: string, options: CollectOptions = {}): PackageLicense[] {
+const registryLicenseCache = new Map<string, string | null>();
+const repositoryLicenseCache = new Map<string, string | null>();
+const REPOSITORY_LICENSE_BRANCHES = ['main', 'master'] as const;
+const LICENSE_CACHE_PATH = join(process.cwd(), '.cache', 'license-check.json');
+const LICENSE_CACHE_DIR = dirname(LICENSE_CACHE_PATH);
+let licenseCacheLoaded = false;
+
+interface LicenseCacheData {
+  registry?: Record<string, string | null>;
+  repository?: Record<string, string | null>;
+}
+
+function ensureLicenseCacheLoaded() {
+  if (licenseCacheLoaded) {
+    return;
+  }
+
+  licenseCacheLoaded = true;
+
+  if (!existsSync(LICENSE_CACHE_PATH)) {
+    return;
+  }
+
+  try {
+    const raw = readFileSync(LICENSE_CACHE_PATH, 'utf8');
+    const data = JSON.parse(raw) as LicenseCacheData;
+
+    for (const [key, value] of Object.entries(data.registry ?? {})) {
+      registryLicenseCache.set(key, typeof value === 'string' ? value : null);
+    }
+
+    for (const [key, value] of Object.entries(data.repository ?? {})) {
+      repositoryLicenseCache.set(key, typeof value === 'string' ? value : null);
+    }
+  } catch {
+    registryLicenseCache.clear();
+    repositoryLicenseCache.clear();
+  }
+}
+
+function persistLicenseCache() {
+  const data: LicenseCacheData = {
+    registry: Object.fromEntries(registryLicenseCache.entries()),
+    repository: Object.fromEntries(repositoryLicenseCache.entries()),
+  };
+
+  if (!existsSync(LICENSE_CACHE_DIR)) {
+    mkdirSync(LICENSE_CACHE_DIR, { recursive: true });
+  }
+
+  writeFileSync(LICENSE_CACHE_PATH, JSON.stringify(data, null, 2));
+}
+
+interface RepositoryCoordinates {
+  host: string;
+  owner: string;
+  name: string;
+}
+
+function parseRepository(repository: unknown): RepositoryCoordinates | undefined {
+  const value =
+    typeof repository === 'string'
+      ? repository
+      : typeof repository === 'object' && repository && 'url' in repository
+        ? (repository as { url?: unknown }).url
+        : undefined;
+
+  if (typeof value !== 'string' || value.length === 0) {
+    return undefined;
+  }
+
+  let url = value.trim();
+  if (url.startsWith('git+')) {
+    url = url.slice(4);
+  }
+
+  if (url.startsWith('git://')) {
+    url = `https://${url.slice(6)}`;
+  }
+
+  if (url.endsWith('.git')) {
+    url = url.slice(0, -4);
+  }
+
+  try {
+    const parsed = new URL(url);
+    const segments = parsed.pathname.split('/').filter(Boolean);
+    if (segments.length < 2) {
+      return undefined;
+    }
+
+    return {
+      host: parsed.hostname,
+      owner: segments[0],
+      name: segments[1],
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+async function resolveLicenseFromRepository(repository: unknown): Promise<string | undefined> {
+  ensureLicenseCacheLoaded();
+  const coordinates = parseRepository(repository);
+  if (!coordinates) {
+    return undefined;
+  }
+
+  const cacheKey = `${coordinates.host}:${coordinates.owner}/${coordinates.name}`;
+  if (repositoryLicenseCache.has(cacheKey)) {
+    return repositoryLicenseCache.get(cacheKey) ?? undefined;
+  }
+
+  if (coordinates.host === 'github.com') {
+    const base = `https://raw.githubusercontent.com/${coordinates.owner}/${coordinates.name}`;
+
+    for (const branch of REPOSITORY_LICENSE_BRANCHES) {
+      for (const candidate of LICENSE_CANDIDATES) {
+        const url = `${base}/${branch}/${candidate}`;
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            continue;
+          }
+
+          const text = (await response.text()).trim();
+          const inferred = inferLicenseFromText(text);
+          if (inferred) {
+            repositoryLicenseCache.set(cacheKey, inferred);
+            persistLicenseCache();
+            return inferred;
+          }
+        } catch {
+          // ignore network errors and try next candidate
+        }
+      }
+    }
+  }
+
+  repositoryLicenseCache.set(cacheKey, null);
+  persistLicenseCache();
+  return undefined;
+}
+
+function encodePackageName(name: string): string {
+  return encodeURIComponent(name).replace(/^%40/, '@');
+}
+
+async function resolveLicenseFromRegistry(
+  name: string,
+  version: string,
+): Promise<string | undefined> {
+  ensureLicenseCacheLoaded();
+  const cacheKey = `${name}@${version}`;
+  if (registryLicenseCache.has(cacheKey)) {
+    return registryLicenseCache.get(cacheKey) ?? undefined;
+  }
+
+  const encodedName = encodePackageName(name);
+  const url = `https://registry.npmjs.org/${encodedName}/${version}`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        accept: 'application/vnd.npm.install-v1+json, application/json',
+      },
+    });
+
+    if (!response.ok) {
+      registryLicenseCache.set(cacheKey, null);
+      return undefined;
+    }
+
+    const manifest = (await response.json()) as {
+      license?: unknown;
+      licenses?: unknown;
+      repository?: unknown;
+    };
+
+    let license =
+      normalizeLicense(manifest.license) ?? normalizeLicense(manifest.licenses);
+
+    if (!license) {
+      license = await resolveLicenseFromRepository(manifest.repository);
+    }
+
+    registryLicenseCache.set(cacheKey, license ?? null);
+    persistLicenseCache();
+    return license ?? undefined;
+  } catch {
+    registryLicenseCache.set(cacheKey, null);
+    persistLicenseCache();
+    return undefined;
+  }
+}
+
+export async function collectLicenses(
+  lockfilePath: string,
+  options: CollectOptions = {},
+): Promise<PackageLicense[]> {
   const { rootDir } = options;
   const raw = readFileSync(lockfilePath, 'utf8');
   const data = JSON.parse(raw) as { packages?: Record<string, any> };
@@ -151,20 +350,25 @@ export function collectLicenses(lockfilePath: string, options: CollectOptions = 
 
     const name = typeof info.name === 'string' ? info.name : deriveNameFromPath(path);
     const version = typeof info.version === 'string' ? info.version : '0.0.0';
+    const packageRoot = rootDir ? join(rootDir, path) : undefined;
     let license = normalizeLicense(info.license) ?? normalizeLicense(info.licenses);
     if (!license) {
       license = resolveLicenseFromManifest(rootDir, path);
     }
 
-    license ??= 'UNKNOWN';
-
-    if (license === 'UNKNOWN' && rootDir) {
-      const fallbackText = readFirstExistingFile(join(rootDir, path), LICENSE_CANDIDATES);
+    if (!license && packageRoot) {
+      const fallbackText = readFirstExistingFile(packageRoot, LICENSE_CANDIDATES);
       const inferred = inferLicenseFromText(fallbackText);
       if (inferred) {
         license = inferred;
       }
     }
+
+    if (!license) {
+      license = await resolveLicenseFromRegistry(name, version);
+    }
+
+    license ??= 'UNKNOWN';
 
     const key = `${name}@${version}`;
     if (seen.has(key)) {
@@ -384,7 +588,9 @@ export function renderNoticeMarkdown(
   return lines.join('\n');
 }
 
-export function runLicenseCheck(options: RunLicenseCheckOptions): { updated: boolean } {
+export async function runLicenseCheck(
+  options: RunLicenseCheckOptions,
+): Promise<{ updated: boolean }> {
   const {
     lockfilePath,
     outputPath,
@@ -393,7 +599,7 @@ export function runLicenseCheck(options: RunLicenseCheckOptions): { updated: boo
     check = false,
   } = options;
 
-  const packages = collectLicenses(lockfilePath, { rootDir });
+  const packages = await collectLicenses(lockfilePath, { rootDir });
   assertLicensesAllowed(packages, allowedLicenses);
   const markdown = renderNoticeMarkdown(packages, { rootDir });
 
@@ -491,10 +697,10 @@ function parseArgs(argv: string[]): CliOptions {
   return { args: args as RunLicenseCheckOptions };
 }
 
-function main(argv = process.argv.slice(2)) {
+async function main(argv = process.argv.slice(2)) {
   try {
     const { args } = parseArgs(argv);
-    const { updated } = runLicenseCheck(args);
+    const { updated } = await runLicenseCheck(args);
     if (updated) {
       // eslint-disable-next-line no-console
       console.log(`Updated ${args.outputPath}`);
@@ -508,5 +714,5 @@ function main(argv = process.argv.slice(2)) {
 }
 
 if (process.argv[1] === new URL(import.meta.url).pathname) {
-  main();
+  void main();
 }
