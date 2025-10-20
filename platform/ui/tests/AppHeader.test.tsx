@@ -3,8 +3,8 @@ import { MemoryRouter } from "react-router-dom";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { AppHeader } from "../layout/AppHeader";
-import type { AppHeaderProps } from "../layout/AppHeader";
+import { AppHeader } from "../src/layout/AppHeader";
+import type { AppHeaderProps } from "../src/layout/AppHeader";
 
 const navigation: AppHeaderProps["navigation"] = [
   { to: "/", label: "Overview" },

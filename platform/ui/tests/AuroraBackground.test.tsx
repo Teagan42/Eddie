@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
 
-import { AuroraBackground } from '../common/AuroraBackground';
+import { AuroraBackground } from '../src/common/AuroraBackground';
 
 describe('AuroraBackground', () => {
   it('renders multiple animated layers to intensify motion', () => {

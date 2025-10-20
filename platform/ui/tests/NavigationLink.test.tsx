@@ -2,8 +2,8 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { render, screen } from "@testing-library/react";
 
-import { NavigationLink } from "../navigation/NavigationLink";
-import type { NavigationLinkProps } from "../navigation/NavigationLink";
+import { NavigationLink } from "../src/navigation/NavigationLink";
+import type { NavigationLinkProps } from "../src/navigation/NavigationLink";
 
 describe("NavigationLink", () => {
   it("marks the current route as active", () => {

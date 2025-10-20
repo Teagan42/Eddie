@@ -7,5 +7,16 @@
     "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo",
     "jsx": "react-jsx"
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "tests/AppHeader.test.tsx",
+    "tests/AuroraBackground.test.tsx",
+    "tests/index.test.ts",
+    "tests/JsonTreeView.test.tsx",
+    "tests/NavigationLink.test.tsx",
+    "tests/Panel.structure.test.ts",
+    "tests/Panel.test.tsx",
+    "tests/Panel.theming.test.ts"
+  ]
 }

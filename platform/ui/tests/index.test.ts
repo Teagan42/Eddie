@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import * as ui from "..";
+import * as ui from "../src";
 
-import * as common from "../common";
-import * as layout from "../layout";
-import * as navigation from "../navigation";
+import * as common from "../src/common";
+import * as layout from "../src/layout";
+import * as navigation from "../src/navigation";
 
 describe("@eddie/ui exports", () => {
   it("exposes grouped layout, navigation, and common primitives", () => {
