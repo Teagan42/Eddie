@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760935980395,
+  "lastUpdate": 1760936826677,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -460,6 +460,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 24.873,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1de62d0ffc327371018a643de1acbf58046f6bfb",
+          "message": "Align root npm scripts with consistent service aliases (#658)\n\n* refactor(root-scripts): generate service script expectations\n\n* chore: update script references for api aliases",
+          "timestamp": "2025-10-19T22:56:29-06:00",
+          "tree_id": "a87c043f07bd46c4f36189a79224aed89177a7b2",
+          "url": "https://github.com/Teagan42/Eddie/commit/1de62d0ffc327371018a643de1acbf58046f6bfb"
+        },
+        "date": 1760936826266,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 48.763,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 34.001,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.632,
             "unit": "ms",
             "extra": "[object Object]"
           }
