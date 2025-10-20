@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760928063426,
+  "lastUpdate": 1760929581392,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -292,6 +292,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 23.94,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "78adff77fad9e265f839866f22852daf0362d651",
+          "message": "feat: scaffold @eddie/ui workspace (#642)\n\n* refactor(ui): expose readonly metadata alias\n\n* fix(ui): align build scripts with tsconfig\n\n* Add demo fixture validation for API demo data module (#644)\n\n* refactor(demo-data): centralize fixture error creation\n\n* fix(api): use shared config store in demo data module\n\n* Revert \"Add demo fixture validation for API demo data module (#644)\" (#645)\n\nThis reverts commit 61a2db9e888f2dbe768517653606a9d0d6d9578f.\n\n* refactor(ui): reuse class combiner (#647)\n\n* refactor(ui): simplify navigation link class test (#650)",
+          "timestamp": "2025-10-20T02:55:47Z",
+          "tree_id": "a149cd0d23cde80b27eac0d07fbf1b0e6cab76f9",
+          "url": "https://github.com/Teagan42/Eddie/commit/78adff77fad9e265f839866f22852daf0362d651"
+        },
+        "date": 1760929581062,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 48.692,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 35.71,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 24.46,
             "unit": "ms",
             "extra": "[object Object]"
           }
