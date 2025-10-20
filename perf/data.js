@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760909021424,
+  "lastUpdate": 1760928063426,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -250,6 +250,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 23.594,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0f01bf54ff15216e15197034132f764b01cfb17d",
+          "message": "Codex/add invalid demo fixture and test cases (#646)\n\n* refactor(demo-data): centralize fixture error creation\n\n* fix(api): use shared config store in demo data module\n\n* fix(api): bootstrap demo data loader",
+          "timestamp": "2025-10-19T20:30:19-06:00",
+          "tree_id": "737fa691a40cd993452f0a404d8ab520751a3bf2",
+          "url": "https://github.com/Teagan42/Eddie/commit/0f01bf54ff15216e15197034132f764b01cfb17d"
+        },
+        "date": 1760928062687,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 51.355,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 31.357,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.94,
             "unit": "ms",
             "extra": "[object Object]"
           }
