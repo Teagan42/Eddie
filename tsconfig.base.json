@@ -35,6 +35,8 @@
       "@eddie/tokenizers/*": ["platform/core/tokenizers/src/*"],
       "@eddie/tools": ["platform/runtime/tools/src"],
       "@eddie/tools/*": ["platform/runtime/tools/src/*"],
+      "@eddie/ui": ["platform/ui/src"],
+      "@eddie/ui/*": ["platform/ui/src/*"],
       "@eddie/types": [
         "platform/core/types/dist/index.d.ts",
         "platform/core/types/src"
