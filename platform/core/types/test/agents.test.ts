@@ -55,6 +55,7 @@ describe("@eddie/types agent contracts", () => {
       description?: string;
       routingThreshold?: number;
       profileId?: string;
+      allowedSubagents?: string[];
     }>();
 
     expectTypeOf<AgentRuntimeDescriptor>().toMatchTypeOf<{
@@ -71,6 +72,7 @@ describe("@eddie/types agent contracts", () => {
       getAgent(id: string): AgentRuntimeDescriptor | undefined;
       getSubagent(id: string): AgentRuntimeDescriptor | undefined;
       listSubagents(): AgentRuntimeDescriptor[];
+      listSpawnableSubagents(agentId: string): AgentRuntimeDescriptor[];
     }>();
   });
 });

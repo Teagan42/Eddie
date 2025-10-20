@@ -187,15 +187,18 @@ describe("AgentOrchestratorService", () => {
       return descriptor;
     };
 
+    const listDescriptors = () =>
+      Array.from(descriptors.entries())
+        .filter(([key]) => key !== "manager")
+        .map(([, descriptor]) => descriptor);
+
     return {
       enableSubagents: options.enableSubagents ?? true,
       getManager: () => getOrCreate("manager"),
       getAgent: (id: string) => getOrCreate(id),
       getSubagent: (id: string) => (id === "manager" ? undefined : getOrCreate(id)),
-      listSubagents: () =>
-        Array.from(descriptors.entries())
-          .filter(([key]) => key !== "manager")
-          .map(([, descriptor]) => descriptor),
+      listSubagents: listDescriptors,
+      listSpawnableSubagents: listDescriptors,
     };
   };
 

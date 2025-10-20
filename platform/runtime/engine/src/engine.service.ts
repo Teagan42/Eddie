@@ -455,6 +455,11 @@ export class EngineService {
     tools: ToolDefinition[],
     context: PackedContext
   ): AgentRuntimeCatalog {
+    const cloneAllowed = (
+      allowed?: string[]
+    ): readonly string[] | undefined =>
+      typeof allowed !== "undefined" ? [...allowed] : undefined;
+
     const adapterCache = new Map<string, ProviderAdapter>();
     const getAdapter = (config: ProviderConfig): ProviderAdapter => {
       const key = JSON.stringify(config);
@@ -468,26 +473,38 @@ export class EngineService {
       return adapter;
     };
 
+    const managerConfig = cfg.agents?.manager;
     const managerInfo = this.resolveAgentProviderConfig(
       cfg,
-      cfg.agents?.manager?.provider,
-      cfg.agents?.manager?.model
+      managerConfig?.provider,
+      managerConfig?.model
     );
     const managerAdapter = getAdapter(managerInfo.providerConfig);
 
     const managerDefinition: AgentDefinition = {
       id: "manager",
-      systemPrompt: cfg.agents?.manager?.prompt ?? cfg.systemPrompt,
-      systemPromptTemplate: cfg.agents?.manager?.promptTemplate,
-      userPromptTemplate: cfg.agents?.manager?.defaultUserPromptTemplate,
-      variables: cfg.agents?.manager?.variables,
+      systemPrompt: managerConfig?.prompt ?? cfg.systemPrompt,
+      systemPromptTemplate: managerConfig?.promptTemplate,
+      userPromptTemplate: managerConfig?.defaultUserPromptTemplate,
+      variables: managerConfig?.variables,
       tools,
       context,
     };
 
-    const managerMetadata = managerInfo.profileId
-      ? { profileId: managerInfo.profileId }
-      : undefined;
+    const managerMetadataEntries: Record<string, unknown> = {};
+    if (managerInfo.profileId) {
+      managerMetadataEntries.profileId = managerInfo.profileId;
+    }
+    if (typeof managerConfig?.allowedSubagents !== "undefined") {
+      managerMetadataEntries.allowedSubagents = [
+        ...managerConfig.allowedSubagents,
+      ];
+    }
+
+    const managerMetadata =
+      Object.keys(managerMetadataEntries).length > 0
+        ? (managerMetadataEntries as AgentRuntimeDescriptor["metadata"])
+        : undefined;
 
     const managerDescriptor: AgentRuntimeDescriptor = {
       id: "manager",
@@ -498,6 +515,9 @@ export class EngineService {
     };
 
     const subagentMap = new Map<string, AgentRuntimeDescriptor>();
+    const spawnRules = new Map<string, readonly string[] | undefined>();
+
+    spawnRules.set("manager", cloneAllowed(managerConfig?.allowedSubagents));
 
     for (const subagent of cfg.agents.subagents) {
       const runtimeInfo = this.resolveAgentProviderConfig(
@@ -535,6 +555,9 @@ export class EngineService {
       if (runtimeInfo.profileId) {
         metadataEntries.profileId = runtimeInfo.profileId;
       }
+      if (typeof subagent.allowedSubagents !== "undefined") {
+        metadataEntries.allowedSubagents = [...subagent.allowedSubagents];
+      }
 
       const descriptor: AgentRuntimeDescriptor = {
         id: subagent.id,
@@ -548,12 +571,14 @@ export class EngineService {
       };
 
       subagentMap.set(subagent.id, descriptor);
+      spawnRules.set(subagent.id, cloneAllowed(subagent.allowedSubagents));
     }
 
     return new DefaultAgentRuntimeCatalog(
       managerDescriptor,
       subagentMap,
-      cfg.agents.enableSubagents
+      cfg.agents.enableSubagents,
+      spawnRules
     );
   }
 
@@ -692,7 +717,8 @@ class DefaultAgentRuntimeCatalog implements AgentRuntimeCatalog {
   constructor(
         private readonly manager: AgentRuntimeDescriptor,
         private readonly subagents: Map<string, AgentRuntimeDescriptor>,
-        readonly enableSubagents: boolean
+        readonly enableSubagents: boolean,
+        private readonly spawnRules: Map<string, readonly string[] | undefined>
   ) { }
 
   getManager(): AgentRuntimeDescriptor {
@@ -713,5 +739,26 @@ class DefaultAgentRuntimeCatalog implements AgentRuntimeCatalog {
 
   listSubagents(): AgentRuntimeDescriptor[] {
     return Array.from(this.subagents.values());
+  }
+
+  listSpawnableSubagents(agentId: string): AgentRuntimeDescriptor[] {
+    const allowed = this.spawnRules.get(agentId);
+    if (typeof allowed === "undefined") {
+      return this.listSubagents();
+    }
+
+    if (allowed.length === 0) {
+      return [];
+    }
+
+    const results: AgentRuntimeDescriptor[] = [];
+    for (const subagentId of allowed) {
+      const descriptor = this.subagents.get(subagentId);
+      if (descriptor) {
+        results.push(descriptor);
+      }
+    }
+
+    return results;
   }
 }

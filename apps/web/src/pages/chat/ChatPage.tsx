@@ -1287,16 +1287,20 @@ export function ChatPage(): JSX.Element {
   const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
   const lastMessage = messagesWithMetadata[messagesWithMetadata.length - 1] ?? null;
   const agentActivityState = useMemo<AgentActivityState>(() => {
-    if (sendMessageMutation.isPending) {
-      return 'sending';
-    }
-
     if (sendMessageMutation.isError) {
       return 'error';
     }
 
-    if (hasStreamingReasoning && agentStreamActivity === 'idle') {
+    if (agentStreamActivity !== 'idle') {
+      return agentStreamActivity;
+    }
+
+    if (hasStreamingReasoning) {
       return 'thinking';
+    }
+
+    if (sendMessageMutation.isPending) {
+      return 'sending';
     }
 
     return agentStreamActivity;

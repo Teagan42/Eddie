@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { StreamEvent, ToolResult } from "@eddie/types";
+import type { StreamEvent, ToolResult, ToolSchema } from "@eddie/types";
 import { AgentOrchestratorService } from "../../src/agents/agent-orchestrator.service";
 import { AgentRunner } from "../../src/agents/agent-runner";
 import type { AgentInvocation } from "../../src/agents/agent-invocation";
@@ -97,6 +97,7 @@ describe("AgentOrchestratorService", () => {
       getAgent: () => descriptor,
       getSubagent: () => undefined,
       listSubagents: () => [],
+      listSpawnableSubagents: () => [],
     };
 
     const runtime = {
@@ -201,6 +202,7 @@ describe("AgentOrchestratorService", () => {
       getAgent: () => descriptor,
       getSubagent: () => undefined,
       listSubagents: () => [],
+      listSpawnableSubagents: () => [],
     };
 
     const runtime = {
@@ -305,6 +307,18 @@ describe("AgentOrchestratorService", () => {
             provider: { name: "openai", stream: vi.fn() },
           },
         ],
+        listSpawnableSubagents: vi.fn().mockReturnValue([
+          {
+            id: "summariser",
+            definition: {
+              id: "summariser",
+              systemPrompt: "Summaries",
+              tools: [],
+            },
+            model: "gpt-summarise",
+            provider: { name: "openai", stream: vi.fn() },
+          },
+        ]),
       },
       hooks: { emitAsync: vi.fn() },
       confirm: vi.fn(),
@@ -314,11 +328,25 @@ describe("AgentOrchestratorService", () => {
       metrics: createMetrics(),
     };
 
+    const descriptor = {
+      id: "manager",
+      definition: {
+        id: "manager",
+        systemPrompt: "Coordinate",
+        tools: [],
+      },
+      model: "gpt-planner",
+      provider: { name: "openai", stream: vi.fn() },
+    } as AgentRuntimeDescriptor;
+
     const spawnSchema = (
       orchestrator as unknown as {
-        createSpawnToolSchema: (runtime: typeof runtime) => { outputSchema?: unknown };
+        createSpawnToolSchema: (
+          descriptor: AgentRuntimeDescriptor,
+          runtime: typeof runtime
+        ) => { outputSchema?: unknown };
       }
-    ).createSpawnToolSchema(runtime);
+    ).createSpawnToolSchema(descriptor, runtime);
 
     expect(spawnSchema?.outputSchema).toMatchObject({
       type: "json_schema",
@@ -427,6 +455,136 @@ describe("AgentOrchestratorService", () => {
     }
   });
 
+  it("lists allowed subagent ids in spawn tool schema", () => {
+    const runnerDeps = createRunnerDependencies();
+    const orchestrator = new AgentOrchestratorService(
+      { create: vi.fn() } as any,
+      { render: vi.fn(), flush: vi.fn() } as any,
+      { publish: vi.fn() } as any,
+      { write: vi.fn() } as any,
+      runnerDeps.runLoop,
+      runnerDeps.toolCallHandler,
+      runnerDeps.traceWriterDelegate,
+      createExecutionTreeTrackerFactory(),
+    );
+
+    const runtime = {
+      catalog: {
+        enableSubagents: true,
+        getManager: vi.fn(),
+        getAgent: vi.fn(),
+        getSubagent: vi.fn(),
+        listSubagents: vi.fn(),
+        listSpawnableSubagents: vi.fn().mockReturnValue([
+          {
+            id: "summariser",
+            definition: {
+              id: "summariser",
+              systemPrompt: "Summaries",
+              tools: [],
+            },
+            model: "gpt-summarise",
+            provider: { name: "openai", stream: vi.fn() },
+          },
+          {
+            id: "researcher",
+            definition: {
+              id: "researcher",
+              systemPrompt: "Research",
+              tools: [],
+            },
+            model: "gpt-research",
+            provider: { name: "openai", stream: vi.fn() },
+          },
+        ]),
+      },
+      hooks: { emitAsync: vi.fn() },
+      confirm: vi.fn(),
+      cwd: process.cwd(),
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      transcriptCompactor: undefined,
+      metrics: createMetrics(),
+    };
+
+    const descriptor = {
+      id: "manager",
+      definition: {
+        id: "manager",
+        systemPrompt: "Coordinate",
+        tools: [],
+      },
+      model: "gpt-planner",
+      provider: { name: "openai", stream: vi.fn() },
+    } as AgentRuntimeDescriptor;
+
+    const spawnSchema = (
+      orchestrator as unknown as {
+        createSpawnToolSchema: (
+          descriptor: AgentRuntimeDescriptor,
+          runtime: typeof runtime,
+        ) => { parameters?: unknown };
+      }
+    ).createSpawnToolSchema(descriptor, runtime);
+
+    const parameters = spawnSchema?.parameters as Record<string, unknown>;
+    const properties = parameters?.properties as Record<string, unknown>;
+    const agentProperty = properties?.agent as Record<string, unknown>;
+
+    expect(agentProperty?.enum).toEqual(["summariser", "researcher"]);
+  });
+
+  it("omits spawn_subagent when the agent cannot delegate", () => {
+    const runnerDeps = createRunnerDependencies();
+    const orchestrator = new AgentOrchestratorService(
+      { create: vi.fn() } as any,
+      { render: vi.fn(), flush: vi.fn() } as any,
+      { publish: vi.fn() } as any,
+      { write: vi.fn() } as any,
+      runnerDeps.runLoop,
+      runnerDeps.toolCallHandler,
+      runnerDeps.traceWriterDelegate,
+      createExecutionTreeTrackerFactory(),
+    );
+
+    const runtime: any = {
+      catalog: {
+        enableSubagents: true,
+        getManager: vi.fn(),
+        getAgent: vi.fn(),
+        getSubagent: vi.fn(),
+        listSubagents: () => [],
+        listSpawnableSubagents: vi.fn().mockReturnValue([]),
+      },
+      hooks: { emitAsync: vi.fn() },
+      confirm: vi.fn(),
+      cwd: process.cwd(),
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      transcriptCompactor: undefined,
+      metrics: createMetrics(),
+    };
+
+    const descriptor = {
+      id: "manager",
+      definition: {
+        id: "manager",
+        systemPrompt: "Coordinate",
+        tools: [],
+      },
+      model: "gpt-planner",
+      provider: { name: "openai", stream: vi.fn() },
+    } as AgentRuntimeDescriptor;
+
+    const spawnSchema = (orchestrator as unknown as {
+      createSpawnToolSchema: (
+        agent: AgentRuntimeDescriptor,
+        runtime: typeof runtime,
+      ) => ToolSchema | undefined;
+    }).createSpawnToolSchema(descriptor, runtime);
+
+    expect(runtime.catalog.listSpawnableSubagents).toHaveBeenCalledWith(descriptor.id);
+    expect(spawnSchema).toBeUndefined();
+  });
+
   it("rejects hook-driven agent runs when subagents are disabled", async () => {
     const agentDefinition = {
       id: "agent-1",
@@ -473,6 +631,7 @@ describe("AgentOrchestratorService", () => {
       getAgent: vi.fn().mockReturnValue(descriptor),
       getSubagent: () => undefined,
       listSubagents: () => [],
+      listSpawnableSubagents: () => [],
     };
 
     let registeredRunner: ((options: {
@@ -632,17 +791,22 @@ describe("AgentOrchestratorService", () => {
       createExecutionTreeTrackerFactory(),
     );
 
+    const allowedDescriptor = {
+      id: subagentDefinition.id,
+      definition: subagentDefinition,
+      model: "gpt-sub",
+      provider: { name: "openai", stream: vi.fn() },
+      metadata: { name: "Helper" },
+    } satisfies AgentRuntimeDescriptor;
+
     const runtime = {
       catalog: {
         enableSubagents: true,
-        getSubagent: vi.fn().mockReturnValue({
-          id: subagentDefinition.id,
-          definition: subagentDefinition,
-          model: "gpt-sub",
-          provider: { name: "openai", stream: vi.fn() },
-          metadata: { name: "Helper" },
-        }),
+        getSubagent: vi.fn().mockReturnValue(allowedDescriptor),
         listSubagents: vi.fn().mockReturnValue([]),
+        listSpawnableSubagents: vi
+          .fn()
+          .mockReturnValue([allowedDescriptor]),
       },
       hooks: { emitAsync: vi.fn().mockResolvedValue({ results: [] }) },
       confirm: vi.fn(),
@@ -703,6 +867,432 @@ describe("AgentOrchestratorService", () => {
     });
   });
 
+  it("rejects spawn requests for subagents outside the allow list", async () => {
+    const agentDefinition = {
+      id: "agent-1",
+      systemPrompt: "You are helpful.",
+      tools: [],
+    };
+
+    const subagentDefinition = {
+      id: "subagent-1",
+      systemPrompt: "Assist with delegated work.",
+      tools: [],
+    };
+
+    const childInvocation = {
+      definition: subagentDefinition,
+      prompt: "Handle the delegated task",
+      context: { files: [], totalBytes: 0, text: "" },
+      history: [],
+      messages: [
+        { role: "system", content: subagentDefinition.systemPrompt },
+        { role: "user", content: "   Please help with the delegated task.   " },
+      ],
+      children: [],
+      toolRegistry: { schemas: () => [], execute: vi.fn() },
+      setSpawnHandler: vi.fn(),
+      setRuntime: vi.fn(),
+      addChild: vi.fn(),
+      spawn: vi.fn(),
+      isRoot: false,
+      id: subagentDefinition.id,
+    } as unknown as AgentInvocation;
+
+    const invocation = {
+      definition: agentDefinition,
+      prompt: "List files",
+      context: { files: [], totalBytes: 0, text: "" },
+      history: [],
+      messages: [
+        { role: "system", content: agentDefinition.systemPrompt },
+        { role: "user", content: "List files" },
+      ],
+      children: [childInvocation],
+      toolRegistry: { schemas: () => [], execute: vi.fn() },
+      setSpawnHandler: vi.fn(),
+      setRuntime: vi.fn(),
+      addChild: vi.fn(),
+      spawn: vi.fn(),
+      isRoot: true,
+      id: agentDefinition.id,
+    } as unknown as AgentInvocation;
+
+    const traceWriter = { write: vi.fn() };
+    const runnerDeps = createRunnerDependencies();
+    const orchestrator = new AgentOrchestratorService(
+      { create: vi.fn().mockResolvedValue(childInvocation) } as any,
+      { render: vi.fn(), flush: vi.fn() } as any,
+      { publish: vi.fn() } as any,
+      traceWriter as any,
+      runnerDeps.runLoop,
+      runnerDeps.toolCallHandler,
+      runnerDeps.traceWriterDelegate,
+      createExecutionTreeTrackerFactory(),
+    );
+
+    const runtime = {
+      catalog: {
+        enableSubagents: true,
+        getSubagent: vi.fn().mockReturnValue({
+          id: subagentDefinition.id,
+          definition: subagentDefinition,
+          model: "gpt-sub",
+          provider: { name: "openai", stream: vi.fn() },
+        }),
+        listSubagents: vi.fn().mockReturnValue([]),
+        listSpawnableSubagents: vi.fn().mockReturnValue([]),
+      },
+      hooks: { emitAsync: vi.fn().mockResolvedValue({ results: [] }) },
+      confirm: vi.fn(),
+      cwd: process.cwd(),
+      logger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      traceAppend: true,
+      tracePath: undefined,
+      metrics: createMetrics(),
+    } as unknown as Parameters<
+      AgentOrchestratorService["runAgent"]
+    >[1];
+
+    const parentDescriptor = {
+      id: agentDefinition.id,
+      definition: agentDefinition,
+      model: "gpt-root",
+      provider: { name: "openai", stream: vi.fn() },
+    } satisfies AgentRuntimeDescriptor;
+
+    await expect(
+      (orchestrator as unknown as {
+        executeSpawnTool(
+          invocation: AgentInvocation,
+          runtime: typeof runtime,
+          event: Extract<StreamEvent, { type: "tool_call" }>,
+          parentDescriptor: AgentRuntimeDescriptor,
+        ): Promise<ToolResult>;
+      }).executeSpawnTool(
+        invocation,
+        runtime,
+        {
+          type: "tool_call",
+          name: "spawn_subagent",
+          id: "call-unauthorised",
+          arguments: {
+            agent: subagentDefinition.id,
+            prompt: "Handle the delegated task",
+          },
+        },
+        parentDescriptor,
+      ),
+    ).rejects.toThrowError(
+      /not allowed to spawn subagent "subagent-1"/i,
+    );
+
+    expect(runtime.catalog.listSpawnableSubagents).toHaveBeenCalledWith(
+      parentDescriptor.id,
+    );
+  });
+
+  it("allows hooks to broaden the spawn allow list", async () => {
+    const agentDefinition = {
+      id: "agent-manager",
+      systemPrompt: "You are helpful.",
+      tools: [],
+    };
+
+    const allowedDescriptor = {
+      id: "assistant-analyst",
+      definition: {
+        id: "assistant-analyst",
+        systemPrompt: "Analyse data.",
+        tools: [],
+      },
+      model: "gpt-analyst",
+      provider: { name: "openai", stream: vi.fn() },
+      metadata: { name: "Analyst" },
+    } satisfies AgentRuntimeDescriptor;
+
+    const delegatedDefinition = {
+      id: "assistant-writer",
+      systemPrompt: "Write copy.",
+      tools: [],
+    };
+
+    const childInvocation = {
+      definition: delegatedDefinition,
+      prompt: "Draft release notes",
+      context: { files: [], totalBytes: 0, text: "" },
+      history: [],
+      messages: [
+        { role: "system", content: delegatedDefinition.systemPrompt },
+        { role: "user", content: "Draft release notes" },
+        { role: "assistant", content: "Completed successfully." },
+      ],
+      children: [],
+      toolRegistry: { schemas: () => [], execute: vi.fn() },
+      setSpawnHandler: vi.fn(),
+      setRuntime: vi.fn(),
+      addChild: vi.fn(),
+      spawn: vi.fn(),
+      id: delegatedDefinition.id,
+      isRoot: false,
+    } as unknown as AgentInvocation;
+
+    const invocation = {
+      definition: agentDefinition,
+      prompt: "Coordinate work",
+      context: { files: [], totalBytes: 0, text: "" },
+      history: [],
+      messages: [
+        { role: "system", content: agentDefinition.systemPrompt },
+        { role: "user", content: "Coordinate work" },
+      ],
+      children: [childInvocation],
+      toolRegistry: { schemas: () => [], execute: vi.fn() },
+      setSpawnHandler: vi.fn(),
+      setRuntime: vi.fn(),
+      addChild: vi.fn(),
+      spawn: vi.fn().mockResolvedValue(childInvocation),
+      isRoot: true,
+      id: agentDefinition.id,
+    } as unknown as AgentInvocation;
+
+    const traceWriter = { write: vi.fn() };
+    const runnerDeps = createRunnerDependencies();
+    const orchestrator = new AgentOrchestratorService(
+      { create: vi.fn().mockResolvedValue(childInvocation) } as any,
+      { render: vi.fn(), flush: vi.fn() } as any,
+      { publish: vi.fn() } as any,
+      traceWriter as any,
+      runnerDeps.runLoop,
+      runnerDeps.toolCallHandler,
+      runnerDeps.traceWriterDelegate,
+      createExecutionTreeTrackerFactory(),
+    );
+
+    const runtime = {
+      catalog: {
+        enableSubagents: true,
+        getSubagent: vi.fn().mockReturnValue({
+          id: delegatedDefinition.id,
+          definition: delegatedDefinition,
+          model: "gpt-writer",
+          provider: { name: "openai", stream: vi.fn() },
+          metadata: { name: "Writer" },
+        }),
+        listSubagents: vi.fn().mockReturnValue([allowedDescriptor]),
+        listSpawnableSubagents: vi
+          .fn()
+          .mockReturnValue([allowedDescriptor]),
+      },
+      hooks: {
+        emitAsync: vi.fn().mockResolvedValue({
+          results: [
+            {
+              allowedSubagents: [
+                allowedDescriptor.id,
+                delegatedDefinition.id,
+              ],
+            },
+          ],
+        }),
+      },
+      confirm: vi.fn(),
+      cwd: process.cwd(),
+      logger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      traceAppend: true,
+      tracePath: undefined,
+      metrics: createMetrics(),
+    } as unknown as Parameters<
+      AgentOrchestratorService["runAgent"]
+    >[1];
+
+    const parentDescriptor = {
+      id: agentDefinition.id,
+      definition: agentDefinition,
+      model: "gpt-manager",
+      provider: { name: "openai", stream: vi.fn() },
+    } satisfies AgentRuntimeDescriptor;
+
+    const result = await (orchestrator as unknown as {
+      executeSpawnTool(
+        invocation: AgentInvocation,
+        runtime: typeof runtime,
+        event: Extract<StreamEvent, { type: "tool_call" }> ,
+        parentDescriptor: AgentRuntimeDescriptor,
+      ): Promise<ToolResult>;
+    }).executeSpawnTool(
+      invocation,
+      runtime,
+      {
+        type: "tool_call",
+        name: "spawn_subagent",
+        id: "call-allowlist-hook",
+        arguments: {
+          agent: delegatedDefinition.id,
+          prompt: "Draft release notes",
+        },
+      },
+      parentDescriptor,
+    );
+
+    expect(invocation.spawn).toHaveBeenCalledWith(
+      expect.objectContaining(delegatedDefinition),
+      expect.objectContaining({ prompt: "Draft release notes" }),
+    );
+    expect(result.metadata).toMatchObject({
+      agentId: delegatedDefinition.id,
+      parentAgentId: parentDescriptor.id,
+    });
+
+    const payload = (
+      runtime.hooks.emitAsync as unknown as vi.Mock
+    ).mock.calls[0][1] as Record<string, unknown>;
+
+    expect(payload.allowedTargets).toEqual([
+      expect.objectContaining({ id: allowedDescriptor.id }),
+    ]);
+    expect(
+      runtime.catalog.listSpawnableSubagents,
+    ).toHaveBeenCalledWith(parentDescriptor.id);
+  });
+
+  it("rejects hook overrides that reference unknown subagents", async () => {
+    const agentDefinition = {
+      id: "agent-manager",
+      systemPrompt: "You are helpful.",
+      tools: [],
+    };
+
+    const delegatedDefinition = {
+      id: "assistant-writer",
+      systemPrompt: "Write copy.",
+      tools: [],
+    };
+
+    const childInvocation = {
+      definition: delegatedDefinition,
+      prompt: "Draft release notes",
+      context: { files: [], totalBytes: 0, text: "" },
+      history: [],
+      messages: [
+        { role: "system", content: delegatedDefinition.systemPrompt },
+        { role: "user", content: "Draft release notes" },
+      ],
+      children: [],
+      toolRegistry: { schemas: () => [], execute: vi.fn() },
+      setSpawnHandler: vi.fn(),
+      setRuntime: vi.fn(),
+      addChild: vi.fn(),
+      spawn: vi.fn(),
+      id: delegatedDefinition.id,
+      isRoot: false,
+    } as unknown as AgentInvocation;
+
+    const invocation = {
+      definition: agentDefinition,
+      prompt: "Coordinate work",
+      context: { files: [], totalBytes: 0, text: "" },
+      history: [],
+      messages: [
+        { role: "system", content: agentDefinition.systemPrompt },
+        { role: "user", content: "Coordinate work" },
+      ],
+      children: [childInvocation],
+      toolRegistry: { schemas: () => [], execute: vi.fn() },
+      setSpawnHandler: vi.fn(),
+      setRuntime: vi.fn(),
+      addChild: vi.fn(),
+      spawn: vi.fn(),
+      isRoot: true,
+      id: agentDefinition.id,
+    } as unknown as AgentInvocation;
+
+    const traceWriter = { write: vi.fn() };
+    const runnerDeps = createRunnerDependencies();
+    const orchestrator = new AgentOrchestratorService(
+      { create: vi.fn().mockResolvedValue(childInvocation) } as any,
+      { render: vi.fn(), flush: vi.fn() } as any,
+      { publish: vi.fn() } as any,
+      traceWriter as any,
+      runnerDeps.runLoop,
+      runnerDeps.toolCallHandler,
+      runnerDeps.traceWriterDelegate,
+      createExecutionTreeTrackerFactory(),
+    );
+
+    const runtime = {
+      catalog: {
+        enableSubagents: true,
+        getSubagent: vi.fn().mockReturnValue({
+          id: delegatedDefinition.id,
+          definition: delegatedDefinition,
+          model: "gpt-writer",
+          provider: { name: "openai", stream: vi.fn() },
+          metadata: { name: "Writer" },
+        }),
+        listSubagents: vi.fn().mockReturnValue([]),
+        listSpawnableSubagents: vi
+          .fn()
+          .mockReturnValue([]),
+      },
+      hooks: {
+        emitAsync: vi.fn().mockResolvedValue({
+          results: [
+            {
+              allowedSubagents: ["ghost-agent"],
+            },
+          ],
+        }),
+      },
+      confirm: vi.fn(),
+      cwd: process.cwd(),
+      logger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      traceAppend: true,
+      tracePath: undefined,
+      metrics: createMetrics(),
+    } as unknown as Parameters<
+      AgentOrchestratorService["runAgent"]
+    >[1];
+
+    const parentDescriptor = {
+      id: agentDefinition.id,
+      definition: agentDefinition,
+      model: "gpt-manager",
+      provider: { name: "openai", stream: vi.fn() },
+    } satisfies AgentRuntimeDescriptor;
+
+    await expect(
+      (orchestrator as unknown as {
+        executeSpawnTool(
+          invocation: AgentInvocation,
+          runtime: typeof runtime,
+          event: Extract<StreamEvent, { type: "tool_call" }> ,
+          parentDescriptor: AgentRuntimeDescriptor,
+        ): Promise<ToolResult>;
+      }).executeSpawnTool(
+        invocation,
+        runtime,
+        {
+          type: "tool_call",
+          name: "spawn_subagent",
+          id: "call-unknown-hook",
+          arguments: {
+            agent: delegatedDefinition.id,
+            prompt: "Draft release notes",
+          },
+        },
+        parentDescriptor,
+      ),
+    ).rejects.toThrowError(
+      /Hook attempted to allow unknown subagent "ghost-agent"\./,
+    );
+
+    expect(invocation.spawn).not.toHaveBeenCalled();
+    expect(
+      runtime.catalog.listSpawnableSubagents,
+    ).toHaveBeenCalledWith(parentDescriptor.id);
+  });
+
   it("merges cached compactor history with live transcript for spawn results", async () => {
     const agentDefinition = {
       id: "agent-1",
@@ -720,6 +1310,14 @@ describe("AgentOrchestratorService", () => {
       { role: "system", content: subagentDefinition.systemPrompt },
       { role: "user", content: "   Please help with the delegated task.   " },
     ];
+
+    const allowedDescriptor = {
+      id: subagentDefinition.id,
+      definition: subagentDefinition,
+      model: "gpt-sub",
+      provider: { name: "openai", stream: vi.fn() },
+      metadata: { name: "Helper" },
+    } satisfies AgentRuntimeDescriptor;
 
     const childInvocation = {
       definition: subagentDefinition,
@@ -792,14 +1390,11 @@ describe("AgentOrchestratorService", () => {
     const runtime = {
       catalog: {
         enableSubagents: true,
-        getSubagent: vi.fn().mockReturnValue({
-          id: subagentDefinition.id,
-          definition: subagentDefinition,
-          model: "gpt-sub",
-          provider: { name: "openai", stream: vi.fn() },
-          metadata: { name: "Helper" },
-        }),
+        getSubagent: vi.fn().mockReturnValue(allowedDescriptor),
         listSubagents: vi.fn().mockReturnValue([]),
+        listSpawnableSubagents: vi
+          .fn()
+          .mockReturnValue([allowedDescriptor]),
       },
       hooks: { emitAsync: vi.fn().mockResolvedValue({ results: [] }) },
       confirm: vi.fn(),
@@ -947,6 +1542,7 @@ describe("AgentOrchestratorService", () => {
         getAgent: vi.fn(),
         getSubagent: vi.fn(),
         listSubagents: vi.fn().mockReturnValue([]),
+        listSpawnableSubagents: vi.fn().mockReturnValue([]),
       },
       hooks: { emitAsync: vi.fn().mockResolvedValue({ results: [] }) },
       confirm: vi.fn(),
@@ -1020,6 +1616,7 @@ describe("AgentOrchestratorService", () => {
         getAgent: vi.fn(),
         getSubagent: vi.fn(),
         listSubagents: () => [],
+        listSpawnableSubagents: () => [],
       },
       hooks: { emitAsync: vi.fn().mockResolvedValue({}) },
       confirm: vi.fn(),
@@ -1089,6 +1686,7 @@ describe("AgentOrchestratorService", () => {
         getAgent: vi.fn(),
         getSubagent: vi.fn(),
         listSubagents: () => [],
+        listSpawnableSubagents: () => [],
       },
       confirm: vi.fn(),
       cwd: process.cwd(),

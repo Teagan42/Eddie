@@ -407,6 +407,10 @@ const AGENT_MANAGER_SCHEMA: JSONSchema7 = {
     },
     model: { type: "string" },
     provider: AGENT_PROVIDER_CONFIG_SCHEMA,
+    allowedSubagents: {
+      type: "array",
+      items: { type: "string", minLength: 1 },
+    },
   },
 };
 
@@ -436,6 +440,10 @@ const AGENT_DEFINITION_SCHEMA: JSONSchema7 = {
     routingThreshold: { type: "number" },
     model: { type: "string" },
     provider: AGENT_PROVIDER_CONFIG_SCHEMA,
+    allowedSubagents: {
+      type: "array",
+      items: { type: "string", minLength: 1 },
+    },
   },
 };
 

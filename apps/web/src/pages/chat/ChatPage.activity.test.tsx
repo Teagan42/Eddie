@@ -1,6 +1,18 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import { QueryClient } from "@tanstack/react-query";
+import * as reactQuery from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@tanstack/react-query", async () => {
+  const actual = await vi.importActual<typeof import("@tanstack/react-query")>(
+    "@tanstack/react-query"
+  );
+
+  return {
+    ...actual,
+    useMutation: vi.fn(actual.useMutation),
+  };
+});
 import { createChatPageRenderer } from "./test-utils";
 
 const listSessionsMock = vi.fn();
@@ -211,5 +223,59 @@ describe("ChatPage agent activity indicator", () => {
     await expect(
       screen.findByText(/agent is thinking/i, undefined, { timeout: 100 })
     ).rejects.toThrow();
+  });
+
+  it("prefers agent stream activity over pending send mutation state", async () => {
+    const actualReactQuery = await vi.importActual<typeof import("@tanstack/react-query")>(
+      "@tanstack/react-query"
+    );
+    const useMutationMock = vi.mocked(reactQuery.useMutation);
+    const callActualUseMutation = ((...args) =>
+      actualReactQuery.useMutation(
+        ...(
+          args as Parameters<
+            (typeof actualReactQuery)["useMutation"]
+          >
+        )
+      )) as (typeof actualReactQuery)["useMutation"];
+    const matchesSendMessageMutation = (options: unknown) =>
+      Boolean(
+        options &&
+          typeof options === "object" &&
+          "mutationFn" in options &&
+          typeof (options as { mutationFn?: unknown }).mutationFn === "function" &&
+          ((options as { mutationFn?: () => unknown }).mutationFn?.toString() ?? "").includes(
+            "createMessage"
+          )
+      );
+
+    useMutationMock.mockImplementation(((...args) => {
+      const result = callActualUseMutation(...args);
+      const [options] = args;
+
+      if (matchesSendMessageMutation(options)) {
+        return { ...result, isPending: true };
+      }
+
+      return result;
+    }) as (typeof actualReactQuery)["useMutation"]);
+
+    try {
+      renderChatPage();
+
+      await waitFor(() => {
+        expect(agentActivityHandler).toBeTypeOf("function");
+      });
+
+      await waitForSessionsLoaded();
+
+      await act(async () => {
+        agentActivityHandler?.({ sessionId: "session-1", state: "thinking" });
+      });
+
+      await expectIndicatorText(/agent is thinking/i);
+    } finally {
+      useMutationMock.mockImplementation(callActualUseMutation);
+    }
   });
 });
