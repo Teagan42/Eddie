@@ -1,0 +1,14 @@
+{
+  "runtime": {
+    "preset": "demo-web",
+    "projectDir": "examples/demo-agent-screenshots",
+    "environment": {
+      "EDDIE_SCREENSHOT_MODE": "true"
+    },
+    "notes": [
+      "Run from the repository root",
+      "Start the CLI with --preset demo-web to replay these fixtures",
+      "Screenshots capture the chat timeline, trace explorer, and log console"
+    ]
+  }
+}

@@ -21,6 +21,20 @@ const LOG_LEVEL_SCHEMA: JSONSchema7 = {
   enum: ["silent", "info", "debug"],
 };
 
+const DEMO_SEED_FILE_SCHEMA: JSONSchema7 = { type: "string" };
+
+const DEMO_SEEDS_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    chatSessions: DEMO_SEED_FILE_SCHEMA,
+    agentInvocations: DEMO_SEED_FILE_SCHEMA,
+    traces: DEMO_SEED_FILE_SCHEMA,
+    logs: DEMO_SEED_FILE_SCHEMA,
+    runtimeConfig: DEMO_SEED_FILE_SCHEMA,
+  },
+};
+
 const CONFIG_EXTENSION_DESCRIPTOR_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
@@ -701,6 +715,7 @@ export const EDDIE_CONFIG_SCHEMA: JSONSchema7 = {
     agents: AGENTS_CONFIG_SCHEMA,
     transcript: TRANSCRIPT_CONFIG_SCHEMA,
     metrics: METRICS_CONFIG_SCHEMA,
+    demoSeeds: DEMO_SEEDS_SCHEMA,
   },
 };
 
@@ -743,6 +758,7 @@ export const EDDIE_CONFIG_INPUT_SCHEMA: JSONSchema7 = {
     },
     transcript: TRANSCRIPT_CONFIG_SCHEMA,
     metrics: METRICS_CONFIG_SCHEMA,
+    demoSeeds: DEMO_SEEDS_SCHEMA,
   },
 };
 

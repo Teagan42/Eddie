@@ -1,7 +1,10 @@
 import { Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { EventBus } from "@nestjs/cqrs";
 import { CreateChatSessionDto } from "./dto/create-chat-session.dto";
-import { CreateChatMessageDto } from "./dto/create-chat-message.dto";
+import {
+  CreateChatMessageDto,
+  ChatMessageRole,
+} from "./dto/create-chat-message.dto";
 import { ChatMessageDto, ChatSessionDto } from "./dto/chat-session.dto";
 import { UpdateChatSessionDto } from "./dto/update-chat-session.dto";
 import {
@@ -11,6 +14,8 @@ import {
   type ChatSessionRecord,
   type ChatSessionsRepository,
   type UpdateChatSessionMetadataInput,
+  type ChatSessionSeedSnapshot,
+  type ChatSessionStatus,
 } from "./chat-sessions.repository";
 import { ChatMessageCreatedEvent } from "@eddie/types";
 import {
@@ -24,6 +29,29 @@ import {
 import type { AgentActivityState } from "./chat-session.types";
 
 export type { AgentInvocationSnapshot } from "./chat-sessions.repository";
+
+export interface ChatSessionSnapshotMessageInput {
+  id: string;
+  sessionId: string;
+  role: ChatMessageRole;
+  content: string;
+  createdAt: string;
+  toolCallId?: string;
+  name?: string;
+}
+
+export interface ChatSessionSnapshotInput {
+  session: {
+    id: string;
+    title: string;
+    description?: string;
+    status: ChatSessionStatus;
+    createdAt: string;
+    updatedAt: string;
+  };
+  messages: ChatSessionSnapshotMessageInput[];
+  agentInvocations?: AgentInvocationSnapshot[];
+}
 
 @Injectable()
 export class ChatSessionsService {
@@ -72,6 +100,39 @@ export class ChatSessionsService {
     sessionId: string
   ): Promise<AgentInvocationSnapshot[]> {
     return this.repository.listAgentInvocations(sessionId);
+  }
+
+  /**
+   * @internal Intended for seeding deterministic fixtures.
+   */
+  async seedSessionSnapshot(snapshot: ChatSessionSnapshotInput): Promise<void> {
+    await this.repository.seedSession(this.normalizeSnapshot(snapshot));
+  }
+
+  private normalizeSnapshot(
+    snapshot: ChatSessionSnapshotInput
+  ): ChatSessionSeedSnapshot {
+    const toDate = (value: string): Date => new Date(value);
+    return {
+      session: {
+        id: snapshot.session.id,
+        title: snapshot.session.title,
+        description: snapshot.session.description,
+        status: snapshot.session.status,
+        createdAt: toDate(snapshot.session.createdAt),
+        updatedAt: toDate(snapshot.session.updatedAt),
+      },
+      messages: snapshot.messages.map((message) => ({
+        id: message.id,
+        sessionId: message.sessionId,
+        role: message.role,
+        content: message.content,
+        createdAt: toDate(message.createdAt),
+        toolCallId: message.toolCallId,
+        name: message.name,
+      })),
+      agentInvocations: snapshot.agentInvocations,
+    };
   }
 
   private buildUpdatePatch(

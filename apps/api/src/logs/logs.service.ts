@@ -19,6 +19,14 @@ interface LogEntryEntity {
   createdAt: Date;
 }
 
+export interface SeedLogEntryInput {
+  id: string;
+  level: LogEntryDto["level"];
+  message: string;
+  context?: Record<string, unknown>;
+  createdAt: string;
+}
+
 @Injectable()
 export class LogsService {
   private readonly logs: LogEntryEntity[] = [];
@@ -32,6 +40,16 @@ export class LogsService {
       context: entity.context,
       createdAt: entity.createdAt.toISOString(),
     };
+  }
+
+  private persist(entity: LogEntryEntity): LogEntryDto {
+    this.logs.push(entity);
+    if (this.logs.length > MAX_LOG_ENTRIES) {
+      this.logs.splice(0, this.logs.length - MAX_LOG_ENTRIES);
+    }
+    const dto = this.toDto(entity);
+    this.eventBus?.publish(new LogCreatedEvent(dto));
+    return dto;
   }
 
   list(options: ListLogsOptions = {}): LogEntryDto[] {
@@ -57,12 +75,20 @@ export class LogsService {
       context,
       createdAt: new Date(),
     };
-    this.logs.push(entity);
-    if (this.logs.length > MAX_LOG_ENTRIES) {
-      this.logs.splice(0, this.logs.length - MAX_LOG_ENTRIES);
-    }
-    const dto = this.toDto(entity);
-    this.eventBus?.publish(new LogCreatedEvent(dto));
-    return dto;
+    return this.persist(entity);
+  }
+
+  /**
+   * @internal Intended for deterministic log seeding.
+   */
+  seedEntry(input: SeedLogEntryInput): LogEntryDto {
+    const entity: LogEntryEntity = {
+      id: input.id,
+      level: input.level,
+      message: input.message,
+      context: input.context,
+      createdAt: new Date(input.createdAt),
+    };
+    return this.persist(entity);
   }
 }

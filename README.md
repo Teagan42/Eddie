@@ -89,6 +89,17 @@ an annotated comment on the offending commit so maintainers can respond quickly.
 See [docs/performance-benchmarks.md](docs/performance-benchmarks.md) for guidance
 on reading the charts and interpreting alert notifications.
 
+## Docker setup
+
+Run the platform without installing Node by building the workspace image and launching the API through Docker Compose:
+
+```bash
+docker compose up -d
+docker compose logs -f api
+```
+
+The compose file targets the `development` stage in the shared Dockerfile, mounts the repository into the container for live reloads, and exposes the API on port 3000. Switch to the production stage with `--profile production` to boot the API with compiled artifacts and production dependencies only. Review `docker-compose.yml` for port mappings, environment variables, and volume overrides that fit your environment.
+
 ## Web UI
 
 Start the full-stack experience locally by running the API and UI together:
@@ -109,6 +120,22 @@ This command launches the Nest API and the Vite-powered UI with hot reloads. Whe
 
 Refer to [docs/web-ui.md](docs/web-ui.md) for advanced deployment guidance, environment variables, and authentication
 recommendations.
+
+### Demo overview screenshots
+
+Run the API and UI against the demo screenshot preset before launching the Playwright suite so the overview page hydrates with
+seeded sessions, traces, and logs:
+
+```bash
+npm run dev:api -- --preset demo-screenshots
+npm run web:dev
+PLAYWRIGHT_BASE_URL=http://127.0.0.1:5173 \
+PLAYWRIGHT_API_BASE_URL=http://127.0.0.1:3000/api \
+npm run --workspace @eddie/web test:e2e -- demo-overview.spec.ts
+```
+
+The E2E fixtures wait for `/api/chat-sessions` to report data and attach PNG screenshots to `apps/web/test-results/` whenever the
+assertions succeed, keeping the marketing assets reproducible.
 
 ## Getting Started
 

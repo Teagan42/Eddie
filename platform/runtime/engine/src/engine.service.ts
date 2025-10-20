@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import { Buffer } from "buffer";
 import { randomUUID } from "crypto";
 import path from "path";
@@ -44,6 +44,7 @@ import { McpToolSourceService } from "@eddie/mcp";
 import type { DiscoveredMcpResource } from "@eddie/mcp";
 import { TranscriptCompactionService } from "./transcript/transcript-compaction.service";
 import { MetricsService } from "./telemetry/metrics.service";
+import { DemoSeedReplayService } from "./demo/demo-seed-replay.service";
 
 export interface EngineOptions extends CliRuntimeOptions {
     history?: ChatMessage[];
@@ -76,7 +77,9 @@ export class EngineService {
         private readonly transcriptCompactionService: TranscriptCompactionService,
         private readonly agentOrchestrator: AgentOrchestratorService,
         private readonly mcpToolSourceService: McpToolSourceService,
-        private readonly metrics: MetricsService
+        private readonly metrics: MetricsService,
+        @Optional()
+        private readonly demoSeedReplayService?: DemoSeedReplayService
   ) {}
 
   /**
@@ -245,6 +248,35 @@ export class EngineService {
           allowBlock: true,
         }
       );
+
+      let demoReplay:
+        | Awaited<ReturnType<DemoSeedReplayService["replayIfEnabled"]>>
+        | undefined;
+
+      if (this.demoSeedReplayService) {
+        demoReplay = await this.demoSeedReplayService.replayIfEnabled({
+          config: cfg,
+          prompt,
+          projectDir,
+          tracePath,
+          logger,
+        });
+      }
+
+      if (demoReplay) {
+        for (let index = 0; index < demoReplay.assistantMessages; index += 1) {
+          this.metrics.countMessage("assistant");
+        }
+
+        result = {
+          messages: demoReplay.messages,
+          context,
+          tracePath: demoReplay.tracePath,
+          agents: [],
+        };
+
+        return result;
+      }
 
       const rootInvocation = await this.metrics.timeOperation(
         "template.render",

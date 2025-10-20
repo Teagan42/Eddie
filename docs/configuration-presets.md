@@ -25,6 +25,12 @@ custom NestJS modules—because presets are resolved before user overrides in
 If a preset name is misspelled the service throws a helpful error that lists the
 available presets and reminds you to use the `--preset <name>` flag.【F:platform/core/config/src/config.service.ts†L145-L155】【F:platform/core/config/test/config.service.test.ts†L148-L154】
 
+For reproducible screenshots and web demos, replay the seeded fixtures:
+
+```bash
+eddie ask "Replay the screenshot demo" --preset demo-web
+```
+
 ## Available presets
 
 ### `api-host`
@@ -53,3 +59,20 @@ Optimises logging for interactive CLI runs:
 
 Use `cli-local` together with ad-hoc flags (like `--context` or `--tools`) to
 keep local hacking sessions lightweight without losing trace data.
+
+### `demo-web`
+
+Ships reproducible demo content for the documentation screenshots:
+
+- Populates the `demoSeeds` block with JSON fixtures for chat sessions, agent
+  invocations, traces, logs, and runtime metadata under
+  `examples/demo-agent-screenshots/data`.【F:platform/core/config/src/presets/demo-web.ts†L1-L11】【F:examples/demo-agent-screenshots/README.md†L1-L24】
+- Lets the CLI and API replay the pre-recorded timeline and log outputs without
+  contacting a model provider.【F:examples/demo-agent-screenshots/README.md†L1-L24】
+- Works best together with the `demo-web` preset command shown above so the
+  screenshots match the curated dataset.【F:platform/core/config/test/config.service.test.ts†L225-L243】
+
+Refer to [examples/demo-agent-screenshots/README.md](../examples/demo-agent-screenshots/README.md)
+for a breakdown of the captured panels and guidance on recreating the chat
+timeline, trace timeline, and log console screenshots.【F:examples/demo-agent-screenshots/README.md†L1-L24】
+

@@ -18,6 +18,7 @@ import {
 } from "../../src/telemetry/metrics.service";
 import { LoggingMetricsBackend } from "../../src/telemetry/logging-metrics.backend";
 import { MetricsModule } from "../../src/telemetry/metrics.module";
+import { DemoSeedReplayService } from "../../src/demo/demo-seed-replay.service";
 
 describe("EngineService metrics", () => {
   const baseConfig: EddieConfig = {
@@ -98,6 +99,7 @@ describe("EngineService metrics", () => {
           },
         },
         { provide: McpToolSourceService, useValue: { collectTools: vi.fn(async () => ({ tools: [], resources: [], prompts: [] })) } },
+        { provide: DemoSeedReplayService, useValue: { replayIfEnabled: vi.fn(async () => undefined) } },
       ],
     })
       .overrideProvider(ConfigStore)
@@ -115,6 +117,7 @@ describe("EngineService metrics", () => {
     const orchestrator = moduleRef.get<any>(AgentOrchestratorService);
     const mcpToolSourceService = moduleRef.get<McpToolSourceService>(McpToolSourceService);
     const metricsService = moduleRef.get<MetricsService>(MetricsService);
+    const demoSeedReplayService = moduleRef.get<DemoSeedReplayService>(DemoSeedReplayService);
     const backend = moduleRef.get<MetricsBackend>(METRICS_BACKEND);
 
     const countMessageSpy = vi.spyOn(metricsService, "countMessage");
@@ -133,6 +136,7 @@ describe("EngineService metrics", () => {
       orchestrator as any,
       mcpToolSourceService as any,
       metricsService,
+      demoSeedReplayService as any,
     );
 
     return { service, orchestrator, countMessageSpy, timeOperationSpy, countErrorSpy, backend };

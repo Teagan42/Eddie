@@ -3,10 +3,11 @@ import { Box } from "@radix-ui/themes";
 import { clsx } from "clsx";
 
 const PANEL_SURFACE_CLASS = [
-  "group relative overflow-hidden rounded-[2rem] border p-[1px] backdrop-blur-xl",
-  "border-[color:var(--overview-panel-border)]",
-  "bg-[color:var(--overview-panel-bg)]",
-  "shadow-[var(--overview-panel-shadow)]",
+  "group relative overflow-hidden rounded-[2.75rem] border bg-card bg-gradient-to-br p-10 text-foreground",
+  "from-[hsl(var(--hero-surface-from))] via-[hsl(var(--hero-surface-via))] to-[hsl(var(--hero-surface-to))]",
+  "shadow-[var(--hero-surface-shadow)] border-border/60",
+  "dark:from-[hsl(var(--hero-surface-from-dark))] dark:via-[hsl(var(--hero-surface-via-dark))] dark:to-[hsl(var(--hero-surface-to-dark))]",
+  "dark:shadow-[var(--hero-surface-shadow-dark)]",
 ].join(" ");
 
 const PANEL_CONTENT_CLASS = [
@@ -22,6 +23,8 @@ const PANEL_BADGE_CLASS = [
   "text-xs font-semibold uppercase tracking-[0.25em]",
   "bg-[color:var(--hero-badge-bg)]",
   "text-[color:var(--hero-badge-fg)]",
+  "dark:bg-[color:var(--hero-badge-bg-dark)]",
+  "dark:text-[color:var(--hero-badge-fg-dark)]",
 ].join(" ");
 
 const PANEL_BADGE_DOT_CLASS = [
@@ -30,10 +33,16 @@ const PANEL_BADGE_DOT_CLASS = [
   "shadow-[var(--hero-cta-shadow)]",
 ].join(" ");
 
-const PANEL_OVERLAY_CLASS =
-  "pointer-events-none absolute inset-0 -z-10 bg-[var(--overview-panel-overlay)] opacity-40 transition-opacity duration-500 group-hover:opacity-80";
-const PANEL_GLARE_CLASS =
-  "absolute inset-0 -z-10 bg-[var(--overview-panel-glare)] opacity-0 transition-opacity duration-500 group-hover:opacity-70";
+const PANEL_OVERLAY_CLASS = [
+  "pointer-events-none absolute inset-0 -z-10",
+  "bg-[var(--hero-surface-overlay)]",
+  "dark:bg-[var(--hero-surface-overlay-dark)]",
+].join(" ");
+const PANEL_GLARE_CLASS = [
+  "pointer-events-none absolute inset-0 -z-10 opacity-80 blur-2xl",
+  "[background:var(--hero-surface-lens)]",
+  "dark:[background:var(--hero-surface-lens-dark)]",
+].join(" ");
 const PANEL_BODY_CLASS = "flex-1 text-sm text-[color:var(--overview-panel-foreground)]";
 
 interface PanelProps {

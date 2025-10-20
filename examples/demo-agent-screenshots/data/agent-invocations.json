@@ -1,0 +1,42 @@
+{
+  "invocations": [
+    {
+      "id": "root",
+      "agent": "demo-web",
+      "status": "succeeded",
+      "inputs": {
+        "prompt": "Render documentation screenshots for the trace timeline."
+      },
+      "outputs": {
+        "summary": "Produced static screenshots of the plan and trace timeline."
+      },
+      "children": [
+        {
+          "id": "planner-1",
+          "agent": "planner",
+          "status": "succeeded",
+          "inputs": {
+            "task": "Summarise repository context"
+          },
+          "outputs": {
+            "plan": "Summarised docs and selected highlight segments."
+          }
+        },
+        {
+          "id": "scribe-1",
+          "agent": "scribe",
+          "status": "succeeded",
+          "inputs": {
+            "task": "Annotate screenshot callouts"
+          },
+          "outputs": {
+            "notes": [
+              "Step-by-step timeline callouts",
+              "Tool request surfaces"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

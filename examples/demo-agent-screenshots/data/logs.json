@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "timestamp": "2024-09-01T12:00:01Z",
+      "level": "info",
+      "message": "Seeded planner output for screenshot mode.",
+      "context": {
+        "module": "demo-web",
+        "component": "planner"
+      }
+    },
+    {
+      "timestamp": "2024-09-01T12:00:04Z",
+      "level": "debug",
+      "message": "Replayed trace streaming events for timeline view.",
+      "context": {
+        "events": 16,
+        "component": "trace-inspector"
+      }
+    },
+    {
+      "timestamp": "2024-09-01T12:00:07Z",
+      "level": "info",
+      "message": "Completed screenshot narration without external requests.",
+      "context": {
+        "component": "demo-web"
+      }
+    }
+  ]
+}

@@ -231,6 +231,30 @@ describe("ConfigService compose precedence", () => {
     expect(composed.api?.cors?.origin).toEqual(["http://localhost:5173"]);
   });
 
+  it("exposes demo seed fixtures through the demo-web preset", async () => {
+    const { service } = createService();
+
+    const composed = await service.compose({}, { preset: "demo-web" });
+
+    expect(composed.demoSeeds).toMatchObject({
+      chatSessions: expect.stringContaining(
+        "examples/demo-agent-screenshots/data/chat-sessions.json",
+      ),
+      agentInvocations: expect.stringContaining(
+        "examples/demo-agent-screenshots/data/agent-invocations.json",
+      ),
+      traces: expect.stringContaining(
+        "examples/demo-agent-screenshots/data/traces.json",
+      ),
+      logs: expect.stringContaining(
+        "examples/demo-agent-screenshots/data/logs.json",
+      ),
+      runtimeConfig: expect.stringContaining(
+        "examples/demo-agent-screenshots/data/runtime-config.json",
+      ),
+    });
+  });
+
   it("provides guidance when an unknown preset is requested", async () => {
     const { service } = createService();
 

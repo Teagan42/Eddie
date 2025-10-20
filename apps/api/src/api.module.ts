@@ -32,6 +32,7 @@ import { OrchestratorModule } from "./orchestrator/orchestrator.module";
 import { ConfigEditorModule } from "./config-editor/config-editor.module";
 import { ProvidersModule } from "./providers/providers.module";
 import { DemoDataApiModule } from "./demo-data/demo-data.api.module";
+import { DemoDataSeeder } from "./demo/demo-data.seeder";
 
 const { ConfigurableModuleClass } = new ConfigurableModuleBuilder<CliRuntimeOptions>({
   moduleName: "EddieApiModule",
@@ -85,6 +86,7 @@ type ConfigModuleAsyncOptions = Parameters<
       provide: APP_INTERCEPTOR,
       useExisting: ApiCacheInterceptor,
     },
+    DemoDataSeeder,
   ],
 })
 export class ApiModule extends ConfigurableModuleClass {
@@ -103,7 +105,7 @@ export class ApiModule extends ConfigurableModuleClass {
   static forRoot(
     options: CliRuntimeOptions,
   ): DynamicModule {
-    const dynamicModule = super.register(options);
+    const dynamicModule = this.ensureSeeder(super.register(options));
     const configRegistration = ConfigModule.register(options);
 
     return this.withConfigRegistration(dynamicModule, configRegistration);
@@ -112,9 +114,21 @@ export class ApiModule extends ConfigurableModuleClass {
   static forRootAsync(
     options: ConfigModuleAsyncOptions,
   ): DynamicModule {
-    const dynamicModule = super.registerAsync(options);
+    const dynamicModule = this.ensureSeeder(super.registerAsync(options));
     const configRegistration = ConfigModule.registerAsync(options);
 
     return this.withConfigRegistration(dynamicModule, configRegistration);
+  }
+
+  private static ensureSeeder(dynamicModule: DynamicModule): DynamicModule {
+    const providers = dynamicModule.providers ?? [];
+    if (providers.includes(DemoDataSeeder)) {
+      return dynamicModule;
+    }
+
+    return {
+      ...dynamicModule,
+      providers: [...providers, DemoDataSeeder],
+    };
   }
 }
