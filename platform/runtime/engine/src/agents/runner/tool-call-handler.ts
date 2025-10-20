@@ -54,9 +54,11 @@ export class ToolCallHandler {
       },
     });
 
+    const serializedArguments = event.arguments ? JSON.stringify(event.arguments) : "";
+
     invocation.messages.push({
       role: "assistant",
-      content: "",
+      content: serializedArguments,
       name: event.name,
       tool_call_id: event.id,
     });

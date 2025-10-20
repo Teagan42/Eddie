@@ -11,7 +11,7 @@ const changedWorkspacesRunner =
 const changedWorkspacesCommand =
   'WORKSPACE_ONLY_CHANGED=1 WORKSPACE_DIFF_BASE=origin/main WORKSPACE_TEST_CONCURRENCY=${WORKSPACE_TEST_CONCURRENCY:-2} npm run';
 
-const convenienceScripts = {
+const baseConvenienceScripts = {
   clean: 'npm run clean --workspaces --if-present && git clean -fdX',
   reset: 'npm run clean && npm install',
   typecheck: 'npm run typecheck --workspaces --if-present',
@@ -26,6 +26,24 @@ const convenienceScripts = {
   'docs:ui': 'npm run storybook:check --workspace @eddie/ui --if-present',
 } as const;
 
+const serviceWorkspaces = ['api', 'cli', 'web'] as const;
+
+const serviceConvenienceScripts = Object.fromEntries(
+  serviceWorkspaces.flatMap((workspace) => {
+    const workspaceAlias = `@eddie/${workspace}`;
+
+    return [
+      [`${workspace}:dev`, `npm run dev --workspace ${workspaceAlias} --if-present`],
+      [`${workspace}:start`, `npm run start --workspace ${workspaceAlias} --if-present`],
+    ];
+  }),
+) as Record<`${(typeof serviceWorkspaces)[number]}:${'dev' | 'start'}`, string>;
+
+const convenienceScripts = {
+  ...baseConvenienceScripts,
+  ...serviceConvenienceScripts,
+} as const;
+
 describe('root package scripts', () => {
   it('runs build only for changed workspaces compared to origin/main', () => {
     expect(packageJson.scripts.build).toBe(`${changedWorkspacesRunner} build`);
@@ -37,7 +55,7 @@ describe('root package scripts', () => {
 
   it('runs API and web development servers together', () => {
     expect(packageJson.scripts.dev).toBe(
-      'concurrently "npm run dev:api --if-present" "npm run web:dev --if-present"',
+      'concurrently "npm run api:dev --if-present" "npm run web:dev --if-present"',
     );
   });
 

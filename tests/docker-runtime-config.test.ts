@@ -21,7 +21,7 @@ describe('docker runtime configuration', () => {
   it('defines a docker-compose service for the API', () => {
     expect(compose).toMatch(/services:\s*\n\s*api:/);
     expect(compose).toMatch(/target:\s*development/);
-    expect(compose).toMatch(/command:\s*npm run dev:api/);
+    expect(compose).toMatch(/command:\s*npm run api:dev/);
   });
 
   it('provides a multi-stage Dockerfile for development and production', () => {

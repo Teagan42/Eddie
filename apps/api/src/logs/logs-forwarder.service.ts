@@ -137,17 +137,13 @@ export class LogsForwarderService implements OnModuleInit, OnModuleDestroy {
         const raw = this.isPlainObject(event.event) ? (event.event as Record<string, unknown>) : { value: event.event };
         const data = this.isPlainObject(raw.data) ? (raw.data as Record<string, unknown>) : undefined;
         const agentId = this.extractAgentId(payloadContext, raw, data);
-        const sessionId =
-          (raw.sessionId as string)
-          ?? (payloadContext.sessionId as string)
-          ?? (raw.agent && (raw.agent as any).id)
-          ?? undefined;
+        const sessionId = this.resolveSessionId(raw, payloadContext);
         const id = (data && (data.id as string)) ?? (raw.id as string) ?? undefined;
         const name = (data && (data.name as string)) ?? (raw.name as string) ?? undefined;
         const args = (data && (data.arguments ?? data.args)) ?? (raw.arguments ?? raw.args) ?? undefined;
         const result = (data && (data.result)) ?? (raw.result) ?? undefined;
 
-        if (typeof sessionId !== "string" || sessionId.length === 0) {
+        if (!sessionId) {
           return;
         }
 
@@ -277,6 +273,24 @@ export class LogsForwarderService implements OnModuleInit, OnModuleDestroy {
     }
 
     return undefined;
+  }
+
+  private resolveSessionId(
+    raw: Record<string, unknown>,
+    context: Record<string, unknown>
+  ): string | undefined {
+    return (
+      this.normalizeSessionIdValue(raw.sessionId) ??
+      this.normalizeSessionIdValue(context.sessionId)
+    );
+  }
+
+  private normalizeSessionIdValue(value: unknown): string | undefined {
+    if (typeof value !== "string") {
+      return undefined;
+    }
+
+    return value.length > 0 ? value : undefined;
   }
 
   private normalizeAgentIdValue(value: unknown): string | undefined {

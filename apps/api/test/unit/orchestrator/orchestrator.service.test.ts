@@ -105,6 +105,53 @@ describe("OrchestratorMetadataService", () => {
     expect(metadata.toolInvocations[0]?.name).toBe("formatter");
   });
 
+  it("falls back to chat messages when agent snapshots lack tool calls", async () => {
+    const session: ChatSessionDto = {
+      id: "session-fallback",
+      title: "Formatter run",
+      status: "active",
+      createdAt: new Date("2024-01-01T00:00:00.000Z").toISOString(),
+      updatedAt: new Date("2024-01-01T00:00:00.000Z").toISOString(),
+    };
+
+    const messages: ChatMessageDto[] = [
+      {
+        id: "message-tool",
+        sessionId: session.id,
+        role: ChatMessageRole.Tool,
+        content: "formatter --check",
+        createdAt: new Date("2024-01-01T00:06:00.000Z").toISOString(),
+        toolCallId: "call-formatter",
+        name: "formatter",
+      },
+    ];
+
+    const agentInvocations: AgentInvocationSnapshot[] = [
+      {
+        id: "manager",
+        messages: [],
+        children: [],
+      },
+    ];
+
+    const store = createStore();
+    const chatSessions = {
+      getSession: async () => session,
+      listMessages: async () => messages,
+      listAgentInvocations: async () => agentInvocations,
+    } as unknown as ChatSessionsService;
+
+    const service = new OrchestratorMetadataService(
+      chatSessions,
+      store as unknown as ExecutionTreeStateStore,
+    );
+
+    const metadata = await service.getMetadata(session.id);
+
+    expect(metadata.toolInvocations).toHaveLength(1);
+    expect(metadata.toolInvocations[0]?.id).toBe("call-formatter");
+  });
+
   it("uses the recorded tool call id for metadata nodes", async () => {
     const session: ChatSessionDto = {
       id: "session-2",

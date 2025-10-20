@@ -30,7 +30,7 @@ tests, while `sqlite`, `postgres`, `mysql`, and `mariadb` reuse the shared Knex-
 `better-sqlite3`, `pg`, and `mysql2`; container images may still need the system packages required by those native bindings.
 Provide credentials inline or via environment interpolation (for example `${PGHOST}`, `${MYSQL_USER}`, `${MARIADB_PASSWORD}`),
 and toggle TLS by setting the optional `ssl` flag on each driver. When SQL persistence is enabled the API automatically runs the
-pending migrations in `apps/api/migrations` during startup so regular `npm run start:api` deployments keep the schema current.
+pending migrations in `apps/api/migrations` during startup so regular `npm run api:start` deployments keep the schema current.
 See [docs/api.md](docs/api.md) for driver-specific YAML examples and migration notes.
 
 ### Web UI
@@ -109,7 +109,7 @@ npm run dev
 ```
 
 This command launches the Nest API and the Vite-powered UI with hot reloads. When running the surfaces independently, use
-`npm run dev:api` or `npm run start:api` for the backend and `npm run web:dev` or `npm run web:start` for the frontend.
+`npm run api:dev` or `npm run api:start` for the backend and `npm run web:dev` or `npm run web:start` for the frontend.
 
 - Navigate to `http://localhost:4200` to access the dashboard.
 - Connect the UI to a configured API environment or switch providers directly from the sidebar.
@@ -127,7 +127,7 @@ Run the API and UI against the demo screenshot preset before launching the Playw
 seeded sessions, traces, and logs:
 
 ```bash
-npm run dev:api -- --preset demo-screenshots
+npm run api:dev -- --preset demo-screenshots
 npm run web:dev
 PLAYWRIGHT_BASE_URL=http://127.0.0.1:5173 \
 PLAYWRIGHT_API_BASE_URL=http://127.0.0.1:3000/api \

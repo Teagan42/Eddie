@@ -206,7 +206,7 @@ object.
 When persistence is configured for SQLite, PostgreSQL, MySQL, or MariaDB the API
 runs pending migrations automatically during startup. The `DatabaseService`
 runs `knex.migrate.latest` against the configured database using the migrations
-in `apps/api/migrations`, so simply starting the server (`npm run start:api`) is
+in `apps/api/migrations`, so simply starting the server (`npm run api:start`) is
 enough to keep the schema current. Trigger the same process in CI by launching
 the API with your production configuration and letting the bootstrap complete.
 
