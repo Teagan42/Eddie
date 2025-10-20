@@ -54,10 +54,11 @@ export class OrchestratorMetadataService {
     );
 
     const contextBundles = this.createContextBundles(sessionId, messages.length);
-    const toolInvocations =
-      agentInvocations.length > 0
-        ? this.createToolInvocationsFromAgents(agentInvocations)
-        : this.createToolInvocationsFromMessages(sessionId, messages);
+    const toolInvocations = this.resolveToolInvocations(
+      sessionId,
+      messages,
+      agentInvocations,
+    );
     const agentHierarchy = this.createAgentHierarchy(
       session.title,
       sessionId,
@@ -192,6 +193,23 @@ export class OrchestratorMetadataService {
         files: [],
       },
     ];
+  }
+
+  private resolveToolInvocations(
+    sessionId: string,
+    messages: ChatMessageDto[],
+    agentInvocations: AgentInvocationSnapshot[],
+  ): ToolCallNodeDto[] {
+    if (agentInvocations.length === 0) {
+      return this.createToolInvocationsFromMessages(sessionId, messages);
+    }
+
+    const fromAgents = this.createToolInvocationsFromAgents(agentInvocations);
+    if (fromAgents.length > 0) {
+      return fromAgents;
+    }
+
+    return this.createToolInvocationsFromMessages(sessionId, messages);
   }
 
   private createToolInvocationsFromMessages(
