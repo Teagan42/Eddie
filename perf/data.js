@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760944955106,
+  "lastUpdate": 1760945188001,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -794,6 +794,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 23.488,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "aa78d226cde7f60a8a9d44db6ac23eff81fccebe",
+          "message": "Use GitHub API for repository license resolution (#670)\n\n* refactor(license-check): extract github license parsing\n\n* chore: update third-party notices\n\n* fix(license-check): decode github content when metadata ambiguous\n\n* chore: update third-party notices",
+          "timestamp": "2025-10-20T01:15:40-06:00",
+          "tree_id": "2d7ac4204d1c41959c20e7ef7614e754f4badfba",
+          "url": "https://github.com/Teagan42/Eddie/commit/aa78d226cde7f60a8a9d44db6ac23eff81fccebe"
+        },
+        "date": 1760945187533,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 47.539,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 31.244,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.314,
             "unit": "ms",
             "extra": "[object Object]"
           }
