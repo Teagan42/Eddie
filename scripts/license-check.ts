@@ -131,7 +131,6 @@ function deriveNameFromPath(path: string) {
 
 const registryLicenseCache = new Map<string, string | null>();
 const repositoryLicenseCache = new Map<string, string | null>();
-const REPOSITORY_LICENSE_BRANCHES = ['main', 'master'] as const;
 const LICENSE_CACHE_PATH = join(process.cwd(), '.cache', 'license-check.json');
 const LICENSE_CACHE_DIR = dirname(LICENSE_CACHE_PATH);
 let licenseCacheLoaded = false;
@@ -139,6 +138,12 @@ let licenseCacheLoaded = false;
 interface LicenseCacheData {
   registry?: Record<string, string | null>;
   repository?: Record<string, string | null>;
+}
+
+interface GitHubLicensePayload {
+  license?: { spdx_id?: string | null; key?: string | null } | null;
+  content?: string | null;
+  encoding?: string | null;
 }
 
 function ensureLicenseCacheLoaded() {
@@ -230,6 +235,34 @@ function parseRepository(repository: unknown): RepositoryCoordinates | undefined
   }
 }
 
+function extractLicenseFromGitHubPayload(payload: GitHubLicensePayload): string | undefined {
+  const licenseInfo = payload.license ?? undefined;
+  const licenseFromMetadata = licenseInfo
+    ? normalizeLicense(
+        typeof licenseInfo.spdx_id === 'string' && licenseInfo.spdx_id !== 'NOASSERTION'
+          ? licenseInfo.spdx_id
+          : typeof licenseInfo.key === 'string'
+            ? licenseInfo.key
+            : undefined,
+      )
+    : undefined;
+
+  if (licenseFromMetadata) {
+    return licenseFromMetadata;
+  }
+
+  if (typeof payload.content === 'string' && payload.encoding === 'base64') {
+    try {
+      const text = Buffer.from(payload.content, 'base64').toString('utf8');
+      return inferLicenseFromText(text);
+    } catch {
+      return undefined;
+    }
+  }
+
+  return undefined;
+}
+
 async function resolveLicenseFromRepository(repository: unknown): Promise<string | undefined> {
   ensureLicenseCacheLoaded();
   const coordinates = parseRepository(repository);
@@ -245,29 +278,29 @@ async function resolveLicenseFromRepository(repository: unknown): Promise<string
   let encounteredNetworkError = false;
 
   if (coordinates.host === 'github.com') {
-    const base = `https://raw.githubusercontent.com/${coordinates.owner}/${coordinates.name}`;
+    const url = `https://api.github.com/repos/${coordinates.owner}/${coordinates.name}/license`;
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    };
+    const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
 
-    for (const branch of REPOSITORY_LICENSE_BRANCHES) {
-      for (const candidate of LICENSE_CANDIDATES) {
-        const url = `${base}/${branch}/${candidate}`;
-        try {
-          const response = await fetch(url);
-          if (!response.ok) {
-            continue;
-          }
-
-          const text = (await response.text()).trim();
-          const inferred = inferLicenseFromText(text);
-          if (inferred) {
-            repositoryLicenseCache.set(cacheKey, inferred);
-            persistLicenseCache();
-            return inferred;
-          }
-        } catch {
-          // ignore network errors and try next candidate
-          encounteredNetworkError = true;
+    try {
+      const response = await fetch(url, { headers });
+      if (response.ok) {
+        const payload = (await response.json()) as GitHubLicensePayload;
+        const license = extractLicenseFromGitHubPayload(payload);
+        if (license) {
+          repositoryLicenseCache.set(cacheKey, license);
+          persistLicenseCache();
+          return license;
         }
       }
+    } catch {
+      encounteredNetworkError = true;
     }
   }
 

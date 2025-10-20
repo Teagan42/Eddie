@@ -44,6 +44,7 @@ function createTempDir(prefix: string) {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  delete process.env.GITHUB_TOKEN;
 });
 
 describe('collectLicenses', () => {
@@ -234,6 +235,8 @@ describe('collectLicenses', () => {
 
     writeFileSync(lockfilePath, JSON.stringify(lockfile, null, 2));
 
+    process.env.GITHUB_TOKEN = 'test-token';
+
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({
@@ -244,7 +247,9 @@ describe('collectLicenses', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        text: async () => 'MIT License',
+        json: async () => ({
+          license: { spdx_id: 'MIT' },
+        }),
       });
 
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
@@ -259,6 +264,15 @@ describe('collectLicenses', () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [, secondCall] = fetchMock.mock.calls;
+    expect(secondCall[0]).toBe('https://api.github.com/repos/substack/node-union/license');
+    expect(secondCall[1]).toMatchObject({
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: 'Bearer test-token',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
   });
 
   it('reuses cached registry metadata to avoid repeat fetches', async () => {
