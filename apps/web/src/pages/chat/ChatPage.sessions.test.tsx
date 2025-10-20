@@ -4,6 +4,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatSessionDto, LayoutPreferencesDto } from "@eddie/api-client";
 import { createChatPageRenderer } from "./test-utils";
+import { SESSION_TABLIST_ARIA_LABEL } from "./components/SessionSelector";
 
 const sessionCreatedHandlers: Array<(session: unknown) => void> = [];
 const sessionDeletedHandlers: Array<(sessionId: string) => void> = [];
@@ -148,8 +149,8 @@ const renderChatPage = createChatPageRenderer(
     }),
 );
 
-function getSessionMetricsDescription(button: HTMLElement): HTMLElement | null {
-  const descriptionId = button.getAttribute("aria-describedby");
+function getSessionMetricsDescription(tab: HTMLElement): HTMLElement | null {
+  const descriptionId = tab.getAttribute("aria-describedby");
   return descriptionId ? document.getElementById(descriptionId) : null;
 }
 
@@ -260,11 +261,11 @@ describe("ChatPage session creation", () => {
 
       resolveCreate?.(createdSessionDto);
 
-      const createdSession = await screen.findByRole("button", { name: "Session 2" });
+      const createdSession = await screen.findByRole("tab", { name: "Session 2" });
 
       await waitFor(() => expect(createdSession).toBeInTheDocument());
 
-      expect(screen.getByRole("button", { name: "Session 1" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "Session 1" })).toBeInTheDocument();
 
       const sessions = client.getQueryData([
         "chat-sessions",
@@ -323,8 +324,13 @@ describe("ChatPage session creation", () => {
 
     renderChatPage();
 
-    const sessionButton = await screen.findByRole("button", { name: "Session 1" });
-    const description = getSessionMetricsDescription(sessionButton);
+    const tabList = await screen.findByRole("tablist", { name: SESSION_TABLIST_ARIA_LABEL });
+    expect(tabList).toBeInTheDocument();
+
+    const sessionTab = within(tabList).getByRole("tab", { name: "Session 1" });
+    expect(sessionTab).toHaveAttribute("aria-selected", "true");
+
+    const description = getSessionMetricsDescription(sessionTab);
     expect(description).not.toBeNull();
     expect(description).toHaveTextContent("2 messages");
     expect(description).toHaveTextContent("2 bundles");
@@ -341,11 +347,11 @@ describe("ChatPage session creation", () => {
 
     renderChatPage();
 
-    const sessionButton = await screen.findByRole("button", { name: "Session 1" });
-    const initialDescription = getSessionMetricsDescription(sessionButton);
+    const sessionTab = await screen.findByRole("tab", { name: "Session 1" });
+    const initialDescription = getSessionMetricsDescription(sessionTab);
     expect(initialDescription).not.toBeNull();
     expect(initialDescription).toHaveTextContent("0 messages");
-    const initialBadge = within(sessionButton).getByLabelText("0 messages");
+    const initialBadge = within(sessionTab).getByLabelText("0 messages");
     expect(initialBadge).toHaveTextContent("0");
     expect(initialBadge.closest('[data-highlighted="true"]')).toBeNull();
 
@@ -365,10 +371,10 @@ describe("ChatPage session creation", () => {
     });
 
     await waitFor(() => {
-      const updatedDescription = getSessionMetricsDescription(sessionButton);
+      const updatedDescription = getSessionMetricsDescription(sessionTab);
       expect(updatedDescription).not.toBeNull();
       expect(updatedDescription).toHaveTextContent("1 message");
-      const updatedBadge = within(sessionButton).getByLabelText("1 message");
+      const updatedBadge = within(sessionTab).getByLabelText("1 message");
       expect(updatedBadge).toHaveTextContent("1");
       expect(updatedBadge.closest('[data-highlighted="true"]')).not.toBeNull();
     });
@@ -426,7 +432,7 @@ describe("ChatPage session creation", () => {
     const { client } = renderChatPage();
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Session 2" })).toBeInTheDocument(),
+      expect(screen.getByRole("tab", { name: "Session 2" })).toBeInTheDocument(),
     );
 
     await act(async () => {
@@ -445,7 +451,7 @@ describe("ChatPage session creation", () => {
     );
 
     await waitFor(() =>
-      expect(screen.queryByRole("button", { name: "Session 2" })).not.toBeInTheDocument(),
+      expect(screen.queryByRole("tab", { name: "Session 2" })).not.toBeInTheDocument(),
     );
 
     expect(preferencesState.chat?.sessionSettings ?? {}).not.toHaveProperty("session-2");
@@ -466,14 +472,14 @@ describe("ChatPage session creation", () => {
 
     const { client, rerender } = renderChatPage();
 
-    const sessionButton = await screen.findByRole("button", { name: "Session 1" });
+    const sessionTab = await screen.findByRole("tab", { name: "Session 1" });
     await waitFor(() => {
-      const description = getSessionMetricsDescription(sessionButton);
+      const description = getSessionMetricsDescription(sessionTab);
       expect(description).not.toBeNull();
       expect(description).not.toHaveTextContent("0 bundles");
     });
 
-    const initialDescription = getSessionMetricsDescription(sessionButton);
+    const initialDescription = getSessionMetricsDescription(sessionTab);
     expect(initialDescription).not.toBeNull();
     expect(initialDescription).toHaveAttribute("aria-live", "polite");
 
@@ -493,11 +499,11 @@ describe("ChatPage session creation", () => {
     });
 
     await waitFor(() => {
-      const updatedDescription = getSessionMetricsDescription(sessionButton);
+      const updatedDescription = getSessionMetricsDescription(sessionTab);
       expect(updatedDescription).not.toBeNull();
       expect(updatedDescription).toHaveTextContent("1 bundle");
       expect(updatedDescription).toHaveAttribute("aria-live", "polite");
-      const bundleBadge = within(sessionButton).getByLabelText("1 bundle");
+      const bundleBadge = within(sessionTab).getByLabelText("1 bundle");
       expect(bundleBadge).toHaveTextContent("1");
       expect(bundleBadge.closest('[data-highlighted="true"]')).not.toBeNull();
     });
@@ -528,10 +534,10 @@ describe("ChatPage session creation", () => {
 
       resolveCreate?.(createdSessionDto);
 
-      const createdSession = await screen.findByRole("button", { name: "Session 2" });
+      const createdSession = await screen.findByRole("tab", { name: "Session 2" });
       await waitFor(() => expect(createdSession).toBeInTheDocument());
 
-      expect(screen.getByRole("button", { name: "Session 1" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "Session 1" })).toBeInTheDocument();
 
       const sessions = client.getQueryData([
         "chat-sessions",

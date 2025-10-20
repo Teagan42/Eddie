@@ -7,8 +7,20 @@ import {
   ChevronUpIcon,
   DotsHorizontalIcon,
 } from '@radix-ui/react-icons';
-import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+} from 'react';
 import { clsx } from 'clsx';
+
+export const SESSION_TABLIST_ARIA_LABEL = 'Chat sessions';
 
 export interface SessionSelectorMetricsSummary {
   messageCount?: number | null;
@@ -34,6 +46,9 @@ const visuallyHiddenStyles: CSSProperties = {
   whiteSpace: 'nowrap',
   width: 1,
 };
+
+const indicatorTransitionStyle =
+  'transform 300ms ease, width 300ms ease, height 300ms ease';
 
 function createMetricsSignature(metrics: SessionSelectorMetricsSummary | undefined): string {
   if (!metrics) {
@@ -89,9 +104,15 @@ export function SessionSelector({
 
   const metricsCacheRef = useRef<Map<string, string>>(new Map());
   const highlightTimeoutRef = useRef<number | null>(null);
+  const tabListRef = useRef<HTMLDivElement | null>(null);
+  const indicatorRef = useRef<HTMLSpanElement | null>(null);
+  const tabItemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const tabTriggerRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const [highlightedSessionId, setHighlightedSessionId] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const listId = useId();
+  const sessionIds = useMemo(() => sessions.map((session) => session.id), [sessions]);
+  const sessionIdsSignature = useMemo(() => sessionIds.join('|'), [sessionIds]);
 
   const clearHighlightTimeout = useCallback(() => {
     if (highlightTimeoutRef.current !== null) {
@@ -100,11 +121,68 @@ export function SessionSelector({
     }
   }, []);
 
+  const registerTabItem = useCallback((sessionId: string, element: HTMLDivElement | null) => {
+    if (element) {
+      tabItemRefs.current.set(sessionId, element);
+    } else {
+      tabItemRefs.current.delete(sessionId);
+    }
+  }, []);
+
+  const registerTabTrigger = useCallback(
+    (sessionId: string, element: HTMLButtonElement | null) => {
+      if (element) {
+        tabTriggerRefs.current.set(sessionId, element);
+      } else {
+        tabTriggerRefs.current.delete(sessionId);
+      }
+    },
+    [],
+  );
+
+  const updateIndicatorPosition = useCallback(() => {
+    const indicator = indicatorRef.current;
+    const list = tabListRef.current;
+
+    if (!indicator || !list) {
+      return;
+    }
+
+    if (!selectedSessionId || isCollapsed) {
+      indicator.style.opacity = '0';
+      return;
+    }
+
+    const selectedItem = tabItemRefs.current.get(selectedSessionId);
+    if (!selectedItem) {
+      indicator.style.opacity = '0';
+      return;
+    }
+
+    const listRect = list.getBoundingClientRect();
+    const itemRect = selectedItem.getBoundingClientRect();
+
+    indicator.style.opacity = '1';
+    indicator.style.width = `${itemRect.width}px`;
+    indicator.style.height = `${itemRect.height}px`;
+    indicator.style.transform = `translate3d(${itemRect.left - listRect.left}px, ${
+      itemRect.top - listRect.top
+    }px, 0)`;
+  }, [isCollapsed, selectedSessionId]);
+
   useEffect(() => {
     return () => {
       clearHighlightTimeout();
     };
   }, [clearHighlightTimeout]);
+
+  useEffect(() => {
+    window.addEventListener('resize', updateIndicatorPosition);
+
+    return () => {
+      window.removeEventListener('resize', updateIndicatorPosition);
+    };
+  }, [updateIndicatorPosition]);
 
   useEffect(() => {
     const seen = new Set<string>();
@@ -147,6 +225,70 @@ export function SessionSelector({
     selectedSessionId,
     sessions,
   ]);
+
+  useLayoutEffect(() => {
+    updateIndicatorPosition();
+  }, [updateIndicatorPosition, sessionIdsSignature, isCollapsed]);
+
+  const focusSession = useCallback((sessionId: string) => {
+    const trigger = tabTriggerRefs.current.get(sessionId);
+    trigger?.focus();
+  }, []);
+
+  const handleNavigationKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLButtonElement>, sessionId: string) => {
+      if (sessionIds.length === 0) {
+        return;
+      }
+
+      let targetId: string | null = null;
+      const currentIndex = sessionIds.indexOf(sessionId);
+
+      if (currentIndex === -1) {
+        return;
+      }
+
+      switch (event.key) {
+        case 'ArrowRight':
+        case 'ArrowDown': {
+          event.preventDefault();
+          const nextIndex = (currentIndex + 1) % sessionIds.length;
+          targetId = sessionIds[nextIndex];
+          break;
+        }
+        case 'ArrowLeft':
+        case 'ArrowUp': {
+          event.preventDefault();
+          const nextIndex = (currentIndex - 1 + sessionIds.length) % sessionIds.length;
+          targetId = sessionIds[nextIndex];
+          break;
+        }
+        case 'Home': {
+          event.preventDefault();
+          targetId = sessionIds[0] ?? null;
+          break;
+        }
+        case 'End': {
+          event.preventDefault();
+          targetId = sessionIds[sessionIds.length - 1] ?? null;
+          break;
+        }
+        default:
+          return;
+      }
+
+      if (!targetId) {
+        return;
+      }
+
+      focusSession(targetId);
+
+      if (targetId !== sessionId) {
+        onSelectSession(targetId);
+      }
+    },
+    [focusSession, onSelectSession, sessionIds],
+  );
 
   const baseToggleLabel = isCollapsed ? 'Expand session list' : 'Collapse session list';
   const sessionCountLabel = formatMetricCount(sessions.length, 'session', 'sessions');
@@ -217,21 +359,28 @@ export function SessionSelector({
         key={session.id}
         align="center"
         gap="1"
-        className={clsx(
-          'rounded-lg px-2 py-1 transition-colors',
-          isSelected ? 'bg-[var(--jade-4)] text-[var(--jade-12)]' : undefined,
-        )}
+        className="relative rounded-lg px-2 py-1 transition-colors"
         data-selected={selectedState}
+        ref={(element) => {
+          registerTabItem(session.id, element);
+        }}
       >
         <Button
           size="1"
           variant={isSelected ? 'solid' : 'soft'}
           color={isSelected ? 'jade' : 'gray'}
           onClick={() => onSelectSession(session.id)}
-          aria-pressed={isSelected}
+          role="tab"
+          aria-selected={isSelected ? 'true' : 'false'}
           aria-label={session.title}
           aria-describedby={metricsDescriptionId}
           data-selected={selectedState}
+          tabIndex={isSelected ? 0 : -1}
+          onKeyDown={(event) => handleNavigationKeyDown(event, session.id)}
+          ref={(element) => {
+            registerTabTrigger(session.id, element);
+          }}
+          className={clsx('relative z-10', isSelected ? undefined : 'bg-transparent')}
         >
           <Flex align="center" gap="2">
             <span>{session.title}</span>
@@ -323,15 +472,37 @@ export function SessionSelector({
 
       {isCollapsed ? null : (
         <ScrollArea type="always" className="max-h-40" id={listId}>
-          <Flex gap="2" wrap="wrap">
-            {sessions.length === 0 ? (
-              <Text size="2" color="gray">
-                No sessions yet.
-              </Text>
-            ) : (
-              sessions.map(renderSession)
-            )}
-          </Flex>
+          {sessions.length === 0 ? (
+            <Text size="2" color="gray">
+              No sessions yet.
+            </Text>
+          ) : (
+            <div className="relative">
+              <Flex
+                ref={tabListRef}
+                role="tablist"
+                aria-orientation="horizontal"
+                aria-label={SESSION_TABLIST_ARIA_LABEL}
+                gap="2"
+                wrap="wrap"
+                className="relative"
+                data-testid="session-tablist"
+              >
+                <span
+                  ref={indicatorRef}
+                  data-testid="session-tab-indicator"
+                  data-animated="true"
+                  className="pointer-events-none absolute z-0 rounded-lg bg-[var(--jade-4)] transition-transform duration-300 ease-out"
+                  style={{
+                    transition: indicatorTransitionStyle,
+                    transform: 'translate3d(0, 0, 0)',
+                    opacity: 0,
+                  }}
+                />
+                {sessions.map(renderSession)}
+              </Flex>
+            </div>
+          )}
         </ScrollArea>
       )}
     </Flex>
