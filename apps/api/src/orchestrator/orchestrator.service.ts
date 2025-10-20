@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import {
   ChatSessionsService,
   type AgentInvocationSnapshot,
@@ -19,6 +19,7 @@ import type {
   ExecutionToolInvocationNode,
   ExecutionContextBundle,
 } from "@eddie/types";
+import { ToolCallStore, type ToolCallState } from "../tools/tool-call.store";
 
 interface SpawnDetails {
   provider?: string;
@@ -35,6 +36,7 @@ export class OrchestratorMetadataService {
   constructor(
     private readonly chatSessions: ChatSessionsService,
     private readonly executionTreeStateStore?: ExecutionTreeStateStore,
+    @Optional() private readonly toolCallStore?: ToolCallStore,
   ) {}
 
   async getMetadata(sessionId?: string): Promise<OrchestratorMetadataDto> {
@@ -200,16 +202,60 @@ export class OrchestratorMetadataService {
     messages: ChatMessageDto[],
     agentInvocations: AgentInvocationSnapshot[],
   ): ToolCallNodeDto[] {
+    const fromStore = this.createToolInvocationsFromStore(sessionId);
+
     if (agentInvocations.length === 0) {
+      if (fromStore.length > 0) {
+        return fromStore;
+      }
       return this.createToolInvocationsFromMessages(sessionId, messages);
     }
 
     const fromAgents = this.createToolInvocationsFromAgents(agentInvocations);
-    if (fromAgents.length > 0) {
-      return fromAgents;
+    const mergedAgentsAndStore = this.mergeToolInvocationLists(
+      fromAgents,
+      fromStore,
+    );
+    if (mergedAgentsAndStore.length > 0) {
+      return mergedAgentsAndStore;
     }
 
     return this.createToolInvocationsFromMessages(sessionId, messages);
+  }
+
+  private createToolInvocationsFromStore(sessionId: string): ToolCallNodeDto[] {
+    if (!this.toolCallStore) {
+      return [];
+    }
+
+    const states = this.toolCallStore.list(sessionId);
+    if (states.length === 0) {
+      return [];
+    }
+
+    return states.map((state, index) => this.mapToolCallState(state, sessionId, index));
+  }
+
+  private mapToolCallState(
+    state: ToolCallState,
+    sessionId: string,
+    index: number,
+  ): ToolCallNodeDto {
+    const node = new ToolCallNodeDto();
+    node.id = state.toolCallId ?? `${sessionId}-tool-${index}`;
+    node.name = state.name ?? node.id;
+    node.status = this.mapToolStatus(state.status);
+    const metadata: Record<string, unknown> = {
+      ...(state.toolCallId ? { toolCallId: state.toolCallId } : {}),
+      ...(state.arguments !== undefined ? { arguments: state.arguments } : {}),
+      ...(state.result !== undefined ? { result: state.result } : {}),
+      ...(state.agentId !== undefined ? { agentId: state.agentId } : {}),
+      startedAt: state.startedAt,
+      updatedAt: state.updatedAt,
+    };
+    node.metadata = metadata;
+    node.children = [];
+    return node;
   }
 
   private createToolInvocationsFromMessages(
@@ -259,6 +305,41 @@ export class OrchestratorMetadataService {
     }
 
     return nodes;
+  }
+
+  private mergeToolInvocationLists(
+    primary: ToolCallNodeDto[],
+    secondary: ToolCallNodeDto[],
+  ): ToolCallNodeDto[] {
+    if (primary.length === 0) {
+      return secondary;
+    }
+
+    if (secondary.length === 0) {
+      return primary;
+    }
+
+    const seen = new Set<string>();
+    const merged = [...primary];
+
+    for (const node of primary) {
+      if (node.id) {
+        seen.add(node.id);
+      }
+    }
+
+    for (const node of secondary) {
+      const identifier = node.id;
+      if (identifier && seen.has(identifier)) {
+        continue;
+      }
+      merged.push(node);
+      if (identifier) {
+        seen.add(identifier);
+      }
+    }
+
+    return merged;
   }
 
   private collectAgentToolInvocations(
