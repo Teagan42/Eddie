@@ -18,7 +18,7 @@ RUN npm ci
 FROM base AS development
 ENV NODE_ENV=development
 EXPOSE 3000 9229
-CMD ["npm", "run", "dev:api"]
+CMD ["npm", "run", "api:dev"]
 
 FROM node:20-bookworm-slim AS production
 WORKDIR /workspace
@@ -41,4 +41,4 @@ COPY --from=base /workspace/README.md ./README.md
 RUN npm run build --workspace @eddie/api --if-present
 RUN npm prune --omit=dev
 EXPOSE 3000
-CMD ["npm", "run", "start:api"]
+CMD ["npm", "run", "api:start"]

@@ -6,4 +6,4 @@ coordinating changes that span multiple applications.
 ## Running the Web UI
 
 Run both `@eddie/api` and `@eddie/web` to obtain a fully functional web interface for demos, screenshots, or manual QA. You can
-launch them together with `npm run dev`, or start them individually via `npm run dev:api` and `npm run web:dev`.
+launch them together with `npm run dev`, or start them individually via `npm run api:dev` and `npm run web:dev`.

@@ -3,7 +3,7 @@ services:
     build:
       context: .
       target: development
-    command: npm run dev:api
+    command: npm run api:dev
     ports:
       - "3000:3000"
       - "9229:9229"
@@ -28,7 +28,7 @@ services:
     build:
       context: .
       target: production
-    command: npm run start:api
+    command: npm run api:start
     environment:
       NODE_ENV: production
     ports:
