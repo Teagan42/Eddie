@@ -1,6 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { fn } from "@storybook/test";
-
 import type { SessionMetrics } from "./ChatWindow";
 import { ChatWindow } from "./ChatWindow";
 
@@ -25,6 +23,8 @@ const metrics: SessionMetrics = {
   toolInvocations: 3,
 };
 
+const noop = () => undefined;
+
 const meta = {
   title: "Chat/Chat Window",
   component: ChatWindow,
@@ -34,8 +34,8 @@ const meta = {
   args: {
     messages: sampleMessages,
     composerValue: "",
-    onComposerValueChange: fn(),
-    onComposerSubmit: fn(),
+    onComposerValueChange: noop,
+    onComposerSubmit: noop,
     sessionMetrics: metrics,
   },
   argTypes: {
@@ -71,7 +71,7 @@ export const ErrorState: Story = {
   },
 };
 
-export const SessionMetrics: Story = {
+export const WithSessionMetrics: Story = {
   args: {
     sessionMetrics: {
       tokensConsumed: 420,

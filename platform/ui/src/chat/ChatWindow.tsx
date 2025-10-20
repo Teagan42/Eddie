@@ -1,5 +1,5 @@
 import type { FormEventHandler, ReactNode } from "react";
-import { Badge, Card, Flex, Separator, Text } from "@radix-ui/themes";
+import { Badge, Card, Flex, Heading, Separator, Text } from "@radix-ui/themes";
 
 import { MessageComposer } from "./MessageComposer";
 
@@ -56,9 +56,9 @@ export function ChatWindow({
   return (
     <Flex direction="column" gap="5" className="w-full max-w-3xl">
       <Flex direction="column" gap="2">
-        <Text as="h2" size="5" weight="bold">
+        <Heading as="h2" size="5" weight="bold">
           {heading}
-        </Text>
+        </Heading>
         {sessionMetrics ? <SessionMetricsSummary metrics={sessionMetrics} /> : null}
       </Flex>
 

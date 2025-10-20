@@ -7,7 +7,7 @@ describe("ChatWindow stories", () => {
 
     expect(meta.argTypes?.sessionMetrics?.control?.type).toBe("object");
     expect(Array.isArray(stories.Empty.args?.messages)).toBe(true);
-    expect(stories.SessionMetrics.args?.sessionMetrics).toMatchObject({
+    expect(stories.WithSessionMetrics.args?.sessionMetrics).toMatchObject({
       tokensConsumed: expect.any(Number),
     });
   });

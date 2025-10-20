@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { fn } from "@storybook/test";
 import { MessageComposer } from "./MessageComposer";
 
 const baseArgs = {
@@ -7,8 +6,8 @@ const baseArgs = {
   value: "",
   placeholder: "Send a message",
   submitDisabled: false,
-  onChange: fn(),
-  onSubmit: fn(),
+  onChange: () => undefined,
+  onSubmit: () => undefined,
 };
 
 const meta = {
