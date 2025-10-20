@@ -3,31 +3,31 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { RuntimeConfigDto } from "@eddie/api-client";
-import { OverviewHero } from "../components";
+
+import { OverviewHero, type OverviewHeroProps } from "../../src/overview";
 import {
   AVAILABLE_THEMES,
   ThemeProvider,
   isDarkTheme,
   useTheme,
-} from "@/theme";
+} from "../../src/overview/theme";
 
-vi.mock("@/api/api-provider", () => ({
-  useApi: () => ({
-    http: {
-      config: {
-        get: vi.fn(() => Promise.resolve({ theme: initialTheme } satisfies Pick<RuntimeConfigDto, "theme">)),
-        update: vi.fn((input: Partial<RuntimeConfigDto>) => Promise.resolve({ theme: input.theme })),
-      },
+let initialTheme: OverviewHeroProps["theme"] = "light";
+
+vi.mock("../../src/overview/api", () => ({
+  useOverviewApi: () => ({
+    config: {
+      get: vi.fn(() => Promise.resolve({ theme: initialTheme } satisfies Pick<OverviewHeroProps, "theme">)),
+      update: vi.fn((input: Partial<Pick<OverviewHeroProps, "theme">>) =>
+        Promise.resolve({ theme: input.theme ?? initialTheme }),
+      ),
     },
   }),
 }));
 
-let initialTheme: RuntimeConfigDto["theme"] = "light";
-
 function ThemeHarness(): JSX.Element {
   const { theme, setTheme, isThemeStale } = useTheme();
-  const handleSelectTheme = (nextTheme: RuntimeConfigDto["theme"]): void => {
+  const handleSelectTheme = (nextTheme: OverviewHeroProps["theme"]): void => {
     setTheme(nextTheme);
   };
 
@@ -45,7 +45,9 @@ function ThemeHarness(): JSX.Element {
             label: "Stat",
             value: 1,
             hint: "Hint",
-            icon: ({ className }: { className?: string }) => <span data-testid="dummy-icon" className={className} />,
+            icon: ({ className }: { className?: string }) => (
+              <span data-testid="dummy-icon" className={className} />
+            ),
           },
         ]}
       />
@@ -56,7 +58,7 @@ function ThemeHarness(): JSX.Element {
 describe("OverviewHero", () => {
   async function chooseTheme(
     user: ReturnType<typeof userEvent.setup>,
-    theme: RuntimeConfigDto["theme"]
+    theme: OverviewHeroProps["theme"],
   ): Promise<void> {
     const trigger = await screen.findByRole("combobox", { name: /theme/i });
     await user.click(trigger);
@@ -73,7 +75,7 @@ describe("OverviewHero", () => {
         <ThemeProvider>
           <ThemeHarness />
         </ThemeProvider>
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
 
     await waitFor(() => expect(document.documentElement.dataset.theme).toBe(AVAILABLE_THEMES[0]));
@@ -101,7 +103,7 @@ describe("OverviewHero", () => {
         <ThemeProvider>
           <ThemeHarness />
         </ThemeProvider>
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
 
     const hero = await screen.findByTestId("overview-hero");
@@ -132,7 +134,7 @@ describe("OverviewHero", () => {
         <ThemeProvider>
           <ThemeHarness />
         </ThemeProvider>
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
 
     await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(false));
@@ -142,13 +144,17 @@ describe("OverviewHero", () => {
     await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
 
     act(() => {
-      queryClient.setQueryData<Pick<RuntimeConfigDto, "theme">>(["config"], { theme: "dark" });
+      queryClient.setQueryData<Pick<OverviewHeroProps, "theme">>(["config"], {
+        theme: "dark",
+      } as Pick<OverviewHeroProps, "theme">);
     });
 
     await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
 
     act(() => {
-      queryClient.setQueryData<Pick<RuntimeConfigDto, "theme">>(["config"], { theme: "light" });
+      queryClient.setQueryData<Pick<OverviewHeroProps, "theme">>(["config"], {
+        theme: "light",
+      } as Pick<OverviewHeroProps, "theme">);
     });
 
     await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
@@ -166,7 +172,7 @@ describe("OverviewHero", () => {
         <ThemeProvider>
           <ThemeHarness />
         </ThemeProvider>
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
 
     const toggleButton = await screen.findByRole("combobox", { name: /theme/i });
@@ -178,13 +184,17 @@ describe("OverviewHero", () => {
     await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
 
     act(() => {
-      queryClient.setQueryData<Pick<RuntimeConfigDto, "theme">>(["config"], { theme: "light" });
+      queryClient.setQueryData<Pick<OverviewHeroProps, "theme">>(["config"], {
+        theme: "light",
+      } as Pick<OverviewHeroProps, "theme">);
     });
 
     await waitFor(() => expect(toggleButton).toBeDisabled());
 
     act(() => {
-      queryClient.setQueryData<Pick<RuntimeConfigDto, "theme">>(["config"], { theme: "dark" });
+      queryClient.setQueryData<Pick<OverviewHeroProps, "theme">>(["config"], {
+        theme: "dark",
+      } as Pick<OverviewHeroProps, "theme">);
     });
 
     await waitFor(() => expect(toggleButton).not.toBeDisabled());
