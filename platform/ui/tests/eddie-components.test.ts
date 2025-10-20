@@ -36,3 +36,17 @@ describe('EddieButton', () => {
     expect(link.className).toContain('dark:shadow-[var(--hero-cta-shadow-dark)]');
   });
 });
+
+describe('module entry points', () => {
+  it('exposes EddieButton via a TitleCase component path', async () => {
+    const module = await import('../src/components/EddieButton');
+
+    expect(module.EddieButton).toBeTypeOf('function');
+  });
+
+  it('exposes EddieIcon via a TitleCase component path', async () => {
+    const module = await import('../src/components/EddieIcon');
+
+    expect(module.EddieIcon).toBeTypeOf('function');
+  });
+});
