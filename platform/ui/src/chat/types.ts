@@ -21,7 +21,7 @@ export interface ChatMessageReasoningSegment {
   agentId?: string | null;
 }
 
-export interface ChatMessageReasoning {
+export type ChatMessageReasoning {
   segments?: ChatMessageReasoningSegment[];
   responseId?: string;
   status?: "streaming" | "completed";
