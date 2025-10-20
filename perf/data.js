@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760941607807,
+  "lastUpdate": 1760942138980,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -628,6 +628,46 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 24.913,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Teagan Glenn",
+            "username": "Teagan42",
+            "email": "that@teagantotally.rocks"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "51581cdee12aeda4bc10d5d249fa9e3f91c41dbd",
+          "message": "Allow spawn hooks to extend subagent allow lists (#666)\n\n* docs(config): regenerate config schema bundle\n\n* refactor(agent-orchestrator): collect spawn ids in single pass",
+          "timestamp": "2025-10-20T06:24:57Z",
+          "url": "https://github.com/Teagan42/Eddie/commit/51581cdee12aeda4bc10d5d249fa9e3f91c41dbd"
+        },
+        "date": 1760942138127,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 47.366,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 31.226,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 24.354,
             "unit": "ms",
             "extra": "[object Object]"
           }
