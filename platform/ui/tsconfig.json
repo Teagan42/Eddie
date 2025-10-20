@@ -2,21 +2,20 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
+    "baseUrl": "./src",
+    "rootDir": "./src",
+    "outDir": "dist/",
+    "declaration": true,
+    "declarationMap": true,
     "sourceMap": true,
-    "rootDir": "src",
-    "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo",
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "types": [
+      "vite/client",
+      "vitest"
+    ],
   },
   "include": [
     "src/**/*.ts",
-    "src/**/*.tsx",
-    "tests/AppHeader.test.tsx",
-    "tests/AuroraBackground.test.tsx",
-    "tests/index.test.ts",
-    "tests/JsonTreeView.test.tsx",
-    "tests/NavigationLink.test.tsx",
-    "tests/Panel.structure.test.ts",
-    "tests/Panel.test.tsx",
-    "tests/Panel.theming.test.ts"
+    "src/**/*.tsx"
   ]
 }
