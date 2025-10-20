@@ -93,6 +93,39 @@ describe("AgentRunner", () => {
     expect(toolMessage).toMatchObject({ content: expectedPayload });
   });
 
+  it("records tool call arguments on the assistant message", async () => {
+    const invocation = createInvocation();
+    invocation.toolRegistry.execute = vi
+      .fn()
+      .mockResolvedValue({ schema: "tool.schema", content: "done" });
+    const toolArguments = { x: 1, note: "calculate" };
+    const providerStream = vi
+      .fn()
+      .mockReturnValueOnce(
+        createStream([
+          { type: "tool_call", id: "call_1", name: "math", arguments: toolArguments },
+          { type: "end" },
+        ])
+      )
+      .mockReturnValueOnce(createStream([{ type: "end" }]));
+    const descriptor = createDescriptor({ provider: { name: "openai", stream: providerStream } });
+
+    const { runner } = createAgentRunnerTestContext({
+      invocation,
+      descriptor,
+      composeToolSchemas: () => [],
+    });
+
+    await runner.run();
+
+    const assistantToolCallMessage = invocation.messages.find(
+      (message) => message.role === "assistant" && message.tool_call_id === "call_1"
+    );
+
+    expect(assistantToolCallMessage).toBeDefined();
+    expect(assistantToolCallMessage?.content).toBe(JSON.stringify(toolArguments));
+  });
+
   it("publishes agent stream events via the event bus", async () => {
     const invocation = createInvocation();
     const streamEvents: StreamEvent[] = [
