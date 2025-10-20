@@ -13,9 +13,14 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     envPrefix: ["NEXT_PUBLIC_", "VITE_"],
     resolve: {
-      alias: {
-        "@": resolve(rootDir, "src"),
-      },
+      alias: [
+        { find: /^@\//u, replacement: `${resolve(rootDir, "src")}/` },
+        { find: /^@eddie\/ui$/u, replacement: resolve(rootDir, "../../platform/ui/src/index.ts") },
+        {
+          find: /^@eddie\/ui\/(.*)$/u,
+          replacement: resolve(rootDir, "../../platform/ui/src") + "/$1",
+        },
+      ],
     },
     server: {
       host: "0.0.0.0",

@@ -160,4 +160,28 @@ describe("ThemeProvider", () => {
 
     queryClient.clear();
   });
+
+  it("applies shared theme tokens for Radix", async () => {
+    const queryClient = new QueryClient();
+
+    const { result } = renderHook(() => useTheme(), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await waitFor(() => expect(result.current.theme).toBe("light"));
+
+    const radixRoot = document.querySelector('[data-is-root-theme="true"]');
+    expect(radixRoot).not.toBeNull();
+
+    act(() => {
+      result.current.setTheme("midnight");
+    });
+
+    await waitFor(() => expect(result.current.theme).toBe("midnight"));
+
+    expect(radixRoot?.getAttribute("data-accent-color")).toBe("iris");
+    expect(radixRoot?.classList.contains("dark")).toBe(true);
+
+    queryClient.clear();
+  });
 });

@@ -1,42 +1,29 @@
 import type { RuntimeConfigDto } from "@eddie/api-client";
+import {
+  AVAILABLE_THEMES as SHARED_AVAILABLE_THEMES,
+  formatThemeLabel as sharedFormatThemeLabel,
+  getNextTheme as sharedGetNextTheme,
+  getThemeAccentColor as sharedGetThemeAccentColor,
+  getThemeAppearance as sharedGetThemeAppearance,
+  isDarkTheme as sharedIsDarkTheme,
+  type ThemeAccentColor,
+  type ThemeAppearance,
+} from "@eddie/ui";
 
-export type ThemeAccentColor = "amber" | "iris" | "jade";
+type RuntimeTheme = RuntimeConfigDto["theme"];
 
-export const AVAILABLE_THEMES = [
-  "light",
-  "dark",
-  "midnight",
-  "aurora",
-] as const satisfies readonly RuntimeConfigDto["theme"][];
+export const AVAILABLE_THEMES = SHARED_AVAILABLE_THEMES as readonly RuntimeTheme[];
 
-const DARK_THEMES = new Set<RuntimeConfigDto["theme"]>(["dark", "midnight"]);
+export const formatThemeLabel: (theme: RuntimeTheme) => string = sharedFormatThemeLabel;
 
-export function formatThemeLabel(theme: RuntimeConfigDto["theme"]): string {
-  return theme.charAt(0).toUpperCase() + theme.slice(1);
-}
+export const isDarkTheme: (theme: RuntimeTheme) => boolean = sharedIsDarkTheme;
 
-export function isDarkTheme(theme: RuntimeConfigDto["theme"]): boolean {
-  return DARK_THEMES.has(theme);
-}
+export const getNextTheme: (theme: RuntimeTheme) => RuntimeTheme = sharedGetNextTheme;
 
-export function getNextTheme(theme: RuntimeConfigDto["theme"]): RuntimeConfigDto["theme"] {
-  const index = AVAILABLE_THEMES.indexOf(theme);
-  if (index === -1) {
-    return AVAILABLE_THEMES[0];
-  }
-  return AVAILABLE_THEMES[(index + 1) % AVAILABLE_THEMES.length];
-}
+export const getThemeAccentColor: (theme: RuntimeTheme) => ThemeAccentColor =
+  sharedGetThemeAccentColor;
 
-export function getThemeAccentColor(theme: RuntimeConfigDto["theme"]): ThemeAccentColor {
-  if (theme === "aurora") {
-    return "amber";
-  }
-  if (theme === "midnight") {
-    return "iris";
-  }
-  return "jade";
-}
+export const getThemeAppearance: (theme: RuntimeTheme) => ThemeAppearance =
+  sharedGetThemeAppearance;
 
-export function getThemeAppearance(theme: RuntimeConfigDto["theme"]): "light" | "dark" {
-  return isDarkTheme(theme) ? "dark" : "light";
-}
+export type { ThemeAccentColor };

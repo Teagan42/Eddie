@@ -8,11 +8,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Theme } from "@radix-ui/themes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { RuntimeConfigDto } from "@eddie/api-client";
+import { EddieThemeProvider } from "@eddie/ui";
 import { useApi } from "@/api/api-provider";
-import { getThemeAccentColor, getThemeAppearance, isDarkTheme } from "./themes";
+import { isDarkTheme } from "./themes";
 
 const CONFIG_QUERY_KEY = ["config"] as const;
 
@@ -196,14 +196,9 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
     [isThemeStale, setTheme, theme]
   );
 
-  const accentColor = getThemeAccentColor(theme);
-  const appearance = getThemeAppearance(theme);
-
   return (
     <ThemeContext.Provider value={value}>
-      <Theme accentColor={accentColor} radius="large" appearance={appearance}>
-        {children}
-      </Theme>
+      <EddieThemeProvider theme={theme}>{children}</EddieThemeProvider>
     </ThemeContext.Provider>
   );
 }
