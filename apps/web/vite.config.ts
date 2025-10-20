@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": resolve(rootDir, "src"),
+        "@eddie/ui": resolve(rootDir, "../../platform/ui/src"),
       },
     },
     server: {

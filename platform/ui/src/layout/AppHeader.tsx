@@ -1,12 +1,14 @@
 import { Link } from "react-router-dom";
 import { Avatar, Button, Flex, Heading, IconButton, Separator, Text } from "@radix-ui/themes";
 import { ExitIcon } from "@radix-ui/react-icons";
-import { NavigationLink } from "@/components/navigation";
+
+import { NavigationLink } from "../navigation/NavigationLink";
+import type { NavigationLinkProps } from "../navigation/NavigationLink";
 
 export interface AppHeaderProps {
   apiConnected: boolean;
   onClearApiKey: () => void;
-  navigation: Array<{ to: string; label: string }>;
+  navigation: ReadonlyArray<NavigationLinkProps>;
   addApiKeyHref?: string;
 }
 

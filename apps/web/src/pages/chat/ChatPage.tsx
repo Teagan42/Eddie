@@ -25,7 +25,7 @@ import { useApi } from '@/api/api-provider';
 import { useAuth } from '@/auth/auth-context';
 import { useLayoutPreferences } from '@/hooks/useLayoutPreferences';
 import type { LayoutPreferencesDto } from '@eddie/api-client';
-import { Panel } from "@/components/common";
+import { Panel } from "@eddie/ui";
 import { Sheet, SheetTrigger } from "@/vendor/components/ui/sheet";
 import { cn } from "@/vendor/lib/utils";
 import { toast } from '@/vendor/hooks/use-toast';

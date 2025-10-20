@@ -1,6 +1,6 @@
-import { cn } from "@/vendor/lib/utils";
+import { combineClassNames } from "../utils/class-names";
 
-interface AuroraBackgroundProps {
+export interface AuroraBackgroundProps {
   className?: string;
 }
 
@@ -19,7 +19,7 @@ export function AuroraBackground({ className }: AuroraBackgroundProps): JSX.Elem
   return (
     <div
       aria-hidden
-      className={cn(
+      className={combineClassNames(
         "pointer-events-none absolute inset-0 overflow-hidden [mask-image:radial-gradient(circle_at_center,white_20%,transparent_70%)]",
         className,
       )}

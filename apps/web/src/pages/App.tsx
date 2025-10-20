@@ -5,9 +5,7 @@ import { OverviewPage } from "./OverviewPage";
 import { ChatPage } from "./chat";
 import { ConfigPage } from "./config";
 import { useAuth } from "@/auth/auth-context";
-import { AuroraBackground } from "@/components/common";
-import { AppHeader } from "@/components/layout";
-import { NavigationLink } from "@/components/navigation";
+import { AppHeader, AuroraBackground, NavigationLink } from "@eddie/ui";
 import { cn } from "@/vendor/lib/utils";
 
 const navigationItems = [

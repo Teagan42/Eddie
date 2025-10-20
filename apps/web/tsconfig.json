@@ -9,9 +9,6 @@
     "declarationMap": true,
     "sourceMap": true,
     "paths": {
-      "@/components/*": [
-        "components/*"
-      ],
       "@/vendor/*": [
         "vendor/*"
       ],
@@ -26,6 +23,12 @@
       ],
       "@/*": [
         "./src/*"
+      ],
+      "@eddie/ui": [
+        "../../platform/ui/src"
+      ],
+      "@eddie/ui/*": [
+        "../../platform/ui/src/*"
       ]
     },
     "types": [

@@ -9,7 +9,7 @@ type Lockfile = {
   packages: Record<string, { workspaces?: string[] }>;
 };
 
-const expectedWorkspaceGlobs = ['apps/*', 'platform/*/*'] as const;
+const expectedWorkspaceGlobs = ['apps/*', 'platform/*/*', 'platform/ui'] as const;
 
 const readJson = <T>(relativePath: string): T => {
   const content = readFileSync(new URL(relativePath, import.meta.url), 'utf8');

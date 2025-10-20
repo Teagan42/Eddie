@@ -1,7 +1,8 @@
+import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { JsonTreeView } from "./JsonTreeView";
+import { JsonTreeView } from "../src/common/JsonTreeView";
 
 describe("JsonTreeView", () => {
   it("reveals nested child entries after expanding a parent node", async () => {
