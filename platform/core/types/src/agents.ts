@@ -71,6 +71,7 @@ export interface AgentRuntimeMetadata {
   description?: string;
   routingThreshold?: number;
   profileId?: string;
+  allowedSubagents?: string[];
 }
 
 export interface AgentRuntimeDescriptor {
@@ -87,4 +88,5 @@ export interface AgentRuntimeCatalog {
   getAgent(id: string): AgentRuntimeDescriptor | undefined;
   getSubagent(id: string): AgentRuntimeDescriptor | undefined;
   listSubagents(): AgentRuntimeDescriptor[];
+  listSpawnableSubagents(agentId: string): AgentRuntimeDescriptor[];
 }

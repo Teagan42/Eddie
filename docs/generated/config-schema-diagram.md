@@ -11,6 +11,8 @@ graph LR
   agents__enableSubagents["enableSubagents (required): boolean"]
   agents --> agents__manager
   agents__manager["manager (required): object"]
+  agents__manager --> agents__manager__allowedSubagents
+  agents__manager__allowedSubagents["allowedSubagents: array<string>"]
   agents__manager --> agents__manager__defaultUserPromptTemplate
   agents__manager__defaultUserPromptTemplate["defaultUserPromptTemplate: object"]
   agents__manager__defaultUserPromptTemplate --> agents__manager__defaultUserPromptTemplate__baseDir
@@ -53,6 +55,8 @@ graph LR
   agents__routing__maxDepth["maxDepth: integer"]
   agents --> agents__subagents
   agents__subagents["subagents (required): array<object>"]
+  agents__subagents__item --> agents__subagents__item__allowedSubagents
+  agents__subagents__item__allowedSubagents["allowedSubagents: array<string>"]
   agents__subagents__item --> agents__subagents__item__defaultUserPromptTemplate
   agents__subagents__item__defaultUserPromptTemplate["defaultUserPromptTemplate: object"]
   agents__subagents__item__defaultUserPromptTemplate --> agents__subagents__item__defaultUserPromptTemplate__baseDir

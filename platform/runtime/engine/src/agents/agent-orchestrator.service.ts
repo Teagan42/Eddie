@@ -268,7 +268,8 @@ export class AgentOrchestratorService {
     const schemas = invocation.toolRegistry.schemas();
     const additional: ToolSchema[] = [];
 
-    const spawnSchema = this.createSpawnToolSchema(runtime);
+    const descriptor = this.getInvocationDescriptor(invocation);
+    const spawnSchema = this.createSpawnToolSchema(descriptor, runtime);
     if (spawnSchema) {
       additional.push(spawnSchema);
     }
@@ -281,13 +282,14 @@ export class AgentOrchestratorService {
   }
 
   private createSpawnToolSchema(
+    descriptor: AgentRuntimeDescriptor,
     runtime: AgentRuntimeOptions
   ): ToolSchema | undefined {
     if (!runtime.catalog.enableSubagents) {
       return undefined;
     }
 
-    const subagents = runtime.catalog.listSubagents();
+    const subagents = runtime.catalog.listSpawnableSubagents(descriptor.id);
     if (subagents.length === 0) {
       return undefined;
     }
@@ -425,13 +427,13 @@ export class AgentOrchestratorService {
       );
     }
 
-    runtime.logger.debug(
-      {
-        agent: invocation.id,
-        delegatedTo: descriptor.id,
-        toolCallId: event.id,
-      },
-      "Spawning configured subagent"
+    const configuredAllowedDescriptors =
+      runtime.catalog.listSpawnableSubagents(parentDescriptor.id);
+    const configuredAllowedIds = configuredAllowedDescriptors.map(
+      (agent) => agent.id
+    );
+    const configuredLookup = new Map(
+      configuredAllowedDescriptors.map((agent) => [agent.id, agent])
     );
 
     const lifecycle = this.createLifecyclePayload(invocation);
@@ -479,6 +481,9 @@ export class AgentOrchestratorService {
         metadata: args.metadata,
       },
       target: this.toTargetSummary(descriptor),
+      allowedTargets: configuredAllowedDescriptors.map((candidate) =>
+        this.toTargetSummary(candidate)
+      ),
       spawn: spawnForHook,
     };
 
@@ -527,7 +532,52 @@ export class AgentOrchestratorService {
     const overrides = this.applySpawnOverrides(hookDispatch, {
       prompt: args.prompt,
       variables: args.variables,
+      allowedSubagents: configuredAllowedIds,
     });
+
+    const allowedIds = new Set(overrides.allowedSubagents);
+    const finalAllowedDescriptors = new Map<string, AgentRuntimeDescriptor>();
+
+    for (const allowedId of allowedIds) {
+      if (allowedId === descriptor.id) {
+        finalAllowedDescriptors.set(allowedId, descriptor);
+        continue;
+      }
+
+      const allowedDescriptor =
+        configuredLookup.get(allowedId) ?? runtime.catalog.getSubagent(allowedId);
+
+      if (!allowedDescriptor || allowedDescriptor.id !== allowedId) {
+        throw new Error(
+          `Hook attempted to allow unknown subagent "${ allowedId }".`
+        );
+      }
+
+      finalAllowedDescriptors.set(allowedId, allowedDescriptor);
+    }
+
+    const finalAllowedIds = Array.from(finalAllowedDescriptors.keys());
+
+    if (!finalAllowedDescriptors.has(descriptor.id)) {
+      const allowedLabels = finalAllowedIds.join(", ");
+      const allowedMessage =
+        allowedLabels.length > 0
+          ? ` Allowed subagents: ${ allowedLabels }.`
+          : "";
+      throw new Error(
+        `Agent "${ parentDescriptor.id }" is not allowed to spawn subagent "${ descriptor.id }".${ allowedMessage }`
+      );
+    }
+
+    runtime.logger.debug(
+      {
+        agent: invocation.id,
+        delegatedTo: descriptor.id,
+        toolCallId: event.id,
+        allowedSubagents: finalAllowedIds,
+      },
+      "Spawning configured subagent"
+    );
 
     const spawnOptions: AgentInvocationOptions = {
       prompt: overrides.prompt,
@@ -625,19 +675,41 @@ export class AgentOrchestratorService {
     );
   }
 
+  private normalizeAllowedSubagentIds(value: unknown): string[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    const normalized = new Set<string>();
+
+    for (const candidate of value) {
+      if (typeof candidate === "string" && candidate.trim().length > 0) {
+        normalized.add(candidate);
+      }
+    }
+
+    return Array.from(normalized.values());
+  }
+
   private applySpawnOverrides(
     dispatch: HookDispatchResult<(typeof HOOK_EVENTS)["beforeSpawnSubagent"]>,
-    defaults: { prompt: string; variables?: TemplateVariables }
+    defaults: {
+      prompt: string;
+      variables?: TemplateVariables;
+      allowedSubagents: string[];
+    }
   ): {
     prompt: string;
     variables?: TemplateVariables;
     context?: PackedContext;
     contextProvided: boolean;
+    allowedSubagents: string[];
   } {
     let prompt = defaults.prompt;
     let variables = defaults.variables;
     let context: PackedContext | undefined;
     let contextProvided = false;
+    let allowedSubagents = new Set(defaults.allowedSubagents);
 
     for (const result of dispatch.results) {
       if (!isSpawnSubagentOverride(result)) {
@@ -656,9 +728,26 @@ export class AgentOrchestratorService {
         context = result.context;
         contextProvided = true;
       }
+
+      if (Object.hasOwn(result, "allowedSubagents")) {
+        if (Array.isArray(result.allowedSubagents)) {
+          const normalized = this.normalizeAllowedSubagentIds(
+            result.allowedSubagents
+          );
+          allowedSubagents = new Set(normalized);
+        } else if (result.allowedSubagents === undefined) {
+          allowedSubagents = new Set(defaults.allowedSubagents);
+        }
+      }
     }
 
-    return { prompt, variables, context, contextProvided };
+    return {
+      prompt,
+      variables,
+      context,
+      contextProvided,
+      allowedSubagents: Array.from(allowedSubagents.values()),
+    };
   }
 
   /**
