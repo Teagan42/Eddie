@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 describe("panel header layout", () => {
   it("exposes responsive header alignment without constraining actions", () => {
-    const source = readFileSync(resolve(__dirname, "../common/Panel.tsx"), "utf8");
+    const source = readFileSync(resolve(__dirname, "../src/common/Panel.tsx"), "utf8");
 
     expect(source).toContain(
       'className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between"'
@@ -13,7 +13,7 @@ describe("panel header layout", () => {
   });
 
   it("wraps the surface with a Radix UI Box for consistent hero styling", () => {
-    const source = readFileSync(resolve(__dirname, "../common/Panel.tsx"), "utf8");
+    const source = readFileSync(resolve(__dirname, "../src/common/Panel.tsx"), "utf8");
 
     expect(source).toContain('import { Box } from "@radix-ui/themes"');
     expect(source).toContain("<Box");
