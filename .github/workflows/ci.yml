@@ -230,6 +230,13 @@ jobs:
       - name: Install dependencies
         run: ./scripts/install.sh
 
+      - name: Prepare license metadata cache
+        run: |
+          mkdir -p .cache
+          if [ ! -f .cache/license-check.json ]; then
+            echo '{}' > .cache/license-check.json
+          fi
+
       - name: Cache license metadata
         uses: actions/cache@v4
         with:

@@ -593,6 +593,8 @@ describe('repository automation', () => {
 
     expect(syncJob).toContain('uses: actions/cache@v4');
     expect(syncJob).toContain('Cache license metadata');
+    expect(syncJob).toContain('Prepare license metadata cache');
+    expect(syncJob).toContain('mkdir -p .cache');
     expect(syncJob).toContain('path: .cache/license-check.json');
   });
 });
