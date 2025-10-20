@@ -78,4 +78,30 @@ describe("LogsForwarderService", () => {
       arguments: { query: "hi", page: 2 },
     });
   });
+
+  it("does not dispatch tool commands when trace lacks session id", () => {
+    const bus = {
+      execute: vi.fn(),
+    } as unknown as CommandBus;
+    const { service } = createService(bus);
+    const event: JsonlWriterEvent = {
+      filePath: "trace.jsonl",
+      append: true,
+      event: {
+        phase: "tool_call",
+        agent: { id: "agent-456" },
+        data: {
+          id: "call-1",
+          name: "search",
+          arguments: { query: "hi" },
+        },
+      },
+    } as unknown as JsonlWriterEvent;
+
+    // @ts-expect-error accessing private method for targeted coverage
+    service.handleJsonlEvent(event);
+
+    const execute = bus.execute as unknown as ReturnType<typeof vi.fn>;
+    expect(execute).not.toHaveBeenCalled();
+  });
 });
