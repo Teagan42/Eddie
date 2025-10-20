@@ -11,7 +11,8 @@ export function isSpawnSubagentOverride(
   return (
     Object.prototype.hasOwnProperty.call(candidate, "prompt") ||
     Object.prototype.hasOwnProperty.call(candidate, "variables") ||
-    Object.prototype.hasOwnProperty.call(candidate, "context")
+    Object.prototype.hasOwnProperty.call(candidate, "context") ||
+    Object.prototype.hasOwnProperty.call(candidate, "allowedSubagents")
   );
 }
 

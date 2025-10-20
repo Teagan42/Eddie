@@ -224,6 +224,7 @@ export interface AgentManagerConfig {
   model?: string;
   provider?: AgentProviderConfig;
   transcript?: TranscriptConfig;
+  allowedSubagents?: string[];
   [key: string]: unknown;
 }
 
@@ -241,6 +242,7 @@ export interface AgentDefinitionConfig {
   model?: string;
   provider?: AgentProviderConfig;
   transcript?: TranscriptConfig;
+  allowedSubagents?: string[];
   [key: string]: unknown;
 }
 

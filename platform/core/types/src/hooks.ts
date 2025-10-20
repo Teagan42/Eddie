@@ -172,12 +172,14 @@ export interface SpawnSubagentOverride {
   prompt?: string;
   variables?: TemplateVariables;
   context?: PackedContext;
+  allowedSubagents?: string[];
 }
 
 export interface SpawnSubagentHookPayload extends AgentLifecyclePayload {
   event: Extract<StreamEvent, { type: "tool_call" }>;
   request: SpawnSubagentRequest;
   target: SpawnSubagentTargetSummary;
+  allowedTargets: SpawnSubagentTargetSummary[];
   spawn: (
     options: SpawnSubagentDelegateOptions
   ) => Promise<SpawnSubagentDelegateResult>;

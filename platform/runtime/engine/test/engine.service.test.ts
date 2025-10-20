@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { EngineService } from "../src/engine.service";
-import type { EddieConfig } from "@eddie/types";
-import type { PackedContext } from "@eddie/types";
+import type { AgentRuntimeCatalog, EddieConfig, PackedContext } from "@eddie/types";
 import type { DiscoveredMcpResource } from "@eddie/mcp";
 
 const baseConfig: EddieConfig = {
@@ -124,6 +123,7 @@ function createService(
     metrics,
     agentOrchestrator,
     demoSeedReplayService,
+    config,
   };
 }
 
@@ -166,6 +166,53 @@ describe("EngineService", () => {
     expect(agentOrchestrator.runAgent).toHaveBeenCalled();
     const [, runtimeOptions] = agentOrchestrator.runAgent.mock.calls[0] ?? [];
     expect(runtimeOptions?.metrics).toBe(metrics);
+  });
+
+  it("restricts spawnable subagents according to configuration allow list", () => {
+    const { service, config } = createService({
+      agents: {
+        ...baseConfig.agents,
+        enableSubagents: true,
+        manager: {
+          ...baseConfig.agents.manager,
+          prompt: "Manage",
+          allowedSubagents: ["researcher"],
+        },
+        subagents: [
+          {
+            id: "researcher",
+            prompt: "Research",
+            allowedSubagents: ["writer"],
+          },
+          {
+            id: "writer",
+            prompt: "Write",
+          },
+        ],
+      },
+    });
+
+    const catalog = (service as unknown as {
+      buildAgentCatalog(
+        cfg: EddieConfig,
+        tools: never[],
+        context: PackedContext,
+      ): AgentRuntimeCatalog;
+    }).buildAgentCatalog(config, [], {
+      files: [],
+      totalBytes: 0,
+      text: "",
+      resources: [],
+    });
+
+    expect(
+      catalog.listSpawnableSubagents("manager").map((agent) => agent.id)
+    ).toEqual(["researcher"]);
+    expect(
+      catalog
+        .listSpawnableSubagents("researcher")
+        .map((agent) => agent.id)
+    ).toEqual(["writer"]);
   });
 
   it("replays demo seeds when provided", async () => {

@@ -164,6 +164,20 @@ export class ConfigValidator {
         issues,
       );
 
+      if (
+        typeof manager?.allowedSubagents !== "undefined" &&
+        (!Array.isArray(manager.allowedSubagents) ||
+          manager.allowedSubagents.some(
+            (value) => typeof value !== "string" || value.trim() === ""
+          ))
+      ) {
+        this.pushValidationIssue(
+          issues,
+          "agents.manager.allowedSubagents",
+          "agents.manager.allowedSubagents must be an array of non-empty strings when provided.",
+        );
+      }
+
       if (typeof agents.enableSubagents !== "boolean") {
         this.pushValidationIssue(
           issues,
@@ -243,6 +257,20 @@ export class ConfigValidator {
             `${basePath}.resources`,
             issues,
           );
+
+          if (
+            typeof subagent.allowedSubagents !== "undefined" &&
+            (!Array.isArray(subagent.allowedSubagents) ||
+              subagent.allowedSubagents.some(
+                (value) => typeof value !== "string" || value.trim() === ""
+              ))
+          ) {
+            this.pushValidationIssue(
+              issues,
+              `${basePath}.allowedSubagents`,
+              `${basePath}.allowedSubagents must be an array of non-empty strings when provided.`,
+            );
+          }
 
           if (
             typeof subagent.name !== "undefined" &&
