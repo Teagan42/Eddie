@@ -387,8 +387,11 @@ export class OrchestratorMetadataService {
           this.extractToolName(message.content);
         node.status = ToolCallStatusDto.Pending;
         const payload = this.parseToolPayload(message.content);
+        const args = payload.isJson
+          ? this.extractToolCallArgumentsFromPayload(payload.value)
+          : this.extractToolArguments(message.content);
         const baseMetadata = appendAgentMetadata(node.metadata);
-        node.metadata = {
+        const metadata: Record<string, unknown> = {
           ...baseMetadata,
           preview: payload.preview,
           ...(toolCallId ? { toolCallId } : {}),
@@ -398,6 +401,13 @@ export class OrchestratorMetadataService {
               ? { toolName: message.name }
               : {}),
         };
+        const hasArguments = payload.isJson
+          ? args !== undefined
+          : args !== undefined && args !== null;
+        if (hasArguments) {
+          metadata.arguments = args;
+        }
+        node.metadata = metadata;
         node.children = node.children ?? [];
         if (!pending.has(toolCallId)) {
           nodes.push(node);
@@ -530,6 +540,33 @@ export class OrchestratorMetadataService {
     const firstToken = trimmed.split(/\s+/u)[0] ?? "tool";
     const normalised = firstToken.replace(/^\/*/u, "");
     return normalised.length > 0 ? normalised : "tool";
+  }
+
+  private extractToolCallArgumentsFromPayload(
+    value: unknown
+  ): unknown | undefined {
+    if (!value || typeof value !== "object") {
+      return undefined;
+    }
+
+    const sources: Record<string, unknown>[] = [
+      value as Record<string, unknown>,
+    ];
+
+    const metadata = (value as { metadata?: unknown }).metadata;
+    if (metadata && typeof metadata === "object") {
+      sources.push(metadata as Record<string, unknown>);
+    }
+
+    for (const source of sources) {
+      for (const key of ["arguments", "args"] as const) {
+        if (Object.prototype.hasOwnProperty.call(source, key)) {
+          return source[key];
+        }
+      }
+    }
+
+    return undefined;
   }
 
   private extractToolArguments(command: string): string | null {
