@@ -1,7 +1,7 @@
 import { render, waitFor, within } from "@testing-library/react";
-import { vi } from "vitest";
-import type { ChatMessageDto, ChatSessionDto } from "@eddie/api-client";
-import { SessionDetail } from "../components";
+import { describe, it, vi } from "vitest";
+
+import { SessionDetail, type SessionDetailProps } from "../../src/chat";
 
 class ResizeObserverMock {
   observe(): void {}
@@ -11,58 +11,67 @@ class ResizeObserverMock {
 
 Object.assign(globalThis, { ResizeObserver: ResizeObserverMock });
 
+type TestSession = SessionDetailProps["session"];
+type TestMessage = SessionDetailProps["messages"][number];
+
+type StreamingMessage = TestMessage & { event?: string };
+
+type MessageWithMetadata = StreamingMessage & {
+  metadata?: { agent?: { id?: string | null; name?: string | null } } | null;
+};
+
+function createSession(partial?: Partial<TestSession>): TestSession {
+  return {
+    id: "session-1",
+    title: "Session 1",
+    description: "",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    ...partial,
+  } as TestSession;
+}
+
+function createMessage(partial?: Partial<MessageWithMetadata>): MessageWithMetadata {
+  return {
+    id: "message-1",
+    sessionId: "session-1",
+    role: "user",
+    content: "Hello world",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    ...partial,
+  } as MessageWithMetadata;
+}
+
 describe("SessionDetail", () => {
-  function createSession(partial?: Partial<ChatSessionDto>): ChatSessionDto {
-    return {
-      id: "session-1",
-      title: "Session 1",
-      description: "",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      ...partial,
-    };
-  }
-
-  function createMessage(partial?: Partial<ChatMessageDto>): ChatMessageDto {
-    return {
-      id: "message-1",
-      sessionId: "session-1",
-      role: "user",
-      content: "Hello world",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      ...partial,
-    };
-  }
-
   it("renders completed messages as individual cards with agent headings", () => {
     const session = createSession();
-    const messages = [
+    const messages: StreamingMessage[] = [
       createMessage({
         id: "message-1",
         role: "assistant",
         name: "Orchestrator",
         content: "Working on it…",
         event: "delta",
-      } as ChatMessageDto & { event?: string }),
+      }),
       createMessage({
         id: "message-1",
         role: "assistant",
         name: "Orchestrator",
         content: "Task complete",
         event: "end",
-      } as ChatMessageDto & { event?: string }),
+      }),
       createMessage({
         id: "message-2",
         role: "assistant",
         name: "Delegate",
         content: "Providing support",
         event: "end",
-      } as ChatMessageDto & { event?: string }),
+      }),
     ];
 
     const { queryByText, getAllByTestId } = render(
-      <SessionDetail session={session} isLoading={false} messages={messages} />
+      <SessionDetail session={session} isLoading={false} messages={messages} />,
     );
 
     expect(queryByText("Working on it…")).not.toBeInTheDocument();
@@ -77,31 +86,31 @@ describe("SessionDetail", () => {
 
   it("uses agent metadata for message headings when available", () => {
     const session = createSession();
-    const messages = [
+    const messages: MessageWithMetadata[] = [
       createMessage({
         id: "message-1",
         role: "assistant",
         content: "Drafting response",
         event: "delta",
         metadata: { agent: { id: "manager", name: "Manager" } },
-      } as ChatMessageDto & { event?: string; metadata?: unknown }),
+      }),
       createMessage({
         id: "message-1",
         role: "assistant",
         content: "Final response",
         event: "end",
-      } as ChatMessageDto & { event?: string; metadata?: unknown }),
+      }),
       createMessage({
         id: "message-2",
         role: "assistant",
         content: "Delegate reply",
         event: "end",
         metadata: { agent: { id: "delegate", name: "Delegate" } },
-      } as ChatMessageDto & { event?: string; metadata?: unknown }),
+      }),
     ];
 
     const { getAllByTestId } = render(
-      <SessionDetail session={session} isLoading={false} messages={messages} />
+      <SessionDetail session={session} isLoading={false} messages={messages} />,
     );
 
     const cards = getAllByTestId("message-card");
@@ -118,7 +127,7 @@ describe("SessionDetail", () => {
     const session = createSession();
     const initialMessages = [createMessage({ id: "message-1" })];
     const { rerender } = render(
-      <SessionDetail session={session} isLoading={false} messages={initialMessages} />
+      <SessionDetail session={session} isLoading={false} messages={initialMessages} />,
     );
 
     scrollIntoView.mockClear();
@@ -127,8 +136,11 @@ describe("SessionDetail", () => {
       <SessionDetail
         session={session}
         isLoading={false}
-        messages={[...initialMessages, createMessage({ id: "message-2", content: "Another" })]}
-      />
+        messages={[
+          ...initialMessages,
+          createMessage({ id: "message-2", content: "Another" }),
+        ]}
+      />,
     );
 
     await waitFor(() => {
@@ -146,7 +158,7 @@ describe("SessionDetail", () => {
     const session = createSession();
     const initialMessages = [createMessage({ id: "message-1", content: "Partial" })];
     const { rerender } = render(
-      <SessionDetail session={session} isLoading={false} messages={initialMessages} />
+      <SessionDetail session={session} isLoading={false} messages={initialMessages} />,
     );
 
     scrollIntoView.mockClear();
@@ -155,8 +167,10 @@ describe("SessionDetail", () => {
       <SessionDetail
         session={session}
         isLoading={false}
-        messages={[createMessage({ id: "message-1", content: "Partial update complete" })]}
-      />
+        messages={[
+          createMessage({ id: "message-1", content: "Partial update complete" }),
+        ]}
+      />,
     );
 
     await waitFor(() => {

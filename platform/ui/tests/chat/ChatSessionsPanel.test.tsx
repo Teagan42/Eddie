@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ChatSessionsPanel } from "../components";
-import type { ChatSessionDto, ChatMessageDto } from "@eddie/api-client";
-import { vi } from "vitest";
+import { describe, it, vi } from "vitest";
+
+import { ChatSessionsPanel, type ChatSessionsPanelProps } from "../../src/chat";
 
 class ResizeObserverMock {
   observe(): void {}
@@ -12,7 +12,10 @@ class ResizeObserverMock {
 
 Object.assign(globalThis, { ResizeObserver: ResizeObserverMock });
 
-function createSession(partial?: Partial<ChatSessionDto>): ChatSessionDto {
+type TestSession = ChatSessionsPanelProps["sessions"][number];
+type TestMessage = ChatSessionsPanelProps["messages"][number];
+
+function createSession(partial?: Partial<TestSession>): TestSession {
   return {
     id: "session-1",
     title: "First Session",
@@ -20,10 +23,10 @@ function createSession(partial?: Partial<ChatSessionDto>): ChatSessionDto {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...partial,
-  };
+  } as TestSession;
 }
 
-function createMessage(partial?: Partial<ChatMessageDto>): ChatMessageDto {
+function createMessage(partial?: Partial<TestMessage>): TestMessage {
   return {
     id: "message-1",
     sessionId: "session-1",
@@ -32,7 +35,7 @@ function createMessage(partial?: Partial<ChatMessageDto>): ChatMessageDto {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...partial,
-  };
+  } as TestMessage;
 }
 
 describe("ChatSessionsPanel", () => {
@@ -53,7 +56,7 @@ describe("ChatSessionsPanel", () => {
         messageDraft=""
         onMessageDraftChange={vi.fn()}
         isMessagePending={false}
-      />
+      />,
     );
 
     expect(screen.getByText(/No sessions yet/i)).toBeInTheDocument();
@@ -81,7 +84,7 @@ describe("ChatSessionsPanel", () => {
         messageDraft=""
         onMessageDraftChange={vi.fn()}
         isMessagePending={false}
-      />
+      />,
     );
 
     await user.click(screen.getByRole("button", { name: /Important session/i }));
@@ -111,7 +114,7 @@ describe("ChatSessionsPanel", () => {
         messageDraft="Test message"
         onMessageDraftChange={onChange}
         isMessagePending={false}
-      />
+      />,
     );
 
     const textarea = screen.getByPlaceholderText(/Send a message/i);

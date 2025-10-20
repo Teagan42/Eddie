@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, it, vi } from "vitest";
 
-import { MessageComposer } from "./MessageComposer";
+import { MessageComposer } from "../../src/chat";
 
 describe("MessageComposer", () => {
   const noop = () => {};

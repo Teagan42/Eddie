@@ -4,7 +4,10 @@ import { resolve } from "node:path";
 
 describe("message composer theming", () => {
   it("uses midnight cta tokens for the send button", () => {
-    const source = readFileSync(resolve(__dirname, "./MessageComposer.tsx"), "utf8");
+    const source = readFileSync(
+      resolve(__dirname, "../../src/chat/MessageComposer.tsx"),
+      "utf8",
+    );
 
     expect(source).toContain('bg-gradient-to-r');
     expect(source).toContain('from-[hsl(var(--hero-cta-from))]');
