@@ -212,12 +212,12 @@ export class OrchestratorMetadataService {
     }
 
     const fromAgents = this.createToolInvocationsFromAgents(agentInvocations);
-    if (fromAgents.length > 0) {
-      return fromAgents;
-    }
-
-    if (fromStore.length > 0) {
-      return fromStore;
+    const mergedAgentsAndStore = this.mergeToolInvocationLists(
+      fromAgents,
+      fromStore,
+    );
+    if (mergedAgentsAndStore.length > 0) {
+      return mergedAgentsAndStore;
     }
 
     return this.createToolInvocationsFromMessages(sessionId, messages);
@@ -305,6 +305,41 @@ export class OrchestratorMetadataService {
     }
 
     return nodes;
+  }
+
+  private mergeToolInvocationLists(
+    primary: ToolCallNodeDto[],
+    secondary: ToolCallNodeDto[],
+  ): ToolCallNodeDto[] {
+    if (primary.length === 0) {
+      return secondary;
+    }
+
+    if (secondary.length === 0) {
+      return primary;
+    }
+
+    const seen = new Set<string>();
+    const merged = [...primary];
+
+    for (const node of primary) {
+      if (node.id) {
+        seen.add(node.id);
+      }
+    }
+
+    for (const node of secondary) {
+      const identifier = node.id;
+      if (identifier && seen.has(identifier)) {
+        continue;
+      }
+      merged.push(node);
+      if (identifier) {
+        seen.add(identifier);
+      }
+    }
+
+    return merged;
   }
 
   private collectAgentToolInvocations(
