@@ -8,6 +8,8 @@ const packageJson = JSON.parse(
 const concurrencyFallback = 'WORKSPACE_TEST_CONCURRENCY=${WORKSPACE_TEST_CONCURRENCY:-2}';
 const changedWorkspacesRunner =
   'WORKSPACE_ONLY_CHANGED=1 WORKSPACE_DIFF_BASE=origin/main tsx scripts/workspace-script.ts';
+const changedWorkspacesCommand =
+  'WORKSPACE_ONLY_CHANGED=1 WORKSPACE_DIFF_BASE=origin/main WORKSPACE_TEST_CONCURRENCY=${WORKSPACE_TEST_CONCURRENCY:-2} npm run';
 
 const convenienceScripts = {
   clean: 'npm run clean --workspaces --if-present && git clean -fdX',
@@ -17,10 +19,11 @@ const convenienceScripts = {
   'test:integration': 'npm run test:integration --workspaces --if-present',
   'test:unit': 'npm run test:unit --workspaces --if-present',
   preTest: 'npm run build',
-  'agent:check': `${concurrencyFallback} npm run lint && ${concurrencyFallback} npm run test`,
+  'agent:check': `${changedWorkspacesCommand} lint && ${changedWorkspacesCommand} test && npm run docs:ui`,
   'docs:serve': 'npx serve docs',
   'db:migrate': 'npm run db:migrate --workspace @eddie/api --if-present',
   'db:seed': 'npm run db:seed --workspace @eddie/api --if-present',
+  'docs:ui': 'npm run storybook:check --workspace @eddie/ui --if-present',
 } as const;
 
 describe('root package scripts', () => {

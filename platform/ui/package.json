@@ -24,15 +24,29 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",
+    "@storybook/addon-a11y": "^8.4.3",
+    "@storybook/addon-essentials": "^8.4.3",
+    "@storybook/addon-interactions": "^8.4.3",
+    "@storybook/react": "^8.4.3",
+    "@storybook/react-vite": "^8.4.3",
+    "@storybook/test": "^8.4.3",
+    "@storybook/test-runner": "^0.19.1",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
+    "http-server": "^14.1.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0"
+    "react-router-dom": "^6.28.0",
+    "start-server-and-test": "^2.0.3",
+    "storybook": "^8.4.3"
   },
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
     "lint": "eslint \"src/**/*.ts\"",
-    "test": "vitest --run --config vitest.config.ts"
+    "test": "vitest --run --config vitest.config.ts",
+    "storybook": "storybook dev -p 6006 --config-dir .storybook",
+    "storybook:build": "storybook build --config-dir .storybook --output-dir dist/storybook",
+    "storybook:test": "npx playwright install chromium && start-server-and-test \"http-server dist/storybook --port 6007 --silent\" http://127.0.0.1:6007 \"test-storybook --config-dir .storybook --ci --url http://127.0.0.1:6007\"",
+    "storybook:check": "npm run storybook:build && npm run storybook:test"
   }
 }

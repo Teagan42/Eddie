@@ -35,6 +35,14 @@ export type {
   JsonTreeViewProps,
   PanelProps,
 } from './common';
+export { ChatWindow, MessageComposer } from './chat';
+export type {
+  ChatMessage,
+  ChatRole,
+  ChatWindowProps,
+  MessageComposerProps,
+  SessionMetrics,
+} from './chat';
 export { AppHeader } from './layout';
 export type { AppHeaderProps } from './layout';
 export { NavigationLink } from './navigation';
