@@ -44,6 +44,7 @@ function createTempDir(prefix: string) {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  delete process.env.GITHUB_TOKEN;
 });
 
 describe('collectLicenses', () => {
@@ -234,6 +235,8 @@ describe('collectLicenses', () => {
 
     writeFileSync(lockfilePath, JSON.stringify(lockfile, null, 2));
 
+    process.env.GITHUB_TOKEN = 'test-token';
+
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({
@@ -244,7 +247,9 @@ describe('collectLicenses', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        text: async () => 'MIT License',
+        json: async () => ({
+          license: { spdx_id: 'MIT' },
+        }),
       });
 
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
@@ -256,6 +261,68 @@ describe('collectLicenses', () => {
       version: '0.5.0',
       license: 'MIT',
       path: 'node_modules/union',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [, secondCall] = fetchMock.mock.calls;
+    expect(secondCall[0]).toBe('https://api.github.com/repos/substack/node-union/license');
+    expect(secondCall[1]).toMatchObject({
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: 'Bearer test-token',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+  });
+
+  it('decodes GitHub license content when metadata is ambiguous', async () => {
+    const dir = createTempDir('license-lock-repo-content-');
+    const lockfilePath = join(dir, 'package-lock.json');
+
+    const lockfile = {
+      name: 'fixture',
+      version: '0.0.0-test',
+      lockfileVersion: 3,
+      packages: {
+        '': { name: 'fixture', version: '0.0.0-test', license: 'BUSL-1.1' },
+        'node_modules/github-ambiguous': {
+          name: 'github-ambiguous',
+          version: '1.0.0',
+        },
+      },
+    };
+
+    writeFileSync(lockfilePath, JSON.stringify(lockfile, null, 2));
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          repository: {
+            type: 'git',
+            url: 'git+https://github.com/example/github-ambiguous.git',
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          license: { spdx_id: 'NOASSERTION', key: 'other' },
+          content: Buffer.from('MIT License').toString('base64'),
+          encoding: 'base64',
+        }),
+      });
+
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+
+    const result = await collectLicenses(lockfilePath, { rootDir: dir });
+
+    expect(result).toContainEqual({
+      name: 'github-ambiguous',
+      version: '1.0.0',
+      license: 'MIT',
+      path: 'node_modules/github-ambiguous',
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
