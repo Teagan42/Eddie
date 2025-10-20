@@ -31,6 +31,7 @@ import { UserPreferencesModule } from "./user-preferences/user-preferences.modul
 import { OrchestratorModule } from "./orchestrator/orchestrator.module";
 import { ConfigEditorModule } from "./config-editor/config-editor.module";
 import { ProvidersModule } from "./providers/providers.module";
+import { DemoDataApiModule } from "./demo-data/demo-data.api.module";
 
 const { ConfigurableModuleClass } = new ConfigurableModuleBuilder<CliRuntimeOptions>({
   moduleName: "EddieApiModule",
@@ -53,6 +54,7 @@ type ConfigModuleAsyncOptions = Parameters<
     UserPreferencesModule,
     OrchestratorModule,
     ProvidersModule,
+    DemoDataApiModule,
   ],
   controllers: [HealthController],
   providers: [
