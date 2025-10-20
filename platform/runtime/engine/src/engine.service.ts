@@ -50,6 +50,7 @@ export interface EngineOptions extends CliRuntimeOptions {
     history?: ChatMessage[];
     autoApprove?: boolean;
     nonInteractive?: boolean;
+    sessionId?: string;
 }
 
 export interface EngineResult {
@@ -91,7 +92,7 @@ export class EngineService {
      */
   async run(prompt: string, options: EngineOptions = {}): Promise<EngineResult> {
     const runStartedAt = Date.now();
-    const sessionId = randomUUID();
+    const sessionId = options.sessionId ?? randomUUID();
     let hooks: HookBus | undefined;
     let session: SessionMetadata | undefined;
     let result: EngineResult | undefined;

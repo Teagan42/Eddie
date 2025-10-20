@@ -173,14 +173,18 @@ describe("ChatSessionsEngineListener", () => {
 
     await new Promise((resolve) => setImmediate(resolve));
 
-    expect(engineRun).toHaveBeenCalledWith("Execute plan", {
-      history: [
-        { role: ChatMessageRole.User, content: "Earlier" },
-        { role: ChatMessageRole.Assistant, content: "Previous reply" },
-      ],
-      autoApprove: true,
-      nonInteractive: true,
-    });
+    expect(engineRun).toHaveBeenCalledWith(
+      "Execute plan",
+      expect.objectContaining({
+        history: [
+          { role: ChatMessageRole.User, content: "Earlier" },
+          { role: ChatMessageRole.Assistant, content: "Previous reply" },
+        ],
+        autoApprove: true,
+        nonInteractive: true,
+        sessionId: "session-1",
+      })
+    );
 
     expect(addMessage).not.toHaveBeenCalledWith("session-1", {
       role: ChatMessageRole.Assistant,
