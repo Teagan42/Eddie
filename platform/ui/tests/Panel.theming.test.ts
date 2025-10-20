@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 function readPanelSource(): string {
-  return readFileSync(resolve(__dirname, "./../src/common/Panel.tsx"), "utf8");
+  return readFileSync(resolve(__dirname, "../src/common/Panel.tsx"), "utf8");
 }
 
 describe("panel cinematic theming", () => {
