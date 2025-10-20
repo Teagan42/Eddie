@@ -44,12 +44,12 @@ Before opening a pull request, make sure your workstation satisfies the followin
 Each surface exposes npm scripts for development (watch/hot reload) and production-like execution.
 
 ### CLI
-- Start the CLI in watch mode while developing: `npm run dev:cli`.
-- Build and run the compiled CLI entry point: `npm run start:cli`.
+- Start the CLI in watch mode while developing: `npm run cli:dev`.
+- Build and run the compiled CLI entry point: `npm run cli:start`.
 
 ### API
-- Launch the NestJS API with live reload: `npm run dev:api`.
-- Run the API in production mode using the compiled output: `npm run start:api`.
+- Launch the NestJS API with live reload: `npm run api:dev`.
+- Run the API in production mode using the compiled output: `npm run api:start`.
 - The API reads configuration from `apps/api/src/runtime-config`. Supply environment variables (e.g., `API_PORT`, `API_PERSISTENCE_DRIVER`) or a `config.yaml` file as documented in `docs/api.md`.
 
 ### Web UI
@@ -71,7 +71,7 @@ The API supports SQLite, PostgreSQL, MySQL, and MariaDB via Knex. For quick iter
    export PGUSER=eddie
    export PGPASSWORD=changeme
    ```
-3. **Start the API** (`npm run dev:api` or `npm run start:api`). The bootstrap process runs pending migrations from `apps/api/migrations` automatically using `knex.migrate.latest`.
+3. **Start the API** (`npm run api:dev` or `npm run api:start`). The bootstrap process runs pending migrations from `apps/api/migrations` automatically using `knex.migrate.latest`.
 4. **Resetting the schema** – use `rm -f data/chat-sessions.sqlite` for SQLite or drop/recreate the relational database when you need a clean slate.
 
 ## Debugging Configuration
@@ -89,7 +89,7 @@ The API supports SQLite, PostgreSQL, MySQL, and MariaDB via Knex. For quick iter
          "request": "launch",
          "name": "API: dev",
          "runtimeExecutable": "npm",
-         "runtimeArgs": ["run", "dev:api"],
+         "runtimeArgs": ["run", "api:dev"],
          "console": "integratedTerminal",
          "cwd": "${workspaceFolder}"
        },
@@ -98,7 +98,7 @@ The API supports SQLite, PostgreSQL, MySQL, and MariaDB via Knex. For quick iter
          "request": "launch",
          "name": "CLI: dev",
          "runtimeExecutable": "npm",
-         "runtimeArgs": ["run", "dev:cli"],
+         "runtimeArgs": ["run", "cli:dev"],
          "cwd": "${workspaceFolder}",
          "console": "integratedTerminal"
        }
@@ -109,7 +109,7 @@ The API supports SQLite, PostgreSQL, MySQL, and MariaDB via Knex. For quick iter
 
 ### Other IDEs
 
-- **WebStorm / JetBrains IDEs** – create Node.js run configurations pointing at the same npm scripts (`dev:api`, `dev:cli`, `web:dev`). Enable the "Allow parallel run" option to watch multiple surfaces simultaneously.
+- **WebStorm / JetBrains IDEs** – create Node.js run configurations pointing at the same npm scripts (`api:dev`, `cli:dev`, `web:dev`). Enable the "Allow parallel run" option to watch multiple surfaces simultaneously.
 - **Neovim / VS Code Remote** – run `npm run dev:*` scripts inside terminals and attach debuggers using `node --inspect` flags if you prefer CLI tooling.
 
 ## Troubleshooting
@@ -120,14 +120,14 @@ Common issues include:
 | --- | --- |
 | **`node-gyp` build failures** | Ensure Python 3, `make`, and a C/C++ toolchain are installed. On Windows install the "windows-build-tools" package or use WSL2. |
 | **`npm install` stalls or runs out of memory** | Clear caches with `npm cache clean --force` and retry. Close other memory-intensive apps or increase Docker/WSL memory limits. |
-| **API fails to connect to the database** | Confirm environment variables, ensure the service is running, and run migrations manually with `npm run start:api` to observe logs. |
+| **API fails to connect to the database** | Confirm environment variables, ensure the service is running, and run migrations manually with `npm run api:start` to observe logs. |
 | **Web UI cannot reach the API** | Set `VITE_API_URL` before running `npm run web:dev` and confirm CORS configuration in `apps/api/src/main.ts`. |
 | **Vitest cannot find files** | Run `npm run build` to refresh generated artifacts and ensure TypeScript paths are in sync with `tsconfig.base.json`. |
 
 ## Hot Reload and Watch Modes
 
-- Use `npm run dev:api` for NestJS live reload powered by `ts-node-dev`. The process restarts on changes to `apps/api/src`.
-- Run `npm run dev:cli` to watch CLI source files and rebuild automatically.
+- Use `npm run api:dev` for NestJS live reload powered by `ts-node-dev`. The process restarts on changes to `apps/api/src`.
+- Run `npm run cli:dev` to watch CLI source files and rebuild automatically.
 - Start `npm run web:dev` to enable Vite's hot module replacement for the web UI.
 - Combine surfaces with `npm run dev` to start the API and Web dev servers together using `concurrently`.
 - For targeted test feedback, execute `npx vitest --watch` or `npm run test -- --watch` to enter watch mode across packages.

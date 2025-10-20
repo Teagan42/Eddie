@@ -58,7 +58,7 @@ VITE_ENABLE_TELEMETRY=false
 1. Start the API with hot reloading. This compiles the Nest application and keeps the generated OpenAPI schema in sync.
 
    ```bash
-   npm run dev:api
+   npm run api:dev
    ```
 
 2. In another terminal, launch the Web UI development server. The predev hook automatically rebuilds the API client package so the React app uses the latest schema.【F:package.json†L17-L27】【F:apps/web/package.json†L7-L26】
@@ -80,7 +80,7 @@ The Playwright specs in `apps/web/tests` assume the API runs with the demo scree
 1. Launch the API with demo fixtures enabled:
 
    ```bash
-   npm run dev:api -- --preset demo-screenshots
+   npm run api:dev -- --preset demo-screenshots
    ```
 
 2. Start the Vite dev server so the UI proxies `/api` requests to the running backend:
