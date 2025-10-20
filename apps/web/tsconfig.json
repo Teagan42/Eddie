@@ -40,5 +40,9 @@
     "playwright.config.ts",
     "tailwind.config.ts"
   ],
-  "references": []
+  "references": [
+    {
+      "path": "../../platform/ui"
+    }
+  ]
 }

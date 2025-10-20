@@ -10,31 +10,77 @@
     "strict": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "baseUrl": ".",
     "paths": {
-      "@eddie/config": ["platform/core/config/src"],
-      "@eddie/config/*": ["platform/core/config/src/*"],
-      "@eddie/context": ["platform/runtime/context/src"],
-      "@eddie/context/*": ["platform/runtime/context/src/*"],
-      "@eddie/engine": ["platform/runtime/engine/src"],
-      "@eddie/engine/*": ["platform/runtime/engine/src/*"],
-      "@eddie/hooks": ["platform/runtime/hooks/src"],
-      "@eddie/hooks/*": ["platform/runtime/hooks/src/*"],
-      "@eddie/perf-benchmarks": ["platform/testing/perf-benchmarks/src"],
-      "@eddie/perf-benchmarks/*": ["platform/testing/perf-benchmarks/src/*"],
-      "@eddie/io": ["platform/runtime/io/src"],
-      "@eddie/io/*": ["platform/runtime/io/src/*"],
-      "@eddie/mcp": ["platform/integrations/mcp/src"],
-      "@eddie/mcp/*": ["platform/integrations/mcp/src/*"],
-      "@eddie/providers": ["platform/integrations/providers/src"],
-      "@eddie/providers/*": ["platform/integrations/providers/src/*"],
-      "@eddie/templates": ["platform/core/templates/src"],
-      "@eddie/templates/*": ["platform/core/templates/src/*"],
-      "@eddie/tokenizers": ["platform/core/tokenizers/src"],
-      "@eddie/tokenizers/*": ["platform/core/tokenizers/src/*"],
-      "@eddie/tools": ["platform/runtime/tools/src"],
-      "@eddie/tools/*": ["platform/runtime/tools/src/*"],
+      "@eddie/config": [
+        "platform/core/config/src"
+      ],
+      "@eddie/config/*": [
+        "platform/core/config/src/*"
+      ],
+      "@eddie/context": [
+        "platform/runtime/context/src"
+      ],
+      "@eddie/context/*": [
+        "platform/runtime/context/src/*"
+      ],
+      "@eddie/engine": [
+        "platform/runtime/engine/src"
+      ],
+      "@eddie/engine/*": [
+        "platform/runtime/engine/src/*"
+      ],
+      "@eddie/hooks": [
+        "platform/runtime/hooks/src"
+      ],
+      "@eddie/hooks/*": [
+        "platform/runtime/hooks/src/*"
+      ],
+      "@eddie/perf-benchmarks": [
+        "platform/testing/perf-benchmarks/src"
+      ],
+      "@eddie/perf-benchmarks/*": [
+        "platform/testing/perf-benchmarks/src/*"
+      ],
+      "@eddie/io": [
+        "platform/runtime/io/src"
+      ],
+      "@eddie/io/*": [
+        "platform/runtime/io/src/*"
+      ],
+      "@eddie/mcp": [
+        "platform/integrations/mcp/src"
+      ],
+      "@eddie/mcp/*": [
+        "platform/integrations/mcp/src/*"
+      ],
+      "@eddie/providers": [
+        "platform/integrations/providers/src"
+      ],
+      "@eddie/providers/*": [
+        "platform/integrations/providers/src/*"
+      ],
+      "@eddie/templates": [
+        "platform/core/templates/src"
+      ],
+      "@eddie/templates/*": [
+        "platform/core/templates/src/*"
+      ],
+      "@eddie/tokenizers": [
+        "platform/core/tokenizers/src"
+      ],
+      "@eddie/tokenizers/*": [
+        "platform/core/tokenizers/src/*"
+      ],
+      "@eddie/tools": [
+        "platform/runtime/tools/src"
+      ],
+      "@eddie/tools/*": [
+        "platform/runtime/tools/src/*"
+      ],
       "@eddie/types": [
         "platform/core/types/dist/index.d.ts",
         "platform/core/types/src"
@@ -42,6 +88,14 @@
       "@eddie/types/*": [
         "platform/core/types/dist/*",
         "platform/core/types/src/*"
+      ],
+      "@eddie/ui": [
+        "platform/ui/dist/index.d.ts",
+        "platform/ui/src"
+      ],
+      "@eddie/ui/*": [
+        "platform/ui/dist/*",
+        "platform/ui/src/*"
       ]
     }
   }
