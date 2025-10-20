@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760942138980,
+  "lastUpdate": 1760942148537,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -668,6 +668,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 24.354,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "51581cdee12aeda4bc10d5d249fa9e3f91c41dbd",
+          "message": "Allow spawn hooks to extend subagent allow lists (#666)\n\n* docs(config): regenerate config schema bundle\n\n* refactor(agent-orchestrator): collect spawn ids in single pass",
+          "timestamp": "2025-10-20T00:24:57-06:00",
+          "tree_id": "3c7d6863518b1ef4660b4c90041b0fdf0c748e68",
+          "url": "https://github.com/Teagan42/Eddie/commit/51581cdee12aeda4bc10d5d249fa9e3f91c41dbd"
+        },
+        "date": 1760942147679,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 47.976,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 33.952,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.33,
             "unit": "ms",
             "extra": "[object Object]"
           }
