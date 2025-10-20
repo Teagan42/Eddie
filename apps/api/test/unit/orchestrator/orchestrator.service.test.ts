@@ -429,6 +429,57 @@ describe("OrchestratorMetadataService", () => {
     });
   });
 
+  it("includes tool call arguments emitted by agents", async () => {
+    const session: ChatSessionDto = {
+      id: "session-arguments",
+      title: "Tool call arguments",
+      status: "active",
+      createdAt: new Date("2024-03-04T00:00:00.000Z").toISOString(),
+      updatedAt: new Date("2024-03-04T00:00:00.000Z").toISOString(),
+    };
+
+    const agentInvocations: AgentInvocationSnapshot[] = [
+      {
+        id: "manager",
+        messages: [
+          {
+            role: ChatMessageRole.Assistant,
+            content: JSON.stringify({
+              schema: "eddie.tool.command.request.v1",
+              content: "List workspace files",
+              arguments: { script: "ls" },
+            }),
+            name: "bash",
+            toolCallId: "call-arguments",
+          },
+          {
+            role: ChatMessageRole.Tool,
+            content: JSON.stringify({
+              schema: "eddie.tool.command.result.v1",
+              content: "README.md",
+            }),
+            name: "bash",
+            toolCallId: "call-arguments",
+          },
+        ],
+        children: [],
+      },
+    ];
+
+    const chatSessions = {
+      getSession: async () => session,
+      listMessages: async () => [],
+      listAgentInvocations: async () => agentInvocations,
+    } as unknown as ChatSessionsService;
+
+    const service = new OrchestratorMetadataService(chatSessions);
+
+    const metadata = await service.getMetadata(session.id);
+    const [toolInvocation] = metadata.toolInvocations;
+
+    expect(toolInvocation?.metadata?.arguments).toEqual({ script: "ls" });
+  });
+
   it("includes both pending and completed tool calls when mixed", async () => {
     const session: ChatSessionDto = {
       id: "session-mixed",
