@@ -10,7 +10,9 @@
     "strict": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "baseUrl": ".",
     "paths": {
       "@eddie/config": ["platform/core/config/src"],
@@ -44,6 +46,14 @@
       "@eddie/types/*": [
         "platform/core/types/dist/*",
         "platform/core/types/src/*"
+      ],
+      "@eddie/ui": [
+        "platform/ui/dist/index.d.ts",
+        "platform/ui/src"
+      ],
+      "@eddie/ui/*": [
+        "platform/ui/dist/*",
+        "platform/ui/src/*"
       ]
     }
   }
