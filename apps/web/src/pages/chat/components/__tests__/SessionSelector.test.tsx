@@ -55,16 +55,18 @@ describe('SessionSelector', () => {
     );
   }
 
-  it('calls onSelectSession when a session button is activated', async () => {
+  it('activates sessions via tab interactions', async () => {
     const user = userEvent.setup();
     const handleSelect = vi.fn();
 
     renderSelector({ onSelectSession: handleSelect });
 
-    const selectedButton = screen.getByRole('button', { name: 'Session 1' });
-    expect(selectedButton).toHaveAttribute('data-accent-color', 'jade');
+    expect(screen.getByRole('tablist')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Session 2' }));
+    const selectedTab = screen.getByRole('tab', { name: 'Session 1' });
+    expect(selectedTab).toHaveAttribute('aria-selected', 'true');
+
+    await user.click(screen.getByRole('tab', { name: 'Session 2' }));
 
     expect(handleSelect).toHaveBeenCalledWith('session-2');
   });
@@ -72,13 +74,8 @@ describe('SessionSelector', () => {
   it('marks the selected session for styling cues', () => {
     renderSelector();
 
-    expect(screen.getByRole('button', { name: 'Session 1' })).toHaveAttribute(
-      'data-selected',
-      'true',
-    );
-    expect(screen.getByRole('button', { name: 'Session 2' })).not.toHaveAttribute(
-      'data-selected',
-    );
+    expect(screen.getByRole('tab', { name: 'Session 1' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Session 2' })).toHaveAttribute('aria-selected', 'false');
   });
 
   it('renders archived status badges when present', () => {
@@ -107,8 +104,8 @@ describe('SessionSelector', () => {
       selectedSessionId: null,
     });
 
-    const button = screen.getByRole('button', { name: 'Session 1' });
-    const descriptionId = button.getAttribute('aria-describedby');
+    const tab = screen.getByRole('tab', { name: 'Session 1' });
+    const descriptionId = tab.getAttribute('aria-describedby');
     expect(descriptionId).toBeTruthy();
     const description = document.getElementById(descriptionId!);
     expect(description).toHaveTextContent('12 messages');
@@ -160,12 +157,12 @@ describe('SessionSelector', () => {
       name: /Collapse session list \(\d+ sessions\)/,
     });
     expect(collapseButton).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('button', { name: 'Session 1' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Session 1' })).toBeInTheDocument();
 
     await user.click(collapseButton);
 
     expect(collapseButton).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('button', { name: 'Session 1' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Session 1' })).not.toBeInTheDocument();
 
     await user.click(
       screen.getByRole('button', {
@@ -173,6 +170,25 @@ describe('SessionSelector', () => {
       }),
     );
 
-    expect(screen.getByRole('button', { name: 'Session 1' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Session 1' })).toBeInTheDocument();
+  });
+
+  it('renders an animated indicator for the active tab', () => {
+    renderSelector();
+
+    const indicator = screen.getByTestId('session-tab-indicator');
+
+    expect(indicator).toHaveAttribute('data-animated', 'true');
+    expect(indicator.className).toContain('transition-transform');
+  });
+
+  it('animates indicator transitions for movement and size', () => {
+    renderSelector();
+
+    const indicator = screen.getByTestId('session-tab-indicator');
+
+    expect(indicator.style.transition).toContain('transform');
+    expect(indicator.style.transition).toContain('width');
+    expect(indicator.style.transition).toContain('height');
   });
 });

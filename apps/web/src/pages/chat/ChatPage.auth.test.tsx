@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { createChatPageRenderer } from "./test-utils";
+import { SESSION_TABLIST_ARIA_LABEL } from "./components/SessionSelector";
 
 const catalogMock = vi.fn();
 const listSessionsMock = vi.fn();
@@ -156,11 +157,12 @@ describe("ChatPage authentication behaviours", () => {
       description: "",
     });
 
-    const sessionButton = await screen.findByRole("button", {
+    const tabList = await screen.findByRole("tablist", { name: SESSION_TABLIST_ARIA_LABEL });
+    const sessionTab = within(tabList).getByRole("tab", {
       name: "New orchestrator session",
     });
 
-    expect(sessionButton).toHaveClass("rt-variant-solid");
+    expect(sessionTab).toHaveAttribute("aria-selected", "true");
   });
 
   it("stops auto session creation retries after a failure", async () => {
