@@ -2,9 +2,14 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+const MESSAGE_COMPOSER_SOURCE_PATH = resolve(
+  __dirname,
+  "../../../../../platform/ui/src/chat/MessageComposer.tsx",
+);
+
 describe("message composer theming", () => {
   it("uses midnight cta tokens for the send button", () => {
-    const source = readFileSync(resolve(__dirname, "./MessageComposer.tsx"), "utf8");
+    const source = readFileSync(MESSAGE_COMPOSER_SOURCE_PATH, "utf8");
 
     expect(source).toContain('bg-gradient-to-r');
     expect(source).toContain('from-[hsl(var(--hero-cta-from))]');

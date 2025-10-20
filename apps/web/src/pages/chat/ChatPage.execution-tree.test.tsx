@@ -627,7 +627,7 @@ describe('ChatPage execution tree realtime updates', () => {
     const spawnedAgentsToggle = await within(toolsDrawer).findByRole(
       'button',
       {
-        name: /toggle spawned agents for session 1/i,
+        name: /(?:expand|collapse) session 1/i,
       },
       { timeout: 10000 },
     );
@@ -639,14 +639,9 @@ describe('ChatPage execution tree realtime updates', () => {
 
     await expandIfCollapsed(spawnedAgentsToggle);
 
-    const spawnedAgentsRegion = await within(toolsDrawer).findByRole(
-      'region',
-      {
-        name: /spawned agents for session 1/i,
-      },
-      { timeout: 10000 },
-    );
-    expect(within(spawnedAgentsRegion).getByText(/primary agent/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(within(toolsDrawer).getByText(/primary agent/i)).toBeInTheDocument();
+    });
 
     const runningToggle = await within(toolsDrawer).findByRole('button', {
       name: /running tool invocations/i,

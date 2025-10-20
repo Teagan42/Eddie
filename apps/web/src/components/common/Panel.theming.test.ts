@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+const PANEL_SOURCE_PATH = resolve(
+  __dirname,
+  "../../../../../platform/ui/src/common/Panel.tsx",
+);
+
 function readPanelSource(): string {
-  return readFileSync(resolve(__dirname, "./Panel.tsx"), "utf8");
+  return readFileSync(PANEL_SOURCE_PATH, "utf8");
 }
 
 describe("panel cinematic theming", () => {

@@ -1,7 +1,17 @@
-export { ChatSessionsPanel } from "./ChatSessionsPanel";
-export { MessageComposer } from "./MessageComposer";
 export { OverviewAuthPanel } from "./OverviewAuthPanel";
-export { OverviewHero } from "./OverviewHero";
-export { OverviewStatsGrid } from "./OverviewStatsGrid";
-export { SessionDetail } from "./SessionDetail";
-export { SessionsList } from "./SessionsList";
+export {
+  ChatSessionsPanel,
+  SessionDetail,
+  SessionsList,
+  OverviewHero,
+  OverviewStatsGrid,
+} from "@eddie/ui/overview";
+export { MessageComposer } from "@eddie/ui/chat";
+export type {
+  ChatSessionsPanelProps,
+  SessionDetailProps,
+  SessionsListProps,
+  OverviewHeroProps,
+  OverviewStatsGridProps,
+} from "@eddie/ui/overview";
+export type { MessageComposerProps } from "@eddie/ui/chat";

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AgentToolsDrawer } from "./AgentToolsDrawer";
 import type { AgentToolsDrawerProps } from "./AgentToolsDrawer";
-import type { AgentExecutionTreeProps } from "./AgentExecutionTree";
+import type { AgentExecutionTreeProps } from "@eddie/ui/chat";
 import type { ContextBundlesPanelProps } from "./ContextBundlesPanel";
 import { Sheet } from "@/vendor/components/ui/sheet";
 import { createEmptyExecutionTreeState } from "../execution-tree-state";
@@ -60,7 +60,7 @@ Object.defineProperty(globalThis, "ResizeObserver", {
   value: ResizeObserverMock,
 });
 
-vi.mock("./AgentExecutionTree", () => ({
+vi.mock("@eddie/ui/chat", () => ({
   AgentExecutionTree: (props: AgentExecutionTreeProps) => {
     executionTreeProps.push(props);
     return <div data-testid="agent-execution-tree" />;
