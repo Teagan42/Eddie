@@ -90,11 +90,9 @@
         "platform/core/types/src/*"
       ],
       "@eddie/ui": [
-        "platform/ui/dist/index.d.ts",
         "platform/ui/src"
       ],
       "@eddie/ui/*": [
-        "platform/ui/dist/*",
         "platform/ui/src/*"
       ]
     }
