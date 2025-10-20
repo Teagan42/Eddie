@@ -275,6 +275,59 @@ describe('collectLicenses', () => {
     });
   });
 
+  it('decodes GitHub license content when metadata is ambiguous', async () => {
+    const dir = createTempDir('license-lock-repo-content-');
+    const lockfilePath = join(dir, 'package-lock.json');
+
+    const lockfile = {
+      name: 'fixture',
+      version: '0.0.0-test',
+      lockfileVersion: 3,
+      packages: {
+        '': { name: 'fixture', version: '0.0.0-test', license: 'BUSL-1.1' },
+        'node_modules/github-ambiguous': {
+          name: 'github-ambiguous',
+          version: '1.0.0',
+        },
+      },
+    };
+
+    writeFileSync(lockfilePath, JSON.stringify(lockfile, null, 2));
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          repository: {
+            type: 'git',
+            url: 'git+https://github.com/example/github-ambiguous.git',
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          license: { spdx_id: 'NOASSERTION', key: 'other' },
+          content: Buffer.from('MIT License').toString('base64'),
+          encoding: 'base64',
+        }),
+      });
+
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+
+    const result = await collectLicenses(lockfilePath, { rootDir: dir });
+
+    expect(result).toContainEqual({
+      name: 'github-ambiguous',
+      version: '1.0.0',
+      license: 'MIT',
+      path: 'node_modules/github-ambiguous',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('reuses cached registry metadata to avoid repeat fetches', async () => {
     rmSync(LICENSE_CACHE_PATH, { force: true });
 

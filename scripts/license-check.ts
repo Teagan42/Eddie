@@ -241,9 +241,7 @@ function extractLicenseFromGitHubPayload(payload: GitHubLicensePayload): string 
     ? normalizeLicense(
         typeof licenseInfo.spdx_id === 'string' && licenseInfo.spdx_id !== 'NOASSERTION'
           ? licenseInfo.spdx_id
-          : typeof licenseInfo.key === 'string'
-            ? licenseInfo.key
-            : undefined,
+          : undefined,
       )
     : undefined;
 
