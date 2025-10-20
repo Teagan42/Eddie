@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760934088181,
+  "lastUpdate": 1760935879530,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -376,6 +376,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 25.251,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "80ff6869bfacd0139f7c95e8a0fba1767750c57b",
+          "message": "refactor(logs): extract session id helpers (#662)",
+          "timestamp": "2025-10-19T22:40:41-06:00",
+          "tree_id": "c1b79dcf8fc80d1aeb840b0940b8e3161f9c566b",
+          "url": "https://github.com/Teagan42/Eddie/commit/80ff6869bfacd0139f7c95e8a0fba1767750c57b"
+        },
+        "date": 1760935879200,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 48.508,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 31.665,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 24.026,
             "unit": "ms",
             "extra": "[object Object]"
           }
