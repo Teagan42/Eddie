@@ -10,8 +10,6 @@ export interface CollapsiblePanelProps extends UnknownProps {}
 
 export { MessageComposer, type MessageComposerProps } from "./MessageComposer";
 
-export interface SessionDetailProps extends UnknownProps {}
-
 export interface SessionSelectorProps extends UnknownProps {}
 
 function notImplemented(name: string): never {
@@ -34,13 +32,10 @@ export function CollapsiblePanel(): never {
   return notImplemented("CollapsiblePanel");
 }
 
-export function SessionDetail(): never {
-  return notImplemented("SessionDetail");
-}
-
 export function SessionSelector(): never {
   return notImplemented("SessionSelector");
 }
 
 export * from "./types";
 export * from "./theme";
+export { SessionDetail, type SessionDetailProps } from "./SessionDetail";

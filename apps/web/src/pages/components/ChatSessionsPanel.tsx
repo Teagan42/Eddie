@@ -1,11 +1,17 @@
 import { Flex, Grid, IconButton, TextField } from "@radix-ui/themes";
 import { PlusIcon } from "@radix-ui/react-icons";
 import { Panel } from "@eddie/ui";
-import type { ChatMessageDto, ChatSessionDto } from "@eddie/api-client";
 import { SessionsList } from "@eddie/ui/overview";
-import { MessageComposer } from "@eddie/ui/chat";
-import { SessionDetail } from "./SessionDetail";
+import {
+  MessageComposer,
+  SessionDetail,
+  type SessionDetailProps,
+} from "@eddie/ui/chat";
+import type { ChatSessionDto } from "@eddie/api-client";
 import type { FormEvent } from "react";
+
+type SessionDetailSession = SessionDetailProps["session"];
+type SessionDetailMessages = SessionDetailProps["messages"];
 
 export interface ChatSessionsPanelProps {
   sessions: ChatSessionDto[] | undefined;
@@ -15,8 +21,8 @@ export interface ChatSessionsPanelProps {
   newSessionTitle: string;
   onNewSessionTitleChange: (value: string) => void;
   isCreatingSession: boolean;
-  activeSession: ChatSessionDto | null;
-  messages: ChatMessageDto[] | undefined;
+  activeSession: SessionDetailSession;
+  messages: SessionDetailMessages;
   isMessagesLoading: boolean;
   onSubmitMessage: () => void;
   messageDraft: string;

@@ -1,6 +1,7 @@
 import { Badge, Flex, Heading, ScrollArea, Text } from "@radix-ui/themes";
-import type { ChatMessageDto, ChatSessionDto } from "@eddie/api-client";
 import { useEffect, useMemo, useRef } from "react";
+
+import type { ChatMessage, ChatSession } from "./types";
 
 const SESSION_TITLE_CLASS = "text-[color:var(--overview-panel-foreground)]";
 const MUTED_TEXT_CLASS = "text-[color:var(--overview-panel-muted)]";
@@ -37,12 +38,22 @@ const MESSAGE_BADGE_CLASS =
   "self-start text-[0.65rem] uppercase tracking-wider bg-[color:var(--overview-message-badge-bg)] text-[color:var(--overview-message-badge-fg)]";
 
 export interface SessionDetailProps {
-  session: ChatSessionDto | null;
-  messages: ChatMessageDto[] | undefined;
+  session: ChatSession | null;
+  messages: ChatMessage[] | undefined;
   isLoading: boolean;
 }
 
-export function SessionDetail({ session, messages, isLoading }: SessionDetailProps): JSX.Element {
+type StreamMessage = ChatMessage & { event?: string | null };
+type MessageMetadata = NonNullable<ChatMessage["metadata"]>;
+type MessageWithMetadata = StreamMessage & {
+  metadata?: MessageMetadata | null;
+};
+
+export function SessionDetail({
+  session,
+  messages,
+  isLoading,
+}: SessionDetailProps): JSX.Element {
   return (
     <Flex direction="column" gap="4">
       <Heading as="h3" size="4" className={SESSION_TITLE_CLASS}>
@@ -60,25 +71,11 @@ export function SessionDetail({ session, messages, isLoading }: SessionDetailPro
   );
 }
 
-interface StreamMessageAgentMetadata {
-  id?: string | null;
-  name?: string | null;
-}
+function deriveCompletedMessages(messages: ChatMessage[]): MessageWithMetadata[] {
+  const completed: MessageWithMetadata[] = [];
+  const partials = new Map<string, MessageWithMetadata>();
 
-interface StreamMessageMetadata {
-  agent?: StreamMessageAgentMetadata | null;
-}
-
-type StreamAwareMessage = ChatMessageDto & {
-  event?: string | null;
-  metadata?: StreamMessageMetadata | null;
-};
-
-function deriveCompletedMessages(messages: ChatMessageDto[]): StreamAwareMessage[] {
-  const completed: StreamAwareMessage[] = [];
-  const partials = new Map<string, StreamAwareMessage>();
-
-  for (const candidate of messages as StreamAwareMessage[]) {
+  for (const candidate of messages as MessageWithMetadata[]) {
     const eventType = typeof candidate.event === "string" ? candidate.event : null;
 
     if (eventType && eventType !== "end") {
@@ -89,7 +86,7 @@ function deriveCompletedMessages(messages: ChatMessageDto[]): StreamAwareMessage
 
     if (eventType === "end") {
       const base = partials.get(candidate.id);
-      const merged: StreamAwareMessage = { ...(base ?? {}), ...candidate };
+      const merged: MessageWithMetadata = { ...(base ?? {}), ...candidate };
       if (!merged.content && base?.content) {
         merged.content = base.content;
       }
@@ -104,7 +101,7 @@ function deriveCompletedMessages(messages: ChatMessageDto[]): StreamAwareMessage
   return completed;
 }
 
-function getMessageHeading(message: StreamAwareMessage): string {
+function getMessageHeading(message: MessageWithMetadata): string {
   const metadata = message.metadata;
 
   if (metadata && typeof metadata === "object") {
@@ -140,7 +137,7 @@ function formatTimestamp(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function MessagesList({ messages }: { messages: ChatMessageDto[] }): JSX.Element {
+function MessagesList({ messages }: { messages: ChatMessage[] }): JSX.Element {
   const completedMessages = useMemo(
     () => deriveCompletedMessages(messages),
     [messages]
@@ -166,10 +163,7 @@ function MessagesList({ messages }: { messages: ChatMessageDto[] }): JSX.Element
   }, [lastMessageId, lastMessageContent]);
 
   return (
-    <ScrollArea
-      type="always"
-      className={MESSAGE_CONTAINER_CLASS}
-    >
+    <ScrollArea type="always" className={MESSAGE_CONTAINER_CLASS}>
       <div className={MESSAGE_OVERLAY_CLASS} aria-hidden />
       <Flex direction="column" gap="3" className={MESSAGE_LIST_CLASS}>
         {completedMessages.length === 0 ? (
