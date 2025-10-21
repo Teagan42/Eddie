@@ -1,7 +1,7 @@
 export { AgentExecutionTree } from '@eddie/ui/chat';
 export type { AgentExecutionTreeProps } from '@eddie/ui/chat';
-export { AgentToolsDrawer } from './AgentToolsDrawer';
-export type { AgentToolsDrawerProps } from './AgentToolsDrawer';
+export { AgentToolsDrawer } from '@eddie/ui/chat';
+export type { AgentToolsDrawerProps } from '@eddie/ui/chat';
 export { CollapsiblePanel } from '@eddie/ui/chat';
 export type { CollapsiblePanelProps } from '@eddie/ui/chat';
 export { ContextBundlesPanel } from '@eddie/ui/chat';

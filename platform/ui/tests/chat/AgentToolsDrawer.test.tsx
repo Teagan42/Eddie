@@ -2,22 +2,61 @@ import { render, screen } from "@testing-library/react";
 import { Theme } from "@radix-ui/themes";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AgentToolsDrawer } from "./AgentToolsDrawer";
-import type { AgentToolsDrawerProps } from "./AgentToolsDrawer";
+import { AgentToolsDrawer, type AgentToolsDrawerProps } from "../../src/chat/AgentToolsDrawer";
 import type {
   AgentExecutionTreeProps,
   ContextBundlesPanelProps,
-} from "@eddie/ui/chat";
-import { Sheet } from "@/vendor/components/ui/sheet";
-import { createEmptyExecutionTreeState } from "../execution-tree-state";
+  ExecutionContextBundle,
+  ExecutionTreeState,
+} from "../../src/chat";
 
 const executionTreeProps: AgentExecutionTreeProps[] = [];
 const contextPanelProps: ContextBundlesPanelProps[] = [];
-const useThemeMock = vi.fn(() => ({ theme: "dark", setTheme: vi.fn(), isThemeStale: false }));
 
-vi.mock("@/theme", () => ({
-  useTheme: () => useThemeMock(),
-}));
+vi.mock("../../src/chat/AgentExecutionTree", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/chat/AgentExecutionTree")>();
+  return {
+    ...actual,
+    AgentExecutionTree: (props: AgentExecutionTreeProps) => {
+      executionTreeProps.push(props);
+      return <div data-testid="agent-execution-tree" />;
+    },
+  };
+});
+
+vi.mock("../../src/chat/ContextBundlesPanel", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/chat/ContextBundlesPanel")>();
+  return {
+    ...actual,
+    ContextBundlesPanel: (props: ContextBundlesPanelProps) => {
+      contextPanelProps.push(props);
+      return <div data-testid="context-bundles-panel" />;
+    },
+  };
+});
+
+Object.defineProperty(globalThis, "ResizeObserver", {
+  configurable: true,
+  value: class ResizeObserverMock {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  },
+});
+
+function createEmptyExecutionTreeState(): ExecutionTreeState {
+  return {
+    agentHierarchy: [],
+    toolInvocations: [],
+    contextBundles: [],
+    agentLineageById: {},
+    toolGroupsByAgentId: {},
+    contextBundlesByAgentId: {},
+    contextBundlesByToolCallId: {},
+    createdAt: "1970-01-01T00:00:00.000Z",
+    updatedAt: "1970-01-01T00:00:00.000Z",
+  } satisfies ExecutionTreeState;
+}
 
 function createDrawerProps(
   overrides: Partial<AgentToolsDrawerProps> = {},
@@ -40,11 +79,7 @@ function renderDrawer(
   options: { wrapWithTheme?: boolean } = {},
 ): void {
   const props = createDrawerProps(overrides);
-  const content = (
-    <Sheet open>
-      <AgentToolsDrawer {...props} />
-    </Sheet>
-  );
+  const content = <AgentToolsDrawer {...props} />;
   if (options.wrapWithTheme === false) {
     render(content);
     return;
@@ -52,37 +87,10 @@ function renderDrawer(
   render(<Theme>{content}</Theme>);
 }
 
-class ResizeObserverMock {
-  observe(): void {}
-  unobserve(): void {}
-  disconnect(): void {}
-}
-
-Object.defineProperty(globalThis, "ResizeObserver", {
-  value: ResizeObserverMock,
-});
-
-vi.mock("@eddie/ui/chat", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@eddie/ui/chat")>();
-  return {
-    ...actual,
-    AgentExecutionTree: (props: AgentExecutionTreeProps) => {
-      executionTreeProps.push(props);
-      return <div data-testid="agent-execution-tree" />;
-    },
-    ContextBundlesPanel: (props: ContextBundlesPanelProps) => {
-      contextPanelProps.push(props);
-      return <div data-testid="context-bundles-panel" />;
-    },
-  };
-});
-
 describe("AgentToolsDrawer", () => {
   beforeEach(() => {
     executionTreeProps.length = 0;
     contextPanelProps.length = 0;
-    useThemeMock.mockReset();
-    useThemeMock.mockReturnValue({ theme: "dark", setTheme: vi.fn(), isThemeStale: false });
   });
 
   it("renders drawer headings and forwards panel props", () => {
@@ -109,7 +117,7 @@ describe("AgentToolsDrawer", () => {
               agentId: "agent-1",
               toolCallId: "tool-call-1",
             },
-          },
+          } satisfies ExecutionContextBundle,
         ],
         isContextPanelCollapsed: true,
         onToggleContextPanel: handleTogglePanel,
@@ -159,10 +167,6 @@ describe("AgentToolsDrawer", () => {
   });
 
   it("falls back to a default theme when the provider is unavailable", async () => {
-    useThemeMock.mockImplementation(() => {
-      throw new Error("no theme context");
-    });
-
     renderDrawer({}, { wrapWithTheme: false });
 
     const drawer = await screen.findByRole("dialog", { name: /agent tools/i });
