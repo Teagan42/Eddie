@@ -16,4 +16,30 @@ describe("HooksLoaderService", () => {
     expect(typeof loaded).toBe("function");
     expect(loaded()).toBe("module-loaded");
   });
+
+  it("loads TypeScript hook modules referenced without an extension", async () => {
+    const service = new HooksLoaderService();
+    const pluginDir = createTempPluginDir(
+      "export default () => 'ts-module-loaded';\n",
+      { main: "./hook" },
+      "hook.ts"
+    );
+
+    const originalTsLoader = require.extensions[".ts"];
+    // Simulate a Node.js environment without a TypeScript loader registered.
+    delete require.extensions[".ts"];
+
+    try {
+      const loaded = await service.importHookModule(pluginDir);
+
+      expect(typeof loaded).toBe("function");
+      expect(loaded()).toBe("ts-module-loaded");
+    } finally {
+      if (originalTsLoader) {
+        require.extensions[".ts"] = originalTsLoader;
+      } else {
+        delete require.extensions[".ts"];
+      }
+    }
+  });
 });

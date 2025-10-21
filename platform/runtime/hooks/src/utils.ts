@@ -61,7 +61,18 @@ export function resolveEntry(candidatePath: string): string {
     ? candidatePath
     : resolve(candidatePath);
 
+  const extension = extname(candidate);
+
   if (!existsSync(candidate)) {
+    if (!extension) {
+      for (const add of [".js", ".cjs", ".mjs", ".ts", ".cts"]) {
+        const probe = candidate + add;
+        if (existsSync(probe)) {
+          return probe;
+        }
+      }
+    }
+
     throw new Error(`Plugin path does not exist: ${candidate}`);
   }
 
@@ -84,14 +95,25 @@ export function resolveEntry(candidatePath: string): string {
           candidate
         );
         if (exportTarget) {
+          if (exportTarget !== candidate) {
+            return resolveEntry(exportTarget);
+          }
           return exportTarget;
         }
       }
       if (pkg.module) {
-        return resolve(candidate, pkg.module);
+        const moduleEntry = resolve(candidate, pkg.module);
+        if (moduleEntry !== candidate) {
+          return resolveEntry(moduleEntry);
+        }
+        return moduleEntry;
       }
       if (pkg.main) {
-        return resolve(candidate, pkg.main);
+        const mainEntry = resolve(candidate, pkg.main);
+        if (mainEntry !== candidate) {
+          return resolveEntry(mainEntry);
+        }
+        return mainEntry;
       }
     }
 
@@ -108,20 +130,19 @@ export function resolveEntry(candidatePath: string): string {
     );
   }
 
-  const extension = extname(candidate);
-  if (!extension) {
-    for (const add of [".js", ".cjs", ".mjs"]) {
-      const probe = candidate + add;
-      if (existsSync(probe)) {
-        return probe;
-      }
-    }
-  }
-
   return candidate;
 }
 
 export function isESM(filePath: string): boolean {
+  if (filePath.endsWith(".mts")) {
+    return true;
+  }
+  if (filePath.endsWith(".cts")) {
+    return false;
+  }
+  if (filePath.endsWith(".ts")) {
+    return false;
+  }
   if (filePath.endsWith(".mjs")) {
     return true;
   }
