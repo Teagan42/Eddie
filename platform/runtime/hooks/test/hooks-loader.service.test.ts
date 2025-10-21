@@ -16,4 +16,18 @@ describe("HooksLoaderService", () => {
     expect(typeof loaded).toBe("function");
     expect(loaded()).toBe("module-loaded");
   });
+
+  it("loads hook modules from TypeScript entry points", async () => {
+    const service = new HooksLoaderService();
+    const pluginDir = createTempPluginDir(
+      "export default () => 'ts-module-loaded';\n",
+      { main: "./hook" },
+      "hook.ts"
+    );
+
+    const loaded = await service.importHookModule(pluginDir);
+
+    expect(typeof loaded).toBe("function");
+    expect(loaded()).toBe("ts-module-loaded");
+  });
 });

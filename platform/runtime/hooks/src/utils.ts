@@ -4,6 +4,33 @@ import { extname, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const EXPORT_PREFERENCE = ["import", "default", "node", "module", "require"] as const;
+const EXTENSION_PREFERENCE = [
+  ".js",
+  ".cjs",
+  ".mjs",
+  ".ts",
+  ".cts",
+  ".mts",
+] as const;
+
+function resolveFilePath(basePath: string): string | undefined {
+  if (existsSync(basePath)) {
+    return basePath;
+  }
+
+  if (extname(basePath)) {
+    return undefined;
+  }
+
+  for (const extension of EXTENSION_PREFERENCE) {
+    const candidate = basePath + extension;
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return undefined;
+}
 
 function resolveExportsTarget(
   target: unknown,
@@ -61,13 +88,14 @@ export function resolveEntry(candidatePath: string): string {
     ? candidatePath
     : resolve(candidatePath);
 
-  if (!existsSync(candidate)) {
+  const resolvedCandidate = resolveFilePath(candidate);
+  if (!resolvedCandidate) {
     throw new Error(`Plugin path does not exist: ${candidate}`);
   }
 
-  const stats: Stats = statSync(candidate);
+  const stats: Stats = statSync(resolvedCandidate);
   if (stats.isDirectory()) {
-    const pkgJson = join(candidate, "package.json");
+    const pkgJson = join(resolvedCandidate, "package.json");
     if (existsSync(pkgJson)) {
       const pkg = JSON.parse(readFileSync(pkgJson, "utf8"));
       if (pkg.exports) {
@@ -81,51 +109,66 @@ export function resolveEntry(candidatePath: string): string {
             : exportsField;
         const exportTarget = resolveExportsTarget(
           normalizedExports,
-          candidate
+          resolvedCandidate
         );
         if (exportTarget) {
-          return exportTarget;
+          const resolvedExport = normalizeResolvedTarget(
+            resolveFilePath(exportTarget) ?? exportTarget,
+            resolvedCandidate
+          );
+          if (resolvedExport) {
+            return resolvedExport;
+          }
         }
       }
       if (pkg.module) {
-        return resolve(candidate, pkg.module);
+        const moduleEntry = resolve(resolvedCandidate, pkg.module);
+        const resolvedModule = normalizeResolvedTarget(
+          resolveFilePath(moduleEntry),
+          resolvedCandidate
+        );
+        if (resolvedModule) {
+          return resolvedModule;
+        }
       }
       if (pkg.main) {
-        return resolve(candidate, pkg.main);
+        const mainEntry = resolve(resolvedCandidate, pkg.main);
+        const resolvedMain = normalizeResolvedTarget(
+          resolveFilePath(mainEntry),
+          resolvedCandidate
+        );
+        if (resolvedMain) {
+          return resolvedMain;
+        }
       }
     }
 
-    const indexCandidates = ["index.mjs", "index.cjs", "index.js"].map((file) =>
-      resolve(candidate, file)
-    );
+    const indexCandidates = [
+      "index.mjs",
+      "index.cjs",
+      "index.js",
+      "index.mts",
+      "index.cts",
+      "index.ts",
+    ].map((file) => resolve(resolvedCandidate, file));
     const hit = indexCandidates.find(existsSync);
     if (hit) {
       return hit;
     }
 
     throw new Error(
-      `No entry found in ${candidate}. Add package.json with "main"/"exports" or an index.js`
+      `No entry found in ${resolvedCandidate}. Add package.json with "main"/"exports" or an index.js`
     );
   }
 
-  const extension = extname(candidate);
-  if (!extension) {
-    for (const add of [".js", ".cjs", ".mjs"]) {
-      const probe = candidate + add;
-      if (existsSync(probe)) {
-        return probe;
-      }
-    }
-  }
-
-  return candidate;
+  return resolvedCandidate;
 }
 
 export function isESM(filePath: string): boolean {
-  if (filePath.endsWith(".mjs")) {
+  if (filePath.endsWith(".mjs") || filePath.endsWith(".mts")) {
     return true;
   }
-  if (filePath.endsWith(".cjs")) {
+  if (filePath.endsWith(".cjs") || filePath.endsWith(".cts")) {
     return false;
   }
 
@@ -149,6 +192,26 @@ export function isESM(filePath: string): boolean {
   }
 
   return false;
+}
+
+function normalizeResolvedTarget(
+  target: string | undefined,
+  root: string
+): string | undefined {
+  if (!target) {
+    return undefined;
+  }
+
+  if (!existsSync(target)) {
+    return undefined;
+  }
+
+  const stats = statSync(target);
+  if (stats.isDirectory() && target !== root) {
+    return resolveEntry(target);
+  }
+
+  return target;
 }
 
 export async function importESM(file: string) {
