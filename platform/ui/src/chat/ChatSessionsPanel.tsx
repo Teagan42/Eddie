@@ -1,28 +1,23 @@
 import { Flex, Grid, IconButton, TextField } from "@radix-ui/themes";
 import { PlusIcon } from "@radix-ui/react-icons";
-import { Panel } from "@eddie/ui";
-import { SessionsList } from "@eddie/ui/overview";
-import {
-  MessageComposer,
-  SessionDetail,
-  type SessionDetailProps,
-} from "@eddie/ui/chat";
-import type { ChatSessionDto } from "@eddie/api-client";
-import type { FormEvent } from "react";
+import type { FormEvent, JSX } from "react";
 
-type SessionDetailSession = SessionDetailProps["session"];
-type SessionDetailMessages = SessionDetailProps["messages"];
+import { Panel } from "../common";
+import { SessionsList } from "../overview";
+import { MessageComposer } from "./MessageComposer";
+import { SessionDetail } from "./SessionDetail";
+import type { ChatMessage, ChatSession } from "./types";
 
 export interface ChatSessionsPanelProps {
-  sessions: ChatSessionDto[] | undefined;
+  sessions: ChatSession[] | undefined;
   selectedSessionId: string | null;
   onSelectSession: (sessionId: string) => void;
   onCreateSession: (event: FormEvent<HTMLFormElement>) => void;
   newSessionTitle: string;
   onNewSessionTitleChange: (value: string) => void;
   isCreatingSession: boolean;
-  activeSession: SessionDetailSession;
-  messages: SessionDetailMessages;
+  activeSession: ChatSession | null;
+  messages: ChatMessage[] | undefined;
   isMessagesLoading: boolean;
   onSubmitMessage: () => void;
   messageDraft: string;
@@ -46,24 +41,28 @@ export function ChatSessionsPanel({
   onMessageDraftChange,
   isMessagePending,
 }: ChatSessionsPanelProps): JSX.Element {
+  const isComposerDisabled = !selectedSessionId || isMessagePending;
+
+  const sessionCreationForm = (
+    <form onSubmit={onCreateSession} className="flex items-center gap-2">
+      <TextField.Root
+        size="2"
+        placeholder="Session title"
+        value={newSessionTitle}
+        onChange={(event) => onNewSessionTitleChange(event.target.value)}
+        required
+      />
+      <IconButton type="submit" variant="solid" color="jade" disabled={isCreatingSession}>
+        <PlusIcon />
+      </IconButton>
+    </form>
+  );
+
   return (
     <Panel
       title="Chat Sessions"
       description="Inspect and collaborate on control plane sessions"
-      actions={
-        <form onSubmit={onCreateSession} className="flex items-center gap-2">
-          <TextField.Root
-            size="2"
-            placeholder="Session title"
-            value={newSessionTitle}
-            onChange={(event) => onNewSessionTitleChange(event.target.value)}
-            required
-          />
-          <IconButton type="submit" variant="solid" color="jade" disabled={isCreatingSession}>
-            <PlusIcon />
-          </IconButton>
-        </form>
-      }
+      actions={sessionCreationForm}
     >
       <Grid columns={{ initial: "1", md: "2" }} gap="5">
         <SessionsList
@@ -80,7 +79,7 @@ export function ChatSessionsPanel({
           />
 
           <MessageComposer
-            disabled={!selectedSessionId || isMessagePending}
+            disabled={isComposerDisabled}
             value={messageDraft}
             onChange={onMessageDraftChange}
             onSubmit={onSubmitMessage}

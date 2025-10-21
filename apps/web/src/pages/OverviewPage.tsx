@@ -23,13 +23,14 @@ import {
 import { ArrowUpRight, KeyRound, Sparkles, Waves } from 'lucide-react';
 import { PaperPlaneIcon, PlusIcon, ReloadIcon } from '@radix-ui/react-icons';
 import { Panel } from "@eddie/ui";
+import { ChatSessionsPanel } from "@eddie/ui/chat";
 import { OverviewAuthPanel } from "@eddie/ui/overview";
 import { useAuth } from '@/auth/auth-context';
 import { useApi } from '@/api/api-provider';
 import { AVAILABLE_THEMES, formatThemeLabel } from '@eddie/ui/overview';
 import { useTheme } from '@/theme';
 import { cn } from '@/vendor/lib/utils';
-import { ChatSessionsPanel, OverviewHero } from './components';
+import { OverviewHero } from './components';
 import { useChatSessionEvents, useOverviewStats } from './hooks';
 import type {
   ChatMessageDto,
