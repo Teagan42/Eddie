@@ -7,6 +7,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { afterAll, bench, describe, suite } from 'vitest';
 
 import { TemplateRendererService } from '@eddie/templates';
+import { ConfigStore } from '@eddie/config';
 import type { TemplateDescriptor, TemplateVariables } from '@eddie/templates';
 
 import {
@@ -152,7 +153,7 @@ export async function measureTemplateRenderingScenario(
   fixture: TemplateRenderingFixture,
   options: { clock?: Clock; mode?: TemplateRenderingMode } = {},
 ): Promise<TemplateRenderingMeasurement> {
-  const renderer = new TemplateRendererService();
+  const renderer = new TemplateRendererService(new ConfigStore());
   const clock = options.clock ?? defaultClock;
   const mode = options.mode ?? 'descriptor';
 

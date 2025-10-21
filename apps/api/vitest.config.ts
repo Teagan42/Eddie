@@ -72,10 +72,12 @@ export default defineConfig({
     // pool: "threads",
     coverage: {
       reporter: ["text", "html"],
-      statements: 90,
-      branches: 85,
-      functions: 90,
-      lines: 90,
+      thresholds: {
+        statements: 90,
+        branches: 85,
+        functions: 90,
+        lines: 90,
+      },
     },
   },
 });

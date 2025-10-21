@@ -1,4 +1,4 @@
-import { Injectable, Optional } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import fs from "fs/promises";
 import path from "path";
 import nunjucks from "nunjucks";
@@ -23,7 +23,13 @@ export class TemplateRendererService {
   private readonly environments = new Map<string, nunjucks.Environment>();
   private readonly templateCache = new Map<string, CachedTemplateEntry>();
 
-  constructor(@Optional() private readonly configStore?: ConfigStore) {}
+  constructor(private readonly configStore: ConfigStore) {
+    if (!configStore) {
+      throw new Error(
+        "TemplateRendererService requires a ConfigStore instance"
+      );
+    }
+  }
 
   async renderTemplate(
     descriptor: TemplateDescriptor,
@@ -94,10 +100,22 @@ export class TemplateRendererService {
     descriptor: TemplateDescriptor,
     defaultBaseDir: string
   ): string {
-    const baseDir = descriptor.baseDir ?? defaultBaseDir;
-    return path.isAbsolute(descriptor.file)
-      ? descriptor.file
-      : path.resolve(baseDir, descriptor.file);
+    const filePath = descriptor.file;
+
+    if (path.isAbsolute(filePath) || path.win32.isAbsolute(filePath)) {
+      return filePath;
+    }
+
+    const baseDir = descriptor.baseDir;
+    const isAbsoluteBaseDir = Boolean(
+      baseDir && (path.isAbsolute(baseDir) || path.win32.isAbsolute(baseDir))
+    );
+
+    const baseSegments = isAbsoluteBaseDir && baseDir
+      ? [baseDir]
+      : [defaultBaseDir, ...(baseDir ? [baseDir] : [])];
+
+    return path.join(...baseSegments, filePath);
   }
 
   private computeSearchPaths(options: {
@@ -180,7 +198,7 @@ export class TemplateRendererService {
   }
 
   private resolveDefaultBaseDir(): string {
-    const projectDir = this.configStore?.getSnapshot()?.projectDir;
+    const projectDir = this.configStore.getSnapshot()?.projectDir;
     if (typeof projectDir === "string" && projectDir.trim() !== "") {
       return path.resolve(projectDir);
     }

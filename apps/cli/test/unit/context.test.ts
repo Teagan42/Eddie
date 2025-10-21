@@ -6,6 +6,7 @@ import { ContextService } from "@eddie/context";
 import { LoggerService } from "@eddie/io";
 import { TemplateRendererService } from "@eddie/templates";
 import { TemplateRuntimeService } from "@eddie/templates";
+import { ConfigStore } from "@eddie/config";
 
 const tmpDir = path.join(process.cwd(), "test-temp");
 let loggerService: LoggerService;
@@ -13,7 +14,7 @@ let contextService: ContextService;
 
 beforeAll(async () => {
   loggerService = new LoggerService();
-  const templateRenderer = new TemplateRendererService();
+  const templateRenderer = new TemplateRendererService(new ConfigStore());
   const templateRuntime = new TemplateRuntimeService(
     templateRenderer,
     loggerService.getLogger("engine:templates")

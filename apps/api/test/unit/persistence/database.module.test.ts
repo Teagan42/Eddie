@@ -1,18 +1,38 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { INestApplicationContext } from "@nestjs/common";
+import { MODULE_METADATA } from "@nestjs/common/constants";
 import { Test, type TestingModule } from "@nestjs/testing";
 import type { EddieConfig } from "@eddie/config";
-import { ConfigStore, DEFAULT_CONFIG } from "@eddie/config";
+import { ConfigModule, ConfigStore, DEFAULT_CONFIG } from "@eddie/config";
 
 import { DatabaseModule } from "../../../src/persistence/database.module";
 import {
   API_PERSISTENCE_SKIP_MIGRATIONS_ENV,
   DatabaseService,
 } from "../../../src/persistence/database.service";
+import { KNEX_INSTANCE } from "../../../src/persistence/knex.provider";
 
 describe("DatabaseModule", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  function getModuleMetadataEntries<T = unknown>(
+    key: string | symbol
+  ): T[] {
+    return (Reflect.getMetadata(key, DatabaseModule) ?? []) as T[];
+  }
+
+  it("exports the knex instance token", () => {
+    expect(getModuleMetadataEntries(MODULE_METADATA.EXPORTS)).toContain(
+      KNEX_INSTANCE
+    );
+  });
+
+  it("does not import the ConfigModule", () => {
+    expect(getModuleMetadataEntries(MODULE_METADATA.IMPORTS)).not.toContain(
+      ConfigModule
+    );
   });
 
   it("creates a postgres knex instance from the config snapshot", async () => {
@@ -106,7 +126,7 @@ async function createDatabaseTestingModule(
   getSnapshot: () => EddieConfig
 ): Promise<TestingModule> {
   return Test.createTestingModule({
-    imports: [DatabaseModule],
+    imports: [ConfigModule, DatabaseModule],
   })
     .overrideProvider(ConfigStore)
     .useValue({ getSnapshot })

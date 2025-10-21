@@ -16,6 +16,7 @@ import {
   StreamRendererService,
 } from "@eddie/io";
 import { TemplateRendererService, TemplateRuntimeService } from "@eddie/templates";
+import { ConfigStore } from "@eddie/config";
 import { ToolRegistryFactory } from "@eddie/tools";
 import {
   AgentRuntimeCatalog,
@@ -100,7 +101,7 @@ describe("AgentOrchestratorService", () => {
 
   beforeEach(() => {
     const toolRegistryFactory = new ToolRegistryFactory();
-    const templateRenderer = new TemplateRendererService();
+    const templateRenderer = new TemplateRendererService(new ConfigStore());
     const templateLogger = { debug: () => {} } as unknown as Logger;
     const templateRuntime = new TemplateRuntimeService(
       templateRenderer,

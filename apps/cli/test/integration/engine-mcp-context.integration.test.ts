@@ -116,7 +116,7 @@ describe("EngineService MCP resource integration", () => {
       getLogger: vi.fn(() => logger),
     };
 
-    const templateRenderer = new TemplateRendererService();
+    const templateRenderer = new TemplateRendererService(store);
     const renderSpy = vi.spyOn(templateRenderer, "renderString");
     const templateRuntime = new TemplateRuntimeService(templateRenderer, logger);
     const agentInvocationFactory = new AgentInvocationFactory(

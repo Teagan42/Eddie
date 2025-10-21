@@ -3,11 +3,44 @@ import fs from "fs/promises";
 import os from "os";
 import path from "path";
 import nunjucks from "nunjucks";
+import type { ConfigStore } from "@eddie/config";
 import { TemplateRendererService } from "../src/template-renderer.service";
 
 describe("TemplateRendererService", () => {
-  const service = new TemplateRendererService();
   const tempDirs: string[] = [];
+  const serviceFactory = TemplateRendererService as unknown as new (
+    ...args: unknown[]
+  ) => TemplateRendererService;
+
+  function createServiceWithConfigStore(
+    configStore: Pick<ConfigStore, "getSnapshot">
+  ): TemplateRendererService {
+    return Reflect.construct(serviceFactory, [
+      configStore as ConfigStore,
+    ]) as TemplateRendererService;
+  }
+
+  function getInstanceMethod<TArgs extends unknown[], TReturn>(
+    instance: object,
+    methodName: string
+  ): (...args: TArgs) => TReturn {
+    const method = Reflect.get(
+      instance as unknown as Record<string, unknown>,
+      methodName
+    ) as (...args: TArgs) => TReturn;
+
+    return method.bind(instance) as (...args: TArgs) => TReturn;
+  }
+
+  const service = createServiceWithConfigStore({
+    getSnapshot: () => ({}),
+  });
+
+  it("throws when constructed without a config store", () => {
+    expect(() => Reflect.construct(serviceFactory, [undefined])).toThrowError(
+      "TemplateRendererService requires a ConfigStore instance"
+    );
+  });
 
   afterAll(async () => {
     await Promise.all(
@@ -131,13 +164,7 @@ describe("TemplateRendererService", () => {
     const configStore = {
       getSnapshot: () => ({ projectDir }),
     };
-    const factory = TemplateRendererService as unknown as new (
-      ...args: unknown[]
-    ) => TemplateRendererService;
-    const projectScopedService = Reflect.construct(
-      factory,
-      [configStore]
-    ) as TemplateRendererService;
+    const projectScopedService = createServiceWithConfigStore(configStore);
 
     const rendered = await projectScopedService.renderTemplate(
       { file: "project-relative.njk" },
@@ -145,5 +172,74 @@ describe("TemplateRendererService", () => {
     );
 
     expect(rendered).toBe("Hello Ada");
+  });
+
+  it("resolves relative templates within descriptor baseDir under the project dir", async () => {
+    const projectDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), "template-nested-")
+    );
+    tempDirs.push(projectDir);
+
+    const nestedDir = path.join(projectDir, "templates", "partials");
+    await fs.mkdir(nestedDir, { recursive: true });
+
+    const templatePath = path.join(nestedDir, "nested.njk");
+    await fs.writeFile(templatePath, "Nested {{ name }}", "utf-8");
+
+    const configStore = {
+      getSnapshot: () => ({ projectDir }),
+    };
+    const projectScopedService = createServiceWithConfigStore(configStore);
+
+    const rendered = await projectScopedService.renderTemplate(
+      {
+        baseDir: "templates",
+        file: path.join("partials", "nested.njk"),
+      },
+      { name: "Nia" }
+    );
+
+    expect(rendered).toBe("Nested Nia");
+  });
+
+  it("treats Windows absolute template file paths as absolute", () => {
+    const resolvePath = getInstanceMethod<
+      [{ file: string; baseDir?: string }, string],
+      string
+    >(service, "resolvePath");
+
+    const resolveDefaultBaseDir = getInstanceMethod<[], string>(
+      service,
+      "resolveDefaultBaseDir"
+    );
+
+    const defaultBaseDir = resolveDefaultBaseDir();
+    const windowsPath = "C:\\temp\\absolute.njk";
+
+    const resolved = resolvePath({ file: windowsPath }, defaultBaseDir);
+
+    expect(resolved).toBe(windowsPath);
+  });
+
+  it("prefers an absolute descriptor baseDir over the default base directory", () => {
+    const resolvePath = getInstanceMethod<
+      [{ file: string; baseDir?: string }, string],
+      string
+    >(service, "resolvePath");
+
+    const resolveDefaultBaseDir = getInstanceMethod<[], string>(
+      service,
+      "resolveDefaultBaseDir"
+    );
+
+    const defaultBaseDir = resolveDefaultBaseDir();
+    const absoluteBaseDir = path.join(process.cwd(), "test-temp", "absolute");
+
+    const resolved = resolvePath(
+      { baseDir: absoluteBaseDir, file: "absolute-base.njk" },
+      defaultBaseDir
+    );
+
+    expect(resolved).toBe(path.join(absoluteBaseDir, "absolute-base.njk"));
   });
 });
