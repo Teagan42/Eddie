@@ -8,8 +8,8 @@ export { ContextBundlesPanel } from './ContextBundlesPanel';
 export type { ContextBundlesPanelProps } from './ContextBundlesPanel';
 export { ChatWindow } from './ChatWindow';
 export type { ChatWindowProps, ComposerRole as ChatWindowComposerRole } from './ChatWindow';
-export { MessageList } from './MessageList';
-export type { MessageListProps } from './MessageList';
+export { MessageList } from '@eddie/ui/chat';
+export type { MessageListProps } from '@eddie/ui/chat';
 export { SessionSelector } from './SessionSelector';
 export type {
   SessionSelectorProps,

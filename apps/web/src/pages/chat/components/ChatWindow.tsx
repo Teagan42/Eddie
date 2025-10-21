@@ -1,20 +1,17 @@
 import type { RefObject } from 'react';
 import { Flex, SegmentedControl } from '@radix-ui/themes';
 
-import type { ChatMessageDto } from '@eddie/api-client';
-
 import {
   AgentActivityIndicator,
   type AgentActivityState,
 } from '../AgentActivityIndicator';
-import { MessageComposer } from '@eddie/ui/chat';
-import { MessageList, type MessageListItem } from './MessageList';
+import { MessageComposer, MessageList, type MessageListItem } from '@eddie/ui/chat';
 
 export type ComposerRole = 'user' | 'system';
 
 export interface ChatWindowProps {
   messages: MessageListItem[];
-  onReissueCommand: (message: ChatMessageDto) => void;
+  onReissueCommand: (message: MessageListItem) => void;
   scrollAnchorRef: RefObject<HTMLDivElement>;
   agentActivityState: AgentActivityState;
   composerRole: ComposerRole;
