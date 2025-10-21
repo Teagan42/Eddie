@@ -296,6 +296,10 @@ export class ConfigService {
       next.sources = [...cloneList(base?.sources), ...overrides.sources];
     }
 
+    if (Array.isArray(overrides.disabled)) {
+      next.disabled = [...cloneList(base?.disabled), ...overrides.disabled];
+    }
+
     return next;
   }
 
