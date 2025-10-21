@@ -4,7 +4,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatSessionDto, LayoutPreferencesDto } from "@eddie/api-client";
 import { createChatPageRenderer } from "./test-utils";
-import { SESSION_TABLIST_ARIA_LABEL } from "./components/SessionSelector";
+import { SESSION_TABLIST_ARIA_LABEL } from "./components";
 
 const sessionCreatedHandlers: Array<(session: unknown) => void> = [];
 const sessionDeletedHandlers: Array<(sessionId: string) => void> = [];

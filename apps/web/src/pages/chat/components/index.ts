@@ -1,5 +1,5 @@
-export { AgentExecutionTree } from './AgentExecutionTree';
-export type { AgentExecutionTreeProps } from './AgentExecutionTree';
+export { AgentExecutionTree } from '@eddie/ui/chat';
+export type { AgentExecutionTreeProps } from '@eddie/ui/chat';
 export { AgentToolsDrawer } from './AgentToolsDrawer';
 export type { AgentToolsDrawerProps } from './AgentToolsDrawer';
 export { CollapsiblePanel } from '@eddie/ui/chat';
@@ -10,9 +10,12 @@ export { ChatWindow } from '@eddie/ui/chat';
 export type { ChatWindowProps, ChatWindowComposerRole } from '@eddie/ui/chat';
 export { MessageList } from '@eddie/ui/chat';
 export type { MessageListProps } from '@eddie/ui/chat';
-export { SessionSelector } from './SessionSelector';
+export {
+  SessionSelector,
+  SESSION_TABLIST_ARIA_LABEL,
+} from '@eddie/ui/chat';
 export type {
   SessionSelectorProps,
   SessionSelectorSession,
   SessionSelectorMetricsSummary,
-} from './SessionSelector';
+} from '@eddie/ui/chat';
