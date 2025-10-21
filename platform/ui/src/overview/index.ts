@@ -17,6 +17,6 @@ export type {
   OverviewStat,
   OverviewStatsGridProps,
   OverviewTheme,
-  SessionItem,
+  SessionSummary,
   SessionsListProps,
 } from "./types";
