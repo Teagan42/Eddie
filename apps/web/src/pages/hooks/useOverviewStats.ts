@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { ArrowUpRight, Sparkles, Waves } from "lucide-react";
-import type { OverviewStat } from "../components/OverviewStatsGrid";
+import type { OverviewStat } from "@eddie/ui/overview";
 
 interface UseOverviewStatsOptions {
   sessionCount?: number;
