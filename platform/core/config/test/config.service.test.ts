@@ -173,6 +173,144 @@ describe("ConfigService compose precedence", () => {
     expect(composed.logging?.level).toBe("error");
   });
 
+  it("deep merges tools configuration across extensions", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "eddie-config-"));
+    const firstPath = path.join(tempDir, "first.json");
+    const secondPath = path.join(tempDir, "second.json");
+
+    await fs.writeFile(
+      firstPath,
+      `${JSON.stringify(
+        {
+          tools: {
+            enabled: ["alpha"],
+            sources: [
+              {
+                id: "source-alpha",
+                type: "mcp",
+                url: "https://alpha.example.com",
+              },
+            ],
+          },
+        },
+        null,
+        2,
+      )}\n`,
+      "utf-8",
+    );
+
+    await fs.writeFile(
+      secondPath,
+      `${JSON.stringify(
+        {
+          tools: {
+            enabled: ["beta"],
+            sources: [
+              {
+                id: "source-beta",
+                type: "mcp",
+                url: "https://beta.example.com",
+              },
+            ],
+          },
+        },
+        null,
+        2,
+      )}\n`,
+      "utf-8",
+    );
+
+    const defaults: EddieConfig = {
+      ...clone(DEFAULT_CONFIG),
+      tools: {
+        ...(clone(DEFAULT_CONFIG.tools ?? {}) ?? {}),
+        enabled: [],
+        sources: [],
+      },
+    };
+
+    const { service } = createService({ defaults });
+
+    const composed = await service.compose({
+      extends: [
+        { path: firstPath },
+        { path: secondPath },
+      ],
+    });
+
+    expect(composed.tools?.enabled).toEqual(["alpha", "beta"]);
+    expect(composed.tools?.sources).toEqual([
+      {
+        id: "source-alpha",
+        type: "mcp",
+        url: "https://alpha.example.com",
+      },
+      {
+        id: "source-beta",
+        type: "mcp",
+        url: "https://beta.example.com",
+      },
+    ]);
+  });
+
+  it("preserves disabled tools when chaining extensions", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "eddie-config-"));
+    const firstPath = path.join(tempDir, "first.json");
+    const secondPath = path.join(tempDir, "second.json");
+
+    await fs.writeFile(
+      firstPath,
+      `${JSON.stringify(
+        {
+          tools: {
+            disabled: ["blocked-alpha"],
+          },
+        },
+        null,
+        2,
+      )}\n`,
+      "utf-8",
+    );
+
+    await fs.writeFile(
+      secondPath,
+      `${JSON.stringify(
+        {
+          tools: {
+            enabled: ["beta"],
+          },
+        },
+        null,
+        2,
+      )}\n`,
+      "utf-8",
+    );
+
+    const defaults: EddieConfig = {
+      ...clone(DEFAULT_CONFIG),
+      tools: {
+        ...(clone(DEFAULT_CONFIG.tools ?? {}) ?? {}),
+        disabled: ["blocked-default"],
+        enabled: [],
+      },
+    };
+
+    const { service } = createService({ defaults });
+
+    const composed = await service.compose({
+      extends: [
+        { path: firstPath },
+        { path: secondPath },
+      ],
+    });
+
+    expect(composed.tools?.disabled).toEqual([
+      "blocked-default",
+      "blocked-alpha",
+    ]);
+    expect(composed.tools?.enabled).toEqual(["beta"]);
+  });
+
   it("applies CLI overrides last", async () => {
     const defaults: EddieConfig = {
       ...clone(DEFAULT_CONFIG),

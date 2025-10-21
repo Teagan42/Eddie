@@ -36,6 +36,7 @@ import type {
   ProviderConfig,
   ProviderProfileConfig,
   TranscriptConfig,
+  ToolsConfig,
 } from "@eddie/types";
 
 export type { ConfigFileSnapshot };
@@ -233,7 +234,7 @@ export class ConfigService {
           visited,
         );
 
-        current = this.applyConfigFileOverrides(
+        current = this.applyConfigExtensionOverrides(
           withNested,
           extensionOverrides as EddieConfigInput,
         );
@@ -243,6 +244,63 @@ export class ConfigService {
     }
 
     return current;
+  }
+
+  private applyConfigExtensionOverrides(
+    base: EddieConfig,
+    input: EddieConfigInput,
+  ): EddieConfig {
+    const merged = this.applyConfigFileOverrides(base, input);
+
+    if (!input.tools) {
+      return merged;
+    }
+
+    const mergedTools = this.mergeExtensionToolsConfig(
+      base.tools,
+      input.tools,
+      merged.tools,
+    );
+
+    if (typeof mergedTools === "undefined") {
+      return merged;
+    }
+
+    return {
+      ...merged,
+      tools: mergedTools,
+    };
+  }
+
+  private mergeExtensionToolsConfig(
+    base: ToolsConfig | undefined,
+    overrides: ToolsConfig | undefined,
+    merged: ToolsConfig | undefined,
+  ): ToolsConfig | undefined {
+    if (!overrides) {
+      return merged;
+    }
+
+    const next: ToolsConfig = {
+      ...(merged ?? {}),
+    };
+
+    const cloneList = <T>(value: T[] | undefined): T[] =>
+      Array.isArray(value) ? [...value] : [];
+
+    if (Array.isArray(overrides.enabled)) {
+      next.enabled = [...cloneList(base?.enabled), ...overrides.enabled];
+    }
+
+    if (Array.isArray(overrides.sources)) {
+      next.sources = [...cloneList(base?.sources), ...overrides.sources];
+    }
+
+    if (Array.isArray(overrides.disabled)) {
+      next.disabled = [...cloneList(base?.disabled), ...overrides.disabled];
+    }
+
+    return next;
   }
 
   private isNonEmptyString(value: unknown): value is string {
