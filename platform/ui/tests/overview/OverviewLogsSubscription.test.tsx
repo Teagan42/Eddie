@@ -247,6 +247,6 @@ describe("OverviewPage log updates", () => {
   it("applies theming tokens to the log viewer", () => {
     renderOverview();
 
-    expect(document.documentElement.dataset.theme).toBe(AVAILABLE_THEMES[0]);
+    expect(document.documentElement.dataset.theme).toBe(AVAILABLE_THEMES[0]?.id);
   });
 });

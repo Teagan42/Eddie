@@ -5,6 +5,7 @@ export { SessionsList } from "./SessionsList";
 
 export {
   AVAILABLE_THEMES,
+  formatThemeLabel,
   ThemeProvider,
   isDarkTheme,
   useTheme,

@@ -25,7 +25,8 @@ import { PaperPlaneIcon, PlusIcon, ReloadIcon } from '@radix-ui/react-icons';
 import { Panel } from "@eddie/ui";
 import { useAuth } from '@/auth/auth-context';
 import { useApi } from '@/api/api-provider';
-import { AVAILABLE_THEMES, formatThemeLabel, useTheme } from '@/theme';
+import { AVAILABLE_THEMES, formatThemeLabel } from '@eddie/ui/overview';
+import { useTheme } from '@/theme';
 import { cn } from '@/vendor/lib/utils';
 import { ChatSessionsPanel, OverviewAuthPanel, OverviewHero } from './components';
 import { useChatSessionEvents, useOverviewStats } from './hooks';
@@ -293,6 +294,7 @@ export function OverviewPage(): JSX.Element {
         apiKey={apiKey}
         apiUrl={configQuery.data?.apiUrl}
         theme={theme}
+        themes={AVAILABLE_THEMES}
         onSelectTheme={handleSelectTheme}
         onRemoveApiKey={() => setApiKey(null)}
         stats={stats}
@@ -467,8 +469,8 @@ export function OverviewPage(): JSX.Element {
                     Themes
                   </Select.Label>
                   {AVAILABLE_THEMES.map((availableTheme) => (
-                    <Select.Item key={availableTheme} value={availableTheme}>
-                      {formatThemeLabel(availableTheme)}
+                    <Select.Item key={availableTheme.id} value={availableTheme.id}>
+                      {formatThemeLabel(availableTheme.id, AVAILABLE_THEMES)}
                     </Select.Item>
                   ))}
                 </Select.Group>

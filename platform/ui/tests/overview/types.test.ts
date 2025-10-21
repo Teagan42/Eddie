@@ -66,6 +66,12 @@ describe("overview type exports", () => {
     expectTypeOf<OverviewHeroProps>().toMatchTypeOf<{
       readonly apiKey?: string | null;
       readonly apiUrl?: string | null;
+      readonly theme: OverviewTheme["id"];
+      readonly themes: readonly OverviewTheme[];
+      readonly onSelectTheme: (theme: OverviewTheme["id"]) => void;
+      readonly onRemoveApiKey?: () => void;
+      readonly stats: readonly OverviewStat[];
+      readonly isThemeSelectorDisabled?: boolean;
     }>();
     expectTypeOf<OverviewAuthPanelProps>().not.toBeAny();
     expectTypeOf<OverviewAuthPanelProps>().toMatchTypeOf<{

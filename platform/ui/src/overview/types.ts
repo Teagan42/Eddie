@@ -21,6 +21,12 @@ export interface OverviewStatsGridProps {
 export interface OverviewHeroProps {
   readonly apiKey?: string | null;
   readonly apiUrl?: string | null;
+  readonly theme: OverviewTheme["id"];
+  readonly themes: readonly OverviewTheme[];
+  readonly stats: readonly OverviewStat[];
+  readonly onSelectTheme: (theme: OverviewTheme["id"]) => void;
+  readonly onRemoveApiKey?: () => void;
+  readonly isThemeSelectorDisabled?: boolean;
 }
 
 export interface OverviewAuthPanelProps {
