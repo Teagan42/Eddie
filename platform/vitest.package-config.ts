@@ -1,5 +1,5 @@
-import path from "path";
-import { fileURLToPath } from "url";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 const workspaceRoot = path.resolve(
@@ -78,5 +78,3 @@ export const createPackageVitestConfig = (packageName: string) =>
       },
     },
   });
-
-export default createPackageVitestConfig;

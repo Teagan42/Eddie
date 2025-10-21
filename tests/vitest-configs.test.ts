@@ -14,6 +14,12 @@ const loadConfig = async (relativePath: string) => {
   return module.default ?? module;
 };
 
+const loadRootConfig = async () => {
+  const configUrl = new URL("../vitest.config.ts", import.meta.url);
+  const module = await import(configUrl.href);
+  return module.default ?? module;
+};
+
 const enumerateWorkspaces = (group: "apps" | "packages") =>
   fs
     .readdirSync(path.resolve(repoRoot, group), { withFileTypes: true })
@@ -47,6 +53,37 @@ describe("workspace vitest configuration", () => {
         expect(config.test?.pool).toBe("threads");
       })
     );
+  });
+
+  it("registers all vitest projects through the root config", async () => {
+    const config = await loadRootConfig();
+
+    expect(Array.isArray(config.test?.projects)).toBe(true);
+
+    const extendsPaths = config.test?.projects
+      ?.map((project) => project?.extends)
+      .filter((value): value is string => typeof value === "string");
+
+    expect(extendsPaths).toEqual([
+      "./apps/api/vitest.config.ts",
+      "./apps/web/vitest.config.ts",
+      "./apps/cli/vitest.config.ts",
+      "./platform/ui/vitest.config.ts",
+      "./platform/testing/ci-support/vitest.config.ts",
+      "./platform/testing/perf-benchmarks/vitest.config.ts",
+      "./platform/integrations/api-client/vitest.config.ts",
+      "./platform/runtime/engine/vitest.config.ts",
+      "./platform/runtime/hooks/vitest.config.ts",
+      "./platform/runtime/context/vitest.config.ts",
+      "./platform/runtime/io/vitest.config.ts",
+      "./platform/runtime/tools/vitest.config.ts",
+      "./platform/core/config/vitest.config.ts",
+      "./platform/core/templates/vitest.config.ts",
+      "./platform/core/tokenizers/vitest.config.ts",
+      "./platform/core/types/vitest.config.ts",
+      "./platform/integrations/providers/vitest.config.ts",
+      "./platform/integrations/mcp/vitest.config.ts",
+    ]);
   });
 });
 
