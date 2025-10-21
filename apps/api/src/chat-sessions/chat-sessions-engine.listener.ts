@@ -264,14 +264,53 @@ implements IEventHandler<ChatMessageCreatedEvent> {
     messages: ChatMessageDto[],
     messageId: string
   ): ChatMessage[] {
-    return messages
-      .filter((entry) => entry.id !== messageId)
-      .map<ChatMessage>((entry) => ({
-        role: entry.role,
-        content: entry.content,
-        ...(entry.name ? { name: entry.name } : {}),
-        ...(entry.toolCallId ? { tool_call_id: entry.toolCallId } : {}),
-      }));
+    const current = messages.find((entry) => entry.id === messageId) ?? null;
+    const history: ChatMessageDto[] = [];
+
+    if (current?.role === ChatMessageRole.System) {
+      history.push(current);
+    }
+
+    for (const entry of messages) {
+      if (entry.id === messageId) {
+        continue;
+      }
+      history.push(entry);
+    }
+
+    if (current?.role !== ChatMessageRole.System) {
+      let latestSystemIndex = -1;
+      for (let index = history.length - 1; index >= 0; index -= 1) {
+        if (history[index]?.role === ChatMessageRole.System) {
+          latestSystemIndex = index;
+          break;
+        }
+      }
+
+      if (latestSystemIndex > 0) {
+        const [latestSystem] = history.splice(latestSystemIndex, 1);
+        history.unshift(latestSystem);
+      }
+    }
+
+    return history.map((entry) => this.toChatMessage(entry));
+  }
+
+  private toChatMessage(entry: ChatMessageDto): ChatMessage {
+    const message: ChatMessage = {
+      role: entry.role,
+      content: entry.content,
+    };
+
+    if (entry.name) {
+      message.name = entry.name;
+    }
+
+    if (entry.toolCallId) {
+      message.tool_call_id = entry.toolCallId;
+    }
+
+    return message;
   }
 
   private async appendAssistantMessage(

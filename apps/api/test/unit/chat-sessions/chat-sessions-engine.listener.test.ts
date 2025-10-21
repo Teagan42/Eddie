@@ -235,6 +235,148 @@ describe("ChatSessionsEngineListener", () => {
     expect(saveAgentInvocations).toHaveBeenCalledWith("session-1", []);
   });
 
+  it("includes a run-mode system message at the start of the history", async () => {
+    const toolMessage = createChatMessage({
+      id: "tool-1",
+      role: ChatMessageRole.Tool,
+      content: "{\"status\":\"ok\"}",
+      toolCallId: "tool-call-1",
+      name: "file_writer",
+    });
+    const assistantMessage = createChatMessage({
+      id: "assistant-1",
+      role: ChatMessageRole.Assistant,
+      content: "prior summary",
+    });
+    const systemMessage = createChatMessage({
+      id: "system-1",
+      role: ChatMessageRole.System,
+      content: "Coordinate refactor",
+    });
+
+    listMessages.mockReturnValue([toolMessage, assistantMessage, systemMessage]);
+
+    engineRun.mockResolvedValue({
+      messages: [],
+      context: { files: [], totalBytes: 0, text: "" },
+      agents: [],
+    });
+
+    capture.mockImplementation(async (_sessionId: string, handler: () => Promise<EngineResult>) => ({
+      result: await handler(),
+      error: undefined,
+      state: { sessionId: "session-1", messageId: undefined, buffer: "" },
+    }));
+
+    await listener.handle(
+      new ChatMessageCreatedEvent(systemMessage.sessionId, systemMessage.id)
+    );
+
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(engineRun).toHaveBeenCalledWith(
+      "Coordinate refactor",
+      expect.objectContaining({
+        history: [
+          {
+            role: ChatMessageRole.System,
+            content: "Coordinate refactor",
+          },
+          {
+            role: ChatMessageRole.Tool,
+            content: "{\"status\":\"ok\"}",
+            tool_call_id: "tool-call-1",
+            name: "file_writer",
+          },
+          {
+            role: ChatMessageRole.Assistant,
+            content: "prior summary",
+          },
+        ],
+      })
+    );
+  });
+
+  it("prioritizes the most recent system message when asking a question", async () => {
+    const legacySystem = createChatMessage({
+      id: "system-legacy",
+      role: ChatMessageRole.System,
+      content: "Old guidance",
+    });
+    const toolMessage = createChatMessage({
+      id: "tool-2",
+      role: ChatMessageRole.Tool,
+      content: "{\"result\":\"done\"}",
+      toolCallId: "tool-call-2",
+      name: "shell",
+    });
+    const assistantMessage = createChatMessage({
+      id: "assistant-2",
+      role: ChatMessageRole.Assistant,
+      content: "previous reasoning",
+    });
+    const latestSystem = createChatMessage({
+      id: "system-latest",
+      role: ChatMessageRole.System,
+      content: "Fresh instructions",
+    });
+    const userMessage = createChatMessage({
+      id: "user-2",
+      role: ChatMessageRole.User,
+      content: "What should I do next?",
+    });
+
+    listMessages.mockReturnValue([
+      legacySystem,
+      toolMessage,
+      assistantMessage,
+      latestSystem,
+      userMessage,
+    ]);
+
+    engineRun.mockResolvedValue({
+      messages: [],
+      context: { files: [], totalBytes: 0, text: "" },
+      agents: [],
+    });
+
+    capture.mockImplementation(async (_sessionId: string, handler: () => Promise<EngineResult>) => ({
+      result: await handler(),
+      error: undefined,
+      state: { sessionId: "session-1", messageId: undefined, buffer: "" },
+    }));
+
+    await listener.handle(
+      new ChatMessageCreatedEvent(userMessage.sessionId, userMessage.id)
+    );
+
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(engineRun).toHaveBeenCalled();
+    const [, options] = engineRun.mock.calls.at(-1) ?? [];
+    expect(options?.history?.[0]).toEqual({
+      role: ChatMessageRole.System,
+      content: "Fresh instructions",
+    });
+    expect(options?.history).toContainEqual({
+      role: ChatMessageRole.System,
+      content: "Old guidance",
+    });
+    expect(options?.history).toContainEqual({
+      role: ChatMessageRole.Tool,
+      content: "{\"result\":\"done\"}",
+      tool_call_id: "tool-call-2",
+      name: "shell",
+    });
+    expect(options?.history).toContainEqual({
+      role: ChatMessageRole.Assistant,
+      content: "previous reasoning",
+    });
+    expect(options?.history?.some((entry: { content: string }) => entry.content === "What should I do next?")).toBe(
+      false
+    );
+  });
+
   it("captures agent runtime metadata in invocation snapshots", async () => {
     const message = createChatMessage();
     listMessages.mockReturnValue([message]);
