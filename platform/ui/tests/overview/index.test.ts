@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
   AVAILABLE_THEMES,
@@ -10,6 +10,7 @@ import {
   isDarkTheme,
   useTheme,
 } from "../../src/overview";
+import type { SessionsListProps } from "../../src/overview";
 
 describe("overview barrel", () => {
   it("exposes overview page primitives", () => {
@@ -24,5 +25,9 @@ describe("overview barrel", () => {
     expect(typeof ThemeProvider).toBe("function");
     expect(typeof useTheme).toBe("function");
     expect(typeof isDarkTheme).toBe("function");
+  });
+
+  it("exposes the sessions list prop contract", () => {
+    expectTypeOf<SessionsListProps>().toMatchTypeOf<object>();
   });
 });

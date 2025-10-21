@@ -34,11 +34,14 @@ export interface OverviewAuthPanelProps {
   readonly onApiKeyChange: (value: string | null) => void;
 }
 
-export interface SessionItem {
+export interface SessionSummary {
   readonly id: string;
   readonly title: string;
+  readonly updatedAt: string;
 }
 
 export interface SessionsListProps {
-  readonly sessions: readonly SessionItem[];
+  readonly sessions?: readonly SessionSummary[] | undefined;
+  readonly selectedSessionId: string | null;
+  readonly onSelectSession: (sessionId: string) => void;
 }

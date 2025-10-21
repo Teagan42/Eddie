@@ -8,7 +8,7 @@ import type {
   OverviewStat,
   OverviewStatsGridProps,
   OverviewTheme,
-  SessionItem,
+  SessionSummary,
   SessionsListProps,
 } from "../../src/overview/types";
 import type {
@@ -17,7 +17,7 @@ import type {
   OverviewStat as OverviewStatFromIndex,
   OverviewStatsGridProps as OverviewStatsGridPropsFromIndex,
   OverviewTheme as OverviewThemeFromIndex,
-  SessionItem as SessionItemFromIndex,
+  SessionSummary as SessionSummaryFromIndex,
   SessionsListProps as SessionsListPropsFromIndex,
 } from "../../src/overview";
 
@@ -52,12 +52,15 @@ describe("overview type exports", () => {
   it("provides session list contracts", () => {
     expectTypeOf<SessionsListProps>().not.toBeAny();
     expectTypeOf<SessionsListProps>().toMatchTypeOf<{
-      readonly sessions: readonly SessionItem[];
+      readonly sessions?: readonly SessionSummary[] | undefined;
+      readonly selectedSessionId: string | null;
+      readonly onSelectSession: (sessionId: string) => void;
     }>();
-    expectTypeOf<SessionItem>().not.toBeAny();
-    expectTypeOf<SessionItem>().toMatchTypeOf<{
+    expectTypeOf<SessionSummary>().not.toBeAny();
+    expectTypeOf<SessionSummary>().toMatchTypeOf<{
       readonly id: string;
       readonly title: string;
+      readonly updatedAt: string;
     }>();
   });
 
@@ -85,7 +88,7 @@ describe("overview type exports", () => {
     expectTypeOf<OverviewStatsGridPropsFromIndex>().toEqualTypeOf<OverviewStatsGridProps>();
     expectTypeOf<OverviewThemeFromIndex>().toEqualTypeOf<OverviewTheme>();
     expectTypeOf<SessionsListPropsFromIndex>().toEqualTypeOf<SessionsListProps>();
-    expectTypeOf<SessionItemFromIndex>().toEqualTypeOf<SessionItem>();
+    expectTypeOf<SessionSummaryFromIndex>().toEqualTypeOf<SessionSummary>();
     expectTypeOf<OverviewHeroPropsFromIndex>().toEqualTypeOf<OverviewHeroProps>();
     expectTypeOf<OverviewAuthPanelPropsFromIndex>().toEqualTypeOf<OverviewAuthPanelProps>();
   });
