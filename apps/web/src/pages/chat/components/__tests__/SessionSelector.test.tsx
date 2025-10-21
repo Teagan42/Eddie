@@ -1,9 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { Theme } from '@radix-ui/themes';
 
 import {
+  SESSION_TABLIST_ARIA_LABEL,
   SessionSelector,
   type SessionSelectorProps,
   type SessionSelectorSession,
@@ -61,7 +62,9 @@ describe('SessionSelector', () => {
 
     renderSelector({ onSelectSession: handleSelect });
 
-    expect(screen.getByRole('tablist')).toBeInTheDocument();
+    expect(
+      screen.getByRole('tablist', { name: SESSION_TABLIST_ARIA_LABEL }),
+    ).toBeInTheDocument();
 
     const selectedTab = screen.getByRole('tab', { name: 'Session 1' });
     expect(selectedTab).toHaveAttribute('aria-selected', 'true');
@@ -146,6 +149,43 @@ describe('SessionSelector', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'Archive session' }));
 
     expect(handleDelete).toHaveBeenCalledWith('session-2');
+  });
+
+  it('organizes sessions into status-based tabs', async () => {
+    const user = userEvent.setup();
+
+    renderSelector({
+      sessions: [
+        createSession({ id: 'active-session', title: 'Active session' }),
+        createSession({ id: 'archived-session', title: 'Archived session', status: 'archived' }),
+      ],
+      selectedSessionId: null,
+    });
+
+    const categoriesTablist = screen.getByRole('tablist', { name: 'Session categories' });
+    const activeCategory = within(categoriesTablist).getByRole('tab', { name: 'Active' });
+    const archivedCategory = within(categoriesTablist).getByRole('tab', { name: 'Archived' });
+
+    expect(activeCategory).toHaveAttribute('aria-selected', 'true');
+    expect(archivedCategory).toHaveAttribute('aria-selected', 'false');
+
+    const sessionTablist = screen.getByRole('tablist', { name: SESSION_TABLIST_ARIA_LABEL });
+    expect(within(sessionTablist).getByRole('tab', { name: 'Active session' })).toBeInTheDocument();
+    expect(
+      within(sessionTablist).queryByRole('tab', { name: 'Archived session' }),
+    ).not.toBeInTheDocument();
+
+    await user.click(archivedCategory);
+
+    expect(activeCategory).toHaveAttribute('aria-selected', 'false');
+    expect(archivedCategory).toHaveAttribute('aria-selected', 'true');
+    const archivedSessionTablist = screen.getByRole('tablist', { name: SESSION_TABLIST_ARIA_LABEL });
+    expect(
+      within(archivedSessionTablist).getByRole('tab', { name: 'Archived session' }),
+    ).toBeInTheDocument();
+    expect(
+      within(archivedSessionTablist).queryByRole('tab', { name: 'Active session' }),
+    ).not.toBeInTheDocument();
   });
 
   it('can be collapsed to hide the session list when not needed', async () => {
