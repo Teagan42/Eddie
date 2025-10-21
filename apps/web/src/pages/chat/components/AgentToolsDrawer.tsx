@@ -8,10 +8,9 @@ import {
   SheetTitle,
 } from '@/vendor/components/ui/sheet';
 
-import type { ContextBundlesPanelProps } from './ContextBundlesPanel';
 import type { AgentExecutionTreeProps } from './AgentExecutionTree';
 import { AgentExecutionTree } from './AgentExecutionTree';
-import { ContextBundlesPanel } from './ContextBundlesPanel';
+import { ContextBundlesPanel, type ContextBundlesPanelProps } from '@eddie/ui/chat';
 import { useTheme } from '@/theme';
 import { getThemeAccentColor, getThemeAppearance } from '@/theme/themes';
 

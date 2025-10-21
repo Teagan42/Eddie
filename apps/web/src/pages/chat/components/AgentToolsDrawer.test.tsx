@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentToolsDrawer } from "./AgentToolsDrawer";
 import type { AgentToolsDrawerProps } from "./AgentToolsDrawer";
 import type { AgentExecutionTreeProps } from "./AgentExecutionTree";
-import type { ContextBundlesPanelProps } from "./ContextBundlesPanel";
+import type { ContextBundlesPanelProps } from "@eddie/ui/chat";
 import { Sheet } from "@/vendor/components/ui/sheet";
 import { createEmptyExecutionTreeState } from "../execution-tree-state";
 
@@ -67,12 +67,16 @@ vi.mock("./AgentExecutionTree", () => ({
   },
 }));
 
-vi.mock("./ContextBundlesPanel", () => ({
-  ContextBundlesPanel: (props: ContextBundlesPanelProps) => {
-    contextPanelProps.push(props);
-    return <div data-testid="context-bundles-panel" />;
-  },
-}));
+vi.mock("@eddie/ui/chat", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@eddie/ui/chat")>();
+  return {
+    ...actual,
+    ContextBundlesPanel: (props: ContextBundlesPanelProps) => {
+      contextPanelProps.push(props);
+      return <div data-testid="context-bundles-panel" />;
+    },
+  };
+});
 
 describe("AgentToolsDrawer", () => {
   beforeEach(() => {
@@ -101,6 +105,11 @@ describe("AgentToolsDrawer", () => {
             summary: "Primary docs",
             sizeBytes: 1024,
             fileCount: 0,
+            source: {
+              type: "tool_call",
+              agentId: "agent-1",
+              toolCallId: "tool-call-1",
+            },
           },
         ],
         isContextPanelCollapsed: true,

@@ -25,6 +25,7 @@ export {
 
 export type { CollapsiblePanelProps } from "./CollapsiblePanel.types";
 export { CollapsiblePanel } from "./CollapsiblePanel";
+export { ContextBundlesPanel, type ContextBundlesPanelProps } from "./ContextBundlesPanel";
 
 export interface SessionSelectorProps extends UnknownProps {}
 
