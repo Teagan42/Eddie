@@ -1,35 +1,40 @@
 import type {
-  RefObject,
   ComponentProps,
   ComponentType,
   KeyboardEvent,
-} from 'react';
-import { Badge, Box, Flex, IconButton, ScrollArea, Text, Tooltip } from '@radix-ui/themes';
+  RefObject,
+} from "react";
+import { Badge, Box, Flex, IconButton, ScrollArea, Text, Tooltip } from "@radix-ui/themes";
 import {
   CubeIcon,
   GearIcon,
   MagicWandIcon,
   PersonIcon,
   ReloadIcon,
-} from '@radix-ui/react-icons';
+} from "@radix-ui/react-icons";
 
-import type { ChatMessageDto } from '@eddie/api-client';
-
-import { cn } from '@/vendor/lib/utils';
-
-import { ChatMessageContent } from '@eddie/ui/chat';
+import { ChatMessageContent } from "./ChatMessageContent";
+import {
+  type ChatAgentMetadata,
+  type ChatMessage,
+  type ChatMessageReasoning,
+  type ChatMessageReasoningSegment,
+  type ChatMessageRole,
+  type ToolCallStatus,
+} from "./types";
+import { combineClassNames } from "../utils/class-names";
 
 const MESSAGE_CONTAINER_CLASS =
-  'space-y-3 rounded-2xl border border-white/10 bg-slate-950/70 p-5 backdrop-blur-xl';
+  "space-y-3 rounded-2xl border border-white/10 bg-slate-950/70 p-5 backdrop-blur-xl";
 
-type MessageRole = ChatMessageDto['role'];
+type MessageRole = ChatMessageRole;
 
-type BadgeColor = ComponentProps<typeof Badge>['color'];
+type BadgeColor = ComponentProps<typeof Badge>["color"];
 
 type MessageRoleStyle = {
   label: string;
   badgeColor: BadgeColor;
-  align: 'start' | 'end';
+  align: "start" | "end";
   cardClassName: string;
   icon: ComponentType<{ className?: string }>;
   iconClassName: string;
@@ -38,97 +43,60 @@ type MessageRoleStyle = {
 
 const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
   user: {
-    label: 'User',
-    badgeColor: 'blue',
-    align: 'end',
+    label: "User",
+    badgeColor: "blue",
+    align: "end",
     cardClassName:
-      'border border-emerald-400/30 bg-gradient-to-br from-emerald-500/25 via-emerald-500/5 to-slate-950/70 text-emerald-50 shadow-[0_30px_60px_-35px_rgba(16,185,129,0.7)]',
+      "border border-emerald-400/30 bg-gradient-to-br from-emerald-500/25 via-emerald-500/5 to-slate-950/70 text-emerald-50 shadow-[0_30px_60px_-35px_rgba(16,185,129,0.7)]",
     icon: PersonIcon,
-    iconClassName: 'text-emerald-200',
-    contentClassName: 'leading-relaxed text-white/95',
+    iconClassName: "text-emerald-200",
+    contentClassName: "leading-relaxed text-white/95",
   },
   assistant: {
-    label: 'Assistant',
-    badgeColor: 'green',
-    align: 'start',
+    label: "Assistant",
+    badgeColor: "green",
+    align: "start",
     cardClassName:
-      'border border-sky-400/30 bg-gradient-to-br from-sky-500/25 via-sky-500/5 to-slate-950/70 text-sky-50 shadow-[0_30px_60px_-35px_rgba(56,189,248,0.6)]',
+      "border border-sky-400/30 bg-gradient-to-br from-sky-500/25 via-sky-500/5 to-slate-950/70 text-sky-50 shadow-[0_30px_60px_-35px_rgba(56,189,248,0.6)]",
     icon: MagicWandIcon,
-    iconClassName: 'text-sky-200',
-    contentClassName: 'leading-relaxed text-white/95',
+    iconClassName: "text-sky-200",
+    contentClassName: "leading-relaxed text-white/95",
   },
   system: {
-    label: 'Command',
-    badgeColor: 'purple',
-    align: 'start',
+    label: "Command",
+    badgeColor: "purple",
+    align: "start",
     cardClassName:
-      'border border-amber-400/30 bg-gradient-to-br from-amber-500/25 via-amber-500/5 to-slate-950/70 text-amber-50 shadow-[0_30px_60px_-35px_rgba(250,204,21,0.55)]',
+      "border border-amber-400/30 bg-gradient-to-br from-amber-500/25 via-amber-500/5 to-slate-950/70 text-amber-50 shadow-[0_30px_60px_-35px_rgba(250,204,21,0.55)]",
     icon: GearIcon,
-    iconClassName: 'text-amber-200',
-    contentClassName: 'text-sm font-mono text-amber-50',
+    iconClassName: "text-amber-200",
+    contentClassName: "text-sm font-mono text-amber-50",
   },
   tool: {
-    label: 'Agent',
-    badgeColor: 'amber',
-    align: 'start',
+    label: "Agent",
+    badgeColor: "amber",
+    align: "start",
     cardClassName:
-      'border border-fuchsia-400/30 bg-gradient-to-br from-fuchsia-500/25 via-fuchsia-500/5 to-slate-950/70 text-fuchsia-50 shadow-[0_30px_60px_-35px_rgba(217,70,239,0.55)]',
+      "border border-fuchsia-400/30 bg-gradient-to-br from-fuchsia-500/25 via-fuchsia-500/5 to-slate-950/70 text-fuchsia-50 shadow-[0_30px_60px_-35px_rgba(217,70,239,0.55)]",
     icon: CubeIcon,
-    iconClassName: 'text-fuchsia-200',
-    contentClassName: 'leading-relaxed text-white/95',
+    iconClassName: "text-fuchsia-200",
+    contentClassName: "leading-relaxed text-white/95",
   },
 };
 
 const REASONING_STATUS_VARIANTS = {
-  streaming: { label: 'Streaming', badge: 'blue' as BadgeColor },
-  completed: { label: 'Completed', badge: 'green' as BadgeColor },
+  streaming: { label: "Streaming", badge: "blue" as BadgeColor },
+  completed: { label: "Completed", badge: "green" as BadgeColor },
 };
 
-type AgentMetadata = {
-  id?: string | null;
-  name?: string | null;
-  parentId?: string | null;
-  parentName?: string | null;
-  lineage?: Array<
-    | string
-    | {
-        id?: string | null;
-        name?: string | null;
-      }
-  > | null;
-};
+type AgentMetadata = ChatAgentMetadata;
 
-type MessageMetadata = {
-  agent?: AgentMetadata | null;
-  tool?: {
-    id?: string | null;
-    name?: string | null;
-    status?: string | null;
-  } | null;
-} | null;
+type MessageReasoningSegment = ChatMessageReasoningSegment;
 
-type MessageReasoningSegment = {
-  text?: string;
-  metadata?: Record<string, unknown>;
-  timestamp?: string;
-  agentId?: string | null;
-};
-
-type MessageReasoning = {
-  segments?: MessageReasoningSegment[];
-  responseId?: string;
-  status?: "streaming" | "completed";
-} | null;
-
-type MessageWithMetadata = ChatMessageDto & {
-  metadata?: MessageMetadata;
-  reasoning?: MessageReasoning;
-};
-
-export type MessageListItem = MessageWithMetadata;
+export type MessageListItem = ChatMessage;
 
 function getNonEmptyString(value: unknown): string | null {
-  if (typeof value !== 'string') {
+  if (typeof value !== "string") {
     return null;
   }
 
@@ -148,15 +116,13 @@ function firstNonEmpty(...values: unknown[]): string | null {
 }
 
 function normalizeLineageEntry(entry: unknown): string | null {
-  if (typeof entry === 'string') {
+  if (typeof entry === "string") {
     return getNonEmptyString(entry);
   }
 
-  if (entry && typeof entry === 'object') {
+  if (entry && typeof entry === "object") {
     const candidate = entry as { id?: unknown; name?: unknown };
-    return (
-      getNonEmptyString(candidate.name) ?? getNonEmptyString(candidate.id)
-    );
+    return getNonEmptyString(candidate.name) ?? getNonEmptyString(candidate.id);
   }
 
   return null;
@@ -183,20 +149,16 @@ function getParentFromLineage(agent: AgentMetadata | null | undefined): string |
 }
 
 function getMessageProvenance(
-  message: MessageWithMetadata,
+  message: MessageListItem,
   fallbackLabel: string,
 ): { heading: string; subheading: string | null } {
   const metadata = message.metadata;
 
-  if (metadata && typeof metadata === 'object') {
+  if (metadata && typeof metadata === "object") {
     const agent = metadata.agent;
 
-    if (agent && typeof agent === 'object') {
-      const headingCandidate = firstNonEmpty(
-        agent.name,
-        agent.id,
-        message.name,
-      );
+    if (agent && typeof agent === "object") {
+      const headingCandidate = firstNonEmpty(agent.name, agent.id, message.name);
       const subheadingCandidate = firstNonEmpty(
         agent.parentName,
         agent.parentId,
@@ -221,61 +183,59 @@ function formatTime(value: string): string | null {
     return null;
   }
 
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-type ToolStatus = 'pending' | 'running' | 'completed' | 'failed' | 'unknown';
+type ToolStatus = ToolCallStatus | "unknown";
 
 const TOOL_STATUS_LABEL: Record<ToolStatus, string> = {
-  pending: 'Pending',
-  running: 'Running',
-  completed: 'Completed',
-  failed: 'Failed',
-  unknown: 'Unknown',
+  pending: "Pending",
+  running: "Running",
+  completed: "Completed",
+  failed: "Failed",
+  unknown: "Unknown",
 };
 
 const TOOL_STATUS_BADGE: Record<ToolStatus, BadgeColor> = {
-  pending: 'gray',
-  running: 'blue',
-  completed: 'green',
-  failed: 'red',
-  unknown: 'gray',
+  pending: "gray",
+  running: "blue",
+  completed: "green",
+  failed: "red",
+  unknown: "gray",
 };
 
 function normalizeToolStatus(value: unknown): ToolStatus {
-  if (typeof value !== 'string') {
-    return 'unknown';
+  if (typeof value !== "string") {
+    return "unknown";
   }
 
   const normalized = value.toLowerCase().trim();
-  if (normalized === 'pending' || normalized === 'running' || normalized === 'completed' || normalized === 'failed') {
+  if (normalized === "pending" || normalized === "running" || normalized === "completed" || normalized === "failed") {
     return normalized;
   }
 
-  return 'unknown';
+  return "unknown";
 }
 
-function getToolSummary(
-  message: MessageWithMetadata,
-): { name: string; status: ToolStatus } {
+function getToolSummary(message: MessageListItem): { name: string; status: ToolStatus } {
   const metadata = message.metadata;
-  const toolMetadata = metadata && typeof metadata === 'object' ? metadata.tool : null;
+  const toolMetadata = metadata && typeof metadata === "object" ? metadata.tool : null;
   const name =
     firstNonEmpty(toolMetadata?.name, message.name, toolMetadata?.id, message.toolCallId) ??
-    'Tool invocation';
+    "Tool invocation";
   const status = normalizeToolStatus(toolMetadata?.status);
 
   return { name, status };
 }
 
-function getToolInvocationId(message: MessageWithMetadata): string | null {
+function getToolInvocationId(message: MessageListItem): string | null {
   const metadata = message.metadata;
-  const toolMetadata = metadata && typeof metadata === 'object' ? metadata.tool : null;
+  const toolMetadata = metadata && typeof metadata === "object" ? metadata.tool : null;
 
   return (
     firstNonEmpty(
       message.toolCallId,
-      toolMetadata && typeof toolMetadata === 'object' ? toolMetadata.id : null,
+      toolMetadata && typeof toolMetadata === "object" ? toolMetadata.id : null,
     ) ?? null
   );
 }
@@ -286,19 +246,17 @@ function buildToolInvocationLabel(summary: { name: string; status: ToolStatus })
 }
 
 function getReasoningAgentLabel(
-  message: MessageWithMetadata,
+  message: MessageListItem,
   segment: MessageReasoningSegment | undefined,
 ): string | null {
   const agentMetadata = message.metadata?.agent ?? null;
-  const metadataLabel = agentMetadata
-    ? firstNonEmpty(agentMetadata.name, agentMetadata.id)
-    : null;
+  const metadataLabel = agentMetadata ? firstNonEmpty(agentMetadata.name, agentMetadata.id) : null;
 
   return metadataLabel ?? getNonEmptyString(segment?.agentId);
 }
 
 function getRenderableReasoningSegments(
-  reasoning: MessageReasoning,
+  reasoning: ChatMessageReasoning | null | undefined,
 ): Array<{ segment: MessageReasoningSegment; text: string }> {
   if (!reasoning || !Array.isArray(reasoning.segments)) {
     return [];
@@ -307,7 +265,7 @@ function getRenderableReasoningSegments(
   const segments: Array<{ segment: MessageReasoningSegment; text: string }> = [];
 
   for (const segment of reasoning.segments) {
-    if (!segment || typeof segment.text !== 'string') {
+    if (!segment || typeof segment.text !== "string") {
       continue;
     }
 
@@ -322,7 +280,7 @@ function getRenderableReasoningSegments(
   return segments;
 }
 
-function getReasoningAgentParentLabel(message: MessageWithMetadata): string | null {
+function getReasoningAgentParentLabel(message: MessageListItem): string | null {
   const agentMetadata = message.metadata?.agent ?? null;
   if (!agentMetadata) {
     return null;
@@ -336,7 +294,7 @@ function getReasoningAgentParentLabel(message: MessageWithMetadata): string | nu
 }
 
 export interface MessageListProps {
-  messages: MessageWithMetadata[];
+  messages: MessageListItem[];
   onReissueCommand: (message: MessageListItem) => void;
   scrollAnchorRef: RefObject<HTMLDivElement>;
   onInspectToolInvocation?: (toolCallId: string | null) => void;
@@ -362,43 +320,37 @@ export function MessageList({
               const timestamp = formatTime(message.createdAt);
               const Icon = roleStyle.icon;
               const alignmentClass =
-                roleStyle.align === 'end' ? 'ml-auto w-full max-w-2xl' : 'mr-auto w-full max-w-2xl';
-              const containerClassName = cn(MESSAGE_CONTAINER_CLASS, roleStyle.cardClassName);
-              const showReissueButton = message.role !== 'assistant';
-              const fallbackHeading =
-                message.role === 'user' ? 'You' : roleStyle.label;
-              const messageWithMetadata = message as MessageWithMetadata;
+                roleStyle.align === "end" ? "ml-auto w-full max-w-2xl" : "mr-auto w-full max-w-2xl";
+              const containerClassName = combineClassNames(
+                MESSAGE_CONTAINER_CLASS,
+                roleStyle.cardClassName,
+              );
+              const showReissueButton = message.role !== "assistant";
+              const fallbackHeading = message.role === "user" ? "You" : roleStyle.label;
               const { heading, subheading } = getMessageProvenance(
-                messageWithMetadata,
+                message,
                 fallbackHeading,
               );
-              const isToolMessage = message.role === 'tool';
-              const toolSummary = isToolMessage
-                ? getToolSummary(messageWithMetadata)
-                : null;
-              const toolInvocationId = isToolMessage
-                ? getToolInvocationId(messageWithMetadata)
-                : null;
-              const reasoning = messageWithMetadata.reasoning ?? null;
+              const isToolMessage = message.role === "tool";
+              const toolSummary = isToolMessage ? getToolSummary(message) : null;
+              const toolInvocationId = isToolMessage ? getToolInvocationId(message) : null;
+              const reasoning = message.reasoning ?? null;
               const reasoningSegments = getRenderableReasoningSegments(reasoning);
               const hasReasoning = reasoningSegments.length > 0;
-              const reasoningStatus =
-                reasoning?.status === 'completed' ? 'completed' : 'streaming';
+              const reasoningStatus = reasoning?.status === "completed" ? "completed" : "streaming";
               const reasoningVariant = REASONING_STATUS_VARIANTS[reasoningStatus];
-              const reasoningParentLabel = getReasoningAgentParentLabel(
-                messageWithMetadata,
-              );
+              const reasoningParentLabel = getReasoningAgentParentLabel(message);
 
               return (
                 <Box key={message.id} className={alignmentClass}>
                   <Box
-                    className={cn(
+                    className={combineClassNames(
                       containerClassName,
                       isToolMessage && onInspectToolInvocation
-                        ? 'cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-sky-400 focus-visible:ring-offset-transparent'
+                        ? "cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-sky-400 focus-visible:ring-offset-transparent"
                         : undefined,
                     )}
-                    role={isToolMessage && onInspectToolInvocation ? 'button' : undefined}
+                    role={isToolMessage && onInspectToolInvocation ? "button" : undefined}
                     tabIndex={isToolMessage && onInspectToolInvocation ? 0 : undefined}
                     aria-label={
                       isToolMessage && onInspectToolInvocation && toolSummary
@@ -415,7 +367,7 @@ export function MessageList({
                       if (!isToolMessage || !onInspectToolInvocation) {
                         return;
                       }
-                      if (event.key === 'Enter' || event.key === ' ') {
+                      if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
                         onInspectToolInvocation(toolInvocationId);
                       }
@@ -478,7 +430,7 @@ export function MessageList({
                       <ChatMessageContent
                         messageRole={message.role}
                         content={message.content}
-                        className={cn('text-base text-white', roleStyle.contentClassName)}
+                        className={combineClassNames("text-base text-white", roleStyle.contentClassName)}
                       />
                     )}
                     {hasReasoning ? (
@@ -499,10 +451,7 @@ export function MessageList({
                         </Flex>
                         <Flex direction="column" gap="2" className="mt-2">
                           {reasoningSegments.map(({ segment, text }, index) => {
-                            const agentLabel = getReasoningAgentLabel(
-                              messageWithMetadata,
-                              segment,
-                            );
+                            const agentLabel = getReasoningAgentLabel(message, segment);
                             const segmentTimestamp = segment.timestamp
                               ? formatTime(segment.timestamp)
                               : null;

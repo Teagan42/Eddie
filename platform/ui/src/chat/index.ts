@@ -11,6 +11,11 @@ export {
   ChatMessageContent,
   type ChatMessageContentProps,
 } from "./ChatMessageContent";
+export {
+  MessageList,
+  type MessageListProps,
+  type MessageListItem,
+} from "./MessageList";
 
 export interface SessionSelectorProps extends UnknownProps {}
 
