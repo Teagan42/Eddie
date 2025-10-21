@@ -1,8 +1,9 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import fs from "fs/promises";
 import path from "path";
 import nunjucks from "nunjucks";
 import type { TemplateDescriptor, TemplateVariables } from "@eddie/types";
+import type { ConfigStore } from "@eddie/config";
 
 const DEFAULT_ENCODING: BufferEncoding = "utf-8";
 const INLINE_KEY = "<inline>";
@@ -22,11 +23,14 @@ export class TemplateRendererService {
   private readonly environments = new Map<string, nunjucks.Environment>();
   private readonly templateCache = new Map<string, CachedTemplateEntry>();
 
+  constructor(@Optional() private readonly configStore?: ConfigStore) {}
+
   async renderTemplate(
     descriptor: TemplateDescriptor,
     variables: TemplateVariables = {}
   ): Promise<string> {
-    const absolutePath = this.resolvePath(descriptor);
+    const defaultBaseDir = this.resolveDefaultBaseDir();
+    const absolutePath = this.resolvePath(descriptor, defaultBaseDir);
     const encoding = descriptor.encoding ?? DEFAULT_ENCODING;
     const stats = await fs.stat(absolutePath);
     const mtimeMs = stats.mtimeMs;
@@ -39,6 +43,7 @@ export class TemplateRendererService {
     const searchPaths = this.computeSearchPaths({
       baseDir: descriptor.baseDir,
       filename: absolutePath,
+      defaultBaseDir,
     });
     const { env, key } = this.getEnvironment(searchPaths);
     const cacheKey = `${key}:${absolutePath}`;
@@ -67,7 +72,10 @@ export class TemplateRendererService {
     variables: TemplateVariables = {},
     filename?: string
   ): Promise<string> {
-    const searchPaths = this.computeSearchPaths({ filename });
+    const searchPaths = this.computeSearchPaths({
+      filename,
+      defaultBaseDir: this.resolveDefaultBaseDir(),
+    });
     const { env } = this.getEnvironment(searchPaths);
     const templateInstance = this.createTemplate(template, env, filename);
     const rendered = templateInstance.render(variables);
@@ -82,8 +90,11 @@ export class TemplateRendererService {
     return new nunjucks.Template(source, env, filename, true);
   }
 
-  private resolvePath(descriptor: TemplateDescriptor): string {
-    const baseDir = descriptor.baseDir ?? process.cwd();
+  private resolvePath(
+    descriptor: TemplateDescriptor,
+    defaultBaseDir: string
+  ): string {
+    const baseDir = descriptor.baseDir ?? defaultBaseDir;
     return path.isAbsolute(descriptor.file)
       ? descriptor.file
       : path.resolve(baseDir, descriptor.file);
@@ -92,6 +103,7 @@ export class TemplateRendererService {
   private computeSearchPaths(options: {
     baseDir?: string;
     filename?: string;
+    defaultBaseDir: string;
   }): string[] {
     const paths = new Set<string>();
     if (options.baseDir) {
@@ -101,7 +113,7 @@ export class TemplateRendererService {
       paths.add(path.resolve(path.dirname(options.filename)));
     }
     if (!paths.size) {
-      paths.add(process.cwd());
+      paths.add(options.defaultBaseDir);
     }
     return Array.from(paths);
   }
@@ -165,5 +177,14 @@ export class TemplateRendererService {
     const template = this.createTemplate(source, env, absolutePath);
     this.templateCache.set(cacheKey, { template, mtimeMs });
     return template;
+  }
+
+  private resolveDefaultBaseDir(): string {
+    const projectDir = this.configStore?.getSnapshot()?.projectDir;
+    if (typeof projectDir === "string" && projectDir.trim() !== "") {
+      return path.resolve(projectDir);
+    }
+
+    return process.cwd();
   }
 }
