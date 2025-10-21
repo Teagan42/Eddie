@@ -31,7 +31,7 @@ export interface OverviewHeroProps {
 
 export interface OverviewAuthPanelProps {
   readonly apiKey?: string | null;
-  readonly onApiKeyChange?: (value: string) => void;
+  readonly onApiKeyChange: (value: string | null) => void;
 }
 
 export interface SessionItem {
