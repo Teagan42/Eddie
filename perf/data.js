@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761022453559,
+  "lastUpdate": 1761026759847,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -1004,6 +1004,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 25.211,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e5fa48f1fd5331cc3e8787775354e446ab4e4f60",
+          "message": "feat: make panel collapsible and improve composer accessibility (#690)\n\n* test(panel): align structure expectations\n\n* fix(web): resolve lint issues in chat composer\n\n* refactor(web): centralize realtime dependency expectations (#692)",
+          "timestamp": "2025-10-20T23:55:12-06:00",
+          "tree_id": "a5514e2aed9f0b978ebdadc247b4d3807e3765b0",
+          "url": "https://github.com/Teagan42/Eddie/commit/e5fa48f1fd5331cc3e8787775354e446ab4e4f60"
+        },
+        "date": 1761026759411,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 48.742,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 34.274,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.911,
             "unit": "ms",
             "extra": "[object Object]"
           }
