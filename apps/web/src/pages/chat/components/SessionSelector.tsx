@@ -1,16 +1,9 @@
 import type { ChatSessionDto } from '@eddie/api-client';
 import { Badge, Button, DropdownMenu, Flex, IconButton, ScrollArea, Text } from '@radix-ui/themes';
-import {
-  CardStackIcon,
-  ChatBubbleIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-  DotsHorizontalIcon,
-} from '@radix-ui/react-icons';
+import { CardStackIcon, ChatBubbleIcon, DotsHorizontalIcon } from '@radix-ui/react-icons';
 import {
   useCallback,
   useEffect,
-  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -122,8 +115,6 @@ export function SessionSelector({
   const tabItemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const tabTriggerRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const [highlightedSessionId, setHighlightedSessionId] = useState<string | null>(null);
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const listId = useId();
   const sessionsByCategory = useMemo(() => {
     const grouped: Record<SessionCategory, SessionSelectorSession[]> = {
       active: [],
@@ -250,7 +241,7 @@ export function SessionSelector({
       return;
     }
 
-    if (!selectedSessionId || isCollapsed) {
+    if (!selectedSessionId) {
       indicator.style.opacity = '0';
       return;
     }
@@ -270,7 +261,7 @@ export function SessionSelector({
     indicator.style.transform = `translate3d(${itemRect.left - listRect.left}px, ${
       itemRect.top - listRect.top
     }px, 0)`;
-  }, [isCollapsed, selectedSessionId]);
+  }, [selectedSessionId]);
 
   useEffect(() => {
     return () => {
@@ -330,7 +321,7 @@ export function SessionSelector({
 
   useLayoutEffect(() => {
     updateIndicatorPosition();
-  }, [updateIndicatorPosition, sessionIdsSignature, isCollapsed, activeCategory]);
+  }, [updateIndicatorPosition, sessionIdsSignature, activeCategory]);
 
   const focusSession = useCallback((sessionId: string) => {
     const trigger = tabTriggerRefs.current.get(sessionId);
@@ -391,17 +382,6 @@ export function SessionSelector({
     },
     [focusSession, onSelectSession, sessionIds],
   );
-
-  const baseToggleLabel = isCollapsed ? 'Expand session list' : 'Collapse session list';
-  const sessionCountLabel = formatMetricCount(
-    visibleSessions.length,
-    'session',
-    'sessions',
-  );
-  const toggleLabel = sessionCountLabel
-    ? `${baseToggleLabel} (${sessionCountLabel})`
-    : baseToggleLabel;
-  const ToggleIcon = isCollapsed ? ChevronDownIcon : ChevronUpIcon;
 
   const renderSession = (session: SessionSelectorSession): JSX.Element => {
     const isSelected = session.id === selectedSessionId;
@@ -565,7 +545,7 @@ export function SessionSelector({
       onValueChange={(value) => setActiveCategory(value as SessionCategory)}
       className="mt-4 flex flex-col gap-3"
     >
-      <Flex align="center" justify="between" gap="3" wrap="wrap">
+      <Flex align="center" justify="start" gap="3" wrap="wrap">
         <TabsList
           aria-label="Session categories"
           className="inline-flex items-center gap-2 rounded-xl bg-[color:var(--slate-3)] p-1 text-[color:var(--slate-12)] dark:bg-[color:var(--slate-5)]"
@@ -585,19 +565,6 @@ export function SessionSelector({
             </TabsTrigger>
           ))}
         </TabsList>
-
-        <Button
-          variant="ghost"
-          size="1"
-          onClick={() => setIsCollapsed((current) => !current)}
-          aria-expanded={isCollapsed ? 'false' : 'true'}
-          aria-controls={listId}
-        >
-          <Flex align="center" gap="1">
-            <ToggleIcon aria-hidden="true" />
-            <span>{toggleLabel}</span>
-          </Flex>
-        </Button>
       </Flex>
 
       {categoryDefinitions.map((category) => {
@@ -605,41 +572,39 @@ export function SessionSelector({
 
         return (
           <TabsContent key={category.id} value={category.id} className="mt-1 outline-none">
-            {isCollapsed ? null : (
-              <ScrollArea type="always" className="max-h-40" id={listId}>
-                {categorySessions.length === 0 ? (
-                  <Text size="2" color="gray">
-                    No sessions in this category yet.
-                  </Text>
-                ) : (
-                  <div className="relative">
-                    <Flex
-                      ref={tabListRef}
-                      role="tablist"
-                      aria-orientation="horizontal"
-                      aria-label={SESSION_TABLIST_ARIA_LABEL}
-                      gap="2"
-                      wrap="wrap"
-                      className="relative"
-                      data-testid="session-tablist"
-                    >
-                      <span
-                        ref={indicatorRef}
-                        data-testid="session-tab-indicator"
-                        data-animated="true"
-                        className="pointer-events-none absolute z-0 rounded-lg bg-[var(--jade-4)] transition-transform duration-300 ease-out"
-                        style={{
-                          transition: indicatorTransitionStyle,
-                          transform: 'translate3d(0, 0, 0)',
-                          opacity: 0,
-                        }}
-                      />
-                      {categorySessions.map(renderSession)}
-                    </Flex>
-                  </div>
-                )}
-              </ScrollArea>
-            )}
+            <ScrollArea type="always" className="max-h-40">
+              {categorySessions.length === 0 ? (
+                <Text size="2" color="gray">
+                  No sessions in this category yet.
+                </Text>
+              ) : (
+                <div className="relative">
+                  <Flex
+                    ref={tabListRef}
+                    role="tablist"
+                    aria-orientation="horizontal"
+                    aria-label={SESSION_TABLIST_ARIA_LABEL}
+                    gap="2"
+                    wrap="wrap"
+                    className="relative"
+                    data-testid="session-tablist"
+                  >
+                    <span
+                      ref={indicatorRef}
+                      data-testid="session-tab-indicator"
+                      data-animated="true"
+                      className="pointer-events-none absolute z-0 rounded-lg bg-[var(--jade-4)] transition-transform duration-300 ease-out"
+                      style={{
+                        transition: indicatorTransitionStyle,
+                        transform: 'translate3d(0, 0, 0)',
+                        opacity: 0,
+                      }}
+                    />
+                    {categorySessions.map(renderSession)}
+                  </Flex>
+                </div>
+              )}
+            </ScrollArea>
           </TabsContent>
         );
       })}

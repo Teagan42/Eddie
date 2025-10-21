@@ -188,29 +188,13 @@ describe('SessionSelector', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('can be collapsed to hide the session list when not needed', async () => {
-    const user = userEvent.setup();
-
+  it('always shows the session list without a collapse toggle', () => {
     renderSelector();
 
-    const collapseButton = screen.getByRole('button', {
-      name: /Collapse session list \(\d+ sessions\)/,
-    });
-    expect(collapseButton).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('tab', { name: 'Session 1' })).toBeInTheDocument();
-
-    await user.click(collapseButton);
-
-    expect(collapseButton).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('tab', { name: 'Session 1' })).not.toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole('button', {
-        name: /Expand session list \(\d+ sessions\)/,
-      }),
-    );
-
-    expect(screen.getByRole('tab', { name: 'Session 1' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /session list/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Session 1' })).toBeVisible();
   });
 
   it('renders an animated indicator for the active tab', () => {

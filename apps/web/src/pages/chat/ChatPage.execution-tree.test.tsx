@@ -702,4 +702,56 @@ describe('ChatPage execution tree realtime updates', () => {
       within(completedRegion).getByText(/done/i),
     ).toBeInTheDocument();
   }, 20000);
+
+  it('shows context bundle files inside the agent tools drawer', async () => {
+    const user = userEvent.setup();
+
+    renderChatPage();
+
+    await waitFor(() => {
+      expect(getMetadataMock).toHaveBeenCalled();
+    });
+
+    await act(async () => {
+      toolResultHandlers.forEach((handler) =>
+        handler({
+          sessionId: 'session-1',
+          id: 'call-1',
+          name: 'upload_context',
+          result: JSON.stringify({
+            metadata: {
+              contextBundles: [
+                {
+                  id: 'bundle-1',
+                  label: 'Docs',
+                  summary: 'Primary documentation',
+                  sizeBytes: 4096,
+                  fileCount: 2,
+                  files: [
+                    { path: 'docs/README.md', sizeBytes: 1024 },
+                    { path: 'docs/CONTRIBUTING.md', sizeBytes: 3072 },
+                  ],
+                },
+              ],
+            },
+          }),
+          timestamp: '2024-05-01T12:05:00.000Z',
+          agentId: 'agent-primary',
+        }),
+      );
+    });
+
+    const openDrawerButton = await screen.findByRole('button', { name: /open agent tools/i });
+    await user.click(openDrawerButton);
+
+    expect(screen.queryByText('docs/README.md')).not.toBeInTheDocument();
+
+    const bundleToggle = await screen.findByRole('button', {
+      name: 'Toggle bundle Docs contents',
+    });
+    await user.click(bundleToggle);
+
+    expect(await screen.findByText('docs/README.md')).toBeVisible();
+    expect(screen.getByText('docs/CONTRIBUTING.md')).toBeVisible();
+  });
 });
