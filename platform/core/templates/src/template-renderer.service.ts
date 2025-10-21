@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import path from "path";
 import nunjucks from "nunjucks";
 import type { TemplateDescriptor, TemplateVariables } from "@eddie/types";
-import type { ConfigStore } from "@eddie/config";
+import { ConfigStore } from "@eddie/config";
 
 const DEFAULT_ENCODING: BufferEncoding = "utf-8";
 const INLINE_KEY = "<inline>";
