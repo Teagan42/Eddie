@@ -175,6 +175,8 @@ export function SessionSelector({
     return fallbackCategory;
   });
 
+  const previousArchivedSelectionRef = useRef(isArchivedSelected);
+
   useEffect(() => {
     const availableIds = new Set(categoryDefinitions.map((category) => category.id));
     const fallback = availableIds.has(fallbackCategory) ? fallbackCategory : 'active';
@@ -184,22 +186,24 @@ export function SessionSelector({
       if (next !== activeCategory) {
         setActiveCategory(next);
       }
-      return;
-    }
+    } else {
+      if (isArchivedSelected && activeCategory !== 'archived' && availableIds.has('archived')) {
+        setActiveCategory('archived');
+      } else {
+        const previouslyArchived = previousArchivedSelectionRef.current;
 
-    if (isArchivedSelected && activeCategory !== 'archived' && availableIds.has('archived')) {
-      setActiveCategory('archived');
-      return;
+        if (
+          previouslyArchived &&
+          !isArchivedSelected &&
+          activeCategory === 'archived' &&
+          (availableIds.has('active') || availableIds.has(fallback))
+        ) {
+          const next = availableIds.has('active') ? 'active' : fallback;
+          setActiveCategory(next);
+        }
+      }
     }
-
-    if (
-      !isArchivedSelected &&
-      activeCategory === 'archived' &&
-      (availableIds.has('active') || availableIds.has(fallback))
-    ) {
-      const next = availableIds.has('active') ? 'active' : fallback;
-      setActiveCategory(next);
-    }
+    previousArchivedSelectionRef.current = isArchivedSelected;
   }, [categoryDefinitions, activeCategory, fallbackCategory, isArchivedSelected]);
 
   const visibleSessions = useMemo(() => {
