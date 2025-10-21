@@ -118,8 +118,17 @@ export function OverviewHero({
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
             </EddieButton>
-            <Select.Root value={theme} onValueChange={onSelectTheme} disabled={isThemeSelectorDisabled}>
-              <Select.Trigger aria-label="Theme" size="3" className={HERO_TRIGGER_CLASS} data-testid="hero-theme-trigger">
+            <Select.Root
+              value={theme}
+              onValueChange={onSelectTheme}
+              disabled={isThemeSelectorDisabled}
+              size="3"
+            >
+              <Select.Trigger
+                aria-label="Theme"
+                className={HERO_TRIGGER_CLASS}
+                data-testid="hero-theme-trigger"
+              >
                 Theme: {themeLabel}
               </Select.Trigger>
               <Select.Content position="popper" className={HERO_SELECT_CONTENT_CLASS}>

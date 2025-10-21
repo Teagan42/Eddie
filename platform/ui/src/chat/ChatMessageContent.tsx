@@ -1,3 +1,5 @@
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
+
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -29,8 +31,15 @@ const PARAGRAPH_CLASSES = "my-2 leading-6 first:mt-0 last:mb-0";
 
 const MARKDOWN_PLUGINS = [remarkGfm];
 
+type MarkdownCodeProps = ComponentPropsWithoutRef<"code"> & {
+  inline?: boolean;
+  children?: ReactNode;
+};
+
 const markdownComponents: Components = {
-  code({ inline, className, children, ...props }) {
+  code(codeProps) {
+    const { inline, className, children, ...props } = codeProps as MarkdownCodeProps;
+
     const isCodeBlock = !inline && className?.includes("language-");
 
     if (!isCodeBlock) {
