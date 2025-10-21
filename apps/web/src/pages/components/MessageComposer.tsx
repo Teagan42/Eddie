@@ -103,46 +103,48 @@ export function MessageComposer({
   };
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className={COMPOSER_FORM_CLASS}
-      aria-disabled={formAriaDisabled}
-    >
-      {COMPOSER_GLOW_CLASSES.map((className, index) => (
-        <span key={index} className={className} />
-      ))}
-      <Flex direction="column" gap="3" className="relative z-10">
-        <div className={COMPOSER_FIELD_CLASS}>
-          <TextArea
-            placeholder={placeholder}
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={disabled}
-            rows={3}
-            variant="soft"
-            className={COMPOSER_TEXTAREA_CLASS}
-          />
-        </div>
-        <Flex align="center" justify="between" gap="3">
-          <Text size="2" className={hintClassName} aria-live="polite">
-            {hintMessage}
-          </Text>
-          <Button
-            type="submit"
-            size="3"
-            disabled={isSubmitDisabled}
-            aria-disabled={submitAriaDisabled}
-            className={CTA_BUTTON_CLASS}
-          >
-            <span className={CTA_SHINE_CLASS} />
-            <span className={CTA_CONTENT_CLASS}>
-              <PaperPlaneIcon />
-              <span>Send</span>
-            </span>
-          </Button>
+    <form onSubmit={onSubmit} className={COMPOSER_FORM_CLASS}>
+      <fieldset
+        disabled={disabled}
+        aria-disabled={formAriaDisabled}
+        className="relative m-0 border-0 p-0"
+      >
+        {COMPOSER_GLOW_CLASSES.map((className, index) => (
+          <span key={index} className={className} />
+        ))}
+        <Flex direction="column" gap="3" className="relative z-10">
+          <div className={COMPOSER_FIELD_CLASS}>
+            <TextArea
+              placeholder={placeholder}
+              value={value}
+              onChange={(event) => onChange(event.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={disabled}
+              rows={3}
+              variant="soft"
+              className={COMPOSER_TEXTAREA_CLASS}
+            />
+          </div>
+          <Flex align="center" justify="between" gap="3">
+            <Text size="2" className={hintClassName} aria-live="polite">
+              {hintMessage}
+            </Text>
+            <Button
+              type="submit"
+              size="3"
+              disabled={isSubmitDisabled}
+              aria-disabled={submitAriaDisabled}
+              className={CTA_BUTTON_CLASS}
+            >
+              <span className={CTA_SHINE_CLASS} />
+              <span className={CTA_CONTENT_CLASS}>
+                <PaperPlaneIcon />
+                <span>Send</span>
+              </span>
+            </Button>
+          </Flex>
         </Flex>
-      </Flex>
+      </fieldset>
     </form>
   );
 }

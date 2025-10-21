@@ -192,10 +192,14 @@ describe("ChatPage composer interactions", () => {
     const composer = await screen.findByPlaceholderText(
       "Send a message to the orchestrator",
     );
-    const composerForm = composer.closest("form");
+    const composerFieldset = composer.closest("fieldset");
 
     expect(composer).toBeDisabled();
-    expect(composerForm).toHaveAttribute("aria-disabled", "true");
+    expect(composerFieldset).not.toBeNull();
+    if (!composerFieldset) {
+      throw new Error("Composer fieldset not found");
+    }
+    expect(composerFieldset).toHaveAttribute("aria-disabled", "true");
   });
 
   it("disables the send action until the composer has content", async () => {
