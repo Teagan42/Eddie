@@ -9,6 +9,16 @@ import {
   type ExecutionTreeState,
 } from "../../src/chat";
 
+function renderExecutionTree(tree: ExecutionTreeState): void {
+  render(
+    <AgentExecutionTree
+      state={createExecutionTreeStateFromMetadata({ executionTree: tree })}
+      selectedAgentId={null}
+      onSelectAgent={() => {}}
+    />,
+  );
+}
+
 describe("AgentExecutionTree", () => {
   it("groups tool invocations under each agent with previews and a details CTA", async () => {
     const user = userEvent.setup();
@@ -83,19 +93,7 @@ describe("AgentExecutionTree", () => {
       updatedAt: "2024-05-01T12:02:00.000Z",
     } as ExecutionTreeState;
 
-    const metadata = {
-      executionTree,
-    } as unknown;
-
-    const tree = (
-      <AgentExecutionTree
-        state={createExecutionTreeStateFromMetadata(metadata)}
-        selectedAgentId={null}
-        onSelectAgent={() => {}}
-      />
-    );
-
-    render(tree);
+    renderExecutionTree(executionTree);
 
     const agentSection = screen.getByRole("button", { name: /select orchestrator agent/i });
     expect(agentSection).toBeInTheDocument();
@@ -122,6 +120,78 @@ describe("AgentExecutionTree", () => {
 
     expect(screen.getByRole("dialog", { name: /tool invocation details/i })).toBeInTheDocument();
     expect(screen.getByText(/preferences.json/)).toBeInTheDocument();
+  });
+
+  it("provides accessible labelling for the tool invocation details dialog", async () => {
+    const user = userEvent.setup();
+    const invocation: ExecutionTreeState["toolInvocations"][number] = {
+      id: "tool-1",
+      agentId: "root-agent",
+      name: "browse-web",
+      status: "completed",
+      createdAt: "2024-05-01T12:00:00.000Z",
+      updatedAt: "2024-05-01T12:01:00.000Z",
+      metadata: {},
+      children: [],
+    } as ExecutionTreeState["toolInvocations"][number];
+
+    const executionTree: ExecutionTreeState = {
+      agentHierarchy: [
+        {
+          id: "root-agent",
+          name: "orchestrator",
+          provider: "openai",
+          model: "gpt-4o",
+          depth: 0,
+          lineage: ["root-agent"],
+          children: [],
+        },
+      ],
+      toolInvocations: [invocation],
+      contextBundles: [],
+      agentLineageById: { "root-agent": ["root-agent"] },
+      toolGroupsByAgentId: {
+        "root-agent": {
+          pending: [],
+          running: [],
+          completed: [invocation],
+          failed: [],
+        },
+      },
+      contextBundlesByAgentId: { "root-agent": [] },
+      contextBundlesByToolCallId: {},
+      createdAt: "2024-05-01T12:00:00.000Z",
+      updatedAt: "2024-05-01T12:01:00.000Z",
+    } as ExecutionTreeState;
+
+    renderExecutionTree(executionTree);
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /toggle completed tool invocations for orchestrator/i,
+      }),
+    );
+
+    await user.click(
+      within(
+        screen.getByRole("region", {
+          name: /completed tool invocations for orchestrator/i,
+        }),
+      ).getByRole("button", { name: /view full tool invocation details/i }),
+    );
+
+    const dialog = screen.getByRole("dialog", { name: /tool invocation details/i });
+    const labelledBy = dialog.getAttribute("aria-labelledby");
+    const descriptionId = dialog.getAttribute("aria-describedby");
+
+    expect(labelledBy).toMatch(/-title$/);
+    expect(descriptionId).toMatch(/-description$/);
+
+    if (descriptionId) {
+      const description = document.getElementById(descriptionId);
+      expect(description).not.toBeNull();
+      expect(description?.textContent).toMatch(/status\s+completed/i);
+    }
   });
 
   it("retains previews from invocation metadata when args and result fields are missing", async () => {

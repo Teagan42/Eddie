@@ -2,6 +2,7 @@ import {
   forwardRef,
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -396,6 +397,9 @@ export function AgentExecutionTree({
   const [expandedAgentIds, setExpandedAgentIds] = useState<Set<string>>(() => new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
   const [detailsTarget, setDetailsTarget] = useState<DetailsTarget | null>(null);
+  const dialogIdBase = useId();
+  const detailsDialogTitleId = `${dialogIdBase}-title`;
+  const detailsDialogDescriptionId = `${dialogIdBase}-description`;
   const expandableAgentsRef = useRef<Set<string>>(new Set());
   const hasExpandedAgents = expandedAgentIds.size > 0;
 
@@ -976,10 +980,16 @@ export function AgentExecutionTree({
         }}
       >
         {detailsInvocation ? (
-          <DialogContent className="max-h-[85vh] space-y-4 overflow-y-auto">
+          <DialogContent
+            className="max-h-[85vh] space-y-4 overflow-y-auto"
+            aria-labelledby={detailsDialogTitleId}
+            aria-describedby={detailsDialogDescriptionId}
+          >
             <DialogHeader className="text-left">
-              <DialogTitle className="font-mono text-base">Tool invocation details</DialogTitle>
-              <DialogDescription>
+              <DialogTitle id={detailsDialogTitleId} className="font-mono text-base">
+                Tool invocation details
+              </DialogTitle>
+              <DialogDescription id={detailsDialogDescriptionId}>
                 {detailsInvocation.name ?? 'Tool invocation'} • Status {detailsInvocation.status}
               </DialogDescription>
             </DialogHeader>
