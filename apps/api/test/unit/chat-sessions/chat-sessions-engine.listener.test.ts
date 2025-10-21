@@ -26,7 +26,10 @@ const createChatMessage = (
 });
 
 describe("ChatSessionsEngineListener", () => {
-  const listMessages = vi.fn();
+  const listMessages = vi.fn<
+    ReturnType<ChatSessionsService["listMessages"]>,
+    Parameters<ChatSessionsService["listMessages"]>
+  >();
   const addMessage = vi.fn();
   const updateMessageContent = vi.fn();
   const saveAgentInvocations = vi.fn();
@@ -44,7 +47,7 @@ describe("ChatSessionsEngineListener", () => {
     updateMessageContent.mockReset();
     saveAgentInvocations.mockReset();
     capture.mockReset();
-    listMessages.mockReturnValue([]);
+    listMessages.mockResolvedValue([]);
 
     chatSessions = {
       listMessages,
@@ -124,7 +127,7 @@ describe("ChatSessionsEngineListener", () => {
     ];
     const newMessage = createChatMessage({ id: "m-3" });
 
-    listMessages.mockReturnValue([...historyMessages, newMessage]);
+    listMessages.mockResolvedValue([...historyMessages, newMessage]);
 
     const trace: TraceDto = {
       id: "trace-success",
@@ -235,9 +238,182 @@ describe("ChatSessionsEngineListener", () => {
     expect(saveAgentInvocations).toHaveBeenCalledWith("session-1", []);
   });
 
+  it("defers engine execution when the first message is system-scoped and a user prompt follows", async () => {
+    vi.useFakeTimers();
+
+    try {
+
+      const systemMessage = createChatMessage({
+        id: "system-1",
+        role: ChatMessageRole.System,
+        content: "Bootstrap the run loop",
+      });
+      const userMessage = createChatMessage({
+        id: "user-1",
+        content: "Outline the plan",
+      });
+
+      listMessages.mockResolvedValueOnce([systemMessage]);
+
+      const engineResult: EngineResult = {
+        messages: [
+          { role: "system", content: "system prompt" },
+          { role: "system", content: "Bootstrap the run loop" },
+          { role: "user", content: "Outline the plan" },
+          { role: "assistant", content: "Done" },
+        ],
+        context: { files: [], totalBytes: 0, text: "" },
+        agents: [],
+      };
+      engineRun.mockResolvedValue(engineResult);
+
+      capture.mockImplementation(async (_sessionId: string, handler: () => Promise<EngineResult>) => ({
+        result: await handler(),
+        error: undefined,
+        state: { sessionId: "session-1", messageId: undefined, buffer: "" },
+      }));
+
+      await listener.handle(
+        new ChatMessageCreatedEvent(systemMessage.sessionId, systemMessage.id)
+      );
+      await Promise.resolve();
+
+      expect(engineRun).not.toHaveBeenCalled();
+
+      listMessages.mockResolvedValueOnce([systemMessage, userMessage]);
+
+      await listener.handle(
+        new ChatMessageCreatedEvent(userMessage.sessionId, userMessage.id)
+      );
+
+      await vi.runAllTimersAsync();
+
+      expect(engineRun).toHaveBeenCalledTimes(1);
+      expect(engineRun).toHaveBeenCalledWith(
+        "Outline the plan",
+        expect.objectContaining({
+          history: [
+            { role: ChatMessageRole.System, content: "Bootstrap the run loop" },
+          ],
+          sessionId: "session-1",
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("executes a deferred system message when no user prompt follows", async () => {
+    vi.useFakeTimers();
+
+    try {
+        const systemMessage = createChatMessage({
+          id: "system-only",
+          role: ChatMessageRole.System,
+          content: "Synchronize repository",
+        });
+
+        listMessages.mockResolvedValueOnce([systemMessage]);
+        listMessages.mockResolvedValueOnce([systemMessage]);
+
+        const engineResult: EngineResult = {
+          messages: [
+            { role: "system", content: "system prompt" },
+            { role: "system", content: "Synchronize repository" },
+            { role: "assistant", content: "Acknowledged" },
+          ],
+          context: { files: [], totalBytes: 0, text: "" },
+          agents: [],
+        };
+        engineRun.mockResolvedValue(engineResult);
+
+        capture.mockImplementation(async (_sessionId: string, handler: () => Promise<EngineResult>) => ({
+          result: await handler(),
+          error: undefined,
+          state: { sessionId: "session-1", messageId: undefined, buffer: "" },
+        }));
+
+        await listener.handle(
+          new ChatMessageCreatedEvent(systemMessage.sessionId, systemMessage.id)
+        );
+
+        await Promise.resolve();
+        await vi.runAllTimersAsync();
+
+        expect(engineRun).toHaveBeenCalledTimes(1);
+        expect(engineRun).toHaveBeenCalledWith(
+          "Synchronize repository",
+          expect.objectContaining({
+            history: [],
+            sessionId: "session-1",
+          })
+        );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("prefers a subsequent user prompt when executing a deferred system message", async () => {
+    vi.useFakeTimers();
+
+    try {
+        const systemMessage = createChatMessage({
+          id: "system-seeded",
+          role: ChatMessageRole.System,
+          content: "Bootstrap manager",
+        });
+        const userMessage = createChatMessage({
+          id: "user-follow-up",
+          content: "List initial tasks",
+        });
+
+        listMessages.mockResolvedValueOnce([systemMessage]);
+
+        const engineResult: EngineResult = {
+          messages: [
+            { role: "system", content: "system prompt" },
+            { role: "system", content: "Bootstrap manager" },
+            { role: "user", content: "List initial tasks" },
+            { role: "assistant", content: "Task list" },
+          ],
+          context: { files: [], totalBytes: 0, text: "" },
+          agents: [],
+        };
+        engineRun.mockResolvedValue(engineResult);
+
+        capture.mockImplementation(async (_sessionId: string, handler: () => Promise<EngineResult>) => ({
+          result: await handler(),
+          error: undefined,
+          state: { sessionId: "session-1", messageId: undefined, buffer: "" },
+        }));
+
+        await listener.handle(
+          new ChatMessageCreatedEvent(systemMessage.sessionId, systemMessage.id)
+        );
+        await Promise.resolve();
+
+        listMessages.mockResolvedValueOnce([systemMessage, userMessage]);
+
+        await vi.runAllTimersAsync();
+
+        expect(engineRun).toHaveBeenCalledTimes(1);
+        expect(engineRun).toHaveBeenCalledWith(
+          "List initial tasks",
+          expect.objectContaining({
+            history: [
+              { role: ChatMessageRole.System, content: "Bootstrap manager" },
+            ],
+            sessionId: "session-1",
+          })
+        );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("captures agent runtime metadata in invocation snapshots", async () => {
     const message = createChatMessage();
-    listMessages.mockReturnValue([message]);
+    listMessages.mockResolvedValue([message]);
 
     const managerInvocation = {
       id: "manager",
@@ -282,7 +458,7 @@ describe("ChatSessionsEngineListener", () => {
 
   it("appends a failure message when the engine rejects", async () => {
     const message = createChatMessage();
-    listMessages.mockReturnValue([message]);
+    listMessages.mockResolvedValue([message]);
     engineRun.mockRejectedValue(new Error("boom"));
 
     const trace: TraceDto = {

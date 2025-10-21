@@ -27,6 +27,11 @@ const DEFAULT_ENGINE_FAILURE_MESSAGE =
 export class ChatSessionsEngineListener
 implements IEventHandler<ChatMessageCreatedEvent> {
   private readonly logger = new Logger(ChatSessionsEngineListener.name);
+  private readonly pendingSystemMessages = new Map<
+    string,
+    { timeout: NodeJS.Timeout; messageId: string }
+  >();
+  private readonly systemMessageDelayMs = 25;
 
   constructor(
     private readonly chatSessions: ChatSessionsService,
@@ -49,8 +54,65 @@ implements IEventHandler<ChatMessageCreatedEvent> {
     if (!message || !this.shouldInvokeEngine(message)) {
       return;
     }
+    if (message.role === ChatMessageRole.System) {
+      const hasNonSystemHistory = messages.some(
+        (entry) =>
+          entry.id !== message.id && entry.role !== ChatMessageRole.System
+      );
+      if (!hasNonSystemHistory) {
+        this.scheduleSystemMessageExecution(message);
+        return;
+      }
+    }
+
+    this.clearPendingSystemMessage(sessionId);
 
     await this.executeEngine(message, messages);
+  }
+
+  private scheduleSystemMessageExecution(message: ChatMessageDto): void {
+    this.clearPendingSystemMessage(message.sessionId);
+
+    const timeout = setTimeout(() => {
+      this.pendingSystemMessages.delete(message.sessionId);
+      void this.executeDeferredSystemMessage(message.sessionId, message.id);
+    }, this.systemMessageDelayMs);
+
+    this.pendingSystemMessages.set(message.sessionId, {
+      timeout,
+      messageId: message.id,
+    });
+  }
+
+  private clearPendingSystemMessage(sessionId: string): void {
+    const pending = this.pendingSystemMessages.get(sessionId);
+    if (!pending) {
+      return;
+    }
+    clearTimeout(pending.timeout);
+    this.pendingSystemMessages.delete(sessionId);
+  }
+
+  private async executeDeferredSystemMessage(
+    sessionId: string,
+    messageId: string
+  ): Promise<void> {
+    try {
+      const messages = await this.chatSessions.listMessages(sessionId);
+      const message = messages.find((entry) => entry.id === messageId);
+      if (!message || !this.shouldInvokeEngine(message)) {
+        return;
+      }
+
+      const target = this.findDeferredExecutionTarget(messages, message) ?? message;
+
+      await this.executeEngine(target, messages);
+    } catch (error) {
+      this.logger.warn(
+        { sessionId, messageId, error },
+        "Failed to execute deferred system message"
+      );
+    }
   }
 
   private shouldInvokeEngine(message: ChatMessageDto): boolean {
@@ -58,6 +120,20 @@ implements IEventHandler<ChatMessageCreatedEvent> {
       message.role === ChatMessageRole.User ||
       message.role === ChatMessageRole.System
     );
+  }
+
+  private findDeferredExecutionTarget(
+    messages: ChatMessageDto[],
+    current: ChatMessageDto
+  ): ChatMessageDto | undefined {
+    const currentIndex = messages.findIndex((entry) => entry.id === current.id);
+    if (currentIndex === -1) {
+      return undefined;
+    }
+
+    return messages
+      .slice(currentIndex + 1)
+      .find((entry) => entry.role === ChatMessageRole.User);
   }
 
   private async executeEngine(
