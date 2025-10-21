@@ -1,5 +1,6 @@
 import "../../src/overview/types";
 import { describe, expectTypeOf, it } from "vitest";
+import type { ComponentType } from "react";
 
 import type {
   OverviewAuthPanelProps,
@@ -27,6 +28,7 @@ describe("overview type exports", () => {
       readonly label: string;
       readonly value: number;
       readonly hint?: string;
+      readonly icon: ComponentType<{ readonly className?: string }>;
     }>();
   });
 
@@ -43,7 +45,7 @@ describe("overview type exports", () => {
   it("describes overview stats grid contract", () => {
     expectTypeOf<OverviewStatsGridProps>().not.toBeAny();
     expectTypeOf<OverviewStatsGridProps>().toMatchTypeOf<{
-      readonly stats: readonly OverviewStat[];
+      readonly stats?: readonly OverviewStat[];
     }>();
   });
 

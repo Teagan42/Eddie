@@ -1,3 +1,5 @@
+import type { ComponentType } from "react";
+
 export interface OverviewTheme {
   readonly id: string;
   readonly name: string;
@@ -9,10 +11,11 @@ export interface OverviewStat {
   readonly label: string;
   readonly value: number;
   readonly hint?: string;
+  readonly icon: ComponentType<{ readonly className?: string }>;
 }
 
 export interface OverviewStatsGridProps {
-  readonly stats: readonly OverviewStat[];
+  readonly stats?: readonly OverviewStat[];
 }
 
 export interface OverviewHeroProps {
