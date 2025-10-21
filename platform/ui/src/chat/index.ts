@@ -1,4 +1,5 @@
 export { AgentExecutionTree, type AgentExecutionTreeProps } from "./AgentExecutionTree";
+export { AgentToolsDrawer, type AgentToolsDrawerProps } from "./AgentToolsDrawer";
 
 export { MessageComposer, type MessageComposerProps } from "./MessageComposer";
 export {
