@@ -1,3 +1,4 @@
+import path from "node:path";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { EngineService } from "../src/engine.service";
 import type { AgentRuntimeCatalog, EddieConfig, PackedContext } from "@eddie/types";
@@ -166,6 +167,31 @@ describe("EngineService", () => {
     expect(agentOrchestrator.runAgent).toHaveBeenCalled();
     const [, runtimeOptions] = agentOrchestrator.runAgent.mock.calls[0] ?? [];
     expect(runtimeOptions?.metrics).toBe(metrics);
+  });
+
+  it("resolves trace output relative to the projectDir when configured", async () => {
+    const projectDir = "/tmp/custom-project";
+    const { service, agentOrchestrator } = createService({
+      projectDir,
+      context: { ...baseConfig.context, baseDir: projectDir },
+      output: {
+        ...baseConfig.output,
+        jsonlTrace: ".eddie/trace.jsonl",
+      },
+    });
+
+    const result = await service.run("prompt", { sessionId: "session-id" });
+
+    const expectedDirectory = path.join(projectDir, ".eddie");
+    const expectedTracePath = path.join(
+      expectedDirectory,
+      "2024-01-01T00-00-00.000Z_session-id.jsonl",
+    );
+
+    expect(result.tracePath).toBe(expectedTracePath);
+    expect(agentOrchestrator.runAgent).toHaveBeenCalled();
+    const [, runtimeOptions] = agentOrchestrator.runAgent.mock.calls[0] ?? [];
+    expect(runtimeOptions?.tracePath).toBe(expectedTracePath);
   });
 
   it("restricts spawnable subagents according to configuration allow list", () => {
