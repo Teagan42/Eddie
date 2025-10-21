@@ -118,4 +118,32 @@ describe("TemplateRendererService", () => {
       readFileSpy.mockRestore();
     }
   });
+
+  it("resolves templates relative to the config projectDir by default", async () => {
+    const projectDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), "template-project-")
+    );
+    tempDirs.push(projectDir);
+
+    const templatePath = path.join(projectDir, "project-relative.njk");
+    await fs.writeFile(templatePath, "Hello {{ name }}", "utf-8");
+
+    const configStore = {
+      getSnapshot: () => ({ projectDir }),
+    };
+    const factory = TemplateRendererService as unknown as new (
+      ...args: unknown[]
+    ) => TemplateRendererService;
+    const projectScopedService = Reflect.construct(
+      factory,
+      [configStore]
+    ) as TemplateRendererService;
+
+    const rendered = await projectScopedService.renderTemplate(
+      { file: "project-relative.njk" },
+      { name: "Ada" }
+    );
+
+    expect(rendered).toBe("Hello Ada");
+  });
 });
