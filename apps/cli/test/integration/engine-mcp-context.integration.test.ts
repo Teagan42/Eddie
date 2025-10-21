@@ -25,6 +25,7 @@ import type { McpToolSourceService } from "@eddie/mcp";
 import { TemplateRendererService } from "@eddie/templates";
 import { TemplateRuntimeService } from "@eddie/templates";
 import { ToolRegistryFactory } from "@eddie/tools";
+import type { TypescriptToolSourceService } from "@eddie/tools";
 import type { AgentOrchestratorService } from "@eddie/engine";
 import type { PackedContext } from "@eddie/types";
 import type { Logger } from "pino";
@@ -158,6 +159,9 @@ describe("EngineService MCP resource integration", () => {
         prompts: [],
       })),
     } as unknown as McpToolSourceService;
+    const typescriptToolSourceService = {
+      collectTools: vi.fn(async () => []),
+    } as unknown as TypescriptToolSourceService;
     const metrics = {
       countMessage: vi.fn(),
       observeToolCall: vi.fn(),
@@ -176,6 +180,7 @@ describe("EngineService MCP resource integration", () => {
       transcriptCompactionService,
       orchestrator,
       mcpToolSourceService,
+      typescriptToolSourceService,
       metrics
     );
 

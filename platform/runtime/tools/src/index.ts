@@ -1,6 +1,7 @@
 export * from "./tools.module";
 export * from "./tool-registry.service";
 export * from "./builtin/builtin-tools";
+export * from "./typescript-tool-source.service";
 export * from "./builtin/bash";
 export * from "./builtin/complete_task";
 export * from "./builtin/file_read";

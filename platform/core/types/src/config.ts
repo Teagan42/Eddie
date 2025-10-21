@@ -447,7 +447,16 @@ export interface MCPToolSourceConfig {
   transport?: "streamable-http" | "sse";
 }
 
-export type ToolSourceConfig = MCPToolSourceConfig;
+export interface TypeScriptToolSourceConfig {
+  id: string;
+  type: "typescript";
+  files: string[];
+  exportName?: string;
+}
+
+export type ToolSourceConfig =
+  | MCPToolSourceConfig
+  | TypeScriptToolSourceConfig;
 
 export interface ToolsConfig {
   enabled?: string[];

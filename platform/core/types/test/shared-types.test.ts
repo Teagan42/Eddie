@@ -15,6 +15,7 @@ import type {
   ExecutionTreeState,
   HookEventMap,
   MCPToolSourceConfig,
+  TypeScriptToolSourceConfig,
   StreamEvent,
   ProviderAdapter,
   ProviderAdapterFactory,
@@ -48,11 +49,20 @@ describe("@eddie/types shared contracts", () => {
   });
 
   it("exposes tool source configuration contracts", () => {
-    expectTypeOf<ToolSourceConfig>().toMatchTypeOf<MCPToolSourceConfig>();
+    expectTypeOf<ToolSourceConfig>().toMatchTypeOf<
+      MCPToolSourceConfig | TypeScriptToolSourceConfig
+    >();
     expectTypeOf<MCPToolSourceConfig>().toMatchTypeOf<{
       id: string;
       type: "mcp";
       url: string;
+    }>();
+
+    expectTypeOf<TypeScriptToolSourceConfig>().toMatchTypeOf<{
+      id: string;
+      type: "typescript";
+      files: string[];
+      exportName?: string | undefined;
     }>();
   });
 

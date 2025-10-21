@@ -89,6 +89,9 @@ function createService(
       prompts: [],
     })),
   };
+  const typescriptToolSourceService = {
+    collectTools: vi.fn(async () => []),
+  };
 
   const { includeDemoSeedReplayService = true } = options;
 
@@ -109,6 +112,7 @@ function createService(
     transcriptCompactionService as any,
     agentOrchestrator as any,
     mcpToolSourceService as any,
+    typescriptToolSourceService as any,
     metrics as any,
     includeDemoSeedReplayService ? (demoSeedReplayService as any) : undefined,
   );
@@ -118,6 +122,7 @@ function createService(
     configStore,
     contextService,
     mcpToolSourceService,
+    typescriptToolSourceService,
     logger,
     transcriptCompactionService,
     metrics,
@@ -139,7 +144,7 @@ afterEach(() => {
 
 describe("EngineService", () => {
   it("does not declare a ConfigService dependency", () => {
-    expect(EngineService.length).toBe(12);
+    expect(EngineService.length).toBe(13);
   });
 
   it("does not reload configuration when runtime overrides are provided", async () => {
@@ -249,6 +254,62 @@ describe("EngineService", () => {
 
     expect(agentOrchestrator.runAgent).toHaveBeenCalledTimes(1);
     expect(result.messages).toEqual([]);
+  });
+
+  it("loads TypeScript tool sources alongside MCP sources", async () => {
+    const mcpSource = { id: "remote", type: "mcp", url: "https://remote" } as const;
+    const tsSource = { id: "local", type: "typescript", files: ["tools/local.ts"] } as const;
+
+    const { service, typescriptToolSourceService, mcpToolSourceService } =
+      createService({
+        tools: {
+          enabled: [],
+          disabled: [],
+          autoApprove: false,
+          sources: [tsSource as any, mcpSource as any],
+        },
+      });
+
+    const localTool = {
+      name: "local",
+      jsonSchema: {},
+      handler: vi.fn(),
+    } as any;
+
+    typescriptToolSourceService.collectTools.mockResolvedValue([localTool]);
+    mcpToolSourceService.collectTools.mockResolvedValue({
+      tools: [],
+      resources: [],
+      prompts: [],
+    });
+
+    await service.run("prompt");
+
+    expect(typescriptToolSourceService.collectTools).toHaveBeenCalledWith(
+      [tsSource],
+      { projectDir: "/tmp/project" },
+    );
+    expect(mcpToolSourceService.collectTools).toHaveBeenCalledWith([mcpSource]);
+  });
+
+  it("skips invoking MCP tool loader when no MCP sources are configured", async () => {
+    const tsSource = { id: "local", type: "typescript", files: ["tools/local.ts"] } as const;
+
+    const { service, mcpToolSourceService, typescriptToolSourceService } =
+      createService({
+        tools: {
+          enabled: [],
+          disabled: [],
+          autoApprove: false,
+          sources: [tsSource as any],
+        },
+      });
+
+    typescriptToolSourceService.collectTools.mockResolvedValue([]);
+
+    await service.run("prompt");
+
+    expect(mcpToolSourceService.collectTools).toHaveBeenCalledWith(undefined);
   });
 
   it("skips MCP resources that exceed context byte budget", async () => {

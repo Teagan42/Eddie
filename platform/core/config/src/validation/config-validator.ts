@@ -431,14 +431,6 @@ export class ConfigValidator {
         return;
       }
 
-      if (source.type !== "mcp") {
-        this.pushValidationIssue(
-          issues,
-          `${basePath}.type`,
-          `${basePath}.type must be the literal string "mcp".`,
-        );
-      }
-
       if (typeof source.id !== "string" || source.id.trim() === "") {
         this.pushValidationIssue(
           issues,
@@ -447,98 +439,131 @@ export class ConfigValidator {
         );
       }
 
-      if (typeof source.url !== "string" || source.url.trim() === "") {
-        this.pushValidationIssue(
-          issues,
-          `${basePath}.url`,
-          `${basePath}.url must be provided as a non-empty string.`,
-        );
-      }
+      if (source.type === "mcp") {
+        if (typeof source.url !== "string" || source.url.trim() === "") {
+          this.pushValidationIssue(
+            issues,
+            `${basePath}.url`,
+            `${basePath}.url must be provided as a non-empty string.`,
+          );
+        }
 
-      if (
-        typeof source.name !== "undefined" &&
-        (typeof source.name !== "string" || source.name.trim() === "")
-      ) {
-        this.pushValidationIssue(
-          issues,
-          `${basePath}.name`,
-          `${basePath}.name must be a non-empty string when provided.`,
-        );
-      }
-
-      if (typeof source.headers !== "undefined") {
         if (
-          !source.headers ||
-          typeof source.headers !== "object" ||
-          Array.isArray(source.headers)
+          typeof source.name !== "undefined" &&
+          (typeof source.name !== "string" || source.name.trim() === "")
         ) {
           this.pushValidationIssue(
             issues,
-            `${basePath}.headers`,
-            `${basePath}.headers must be an object with string values when provided.`,
+            `${basePath}.name`,
+            `${basePath}.name must be a non-empty string when provided.`,
           );
-        } else {
-          for (const [key, value] of Object.entries(source.headers)) {
-            if (typeof value !== "string") {
-              this.pushValidationIssue(
-                issues,
-                `${basePath}.headers.${key}`,
-                `${basePath}.headers.${key} must be a string.`,
-              );
-            }
-          }
         }
-      }
 
-      if (typeof source.auth !== "undefined") {
-        const auth = source.auth;
-        if (!auth || typeof auth !== "object") {
-          this.pushValidationIssue(
-            issues,
-            `${basePath}.auth`,
-            `${basePath}.auth must be an object when provided.`,
-          );
-        } else if (auth.type === "basic") {
+        if (typeof source.headers !== "undefined") {
           if (
-            typeof auth.username !== "string" ||
-            auth.username.trim() === "" ||
-            typeof auth.password !== "string"
+            !source.headers ||
+            typeof source.headers !== "object" ||
+            Array.isArray(source.headers)
           ) {
             this.pushValidationIssue(
               issues,
-              `${basePath}.auth`,
-              `${basePath}.auth must include non-empty username and password for basic auth.`,
+              `${basePath}.headers`,
+              `${basePath}.headers must be an object with string values when provided.`,
             );
+          } else {
+            for (const [key, value] of Object.entries(source.headers)) {
+              if (typeof value !== "string") {
+                this.pushValidationIssue(
+                  issues,
+                  `${basePath}.headers.${key}`,
+                  `${basePath}.headers.${key} must be a string.`,
+                );
+              }
+            }
           }
-        } else if (auth.type === "bearer") {
-          if (typeof auth.token !== "string" || auth.token.trim() === "") {
+        }
+
+        if (typeof source.auth !== "undefined") {
+          const auth = source.auth;
+          if (!auth || typeof auth !== "object") {
             this.pushValidationIssue(
               issues,
-              `${basePath}.auth.token`,
-              `${basePath}.auth.token must be a non-empty string for bearer auth.`,
+              `${basePath}.auth`,
+              `${basePath}.auth must be an object when provided.`,
+            );
+          } else if (auth.type === "basic") {
+            if (
+              typeof auth.username !== "string" ||
+              auth.username.trim() === "" ||
+              typeof auth.password !== "string"
+            ) {
+              this.pushValidationIssue(
+                issues,
+                `${basePath}.auth`,
+                `${basePath}.auth must include non-empty username and password for basic auth.`,
+              );
+            }
+          } else if (auth.type === "bearer") {
+            if (typeof auth.token !== "string" || auth.token.trim() === "") {
+              this.pushValidationIssue(
+                issues,
+                `${basePath}.auth.token`,
+                `${basePath}.auth.token must be a non-empty string for bearer auth.`,
+              );
+            }
+          } else if (auth.type === "none") {
+            // nothing additional
+          } else {
+            this.pushValidationIssue(
+              issues,
+              `${basePath}.auth.type`,
+              `${basePath}.auth.type must be one of "basic", "bearer", or "none".`,
             );
           }
-        } else if (auth.type === "none") {
-          // nothing additional
-        } else {
+        }
+
+        if (
+          typeof source.capabilities !== "undefined" &&
+          (typeof source.capabilities !== "object" ||
+            source.capabilities === null ||
+            Array.isArray(source.capabilities))
+        ) {
           this.pushValidationIssue(
             issues,
-            `${basePath}.auth.type`,
-            `${basePath}.auth.type must be one of "basic", "bearer", or "none".`,
+            `${basePath}.capabilities`,
+            `${basePath}.capabilities must be an object when provided.`,
           );
         }
-      }
+      } else if (source.type === "typescript") {
+        const files = (source as { files?: unknown }).files;
+        if (
+          !Array.isArray(files) ||
+          files.length === 0 ||
+          files.some((file) => typeof file !== "string" || file.trim() === "")
+        ) {
+          this.pushValidationIssue(
+            issues,
+            `${basePath}.files`,
+            `${basePath}.files must be an array of non-empty strings.`,
+          );
+        }
 
-      if (
-        typeof source.capabilities !== "undefined" &&
-        (typeof source.capabilities !== "object" ||
-          source.capabilities === null ||
-          Array.isArray(source.capabilities))
-      ) {
+        const exportName = (source as { exportName?: unknown }).exportName;
+        if (
+          typeof exportName !== "undefined" &&
+          (typeof exportName !== "string" || exportName.trim() === "")
+        ) {
+          this.pushValidationIssue(
+            issues,
+            `${basePath}.exportName`,
+            `${basePath}.exportName must be a non-empty string when provided.`,
+          );
+        }
+      } else {
         this.pushValidationIssue(
           issues,
-          `${basePath}.capabilities`,
-          `${basePath}.capabilities must be an object when provided.`,
+          `${basePath}.type`,
+          `${basePath}.type must be one of "mcp" or "typescript".`,
         );
       }
     });

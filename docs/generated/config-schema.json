@@ -676,104 +676,138 @@
           "sources": {
             "type": "array",
             "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "id",
-                "type",
-                "url"
-              ],
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "type": {
-                  "const": "mcp"
-                },
-                "url": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "name": {
-                  "type": "string"
-                },
-                "headers": {
+              "anyOf": [
+                {
                   "type": "object",
-                  "additionalProperties": {
-                    "type": "string"
-                  }
-                },
-                "auth": {
-                  "oneOf": [
-                    {
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "type",
+                    "url"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "type": {
+                      "const": "mcp"
+                    },
+                    "url": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "headers": {
                       "type": "object",
-                      "additionalProperties": false,
-                      "required": [
-                        "type",
-                        "username",
-                        "password"
-                      ],
-                      "properties": {
-                        "type": {
-                          "const": "basic"
-                        },
-                        "username": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "password": {
-                          "type": "string",
-                          "minLength": 1
-                        }
+                      "additionalProperties": {
+                        "type": "string"
                       }
                     },
-                    {
-                      "type": "object",
-                      "additionalProperties": false,
-                      "required": [
-                        "type",
-                        "token"
-                      ],
-                      "properties": {
-                        "type": {
-                          "const": "bearer"
+                    "auth": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "type",
+                            "username",
+                            "password"
+                          ],
+                          "properties": {
+                            "type": {
+                              "const": "basic"
+                            },
+                            "username": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "password": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          }
                         },
-                        "token": {
-                          "type": "string",
-                          "minLength": 1
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "type",
+                            "token"
+                          ],
+                          "properties": {
+                            "type": {
+                              "const": "bearer"
+                            },
+                            "token": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "type"
+                          ],
+                          "properties": {
+                            "type": {
+                              "const": "none"
+                            }
+                          }
                         }
-                      }
+                      ]
                     },
-                    {
+                    "capabilities": {
                       "type": "object",
-                      "additionalProperties": false,
-                      "required": [
-                        "type"
-                      ],
+                      "additionalProperties": true,
                       "properties": {
-                        "type": {
-                          "const": "none"
+                        "tools": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "resources": {
+                          "type": "object",
+                          "additionalProperties": true
                         }
                       }
                     }
-                  ]
+                  }
                 },
-                "capabilities": {
+                {
                   "type": "object",
-                  "additionalProperties": true,
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "type",
+                    "files"
+                  ],
                   "properties": {
-                    "tools": {
-                      "type": "object",
-                      "additionalProperties": true
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
                     },
-                    "resources": {
-                      "type": "object",
-                      "additionalProperties": true
+                    "type": {
+                      "const": "typescript"
+                    },
+                    "files": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "exportName": {
+                      "type": "string",
+                      "minLength": 1
                     }
                   }
                 }
-              }
+              ]
             }
           }
         }
@@ -2200,104 +2234,138 @@
           "sources": {
             "type": "array",
             "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "id",
-                "type",
-                "url"
-              ],
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "type": {
-                  "const": "mcp"
-                },
-                "url": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "name": {
-                  "type": "string"
-                },
-                "headers": {
+              "anyOf": [
+                {
                   "type": "object",
-                  "additionalProperties": {
-                    "type": "string"
-                  }
-                },
-                "auth": {
-                  "oneOf": [
-                    {
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "type",
+                    "url"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "type": {
+                      "const": "mcp"
+                    },
+                    "url": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "headers": {
                       "type": "object",
-                      "additionalProperties": false,
-                      "required": [
-                        "type",
-                        "username",
-                        "password"
-                      ],
-                      "properties": {
-                        "type": {
-                          "const": "basic"
-                        },
-                        "username": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "password": {
-                          "type": "string",
-                          "minLength": 1
-                        }
+                      "additionalProperties": {
+                        "type": "string"
                       }
                     },
-                    {
-                      "type": "object",
-                      "additionalProperties": false,
-                      "required": [
-                        "type",
-                        "token"
-                      ],
-                      "properties": {
-                        "type": {
-                          "const": "bearer"
+                    "auth": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "type",
+                            "username",
+                            "password"
+                          ],
+                          "properties": {
+                            "type": {
+                              "const": "basic"
+                            },
+                            "username": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "password": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          }
                         },
-                        "token": {
-                          "type": "string",
-                          "minLength": 1
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "type",
+                            "token"
+                          ],
+                          "properties": {
+                            "type": {
+                              "const": "bearer"
+                            },
+                            "token": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "type"
+                          ],
+                          "properties": {
+                            "type": {
+                              "const": "none"
+                            }
+                          }
                         }
-                      }
+                      ]
                     },
-                    {
+                    "capabilities": {
                       "type": "object",
-                      "additionalProperties": false,
-                      "required": [
-                        "type"
-                      ],
+                      "additionalProperties": true,
                       "properties": {
-                        "type": {
-                          "const": "none"
+                        "tools": {
+                          "type": "object",
+                          "additionalProperties": true
+                        },
+                        "resources": {
+                          "type": "object",
+                          "additionalProperties": true
                         }
                       }
                     }
-                  ]
+                  }
                 },
-                "capabilities": {
+                {
                   "type": "object",
-                  "additionalProperties": true,
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "type",
+                    "files"
+                  ],
                   "properties": {
-                    "tools": {
-                      "type": "object",
-                      "additionalProperties": true
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
                     },
-                    "resources": {
-                      "type": "object",
-                      "additionalProperties": true
+                    "type": {
+                      "const": "typescript"
+                    },
+                    "files": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "exportName": {
+                      "type": "string",
+                      "minLength": 1
                     }
                   }
                 }
-              }
+              ]
             }
           }
         }

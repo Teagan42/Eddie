@@ -29,6 +29,7 @@ import type { McpToolSourceService } from "@eddie/mcp";
 import type { ProviderFactoryService } from "@eddie/providers";
 import type { TokenizerService } from "@eddie/tokenizers";
 import { ToolRegistryFactory } from "@eddie/tools";
+import type { TypescriptToolSourceService } from "@eddie/tools";
 import {
   HOOK_EVENTS,
   SessionMetadata,
@@ -158,6 +159,9 @@ function createEngineHarness(
   const mcpToolSourceService = {
     collectTools: vi.fn(async () => ({ tools: [], resources: [], prompts: [] })),
   } as unknown as McpToolSourceService;
+  const typescriptToolSourceService = {
+    collectTools: vi.fn(async () => []),
+  } as unknown as TypescriptToolSourceService;
   const metrics = {
     countMessage: vi.fn(),
     observeToolCall: vi.fn(),
@@ -181,6 +185,7 @@ function createEngineHarness(
     transcriptCompactionService,
     fakeOrchestrator as unknown as AgentOrchestratorService,
     mcpToolSourceService,
+    typescriptToolSourceService,
     metrics
   );
 
@@ -195,6 +200,8 @@ function createEngineHarness(
     confirmService,
     getSnapshotSpy,
     metrics,
+    mcpToolSourceService,
+    typescriptToolSourceService,
   };
 }
 
@@ -608,6 +615,9 @@ describe("EngineService hot configuration", () => {
     const mcpToolSourceService = {
       collectTools: vi.fn(async () => ({ tools: [], resources: [], prompts: [] })),
     } as unknown as McpToolSourceService;
+    const typescriptToolSourceService = {
+      collectTools: vi.fn(async () => []),
+    } as unknown as TypescriptToolSourceService;
     const metrics = {
       countMessage: vi.fn(),
       observeToolCall: vi.fn(),
@@ -628,6 +638,7 @@ describe("EngineService hot configuration", () => {
       transcriptCompactionService,
       orchestrator as unknown as AgentOrchestratorService,
       mcpToolSourceService,
+      typescriptToolSourceService,
       metrics
     );
 

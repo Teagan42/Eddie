@@ -552,6 +552,22 @@ const MCP_TOOL_SOURCE_SCHEMA: JSONSchema7 = {
   },
 };
 
+const TYPESCRIPT_TOOL_SOURCE_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "type", "files"],
+  properties: {
+    id: { type: "string", minLength: 1 },
+    type: { const: "typescript" },
+    files: {
+      type: "array",
+      minItems: 1,
+      items: { type: "string", minLength: 1 },
+    },
+    exportName: { type: "string", minLength: 1 },
+  },
+};
+
 const TOOLS_CONFIG_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
@@ -567,7 +583,9 @@ const TOOLS_CONFIG_SCHEMA: JSONSchema7 = {
     autoApprove: { type: "boolean" },
     sources: {
       type: "array",
-      items: MCP_TOOL_SOURCE_SCHEMA,
+      items: {
+        anyOf: [MCP_TOOL_SOURCE_SCHEMA, TYPESCRIPT_TOOL_SOURCE_SCHEMA],
+      },
     },
   },
 };

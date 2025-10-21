@@ -19,7 +19,7 @@ import type {
 import { ConfigStore } from "@eddie/config";
 import { ContextService } from "@eddie/context";
 import { ProviderFactoryService } from "@eddie/providers";
-import { builtinTools } from "@eddie/tools";
+import { builtinTools, TypescriptToolSourceService } from "@eddie/tools";
 import { ConfirmService, LoggerService } from "@eddie/io";
 import { HooksService } from "@eddie/hooks";
 import type { HookBus } from "@eddie/hooks";
@@ -32,6 +32,9 @@ import {
   type PackedResource,
   type ProviderAdapter,
   type ToolDefinition,
+  type ToolSourceConfig,
+  type MCPToolSourceConfig,
+  type TypeScriptToolSourceConfig,
 } from "@eddie/types";
 import { TokenizerService } from "@eddie/tokenizers";
 import {
@@ -78,6 +81,7 @@ export class EngineService {
         private readonly transcriptCompactionService: TranscriptCompactionService,
         private readonly agentOrchestrator: AgentOrchestratorService,
         private readonly mcpToolSourceService: McpToolSourceService,
+        private readonly typescriptToolSourceService: TypescriptToolSourceService,
         private readonly metrics: MetricsService,
         @Optional()
         private readonly demoSeedReplayService?: DemoSeedReplayService
@@ -163,11 +167,21 @@ export class EngineService {
         { allowBlock: true }
       );
       const context = await this.contextService.pack(cfg.context);
+      const { mcp: mcpSources, typescript: typescriptSources } =
+        this.partitionToolSources(cfg.tools?.sources);
+
+      const localTools = await this.typescriptToolSourceService.collectTools(
+        typescriptSources,
+        { projectDir },
+      );
+
       const {
         tools: remoteTools,
         resources: discoveredResources,
         prompts: discoveredPrompts,
-      } = await this.mcpToolSourceService.collectTools(cfg.tools?.sources);
+      } = await this.mcpToolSourceService.collectTools(
+        mcpSources.length > 0 ? mcpSources : undefined,
+      );
 
       void discoveredPrompts;
 
@@ -202,7 +216,7 @@ export class EngineService {
       logger.debug({ contextTokens }, "Packed context");
 
       const toolsEnabled = this.filterTools(
-        [ ...builtinTools, ...remoteTools ],
+        [ ...builtinTools, ...localTools, ...remoteTools ],
         cfg.tools?.enabled,
         cfg.tools?.disabled
       );
@@ -642,6 +656,32 @@ export class EngineService {
       if (enabledSet) return enabledSet.has(tool.name);
       return true;
     });
+  }
+
+  private partitionToolSources(
+    sources: ToolSourceConfig[] | undefined,
+  ): {
+        mcp: MCPToolSourceConfig[];
+        typescript: TypeScriptToolSourceConfig[];
+    } {
+    const partitions: {
+      mcp: MCPToolSourceConfig[];
+      typescript: TypeScriptToolSourceConfig[];
+    } = { mcp: [], typescript: [] };
+
+    if (!sources?.length) {
+      return partitions;
+    }
+
+    for (const source of sources) {
+      if (source.type === "mcp") {
+        partitions.mcp.push(source);
+      } else if (source.type === "typescript") {
+        partitions.typescript.push(source);
+      }
+    }
+
+    return partitions;
   }
 
   private resolveTracePath(

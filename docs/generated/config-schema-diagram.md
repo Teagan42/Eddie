@@ -314,25 +314,7 @@ graph LR
   tools --> tools__enabled
   tools__enabled["enabled: array<string>"]
   tools --> tools__sources
-  tools__sources["sources: array<object>"]
-  tools__sources__item --> tools__sources__item__auth
-  tools__sources__item__auth["auth: oneOf"]
-  tools__sources__item --> tools__sources__item__capabilities
-  tools__sources__item__capabilities["capabilities: object"]
-  tools__sources__item__capabilities --> tools__sources__item__capabilities__resources
-  tools__sources__item__capabilities__resources["resources: object"]
-  tools__sources__item__capabilities --> tools__sources__item__capabilities__tools
-  tools__sources__item__capabilities__tools["tools: object"]
-  tools__sources__item --> tools__sources__item__headers
-  tools__sources__item__headers["headers: object"]
-  tools__sources__item --> tools__sources__item__id
-  tools__sources__item__id["id (required): string"]
-  tools__sources__item --> tools__sources__item__name
-  tools__sources__item__name["name: string"]
-  tools__sources__item --> tools__sources__item__type
-  tools__sources__item__type["type (required): const mcp"]
-  tools__sources__item --> tools__sources__item__url
-  tools__sources__item__url["url (required): string"]
+  tools__sources["sources: array<anyOf>"]
   root --> transcript
   transcript["transcript: object"]
   transcript --> transcript__compactor

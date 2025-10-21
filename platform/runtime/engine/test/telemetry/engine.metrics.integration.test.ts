@@ -10,6 +10,7 @@ import { TokenizerService } from "@eddie/tokenizers";
 import { AgentOrchestratorService } from "../../src/agents/agent-orchestrator.service";
 import { TranscriptCompactionService } from "../../src/transcript/transcript-compaction.service";
 import { McpToolSourceService } from "@eddie/mcp";
+import { TypescriptToolSourceService } from "@eddie/tools";
 import { EngineService } from "../../src/engine.service";
 import {
   MetricsService,
@@ -99,6 +100,7 @@ describe("EngineService metrics", () => {
           },
         },
         { provide: McpToolSourceService, useValue: { collectTools: vi.fn(async () => ({ tools: [], resources: [], prompts: [] })) } },
+        { provide: TypescriptToolSourceService, useValue: { collectTools: vi.fn(async () => []) } },
         { provide: DemoSeedReplayService, useValue: { replayIfEnabled: vi.fn(async () => undefined) } },
       ],
     })
@@ -116,6 +118,7 @@ describe("EngineService metrics", () => {
     const transcriptCompactionService = moduleRef.get<TranscriptCompactionService>(TranscriptCompactionService);
     const orchestrator = moduleRef.get<any>(AgentOrchestratorService);
     const mcpToolSourceService = moduleRef.get<McpToolSourceService>(McpToolSourceService);
+    const typescriptToolSourceService = moduleRef.get<TypescriptToolSourceService>(TypescriptToolSourceService);
     const metricsService = moduleRef.get<MetricsService>(MetricsService);
     const demoSeedReplayService = moduleRef.get<DemoSeedReplayService>(DemoSeedReplayService);
     const backend = moduleRef.get<MetricsBackend>(METRICS_BACKEND);
@@ -135,6 +138,7 @@ describe("EngineService metrics", () => {
       transcriptCompactionService as any,
       orchestrator as any,
       mcpToolSourceService as any,
+      typescriptToolSourceService as any,
       metricsService,
       demoSeedReplayService as any,
     );
