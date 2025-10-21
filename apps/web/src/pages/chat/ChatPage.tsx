@@ -47,6 +47,7 @@ import {
   cloneExecutionTreeState,
   coerceExecutionTreeState,
   composeExecutionTreeState,
+  mergeContextBundleFiles,
   createEmptyExecutionTreeState,
   createExecutionTreeStateFromMetadata,
   type ExecutionTreeState,
@@ -412,7 +413,10 @@ export function ChatPage(): JSX.Element {
             : normalizedState.toolInvocations;
           const nextContextBundles = shouldMergeContextBundles
             ? existingTree.contextBundles
-            : normalizedState.contextBundles;
+            : mergeContextBundleFiles(
+                existingTree.contextBundles,
+                normalizedState.contextBundles,
+              );
 
           mergedTree = composeExecutionTreeState(
             normalizedState.agentHierarchy,

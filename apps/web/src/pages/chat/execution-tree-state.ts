@@ -337,6 +337,33 @@ function convertContextBundles(
   };
 }
 
+export function mergeContextBundleFiles(
+  previous: ExecutionContextBundle[],
+  next: ExecutionContextBundle[],
+): ExecutionContextBundle[] {
+  if (previous.length === 0 || next.length === 0) {
+    return next;
+  }
+
+  const previousById = new Map(previous.map((bundle) => [bundle.id, bundle]));
+
+  return next.map((bundle) => {
+    const previousFiles = previousById.get(bundle.id)?.files;
+    if (!Array.isArray(previousFiles) || previousFiles.length === 0) {
+      return bundle;
+    }
+
+    if (Array.isArray(bundle.files) && bundle.files.length > 0) {
+      return bundle;
+    }
+
+    return {
+      ...bundle,
+      files: cloneContextBundleFiles(previousFiles),
+    } satisfies ExecutionContextBundle;
+  });
+}
+
 function cloneAgentHierarchy(nodes: ExecutionTreeState['agentHierarchy']): ExecutionTreeState['agentHierarchy'] {
   return nodes.map((node) => ({
     ...node,

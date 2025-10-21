@@ -582,6 +582,110 @@ describe('ChatPage execution tree realtime updates', () => {
     });
   });
 
+  it('retains context bundle file entries when updates omit them', async () => {
+    const baseMetadata = {
+      sessionId: 'session-1',
+      capturedAt: '2024-05-01T13:10:00.000Z',
+      agentHierarchy: [
+        {
+          id: 'session-1',
+          name: 'Session 1',
+          provider: 'orchestrator',
+          model: 'delegator',
+          depth: 0,
+          metadata: { messageCount: 1 },
+          children: [],
+        },
+      ],
+      toolInvocations: [],
+      contextBundles: [
+        {
+          id: 'bundle-1',
+          label: 'Docs',
+          summary: 'Primary docs',
+          sizeBytes: 4096,
+          fileCount: 2,
+          files: [
+            { path: 'result-1.txt', sizeBytes: 1024 },
+            { path: 'result-2.txt', sizeBytes: 3072 },
+          ],
+        },
+      ],
+    } as const;
+
+    getMetadataMock.mockResolvedValueOnce(baseMetadata);
+
+    const { client } = renderChatPage();
+
+    await waitFor(() => {
+      expect(onExecutionTreeUpdatedMock).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(getMetadataMock).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      const snapshot = client.getQueryData<any>([
+        'orchestrator-metadata',
+        'session-1',
+      ]);
+      const bundle = snapshot?.executionTree?.contextBundles?.find(
+        (entry: { id?: string }) => entry?.id === 'bundle-1',
+      );
+      expect(bundle?.files).toEqual([
+        expect.objectContaining({ path: 'result-1.txt' }),
+        expect.objectContaining({ path: 'result-2.txt' }),
+      ]);
+    });
+
+    const updateState = createExecutionTreeStateFromMetadata({
+      ...baseMetadata,
+      capturedAt: '2024-05-01T13:20:00.000Z',
+      contextBundles: [
+        {
+          id: 'bundle-1',
+          label: 'Docs',
+          summary: 'Primary docs',
+          sizeBytes: 4096,
+          fileCount: 2,
+        },
+      ],
+    });
+
+    const realtimeState = {
+      ...updateState,
+      contextBundles: updateState.contextBundles.map((bundle) => {
+        const { files: _files, ...rest } = bundle;
+        return rest;
+      }) as unknown as ExecutionTreeState['contextBundles'],
+    };
+
+    await act(async () => {
+      executionTreeHandlers.forEach((handler) =>
+        handler({
+          sessionId: 'session-1',
+          state: realtimeState,
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      const snapshot = client.getQueryData<any>([
+        'orchestrator-metadata',
+        'session-1',
+      ]);
+      const bundle = snapshot?.executionTree?.contextBundles?.find(
+        (entry: { id?: string }) => entry?.id === 'bundle-1',
+      );
+      expect(bundle?.files).toEqual([
+        expect.objectContaining({ path: 'result-1.txt' }),
+        expect.objectContaining({ path: 'result-2.txt' }),
+      ]);
+      expect(snapshot?.capturedAt).toBe(updateState.updatedAt);
+    });
+  });
+
   it('updates tool status groups when tool call lifecycle events stream in', async () => {
     const user = userEvent.setup();
     const { client } = renderChatPage();
