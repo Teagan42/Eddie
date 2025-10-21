@@ -1,4 +1,4 @@
-import { createPackageVitestConfig } from "../../.vitest.workspace.config";
+import { createPackageVitestConfig } from "../../vitest.package-config";
 
 export default createPackageVitestConfig("io");
 
