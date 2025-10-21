@@ -7,6 +7,7 @@ import { ToolRegistryFactory } from "@eddie/tools";
 import type { AgentDefinition, PackedContext } from "@eddie/types";
 import { TemplateRendererService } from "@eddie/templates";
 import { TemplateRuntimeService } from "@eddie/templates";
+import { ConfigStore } from "@eddie/config";
 import type { Logger } from "pino";
 
 const tmpDir = path.join(process.cwd(), "test-temp", "agent-factory");
@@ -25,7 +26,7 @@ beforeAll(async () => {
     "utf-8"
   );
 
-  const templateRenderer = new TemplateRendererService();
+  const templateRenderer = new TemplateRendererService(new ConfigStore());
   const templateLogger = { debug: () => {} } as unknown as Logger;
   const templateRuntime = new TemplateRuntimeService(
     templateRenderer,

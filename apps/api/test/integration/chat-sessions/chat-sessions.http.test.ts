@@ -20,7 +20,6 @@ import { ChatSessionsGateway } from "../../../src/chat-sessions/chat-sessions.ga
 import { ChatMessagesGateway } from "../../../src/chat-sessions/chat-messages.gateway";
 import { ChatSessionEventsService } from "../../../src/chat-sessions/chat-session-events.service";
 import { ToolsGateway } from "../../../src/tools/tools.gateway";
-import { ToolsModule } from "../../../src/tools/tools.module";
 import {
   StartToolCallCommand,
   CompleteToolCallCommand,
@@ -33,6 +32,8 @@ import {
   ChatSessionToolResultEvent,
 } from "@eddie/types";
 import { ChatMessageSent } from "../../../src/chat-sessions/events";
+import { ConfigStore } from "@eddie/config";
+import { KNEX_INSTANCE } from "../../../src/persistence/knex.provider";
 
 const UNKNOWN_SESSION_ID = "00000000-0000-0000-0000-000000000000";
 
@@ -62,7 +63,7 @@ describe("ChatSessionsController HTTP", () => {
     defineParamTypes(ChatSessionEventsService, [ChatMessagesGateway, CommandBus]);
 
     const moduleRef = await Test.createTestingModule({
-      imports: [CqrsModule, ToolsModule],
+      imports: [CqrsModule],
       controllers: [ChatSessionsController],
       providers: [
         {
@@ -84,8 +85,14 @@ describe("ChatSessionsController HTTP", () => {
           provide: CHAT_SESSIONS_REPOSITORY,
           useClass: InMemoryChatSessionsRepository,
         },
+        {
+          provide: ConfigStore,
+          useValue: new ConfigStore(),
+        },
       ],
     })
+      .overrideProvider(KNEX_INSTANCE)
+      .useValue(undefined)
       .overrideProvider(ToolsGateway)
       .useValue({
         emitToolCall: vi.fn(),

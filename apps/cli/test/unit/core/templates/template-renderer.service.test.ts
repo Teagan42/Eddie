@@ -3,6 +3,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import fs from "fs/promises";
 import path from "path";
 import { TemplateRendererService } from "@eddie/templates";
+import { ConfigStore } from "@eddie/config";
 
 const tmpDir = path.join(process.cwd(), "test-temp", "templates");
 let service: TemplateRendererService;
@@ -11,7 +12,7 @@ let layoutTemplatePath: string;
 let childTemplatePath: string;
 
 beforeAll(async () => {
-  service = new TemplateRendererService();
+  service = new TemplateRendererService(new ConfigStore());
   await fs.mkdir(tmpDir, { recursive: true });
   templatePath = path.join(tmpDir, "message.jinja");
   await fs.writeFile(

@@ -12,6 +12,7 @@ import type { ContextConfig, ContextResourceBundleConfig } from '@eddie/config';
 import { ContextService } from '@eddie/context';
 import { LoggerService } from '@eddie/io';
 import { TemplateRendererService } from '@eddie/templates';
+import { ConfigStore } from '@eddie/config';
 import { TemplateRuntimeService } from '@eddie/templates';
 
 import type { ContextPackDataset } from './context-pack.fixtures';
@@ -88,7 +89,7 @@ suite('ContextService.pack benchmarks', () => {
 
     const loggerService = new LoggerService();
     loggerService.configure({ level: 'silent' });
-    const templateRenderer = new TemplateRendererService();
+    const templateRenderer = new TemplateRendererService(new ConfigStore());
     const templateRuntime = new TemplateRuntimeService(
       templateRenderer,
       loggerService.getLogger('engine:templates')
