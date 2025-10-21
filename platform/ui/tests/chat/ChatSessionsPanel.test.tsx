@@ -20,6 +20,7 @@ function createSession(partial?: Partial<TestSession>): TestSession {
     id: "session-1",
     title: "First Session",
     description: "",
+    status: "active",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...partial,
@@ -124,5 +125,38 @@ describe("ChatSessionsPanel", () => {
     fireEvent.submit(textarea.closest("form") as HTMLFormElement);
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("forwards session creation events and draft updates", () => {
+    const onCreateSession = vi.fn();
+    const onTitleChange = vi.fn();
+
+    render(
+      <ChatSessionsPanel
+        sessions={[]}
+        selectedSessionId={null}
+        onSelectSession={vi.fn()}
+        onCreateSession={onCreateSession}
+        newSessionTitle=""
+        onNewSessionTitleChange={onTitleChange}
+        isCreatingSession={false}
+        activeSession={null}
+        messages={[]}
+        isMessagesLoading={false}
+        onSubmitMessage={vi.fn()}
+        messageDraft=""
+        onMessageDraftChange={vi.fn()}
+        isMessagePending={false}
+      />,
+    );
+
+    const titleField = screen.getByPlaceholderText(/Session title/i);
+    fireEvent.change(titleField, { target: { value: "Alpha" } });
+
+    expect(onTitleChange).toHaveBeenLastCalledWith("Alpha");
+
+    fireEvent.submit(titleField.closest("form") as HTMLFormElement);
+
+    expect(onCreateSession).toHaveBeenCalledTimes(1);
   });
 });

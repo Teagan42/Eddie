@@ -2,8 +2,6 @@ type UnknownProps = Record<string, unknown>;
 
 export interface AgentExecutionTreeProps extends UnknownProps {}
 
-export interface ChatSessionsPanelProps extends UnknownProps {}
-
 export interface ChatWindowProps extends UnknownProps {}
 
 export interface CollapsiblePanelProps extends UnknownProps {}
@@ -18,10 +16,6 @@ function notImplemented(name: string): never {
 
 export function AgentExecutionTree(): never {
   return notImplemented("AgentExecutionTree");
-}
-
-export function ChatSessionsPanel(): never {
-  return notImplemented("ChatSessionsPanel");
 }
 
 export function ChatWindow(): never {
@@ -39,3 +33,4 @@ export function SessionSelector(): never {
 export * from "./types";
 export * from "./theme";
 export { SessionDetail, type SessionDetailProps } from "./SessionDetail";
+export { ChatSessionsPanel, type ChatSessionsPanelProps } from "./ChatSessionsPanel";
