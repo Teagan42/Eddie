@@ -207,6 +207,14 @@ export function applyToolResultEvent(
   };
   mutableTarget.result = parsedResult;
   target.agentId = normalizeAgentId(payload.agentId) ?? target.agentId ?? UNKNOWN_AGENT_ID;
+  const bundlesFromResult = extractContextBundlesFromToolResult(
+    parsedResult,
+    target.agentId,
+    target.id,
+  );
+  if (bundlesFromResult.length > 0) {
+    replaceContextBundlesForTool(next, target.id, bundlesFromResult);
+  }
   if (payload.timestamp) {
     target.updatedAt = payload.timestamp;
     next.updatedAt = payload.timestamp;
@@ -621,6 +629,147 @@ function normalizeAgentId(value: string | null | undefined): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function extractContextBundlesFromToolResult(
+  result: unknown,
+  fallbackAgentId: string,
+  toolCallId: string,
+): ExecutionContextBundle[] {
+  if (!result || typeof result !== 'object') {
+    return [];
+  }
+
+  const metadata = (result as { metadata?: unknown }).metadata;
+  if (!metadata || typeof metadata !== 'object') {
+    return [];
+  }
+
+  const normalizedAgentId = normalizeAgentId(fallbackAgentId) ?? UNKNOWN_AGENT_ID;
+  const normalized: ExecutionContextBundle[] = [];
+  const seenIds = new Set<string>();
+
+  const rawBundles = (metadata as { contextBundles?: unknown }).contextBundles;
+  if (Array.isArray(rawBundles)) {
+    for (const entry of rawBundles) {
+      if (!entry || typeof entry !== 'object') {
+        continue;
+      }
+
+      const candidate = entry as Record<string, unknown>;
+      const idValue = candidate.id;
+      const labelValue = candidate.label;
+      const id = typeof idValue === 'string' && idValue.trim().length > 0 ? idValue : null;
+      const label = typeof labelValue === 'string' && labelValue.trim().length > 0 ? labelValue : id;
+      if (!id || !label) {
+        continue;
+      }
+
+      const sizeBytes = typeof candidate.sizeBytes === 'number' && candidate.sizeBytes >= 0
+        ? candidate.sizeBytes
+        : 0;
+      const fileCount = typeof candidate.fileCount === 'number' && candidate.fileCount >= 0
+        ? candidate.fileCount
+        : Array.isArray(candidate.files)
+          ? candidate.files.length
+          : 0;
+      const summary = typeof candidate.summary === 'string' ? candidate.summary : undefined;
+      const files = normalizeContextBundleFiles(
+        candidate.files as ExecutionContextBundle['files'],
+      );
+      const sourceCandidate = candidate.source as
+        | ExecutionContextBundle['source']
+        | undefined;
+
+      const sourceType =
+        sourceCandidate?.type === 'tool_call' ||
+        sourceCandidate?.type === 'tool_result' ||
+        sourceCandidate?.type === 'spawn_subagent'
+          ? sourceCandidate.type
+          : 'tool_result';
+      const sourceAgentId = normalizeAgentId(sourceCandidate?.agentId) ?? normalizedAgentId;
+      const sourceToolCallId =
+        typeof sourceCandidate?.toolCallId === 'string' && sourceCandidate.toolCallId.length > 0
+          ? sourceCandidate.toolCallId
+          : toolCallId;
+
+      const bundle = cloneContextBundleEntry({
+        id,
+        label,
+        sizeBytes,
+        fileCount,
+        summary,
+        files,
+        source: {
+          type: sourceType,
+          agentId: sourceAgentId,
+          toolCallId: sourceToolCallId,
+        },
+      } as ExecutionContextBundle);
+
+      normalized.push(bundle);
+      seenIds.add(bundle.id);
+    }
+  }
+
+  const rawBundleIds = (metadata as { contextBundleIds?: unknown }).contextBundleIds;
+  if (Array.isArray(rawBundleIds)) {
+    for (const candidate of rawBundleIds) {
+      if (typeof candidate !== 'string') {
+        continue;
+      }
+      const id = candidate.trim();
+      if (!id || seenIds.has(id)) {
+        continue;
+      }
+
+      const bundle = cloneContextBundleEntry({
+        id,
+        label: id,
+        sizeBytes: 0,
+        fileCount: 0,
+        source: {
+          type: 'tool_result',
+          agentId: normalizedAgentId,
+          toolCallId,
+        },
+      } as ExecutionContextBundle);
+
+      normalized.push(bundle);
+      seenIds.add(id);
+    }
+  }
+
+  return normalized;
+}
+
+function replaceContextBundlesForTool(
+  state: ExecutionTreeState,
+  toolCallId: string,
+  bundles: ExecutionContextBundle[],
+): void {
+  state.contextBundles = state.contextBundles.filter(
+    (bundle) => bundle.source?.toolCallId !== toolCallId,
+  );
+  state.contextBundles.push(...cloneContextBundles(bundles));
+
+  state.contextBundlesByToolCallId[toolCallId] = cloneContextBundles(bundles);
+
+  for (const [agentId, entries] of Object.entries(state.contextBundlesByAgentId)) {
+    const filtered = entries.filter((bundle) => bundle.source?.toolCallId !== toolCallId);
+    if (filtered.length > 0) {
+      state.contextBundlesByAgentId[agentId] = filtered;
+    } else {
+      delete state.contextBundlesByAgentId[agentId];
+    }
+  }
+
+  for (const bundle of bundles) {
+    const agentId = normalizeAgentId(bundle.source?.agentId) ?? UNKNOWN_AGENT_ID;
+    const collection = state.contextBundlesByAgentId[agentId] ?? [];
+    collection.push(cloneContextBundleEntry(bundle));
+    state.contextBundlesByAgentId[agentId] = collection;
+  }
 }
 
 function buildAgentLineageMap(
