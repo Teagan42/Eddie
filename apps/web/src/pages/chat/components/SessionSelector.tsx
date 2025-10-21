@@ -190,6 +190,16 @@ export function SessionSelector({
 
     if (isArchivedSelected && activeCategory !== 'archived' && availableIds.has('archived')) {
       setActiveCategory('archived');
+      return;
+    }
+
+    if (
+      !isArchivedSelected &&
+      activeCategory === 'archived' &&
+      (availableIds.has('active') || availableIds.has(fallback))
+    ) {
+      const next = availableIds.has('active') ? 'active' : fallback;
+      setActiveCategory(next);
     }
   }, [categoryDefinitions, activeCategory, fallbackCategory, isArchivedSelected]);
 
