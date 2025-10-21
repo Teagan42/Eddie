@@ -17,7 +17,7 @@ import type { ChatMessageDto } from '@eddie/api-client';
 
 import { cn } from '@/vendor/lib/utils';
 
-import { ChatMessageContent } from '../ChatMessageContent';
+import { ChatMessageContent } from '@eddie/ui/chat';
 
 const MESSAGE_CONTAINER_CLASS =
   'space-y-3 rounded-2xl border border-white/10 bg-slate-950/70 p-5 backdrop-blur-xl';
