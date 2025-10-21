@@ -919,6 +919,7 @@ export function ChatPage(): JSX.Element {
     api,
     invalidateSessionContext,
     synchronizeMessageCount,
+    removeDisplayedSessionIds,
     queryClient,
     setSessionContext,
     setSelectedSessionPreference,

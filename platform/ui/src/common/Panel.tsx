@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { Box } from "@radix-ui/themes";
 
 import { combineClassNames } from "../utils/class-names";
@@ -44,7 +44,14 @@ const PANEL_GLARE_CLASS = [
   "[background:var(--hero-surface-lens)]",
   "dark:[background:var(--hero-surface-lens-dark)]",
 ].join(" ");
-const PANEL_BODY_CLASS = "flex-1 text-sm text-[color:var(--overview-panel-foreground)]";
+const PANEL_BODY_CLASS = "h-auto text-sm text-[color:var(--overview-panel-foreground)]";
+const PANEL_HEADER_ACTIONS_CLASS = "ml-auto flex items-center justify-end gap-3";
+const PANEL_TOGGLE_BUTTON_CLASS = [
+  "inline-flex items-center rounded-full border border-transparent",
+  "bg-[color:var(--hero-badge-bg)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em]",
+  "text-[color:var(--hero-badge-fg)] transition hover:opacity-80",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+].join(" ");
 
 export interface PanelProps {
   title: string;
@@ -64,6 +71,13 @@ export function Panel({
   children,
 }: PanelProps): JSX.Element {
   const surfaceClassName = combineClassNames(PANEL_SURFACE_CLASS, className);
+  const generatedId = useId();
+  const bodyId = id ? `${id}__panel-body` : `${generatedId}-panel-body`;
+  const [isExpanded, setIsExpanded] = useState(true);
+  const toggleLabel = isExpanded ? "Collapse panel" : "Expand panel";
+  const handleToggle = (): void => {
+    setIsExpanded((value) => !value);
+  };
 
   return (
     <Box asChild className={surfaceClassName}>
@@ -71,7 +85,7 @@ export function Panel({
         <div className={PANEL_OVERLAY_CLASS} aria-hidden />
         <div className={PANEL_GLARE_CLASS} aria-hidden />
         <div className={PANEL_CONTENT_CLASS}>
-          <header className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
+          <header className="flex flex-wrap items-center gap-4 justify-between">
             <div className="max-w-xl space-y-1">
               <div className={PANEL_BADGE_CLASS}>
                 <span className={PANEL_BADGE_DOT_CLASS} />
@@ -86,9 +100,24 @@ export function Panel({
                 </p>
               ) : null}
             </div>
-            {actions}
+            <div className={PANEL_HEADER_ACTIONS_CLASS}>
+              {actions}
+              <button
+                type="button"
+                className={PANEL_TOGGLE_BUTTON_CLASS}
+                onClick={handleToggle}
+                aria-expanded={isExpanded}
+                aria-controls={bodyId}
+              >
+                {toggleLabel}
+              </button>
+            </div>
           </header>
-          <div className={PANEL_BODY_CLASS}>{children}</div>
+          {isExpanded ? (
+            <div id={bodyId} className={PANEL_BODY_CLASS}>
+              {children}
+            </div>
+          ) : null}
         </div>
       </section>
     </Box>
