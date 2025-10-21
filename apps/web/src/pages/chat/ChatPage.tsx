@@ -5,7 +5,11 @@ import {
   MagicWandIcon,
   PlusIcon,
 } from '@radix-ui/react-icons';
-import { type AgentActivityState } from '@eddie/ui/chat';
+import {
+  ChatWindow,
+  type AgentActivityState,
+  type ChatWindowComposerRole,
+} from '@eddie/ui/chat';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ChatMessageDto,
@@ -25,11 +29,9 @@ import { toast } from '@/vendor/hooks/use-toast';
 import { getSurfaceLayoutClasses, SURFACE_CONTENT_CLASS } from '@/styles/surfaces';
 import { sortSessions, upsertMessage } from './chat-utils';
 import {
-  ChatWindow,
   ContextBundlesPanel,
   AgentToolsDrawer,
   SessionSelector,
-  type ChatWindowComposerRole,
   type SessionSelectorMetricsSummary,
   type SessionSelectorSession,
 } from './components';

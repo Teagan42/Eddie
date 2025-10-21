@@ -13,6 +13,7 @@ import {
 import type {
   AgentExecutionTreeProps,
   ChatSessionsPanelProps,
+  ChatWindowComposerRole,
   ChatWindowProps,
   CollapsiblePanelProps,
   MessageComposerProps,
@@ -43,5 +44,9 @@ describe("chat types", () => {
     expectTypeOf<MessageComposerProps>().toMatchTypeOf<object>();
     expectTypeOf<SessionDetailProps>().toMatchTypeOf<object>();
     expectTypeOf<SessionSelectorProps>().toMatchTypeOf<object>();
+  });
+
+  it("exposes composer role union for chat window", () => {
+    expectTypeOf<ChatWindowComposerRole>().toEqualTypeOf<"user" | "system">();
   });
 });
