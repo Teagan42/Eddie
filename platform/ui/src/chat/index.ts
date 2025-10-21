@@ -8,7 +8,7 @@ export interface ChatWindowProps extends UnknownProps {}
 
 export interface CollapsiblePanelProps extends UnknownProps {}
 
-export interface MessageComposerProps extends UnknownProps {}
+export { MessageComposer, type MessageComposerProps } from "./MessageComposer";
 
 export interface SessionDetailProps extends UnknownProps {}
 
@@ -32,10 +32,6 @@ export function ChatWindow(): never {
 
 export function CollapsiblePanel(): never {
   return notImplemented("CollapsiblePanel");
-}
-
-export function MessageComposer(): never {
-  return notImplemented("MessageComposer");
 }
 
 export function SessionDetail(): never {

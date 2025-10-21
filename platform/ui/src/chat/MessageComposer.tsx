@@ -1,4 +1,4 @@
-import type { FormEventHandler, KeyboardEvent } from "react";
+import type { FormEvent, KeyboardEvent } from "react";
 import { Button, Flex, Text, TextArea } from "@radix-ui/themes";
 import { PaperPlaneIcon } from "@radix-ui/react-icons";
 
@@ -45,7 +45,7 @@ export interface MessageComposerProps {
   disabled: boolean;
   value: string;
   onChange: (value: string) => void;
-  onSubmit: FormEventHandler<HTMLFormElement>;
+  onSubmit: () => void;
   placeholder?: string;
   submitDisabled?: boolean;
 }
@@ -59,21 +59,22 @@ export function MessageComposer({
   submitDisabled = false,
 }: MessageComposerProps): JSX.Element {
   const hintMessage = disabled ? "Sending in progress..." : "Press Alt+Enter or click Send";
-  const isSubmitDisabled = disabled || submitDisabled;
+  const canSubmit = !disabled && !submitDisabled;
+  const isSubmitDisabled = !canSubmit;
   const hintClassName = disabled ? HINT_DISABLED_CLASS : HINT_ACTIVE_CLASS;
 
-  const submitForm = (form: HTMLFormElement) => {
-    if (typeof form.requestSubmit === "function") {
-      form.requestSubmit();
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
+    if (!canSubmit) {
       return;
     }
 
-    form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    onSubmit();
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    const isEnterKey = event.key === "Enter" || ["Enter", "NumpadEnter"].includes(event.code);
+    const isEnterKey = event.key === "Enter" || event.code === "Enter" || event.code === "NumpadEnter";
 
     if (!isEnterKey) {
       return;
@@ -87,21 +88,15 @@ export function MessageComposer({
 
     event.preventDefault();
 
-    if (disabled || submitDisabled) {
+    if (!canSubmit) {
       return;
     }
 
-    const form = event.currentTarget.form;
-
-    if (!form) {
-      return;
-    }
-
-    submitForm(form);
+    onSubmit();
   };
 
   return (
-    <form onSubmit={onSubmit} className={COMPOSER_FORM_CLASS}>
+    <form onSubmit={handleSubmit} className={COMPOSER_FORM_CLASS}>
       {COMPOSER_GLOW_CLASSES.map((className, index) => (
         <span key={index} className={className} />
       ))}

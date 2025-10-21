@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, Flex, Heading, ScrollArea, Select, Text, TextField } from '@radix-ui/themes';
 import {
   ChatBubbleIcon,
@@ -1380,13 +1373,9 @@ export function ChatPage(): JSX.Element {
     });
   }, [apiKey, composerRole, composerValue, selectedSessionId, sendMessageMutation]);
 
-  const handleComposerSubmit = useCallback(
-    (event: FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      handleSendMessage();
-    },
-    [handleSendMessage],
-  );
+  const handleComposerSubmit = useCallback(() => {
+    handleSendMessage();
+  }, [handleSendMessage]);
 
   const handleInspectToolInvocation = useCallback(
     (toolCallId: string | null) => {
