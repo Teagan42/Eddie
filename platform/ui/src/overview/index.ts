@@ -1,14 +1,7 @@
 export { OverviewHero } from "./OverviewHero";
-export type { OverviewHeroProps } from "./OverviewHero";
-
 export { OverviewAuthPanel } from "./OverviewAuthPanel";
-export type { OverviewAuthPanelProps } from "./OverviewAuthPanel";
-
 export { OverviewStatsGrid } from "./OverviewStatsGrid";
-export type { OverviewStat } from "./OverviewStatsGrid";
-
 export { SessionsList } from "./SessionsList";
-export type { SessionsListProps, SessionItem } from "./SessionsList";
 
 export {
   AVAILABLE_THEMES,
@@ -16,3 +9,13 @@ export {
   isDarkTheme,
   useTheme,
 } from "./theme";
+
+export type {
+  OverviewAuthPanelProps,
+  OverviewHeroProps,
+  OverviewStat,
+  OverviewStatsGridProps,
+  OverviewTheme,
+  SessionItem,
+  SessionsListProps,
+} from "./types";

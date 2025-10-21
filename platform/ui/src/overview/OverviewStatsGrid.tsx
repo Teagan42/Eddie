@@ -1,13 +1,8 @@
 import type { JSX } from "react";
 
-export interface OverviewStat {
-  readonly label: string;
-  readonly value: number;
-}
+import type { OverviewStatsGridProps } from "./types";
 
-export interface OverviewStatsGridProps {
-  readonly stats: readonly OverviewStat[];
-}
+export type { OverviewStat, OverviewStatsGridProps } from "./types";
 
 export function OverviewStatsGrid(_props: OverviewStatsGridProps): JSX.Element | null {
   return null;
