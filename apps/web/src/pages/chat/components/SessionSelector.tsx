@@ -144,21 +144,20 @@ export function SessionSelector({
   const hasArchivedSessions = sessionsByCategory.archived.length > 0;
 
   const categoryDefinitions = useMemo(
-    () =>
-      [
-        {
-          id: 'active' as const,
-          label: CATEGORY_LABELS.active,
-        },
-        ...(hasArchivedSessions
-          ? [
-              {
-                id: 'archived' as const,
-                label: CATEGORY_LABELS.archived,
-              },
-            ]
-          : []),
-      ],
+    () => [
+      {
+        id: 'active' as const,
+        label: CATEGORY_LABELS.active,
+      },
+      ...(hasArchivedSessions
+        ? [
+          {
+            id: 'archived' as const,
+            label: CATEGORY_LABELS.archived,
+          },
+        ]
+        : []),
+    ],
     [hasArchivedSessions],
   );
 
@@ -601,43 +600,43 @@ export function SessionSelector({
         const categorySessions = sessionsByCategory[category.id] ?? [];
 
         return (
-        <TabsContent key={category.id} value={category.id} className="mt-1 outline-none">
-          {isCollapsed ? null : (
-            <ScrollArea type="always" className="max-h-40" id={listId}>
-              {categorySessions.length === 0 ? (
-                <Text size="2" color="gray">
-                  No sessions in this category yet.
-                </Text>
-              ) : (
-                <div className="relative">
-                  <Flex
-                    ref={tabListRef}
-                    role="tablist"
-                    aria-orientation="horizontal"
-                    aria-label={SESSION_TABLIST_ARIA_LABEL}
-                    gap="2"
-                    wrap="wrap"
-                    className="relative"
-                    data-testid="session-tablist"
-                  >
-                    <span
-                      ref={indicatorRef}
-                      data-testid="session-tab-indicator"
-                      data-animated="true"
-                      className="pointer-events-none absolute z-0 rounded-lg bg-[var(--jade-4)] transition-transform duration-300 ease-out"
-                      style={{
-                        transition: indicatorTransitionStyle,
-                        transform: 'translate3d(0, 0, 0)',
-                        opacity: 0,
-                      }}
-                    />
-                    {categorySessions.map(renderSession)}
-                  </Flex>
-                </div>
-              )}
-            </ScrollArea>
-          )}
-        </TabsContent>
+          <TabsContent key={category.id} value={category.id} className="mt-1 outline-none">
+            {isCollapsed ? null : (
+              <ScrollArea type="always" className="max-h-40" id={listId}>
+                {categorySessions.length === 0 ? (
+                  <Text size="2" color="gray">
+                    No sessions in this category yet.
+                  </Text>
+                ) : (
+                  <div className="relative">
+                    <Flex
+                      ref={tabListRef}
+                      role="tablist"
+                      aria-orientation="horizontal"
+                      aria-label={SESSION_TABLIST_ARIA_LABEL}
+                      gap="2"
+                      wrap="wrap"
+                      className="relative"
+                      data-testid="session-tablist"
+                    >
+                      <span
+                        ref={indicatorRef}
+                        data-testid="session-tab-indicator"
+                        data-animated="true"
+                        className="pointer-events-none absolute z-0 rounded-lg bg-[var(--jade-4)] transition-transform duration-300 ease-out"
+                        style={{
+                          transition: indicatorTransitionStyle,
+                          transform: 'translate3d(0, 0, 0)',
+                          opacity: 0,
+                        }}
+                      />
+                      {categorySessions.map(renderSession)}
+                    </Flex>
+                  </div>
+                )}
+              </ScrollArea>
+            )}
+          </TabsContent>
         );
       })}
     </TabsRoot>
