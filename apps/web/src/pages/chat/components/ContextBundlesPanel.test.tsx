@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ContextBundlesPanel } from "./ContextBundlesPanel";
+import { ContextBundlesPanel } from "@eddie/ui/chat";
 import { Theme } from "@radix-ui/themes";
 
 class ResizeObserverMock {
@@ -30,6 +30,11 @@ describe("ContextBundlesPanel", () => {
               summary: "Primary documentation",
               sizeBytes: 2048,
               fileCount: 2,
+              source: {
+                type: "tool_call",
+                agentId: "agent-1",
+                toolCallId: "tool-call-1",
+              },
               files: [
                 { path: "docs/README.md", sizeBytes: 1024 },
                 { path: "docs/CONTRIBUTING.md", sizeBytes: 1024 },
