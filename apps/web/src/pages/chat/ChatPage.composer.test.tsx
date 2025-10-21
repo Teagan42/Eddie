@@ -183,4 +183,29 @@ describe("ChatPage composer interactions", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText(/load template/i)).not.toBeInTheDocument();
   });
+
+  it("disables the composer input when prerequisites are missing", async () => {
+    useAuthMock.mockReturnValue({ apiKey: null, setApiKey: vi.fn() });
+
+    renderChatPage();
+
+    const composer = await screen.findByPlaceholderText(
+      "Send a message to the orchestrator",
+    );
+    const composerForm = composer.closest("form");
+
+    expect(composer).toBeDisabled();
+    expect(composerForm).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("disables the send action until the composer has content", async () => {
+    renderChatPage();
+
+    await screen.findByPlaceholderText("Send a message to the orchestrator");
+
+    const sendButton = screen.getByRole("button", { name: /^send$/i });
+
+    expect(sendButton).toBeDisabled();
+    expect(sendButton).toHaveAttribute("aria-disabled", "true");
+  });
 });

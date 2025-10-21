@@ -7,9 +7,11 @@ describe("panel header layout", () => {
     const source = readFileSync(resolve(__dirname, "../src/common/Panel.tsx"), "utf8");
 
     expect(source).toContain(
-      'className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between"'
+      'className="flex flex-wrap items-center gap-4 justify-between"'
     );
-    expect(source).not.toContain('className="flex items-center gap-2"');
+    expect(source).toContain(
+      'const PANEL_HEADER_ACTIONS_CLASS = "ml-auto flex items-center justify-end gap-3"'
+    );
   });
 
   it("wraps the surface with a Radix UI Box for consistent hero styling", () => {

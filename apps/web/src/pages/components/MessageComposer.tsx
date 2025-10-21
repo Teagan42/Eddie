@@ -61,6 +61,8 @@ export function MessageComposer({
   const hintMessage = disabled ? "Sending in progress..." : "Press Alt+Enter or click Send";
   const isSubmitDisabled = disabled || submitDisabled;
   const hintClassName = disabled ? HINT_DISABLED_CLASS : HINT_ACTIVE_CLASS;
+  const formAriaDisabled = disabled ? "true" : undefined;
+  const submitAriaDisabled = isSubmitDisabled ? "true" : undefined;
 
   const submitForm = (form: HTMLFormElement) => {
     if (typeof form.requestSubmit === "function") {
@@ -101,7 +103,11 @@ export function MessageComposer({
   };
 
   return (
-    <form onSubmit={onSubmit} className={COMPOSER_FORM_CLASS}>
+    <form
+      onSubmit={onSubmit}
+      className={COMPOSER_FORM_CLASS}
+      aria-disabled={formAriaDisabled}
+    >
       {COMPOSER_GLOW_CLASSES.map((className, index) => (
         <span key={index} className={className} />
       ))}
@@ -126,6 +132,7 @@ export function MessageComposer({
             type="submit"
             size="3"
             disabled={isSubmitDisabled}
+            aria-disabled={submitAriaDisabled}
             className={CTA_BUTTON_CLASS}
           >
             <span className={CTA_SHINE_CLASS} />
