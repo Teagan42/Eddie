@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   useInfiniteQuery,
   useMutation,
@@ -12,46 +12,32 @@ import {
   Button,
   Flex,
   Grid,
-  Heading,
   ScrollArea,
   Select,
   Separator,
   Text,
-  TextField,
   Skeleton,
 } from '@radix-ui/themes';
-import { ArrowUpRight, KeyRound, Sparkles, Waves } from 'lucide-react';
-import { PaperPlaneIcon, PlusIcon, ReloadIcon } from '@radix-ui/react-icons';
+import { ReloadIcon } from '@radix-ui/react-icons';
 import { Panel } from "@eddie/ui";
-import { ChatSessionsPanel } from "@eddie/ui/chat";
-import { OverviewAuthPanel } from "@eddie/ui/overview";
+import {
+  AVAILABLE_THEMES,
+  OverviewAuthPanel,
+  OverviewHero,
+  OverviewStatsGrid,
+  SessionsList,
+  formatThemeLabel,
+} from "@eddie/ui/overview";
 import { useAuth } from '@/auth/auth-context';
 import { useApi } from '@/api/api-provider';
-import { AVAILABLE_THEMES, formatThemeLabel } from '@eddie/ui/overview';
 import { useTheme } from '@/theme';
 import { cn } from '@/vendor/lib/utils';
-import { OverviewHero } from './components';
 import { useChatSessionEvents, useOverviewStats } from './hooks';
 import type {
-  ChatMessageDto,
-  ChatSessionDto,
-  CreateChatMessageDto,
-  CreateChatSessionDto,
   LogEntryDto,
   RuntimeConfigDto,
 } from '@eddie/api-client';
-
-type StatItem = {
-  label: string;
-  value: number;
-  hint: string;
-  icon: ComponentType<{ className?: string }>;
-};
-
-interface SessionFormState {
-  title: string;
-  description: string;
-}
+import { mapChatSessionDtos } from "./overview-mappers";
 
 const LOGS_PAGE_SIZE = 50;
 const MAX_LOG_PAGES = 4;
@@ -74,9 +60,7 @@ export function OverviewPage(): JSX.Element {
   const { apiKey, setApiKey } = useAuth();
   const api = useApi();
   const queryClient = useQueryClient();
-  const [newSessionTitle, setNewSessionTitle] = useState<string>('');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-  const [messageDraft, setMessageDraft] = useState<string>('');
 
   const sessionsQuery = useQuery({
     queryKey: ['chat-sessions'],
@@ -141,17 +125,13 @@ export function OverviewPage(): JSX.Element {
     queryFn: () => api.http.config.get(),
   });
 
-  const messagesQuery = useQuery({
-    queryKey: ['chat-sessions', selectedSessionId, 'messages'],
-    enabled: Boolean(selectedSessionId),
-    queryFn: () =>
-      selectedSessionId
-        ? api.http.chatSessions.listMessages(selectedSessionId)
-        : Promise.resolve([]),
-  });
+  const sessionSummaries = useMemo(
+    () => mapChatSessionDtos(sessionsQuery.data) ?? [],
+    [sessionsQuery.data],
+  );
 
   const stats = useOverviewStats({
-    sessionCount: sessionsQuery.data?.length,
+    sessionCount: sessionSummaries.length,
     traceCount: tracesQuery.data?.length,
     logCount,
   });
@@ -189,10 +169,10 @@ export function OverviewPage(): JSX.Element {
   );
 
   useEffect(() => {
-    if (!selectedSessionId && sessionsQuery.data?.length) {
-      setSelectedSessionId(sessionsQuery.data[0]?.id ?? null);
+    if (!selectedSessionId && sessionSummaries.length) {
+      setSelectedSessionId(sessionSummaries[0]?.id ?? null);
     }
-  }, [sessionsQuery.data, selectedSessionId]);
+  }, [sessionSummaries, selectedSessionId]);
 
   useChatSessionEvents({
     api,
@@ -207,27 +187,6 @@ export function OverviewPage(): JSX.Element {
       observerRef.current?.disconnect();
     };
   }, [logs.length, updateObserver]);
-
-  const createSessionMutation = useMutation({
-    mutationFn: (input: CreateChatSessionDto) => api.http.chatSessions.create(input),
-    onSuccess: (session) => {
-      setNewSessionTitle('');
-      setSelectedSessionId(session.id);
-      queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
-    },
-  });
-
-  const createMessageMutation = useMutation({
-    mutationFn: async (input: { sessionId: string; body: CreateChatMessageDto }) => {
-      await api.http.chatSessions.createMessage(input.sessionId, input.body);
-    },
-    onSuccess: (_, variables) => {
-      setMessageDraft('');
-      queryClient.invalidateQueries({
-        queryKey: ['chat-sessions', variables.sessionId, 'messages'],
-      });
-    },
-  });
 
   const emitLogMutation = useMutation({
     mutationFn: () => api.http.logs.emit(),
@@ -254,37 +213,6 @@ export function OverviewPage(): JSX.Element {
   const codeTextClass = "font-mono text-[color:var(--overview-panel-code)]";
   const dividerClass = "border-[color:var(--overview-panel-divider)]";
 
-  const activeSession = useMemo<ChatSessionDto | null>(() => {
-    if (!selectedSessionId) {
-      return null;
-    }
-    return sessionsQuery.data?.find((session) => session.id === selectedSessionId) ?? null;
-  }, [selectedSessionId, sessionsQuery.data]);
-
-  const handleCreateSession = (event: FormEvent<HTMLFormElement>): void => {
-    event.preventDefault();
-    if (!newSessionTitle.trim()) {
-      return;
-    }
-    createSessionMutation.mutate({
-      title: newSessionTitle.trim(),
-      description: undefined,
-    });
-  };
-
-  const handleSendMessage = (): void => {
-    if (!selectedSessionId || !messageDraft.trim()) {
-      return;
-    }
-    createMessageMutation.mutate({
-      sessionId: selectedSessionId,
-      body: {
-        role: 'user' as CreateChatMessageDto['role'],
-        content: messageDraft.trim(),
-      },
-    });
-  };
-
   const handleSelectTheme = (nextTheme: RuntimeConfigDto["theme"]): void => {
     setTheme(nextTheme);
   };
@@ -304,23 +232,19 @@ export function OverviewPage(): JSX.Element {
 
       <OverviewAuthPanel apiKey={apiKey} onApiKeyChange={setApiKey} />
 
+      <OverviewStatsGrid stats={stats} />
+
       <Grid columns={{ initial: '1', xl: '2' }} gap="6">
-        <ChatSessionsPanel
-          sessions={sessionsQuery.data}
-          selectedSessionId={selectedSessionId}
-          onSelectSession={setSelectedSessionId}
-          onCreateSession={handleCreateSession}
-          newSessionTitle={newSessionTitle}
-          onNewSessionTitleChange={setNewSessionTitle}
-          isCreatingSession={createSessionMutation.isPending}
-          activeSession={activeSession}
-          messages={messagesQuery.data}
-          isMessagesLoading={messagesQuery.isLoading}
-          onSubmitMessage={handleSendMessage}
-          messageDraft={messageDraft}
-          onMessageDraftChange={setMessageDraft}
-          isMessagePending={createMessageMutation.isPending}
-        />
+        <Panel
+          title="Recent Sessions"
+          description="A quick glance at your latest assistant conversations"
+        >
+          <SessionsList
+            sessions={sessionSummaries}
+            selectedSessionId={selectedSessionId}
+            onSelectSession={setSelectedSessionId}
+          />
+        </Panel>
 
         <Panel title="Traces" description="Real-time observability into orchestrated workloads">
           {tracesQuery.isLoading ? (

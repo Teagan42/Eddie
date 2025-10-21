@@ -1,15 +1,47 @@
 import { describe, expect, it, vi } from "vitest";
+import { createElement, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 
-import { OverviewPage } from "../../src/overview";
+import { OverviewPage } from "../../../../apps/web/src/pages/OverviewPage";
 import { AVAILABLE_THEMES, ThemeProvider } from "../../src/overview/theme";
 
-vi.mock("../../src/overview/auth", () => ({
+vi.mock("@/auth/auth-context", () => ({
   useAuth: () => ({ apiKey: "test", setApiKey: vi.fn() }),
-}));
+}), { virtual: true });
+
+vi.mock("@eddie/ui", () => ({
+  Panel: ({ children }: { children?: ReactNode }) => createElement("div", null, children),
+}), { virtual: true });
+
+vi.mock("@eddie/ui/chat", () => ({
+  ChatSessionsPanel: () => null,
+}), { virtual: true });
+
+const MOCK_THEMES = vi.hoisted(() => [
+  { id: "midnight", name: "Midnight" },
+  { id: "aurora", name: "Aurora" },
+]);
+
+vi.mock("@eddie/ui/overview", () => ({
+  OverviewHero: () => null,
+  OverviewAuthPanel: () => null,
+  OverviewStatsGrid: () => null,
+  SessionsList: () => null,
+  AVAILABLE_THEMES: MOCK_THEMES,
+  formatThemeLabel: (theme: string) => theme,
+}), { virtual: true });
+
+vi.mock("@/vendor/lib/utils", () => ({
+  cn: (...values: string[]) => values.filter(Boolean).join(" "),
+}), { virtual: true });
+
+vi.mock("@/theme", () => ({
+  useTheme: () => ({ theme: MOCK_THEMES[0]?.id ?? "midnight", setTheme: vi.fn(), isThemeStale: false }),
+}), { virtual: true });
+
 
 type LogsListCall = { offset: number; limit: number } | undefined;
 
@@ -27,8 +59,8 @@ const logsList = vi
 const registerLogListener = vi.fn();
 const registerMessageUpdated = vi.fn().mockReturnValue(() => {});
 
-vi.mock("../../src/overview/api", () => ({
-  useOverviewApi: () => ({
+vi.mock("@/api/api-provider", () => ({
+  useApi: () => ({
     http: {
       chatSessions: {
         list: vi.fn().mockResolvedValue([]),
@@ -92,7 +124,7 @@ vi.mock("../../src/overview/api", () => ({
       },
     },
   }),
-}));
+}), { virtual: true });
 
 class ResizeObserverMock {
   observe(): void {}
@@ -159,7 +191,9 @@ function renderOverview(): {
       if (!handler) {
         throw new Error("Log listener not registered");
       }
-      handler(entry);
+      act(() => {
+        handler?.(entry);
+      });
     },
   };
 }
@@ -187,14 +221,35 @@ describe("OverviewPage log updates", () => {
     }
   });
 
+  it("registers the log listener before exposing the emit helper", async () => {
+    const { emitLog } = renderOverview();
+
+    await waitFor(() => {
+      expect(registerLogListener).toHaveBeenCalled();
+    });
+
+    expect(() =>
+      emitLog({
+        id: "log-setup",
+        message: "listener should be ready",
+        level: "info",
+        createdAt: new Date().toISOString(),
+      }),
+    ).not.toThrow();
+  });
+
   it("renders live log entries streamed from the socket", async () => {
     const { emitLog } = renderOverview();
+
+    await waitFor(() => {
+      expect(registerLogListener).toHaveBeenCalled();
+    });
 
     emitLog({
       id: "log-1",
       message: "Agent completed task",
       level: "info",
-      timestamp: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
     });
 
     await waitFor(() => {
@@ -206,19 +261,24 @@ describe("OverviewPage log updates", () => {
     const user = userEvent.setup();
     const { emitLog } = renderOverview();
 
+    await waitFor(() => {
+      expect(registerLogListener).toHaveBeenCalled();
+    });
+
     emitLog({
       id: "log-1",
       message: "Agent completed task",
       level: "info",
-      timestamp: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
     });
 
     await waitFor(() => {
       expect(screen.getByText("Agent completed task")).toBeInTheDocument();
     });
 
-    const list = screen.getByRole("list", { name: /system logs/i });
-    const lastItem = within(list).getAllByRole("listitem").at(-1);
+    const list = screen.getByTestId("logs-scroll-area");
+    const entries = within(list).getAllByTestId("log-entry");
+    const lastItem = entries.at(-1);
     expect(lastItem).toBeTruthy();
 
     const observer = intersectionObservers.at(-1);

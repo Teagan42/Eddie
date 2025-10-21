@@ -1,5 +1,6 @@
 import { Box, Flex, Heading, ScrollArea, Text, Theme } from "@radix-ui/themes";
-import type { JSX } from "react";
+import { forwardRef } from "react";
+import type { ComponentPropsWithoutRef, JSX } from "react";
 
 import { AgentExecutionTree } from "./AgentExecutionTree";
 import type { AgentExecutionTreeProps } from "./AgentExecutionTree";
@@ -16,7 +17,9 @@ const AGENT_TOOLS_DESCRIPTION =
 const AGENT_TOOLS_DRAWER_TITLE = "Agent tools";
 const AGENT_EXECUTION_TITLE = "Agent execution";
 
-export interface AgentToolsDrawerProps {
+type SectionProps = Omit<ComponentPropsWithoutRef<"section">, "children">;
+
+export interface AgentToolsDrawerProps extends SectionProps {
   readonly executionTreeState: ExecutionTreeState | null | undefined;
   readonly selectedAgentId: AgentExecutionTreeProps["selectedAgentId"];
   readonly onSelectAgent: AgentExecutionTreeProps["onSelectAgent"];
@@ -28,36 +31,55 @@ export interface AgentToolsDrawerProps {
   readonly onToggleContextPanel: ContextBundlesPanelProps["onToggle"];
 }
 
-export function AgentToolsDrawer({
-  executionTreeState,
-  selectedAgentId,
-  onSelectAgent,
-  focusedToolInvocationId,
-  onFocusToolInvocation,
-  contextPanelId,
-  contextBundles,
-  isContextPanelCollapsed,
-  onToggleContextPanel,
-}: AgentToolsDrawerProps): JSX.Element {
-  const themeName = useThemeNameOrFallback();
-  const accentColor = isDarkTheme(themeName) ? "iris" : "jade";
-  const appearance = isDarkTheme(themeName) ? "dark" : "light";
-  const titleId = "agent-tools-drawer-title";
-  const descriptionId = "agent-tools-drawer-description";
+export const AgentToolsDrawer = forwardRef<HTMLElement, AgentToolsDrawerProps>(
+  function AgentToolsDrawer(
+    {
+      executionTreeState,
+      selectedAgentId,
+      onSelectAgent,
+      focusedToolInvocationId,
+      onFocusToolInvocation,
+      contextPanelId,
+      contextBundles,
+      isContextPanelCollapsed,
+      onToggleContextPanel,
+      className,
+      ...sectionProps
+    },
+    forwardedRef,
+  ): JSX.Element {
+    const {
+      role,
+      ["aria-modal"]: ariaModal,
+      ["aria-labelledby"]: ariaLabelledby,
+      ["aria-describedby"]: ariaDescribedby,
+      ...restSectionProps
+    } = sectionProps;
+    const themeName = useThemeNameOrFallback();
+    const accentColor = isDarkTheme(themeName) ? "iris" : "jade";
+    const appearance = isDarkTheme(themeName) ? "dark" : "light";
+    const titleId = ariaLabelledby ?? "agent-tools-drawer-title";
+    const descriptionId = ariaDescribedby ?? "agent-tools-drawer-description";
+    const baseClassName =
+      "flex h-full w-full flex-col border-l border-white/10 bg-slate-950/95 text-white sm:max-w-xl md:max-w-2xl lg:max-w-3xl";
+    const mergedClassName =
+      className && className.length > 0 ? `${baseClassName} ${className}` : baseClassName;
 
-  return (
-    <Theme appearance={appearance} accentColor={accentColor} radius="large" asChild>
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={descriptionId}
-        className="flex h-full w-full flex-col border-l border-white/10 bg-slate-950/95 text-white sm:max-w-xl md:max-w-2xl lg:max-w-3xl"
-      >
-        <header className="space-y-2 text-left">
-          <Heading as="h2" id={titleId} size="6" className="text-white">
-            {AGENT_TOOLS_DRAWER_TITLE}
-          </Heading>
+    return (
+      <Theme appearance={appearance} accentColor={accentColor} radius="large" asChild>
+        <section
+          {...restSectionProps}
+          ref={forwardedRef}
+          role={role ?? "dialog"}
+          aria-modal={ariaModal ?? true}
+          aria-labelledby={titleId}
+          aria-describedby={descriptionId}
+          className={mergedClassName}
+        >
+          <header className="space-y-2 text-left">
+            <Heading as="h2" id={titleId} size="6" className="text-white">
+              {AGENT_TOOLS_DRAWER_TITLE}
+            </Heading>
           <p id={descriptionId} className="text-sm text-slate-200/80">
             {AGENT_TOOLS_DESCRIPTION}
           </p>
@@ -86,11 +108,12 @@ export function AgentToolsDrawer({
               onToggle={onToggleContextPanel}
             />
           </Flex>
-        </ScrollArea>
-      </section>
-    </Theme>
-  );
-}
+          </ScrollArea>
+        </section>
+      </Theme>
+    );
+  },
+);
 
 function useThemeNameOrFallback(): OverviewTheme["id"] {
   try {
