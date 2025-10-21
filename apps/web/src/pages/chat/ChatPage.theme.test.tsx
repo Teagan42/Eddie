@@ -2,7 +2,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatPageRenderer } from "./test-utils";
-import { CollapsiblePanel } from "./components/CollapsiblePanel";
+import { CollapsiblePanel } from "@eddie/ui/chat";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 
 type ChatMessageDto = {

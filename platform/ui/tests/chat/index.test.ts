@@ -46,6 +46,28 @@ describe("chat types", () => {
     expectTypeOf<SessionSelectorProps>().toMatchTypeOf<object>();
   });
 
+  it("describes the collapsible panel contract without UI dependencies", () => {
+    type Expected = {
+      id: string;
+      title: string;
+      description?: string;
+      collapsed: boolean;
+      onToggle: (id: string, collapsed: boolean) => void;
+    };
+
+    expectTypeOf<CollapsiblePanelProps>().toMatchTypeOf<Expected>();
+    expectTypeOf<Expected>().toMatchTypeOf<CollapsiblePanelProps>();
+    expectTypeOf<keyof CollapsiblePanelProps>().toEqualTypeOf<keyof Expected>();
+    expectTypeOf<Extract<keyof CollapsiblePanelProps, "children">>().toEqualTypeOf<never>();
+    expectTypeOf<CollapsiblePanelProps["id"]>().toEqualTypeOf<string>();
+    expectTypeOf<CollapsiblePanelProps["title"]>().toEqualTypeOf<string>();
+    expectTypeOf<CollapsiblePanelProps["description"]>().toEqualTypeOf<string | undefined>();
+    expectTypeOf<CollapsiblePanelProps["collapsed"]>().toEqualTypeOf<boolean>();
+    expectTypeOf<CollapsiblePanelProps["onToggle"]>().toEqualTypeOf<
+      (id: string, collapsed: boolean) => void
+    >();
+  });
+
   it("exposes composer role union for chat window", () => {
     expectTypeOf<ChatWindowComposerRole>().toEqualTypeOf<"user" | "system">();
   });

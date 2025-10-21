@@ -5,7 +5,7 @@ import type {
   OrchestratorContextBundleDto,
   OrchestratorContextBundleFileDto,
 } from '@eddie/api-client';
-import { CollapsiblePanel } from './CollapsiblePanel';
+import { CollapsiblePanel } from '@eddie/ui/chat';
 
 type ContextBundleWithFiles = OrchestratorContextBundleDto & {
   files?: OrchestratorContextBundleFileDto[];
