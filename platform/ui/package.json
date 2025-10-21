@@ -7,8 +7,19 @@
   "types": "dist/types/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    },
+    "./overview": {
+      "types": "./dist/types/overview/index.d.ts",
+      "import": "./dist/esm/overview/index.js",
+      "require": "./dist/cjs/overview/index.js"
+    },
+    "./chat": {
+      "types": "./dist/types/chat/index.d.ts",
+      "import": "./dist/esm/chat/index.js",
+      "require": "./dist/cjs/chat/index.js"
     }
   },
   "peerDependencies": {

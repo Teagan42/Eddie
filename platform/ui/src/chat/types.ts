@@ -129,6 +129,7 @@ export const CONTEXT_UPDATE_SOURCE_TYPES = [
   "tool_call",
   "tool_result",
   "spawn_subagent",
+  "session_file",
 ] as const;
 
 export type ContextUpdateSourceType =
@@ -161,6 +162,8 @@ export interface ExecutionToolInvocationNode {
   createdAt?: string;
   updatedAt?: string;
   metadata?: Record<string, unknown>;
+  args?: unknown;
+  result?: unknown;
   children: ExecutionToolInvocationNode[];
 }
 

@@ -23,6 +23,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ComponentProps,
   type KeyboardEvent,
 } from "react";
 
@@ -57,6 +58,12 @@ const visuallyHiddenStyles: CSSProperties = {
 
 const indicatorTransitionStyle =
   "transform 300ms ease, width 300ms ease, height 300ms ease";
+
+type DropdownMenuTriggerComponent = (
+  props: ComponentProps<typeof DropdownMenu.Trigger> & { asChild?: boolean },
+) => JSX.Element;
+
+const DropdownMenuTrigger = DropdownMenu.Trigger as unknown as DropdownMenuTriggerComponent;
 
 function createMetricsSignature(
   metrics: SessionSelectorMetricsSummary | undefined,
@@ -478,7 +485,7 @@ export function SessionSelector({
           </Flex>
         </Button>
         <DropdownMenu.Root modal={false}>
-          <DropdownMenu.Trigger asChild>
+          <DropdownMenuTrigger asChild>
             <IconButton
               variant="ghost"
               color="gray"
@@ -488,7 +495,7 @@ export function SessionSelector({
             >
               <DotsHorizontalIcon />
             </IconButton>
-          </DropdownMenu.Trigger>
+          </DropdownMenuTrigger>
           <DropdownMenu.Content align="end">
             <DropdownMenu.Item onSelect={() => onRenameSession(session.id)}>
               Rename session
