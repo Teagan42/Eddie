@@ -1,27 +1,28 @@
-import type { ReactNode } from 'react';
-import { Box, Flex, Heading, IconButton, Text, Tooltip } from '@radix-ui/themes';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDownIcon, ChevronRightIcon } from '@radix-ui/react-icons';
-
+import type { PropsWithChildren } from "react";
+import { Box, Flex, Heading, IconButton, Text, Tooltip } from "@radix-ui/themes";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronDownIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import {
-  Collapsible,
+  Root as CollapsibleRoot,
   CollapsibleContent,
   CollapsibleTrigger,
-} from '@/vendor/components/ui/collapsible';
+} from "@radix-ui/react-collapsible";
+
+import type { CollapsiblePanelProps } from "./CollapsiblePanel.types";
 
 const SIDEBAR_PANEL_CLASS =
-  'relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-sky-500/12 via-slate-900/70 to-slate-900/40 shadow-[0_35px_65px_-45px_rgba(56,189,248,0.55)] backdrop-blur-xl';
+  "relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-sky-500/12 via-slate-900/70 to-slate-900/40 shadow-[0_35px_65px_-45px_rgba(56,189,248,0.55)] backdrop-blur-xl";
 
 const COLLAPSIBLE_CONTENT_VARIANTS = {
   open: {
     opacity: 1,
-    height: 'auto',
-    filter: 'blur(0px)',
+    height: "auto",
+    filter: "blur(0px)",
   },
   collapsed: {
     opacity: 0,
     height: 0,
-    filter: 'blur(6px)',
+    filter: "blur(6px)",
   },
 } as const;
 
@@ -30,16 +31,9 @@ const COLLAPSIBLE_CONTENT_TRANSITION = {
   ease: [0.22, 1, 0.36, 1],
 } as const;
 
-const COLLAPSIBLE_CONTENT_CLASS = 'grid overflow-hidden text-sm text-slate-200/90';
+const COLLAPSIBLE_CONTENT_CLASS = "grid overflow-hidden text-sm text-slate-200/90";
 
-export interface CollapsiblePanelProps {
-  id: string;
-  title: string;
-  description?: string;
-  collapsed: boolean;
-  onToggle: (id: string, collapsed: boolean) => void;
-  children: ReactNode;
-}
+type CollapsiblePanelComponentProps = PropsWithChildren<CollapsiblePanelProps>;
 
 export function CollapsiblePanel({
   id,
@@ -48,11 +42,15 @@ export function CollapsiblePanel({
   collapsed,
   onToggle,
   children,
-}: CollapsiblePanelProps): JSX.Element {
-  const shouldRenderContent = !collapsed;
+}: CollapsiblePanelComponentProps): JSX.Element {
+  const isExpanded = !collapsed;
   const contentKey = `${id}-collapsible`;
+  const tooltipLabel = collapsed ? "Expand" : "Collapse";
+  const actionLabel = collapsed ? "Expand panel" : "Collapse panel";
+  const toggleIcon = collapsed ? <ChevronRightIcon /> : <ChevronDownIcon />;
+
   return (
-    <Collapsible
+    <CollapsibleRoot
       asChild
       open={!collapsed}
       onOpenChange={(isOpen) => onToggle(id, !isOpen)}
@@ -69,21 +67,21 @@ export function CollapsiblePanel({
               </Text>
             ) : null}
           </Box>
-          <Tooltip content={collapsed ? 'Expand' : 'Collapse'}>
+          <Tooltip content={tooltipLabel}>
             <CollapsibleTrigger asChild>
               <IconButton
                 variant="solid"
                 size="2"
-                aria-label={collapsed ? 'Expand panel' : 'Collapse panel'}
+                aria-label={actionLabel}
               >
-                {collapsed ? <ChevronRightIcon /> : <ChevronDownIcon />}
+                {toggleIcon}
               </IconButton>
             </CollapsibleTrigger>
           </Tooltip>
         </Flex>
         <CollapsibleContent forceMount>
           <AnimatePresence initial={false}>
-            {shouldRenderContent ? (
+            {isExpanded ? (
               <motion.div
                 key={contentKey}
                 data-testid="collapsible-panel-motion"
@@ -101,6 +99,6 @@ export function CollapsiblePanel({
           </AnimatePresence>
         </CollapsibleContent>
       </section>
-    </Collapsible>
+    </CollapsibleRoot>
   );
 }
