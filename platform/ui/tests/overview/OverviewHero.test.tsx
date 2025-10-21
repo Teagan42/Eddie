@@ -11,8 +11,13 @@ import {
   isDarkTheme,
   useTheme,
 } from "../../src/overview/theme";
+import type { OverviewTheme } from "../../src/overview/types";
 
-let initialTheme: OverviewHeroProps["theme"] = "light";
+const THEMES_BY_ID = new Map<OverviewTheme["id"], OverviewTheme>(
+  AVAILABLE_THEMES.map((theme) => [theme.id, theme]),
+);
+
+let initialTheme: OverviewHeroProps["theme"] = THEMES_BY_ID.get("light")?.id ?? AVAILABLE_THEMES[0]?.id ?? "light";
 
 vi.mock("../../src/overview/api", () => ({
   useOverviewApi: () => ({
@@ -40,6 +45,7 @@ function ThemeHarness(): JSX.Element {
         theme={theme}
         onSelectTheme={handleSelectTheme}
         isThemeSelectorDisabled={isThemeStale}
+        themes={AVAILABLE_THEMES}
         stats={[
           {
             label: "Stat",
@@ -60,9 +66,13 @@ describe("OverviewHero", () => {
     user: ReturnType<typeof userEvent.setup>,
     theme: OverviewHeroProps["theme"],
   ): Promise<void> {
+    const themeDetails = THEMES_BY_ID.get(theme);
+    if (!themeDetails) {
+      throw new Error(`Missing theme metadata for ${theme}`);
+    }
     const trigger = await screen.findByRole("combobox", { name: /theme/i });
     await user.click(trigger);
-    const option = await screen.findByRole("option", { name: new RegExp(theme, "i") });
+    const option = await screen.findByRole("option", { name: new RegExp(themeDetails.name, "i") });
     await user.click(option);
   }
 
@@ -78,18 +88,19 @@ describe("OverviewHero", () => {
       </QueryClientProvider>,
     );
 
-    await waitFor(() => expect(document.documentElement.dataset.theme).toBe(AVAILABLE_THEMES[0]));
+    await waitFor(() => expect(document.documentElement.dataset.theme).toBe(AVAILABLE_THEMES[0]?.id));
 
     const trigger = await screen.findByRole("combobox", { name: /theme/i });
     expect(trigger).toHaveAttribute("aria-expanded", "false");
 
     for (const nextTheme of AVAILABLE_THEMES) {
-      await chooseTheme(user, nextTheme);
-      await waitFor(() => expect(document.documentElement.dataset.theme).toBe(nextTheme));
-      expect(document.documentElement.classList.contains("dark")).toBe(isDarkTheme(nextTheme));
+      await chooseTheme(user, nextTheme.id);
+      await waitFor(() => expect(document.documentElement.dataset.theme).toBe(nextTheme.id));
+      expect(document.documentElement.classList.contains("dark")).toBe(isDarkTheme(nextTheme.id));
     }
 
-    expect(trigger).toHaveTextContent(new RegExp(AVAILABLE_THEMES.at(-1) ?? "", "i"));
+    const lastTheme = AVAILABLE_THEMES.at(-1);
+    expect(trigger).toHaveTextContent(new RegExp(lastTheme?.name ?? "", "i"));
 
     queryClient.clear();
   });
