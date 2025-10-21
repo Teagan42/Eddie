@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761044817193,
+  "lastUpdate": 1761052334769,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -1214,6 +1214,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 24.159,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d7c3e1da894ff3edc5026542b9d8523fc56ecf7e",
+          "message": "Fix template path resolution for absolute descriptors (#705)\n\n* refactor(templates): streamline base path assembly\n\n* refactor(api): share coverage thresholds constant",
+          "timestamp": "2025-10-21T07:01:27-06:00",
+          "tree_id": "924722d0f485733cb7d2f597b1b115f263d366de",
+          "url": "https://github.com/Teagan42/Eddie/commit/d7c3e1da894ff3edc5026542b9d8523fc56ecf7e"
+        },
+        "date": 1761052334376,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 48.644,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 32.472,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 24.14,
             "unit": "ms",
             "extra": "[object Object]"
           }
