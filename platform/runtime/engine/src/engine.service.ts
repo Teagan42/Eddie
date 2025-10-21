@@ -123,7 +123,8 @@ export class EngineService {
       const tracePath = this.resolveTracePath(
         cfg.output?.jsonlTrace,
         sessionId,
-        runStartedAt
+        runStartedAt,
+        projectDir
       );
 
       session = {
@@ -647,13 +648,17 @@ export class EngineService {
   private resolveTracePath(
     configuredPath: string | undefined,
     sessionId: string,
-    runStartedAt: number
+    runStartedAt: number,
+    projectDir: string
   ): string | undefined {
     if (!configuredPath) {
       return undefined;
     }
 
-    const resolved = path.resolve(configuredPath);
+    const resolved = path.resolve(
+      this.resolveTraceBaseDir(projectDir),
+      configuredPath
+    );
     const hasJsonlExtension =
       path.extname(resolved).toLowerCase() === ".jsonl";
     const directory = hasJsonlExtension
@@ -665,6 +670,11 @@ export class EngineService {
       .replace(/:/g, "-");
 
     return path.join(directory, `${timestamp}_${sessionId}.jsonl`);
+  }
+
+  private resolveTraceBaseDir(projectDir: string): string {
+    const trimmed = projectDir.trim();
+    return trimmed.length > 0 ? trimmed : process.cwd();
   }
 
   private serializeError(error: unknown): {
