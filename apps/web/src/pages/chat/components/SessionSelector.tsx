@@ -19,6 +19,12 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { clsx } from 'clsx';
+import {
+  Tabs as TabsRoot,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/vendor/components/ui/tabs';
 
 export const SESSION_TABLIST_ARIA_LABEL = 'Chat sessions';
 
@@ -49,6 +55,13 @@ const visuallyHiddenStyles: CSSProperties = {
 
 const indicatorTransitionStyle =
   'transform 300ms ease, width 300ms ease, height 300ms ease';
+
+type SessionCategory = 'active' | 'archived';
+
+const CATEGORY_LABELS: Record<SessionCategory, string> = {
+  active: 'Active',
+  archived: 'Archived',
+};
 
 function createMetricsSignature(metrics: SessionSelectorMetricsSummary | undefined): string {
   if (!metrics) {
@@ -111,7 +124,96 @@ export function SessionSelector({
   const [highlightedSessionId, setHighlightedSessionId] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const listId = useId();
-  const sessionIds = useMemo(() => sessions.map((session) => session.id), [sessions]);
+  const sessionsByCategory = useMemo(() => {
+    const grouped: Record<SessionCategory, SessionSelectorSession[]> = {
+      active: [],
+      archived: [],
+    };
+
+    sessions.forEach((session) => {
+      if (session.status === 'archived') {
+        grouped.archived.push(session);
+      } else {
+        grouped.active.push(session);
+      }
+    });
+
+    return grouped;
+  }, [sessions]);
+
+  const hasArchivedSessions = sessionsByCategory.archived.length > 0;
+
+  const categoryDefinitions = useMemo(
+    () => [
+      {
+        id: 'active' as const,
+        label: CATEGORY_LABELS.active,
+      },
+      ...(hasArchivedSessions
+        ? [
+          {
+            id: 'archived' as const,
+            label: CATEGORY_LABELS.archived,
+          },
+        ]
+        : []),
+    ],
+    [hasArchivedSessions],
+  );
+
+  const isArchivedSelected = useMemo(() => {
+    const selected = sessions.find((session) => session.id === selectedSessionId);
+    return selected?.status === 'archived';
+  }, [sessions, selectedSessionId]);
+
+  const fallbackCategory = categoryDefinitions[0]?.id ?? 'active';
+
+  const [activeCategory, setActiveCategory] = useState<SessionCategory>(() => {
+    if (isArchivedSelected && hasArchivedSessions) {
+      return 'archived';
+    }
+    return fallbackCategory;
+  });
+
+  const previousArchivedSelectionRef = useRef(isArchivedSelected);
+
+  useEffect(() => {
+    const availableIds = new Set(categoryDefinitions.map((category) => category.id));
+    const fallback = availableIds.has(fallbackCategory) ? fallbackCategory : 'active';
+
+    if (!availableIds.has(activeCategory)) {
+      const next = availableIds.has('archived') ? 'archived' : fallback;
+      if (next !== activeCategory) {
+        setActiveCategory(next);
+      }
+    } else {
+      if (isArchivedSelected && activeCategory !== 'archived' && availableIds.has('archived')) {
+        setActiveCategory('archived');
+      } else {
+        const previouslyArchived = previousArchivedSelectionRef.current;
+
+        if (
+          previouslyArchived &&
+          !isArchivedSelected &&
+          activeCategory === 'archived' &&
+          (availableIds.has('active') || availableIds.has(fallback))
+        ) {
+          const next = availableIds.has('active') ? 'active' : fallback;
+          setActiveCategory(next);
+        }
+      }
+    }
+    previousArchivedSelectionRef.current = isArchivedSelected;
+  }, [categoryDefinitions, activeCategory, fallbackCategory, isArchivedSelected]);
+
+  const visibleSessions = useMemo(() => {
+    return sessionsByCategory[activeCategory] ?? [];
+  }, [sessionsByCategory, activeCategory]);
+
+  const sessionIds = useMemo(
+    () => visibleSessions.map((session) => session.id),
+    [visibleSessions],
+  );
   const sessionIdsSignature = useMemo(() => sessionIds.join('|'), [sessionIds]);
 
   const clearHighlightTimeout = useCallback(() => {
@@ -228,7 +330,7 @@ export function SessionSelector({
 
   useLayoutEffect(() => {
     updateIndicatorPosition();
-  }, [updateIndicatorPosition, sessionIdsSignature, isCollapsed]);
+  }, [updateIndicatorPosition, sessionIdsSignature, isCollapsed, activeCategory]);
 
   const focusSession = useCallback((sessionId: string) => {
     const trigger = tabTriggerRefs.current.get(sessionId);
@@ -291,7 +393,11 @@ export function SessionSelector({
   );
 
   const baseToggleLabel = isCollapsed ? 'Expand session list' : 'Collapse session list';
-  const sessionCountLabel = formatMetricCount(sessions.length, 'session', 'sessions');
+  const sessionCountLabel = formatMetricCount(
+    visibleSessions.length,
+    'session',
+    'sessions',
+  );
   const toggleLabel = sessionCountLabel
     ? `${baseToggleLabel} (${sessionCountLabel})`
     : baseToggleLabel;
@@ -454,8 +560,32 @@ export function SessionSelector({
   };
 
   return (
-    <Flex direction="column" gap="2" className="mt-4">
-      <Flex justify="end">
+    <TabsRoot
+      value={activeCategory}
+      onValueChange={(value) => setActiveCategory(value as SessionCategory)}
+      className="mt-4 flex flex-col gap-3"
+    >
+      <Flex align="center" justify="between" gap="3" wrap="wrap">
+        <TabsList
+          aria-label="Session categories"
+          className="inline-flex items-center gap-2 rounded-xl bg-[color:var(--slate-3)] p-1 text-[color:var(--slate-12)] dark:bg-[color:var(--slate-5)]"
+        >
+          {categoryDefinitions.map((category) => (
+            <TabsTrigger
+              key={category.id}
+              value={category.id}
+              className="rounded-lg px-3 py-1 text-sm font-medium transition-colors data-[state=active]:bg-[color:var(--jade-4)] data-[state=active]:text-[color:var(--jade-12)]"
+            >
+              <Flex align="center" gap="2">
+                <span>{category.label}</span>
+                <Badge variant="soft" color="gray" aria-hidden="true">
+                  {sessionsByCategory[category.id]?.length ?? 0}
+                </Badge>
+              </Flex>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
         <Button
           variant="ghost"
           size="1"
@@ -470,41 +600,49 @@ export function SessionSelector({
         </Button>
       </Flex>
 
-      {isCollapsed ? null : (
-        <ScrollArea type="always" className="max-h-40" id={listId}>
-          {sessions.length === 0 ? (
-            <Text size="2" color="gray">
-              No sessions yet.
-            </Text>
-          ) : (
-            <div className="relative">
-              <Flex
-                ref={tabListRef}
-                role="tablist"
-                aria-orientation="horizontal"
-                aria-label={SESSION_TABLIST_ARIA_LABEL}
-                gap="2"
-                wrap="wrap"
-                className="relative"
-                data-testid="session-tablist"
-              >
-                <span
-                  ref={indicatorRef}
-                  data-testid="session-tab-indicator"
-                  data-animated="true"
-                  className="pointer-events-none absolute z-0 rounded-lg bg-[var(--jade-4)] transition-transform duration-300 ease-out"
-                  style={{
-                    transition: indicatorTransitionStyle,
-                    transform: 'translate3d(0, 0, 0)',
-                    opacity: 0,
-                  }}
-                />
-                {sessions.map(renderSession)}
-              </Flex>
-            </div>
-          )}
-        </ScrollArea>
-      )}
-    </Flex>
+      {categoryDefinitions.map((category) => {
+        const categorySessions = sessionsByCategory[category.id] ?? [];
+
+        return (
+          <TabsContent key={category.id} value={category.id} className="mt-1 outline-none">
+            {isCollapsed ? null : (
+              <ScrollArea type="always" className="max-h-40" id={listId}>
+                {categorySessions.length === 0 ? (
+                  <Text size="2" color="gray">
+                    No sessions in this category yet.
+                  </Text>
+                ) : (
+                  <div className="relative">
+                    <Flex
+                      ref={tabListRef}
+                      role="tablist"
+                      aria-orientation="horizontal"
+                      aria-label={SESSION_TABLIST_ARIA_LABEL}
+                      gap="2"
+                      wrap="wrap"
+                      className="relative"
+                      data-testid="session-tablist"
+                    >
+                      <span
+                        ref={indicatorRef}
+                        data-testid="session-tab-indicator"
+                        data-animated="true"
+                        className="pointer-events-none absolute z-0 rounded-lg bg-[var(--jade-4)] transition-transform duration-300 ease-out"
+                        style={{
+                          transition: indicatorTransitionStyle,
+                          transform: 'translate3d(0, 0, 0)',
+                          opacity: 0,
+                        }}
+                      />
+                      {categorySessions.map(renderSession)}
+                    </Flex>
+                  </div>
+                )}
+              </ScrollArea>
+            )}
+          </TabsContent>
+        );
+      })}
+    </TabsRoot>
   );
 }

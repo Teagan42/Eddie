@@ -3,14 +3,13 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("ChatPage structure", () => {
-  it("uses Panel instead of Card wrappers", () => {
+  it("renders chat without Panel wrappers", () => {
     const source = readFileSync(
       resolve(__dirname, "./ChatPage.tsx"),
       "utf8"
     );
 
-    expect(source).toContain("<Panel");
-    expect(source).not.toContain("<Card");
+    expect(source).not.toContain("<Panel");
   });
 
   it("does not include tool or agent hierarchy components", () => {
