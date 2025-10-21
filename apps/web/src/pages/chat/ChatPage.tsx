@@ -5,7 +5,7 @@ import {
   MagicWandIcon,
   PlusIcon,
 } from '@radix-ui/react-icons';
-import { type AgentActivityState } from './AgentActivityIndicator';
+import { type AgentActivityState } from '@eddie/ui/chat';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ChatMessageDto,

@@ -1,9 +1,11 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, expectTypeOf } from "vitest";
+
 import {
   AgentActivityIndicator,
   type AgentActivityIndicatorProps,
-} from "./AgentActivityIndicator";
+  type AgentActivityState,
+} from "../../src/chat";
 
 const renderIndicator = (state: AgentActivityIndicatorProps["state"]) =>
   render(<AgentActivityIndicator state={state} />);
@@ -24,10 +26,21 @@ describe("AgentActivityIndicator", () => {
   });
 
   it("renders tool error messaging", () => {
-    renderIndicator('tool-error' as AgentActivityIndicatorProps["state"]);
+    renderIndicator("tool-error");
 
     expect(
       screen.getByRole("status", { name: /tool invocation failed/i })
     ).toBeInTheDocument();
+  });
+
+  it("exposes the agent activity state union", () => {
+    expectTypeOf<AgentActivityState>().toEqualTypeOf<
+      | "idle"
+      | "sending"
+      | "thinking"
+      | "tool"
+      | "tool-error"
+      | "error"
+    >();
   });
 });
