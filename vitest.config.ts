@@ -31,15 +31,15 @@ export default defineConfig({
   test: {
     projects: [
       {
+        root: ".",
         test: {
-          root: ".",
           environment: "node",
           include: ["tests/**/*.test.ts"],
         },
       },
       ...workspaceProjects.map(([configPath, root]) => ({
+        root,
         extends: configPath,
-        test: { root },
       })),
     ],
   },
