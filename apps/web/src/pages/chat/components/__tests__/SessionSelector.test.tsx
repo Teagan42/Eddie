@@ -127,7 +127,30 @@ describe('SessionSelector', () => {
     expect(bundleBadge.querySelector('svg')).not.toBeNull();
   });
 
-  it('allows session actions to be triggered from a context menu', async () => {
+  it('renders a tab panel for the selected session with contextual details', () => {
+    renderSelector({
+      sessions: [
+        createSession({
+          metrics: {
+            messageCount: 8,
+            agentCount: 2,
+            contextBundleCount: 1,
+          },
+        }),
+      ],
+    });
+
+    const selectedTab = screen.getByRole('tab', { name: 'Session 1' });
+    const tabPanel = screen.getByRole('tabpanel');
+
+    expect(tabPanel).toHaveAttribute('aria-labelledby', selectedTab.getAttribute('id'));
+    expect(tabPanel).toHaveTextContent('Session 1');
+    expect(tabPanel).toHaveTextContent('8 messages');
+    expect(tabPanel).toHaveTextContent('2 agents');
+    expect(tabPanel).toHaveTextContent('1 bundle');
+  });
+
+  it('allows session actions to be triggered directly from the tab panel', async () => {
     const user = userEvent.setup();
     const handleRename = vi.fn();
     const handleDelete = vi.fn();
@@ -137,15 +160,13 @@ describe('SessionSelector', () => {
       onDeleteSession: handleDelete,
     });
 
-    await user.click(screen.getByRole('button', { name: 'Session options for Session 1' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Rename session' }));
+    await user.click(screen.getByRole('button', { name: 'Rename session Session 1' }));
 
     expect(handleRename).toHaveBeenCalledWith('session-1');
 
-    await user.click(screen.getByRole('button', { name: 'Session options for Session 2' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Archive session' }));
+    await user.click(screen.getByRole('button', { name: 'Archive session Session 1' }));
 
-    expect(handleDelete).toHaveBeenCalledWith('session-2');
+    expect(handleDelete).toHaveBeenCalledWith('session-1');
   });
 
   it('can be collapsed to hide the session list when not needed', async () => {

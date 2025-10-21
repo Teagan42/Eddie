@@ -35,6 +35,12 @@ interface SessionMetricBadge {
   icon?: JSX.Element;
 }
 
+interface SessionMetricPresentation {
+  badges: SessionMetricBadge[];
+  description: string;
+  summaryParts: string[];
+}
+
 const visuallyHiddenStyles: CSSProperties = {
   border: 0,
   clip: 'rect(0 0 0 0)',
@@ -76,6 +82,55 @@ function formatMetricCount(
   return count === 1 ? `1 ${singular}` : `${count} ${plural}`;
 }
 
+function buildSessionMetrics(
+  metrics: SessionSelectorMetricsSummary | undefined,
+): SessionMetricPresentation {
+  if (!metrics) {
+    return { badges: [], description: '', summaryParts: [] };
+  }
+
+  const badges: SessionMetricBadge[] = [];
+  const summaryParts: string[] = [];
+
+  const messageLabel = formatMetricCount(metrics.messageCount, 'message', 'messages');
+  if (messageLabel) {
+    badges.push({
+      id: 'messages',
+      ariaLabel: messageLabel,
+      displayValue: `${metrics.messageCount}`,
+      icon: <ChatBubbleIcon aria-hidden="true" />,
+    });
+    summaryParts.push(messageLabel);
+  }
+
+  const agentLabel = formatMetricCount(metrics.agentCount, 'agent', 'agents');
+  if (agentLabel) {
+    badges.push({
+      id: 'agents',
+      ariaLabel: agentLabel,
+      displayValue: agentLabel,
+    });
+    summaryParts.push(agentLabel);
+  }
+
+  const bundleLabel = formatMetricCount(metrics.contextBundleCount, 'bundle', 'bundles');
+  if (bundleLabel) {
+    badges.push({
+      id: 'bundles',
+      ariaLabel: bundleLabel,
+      displayValue: `${metrics.contextBundleCount}`,
+      icon: <CardStackIcon aria-hidden="true" />,
+    });
+    summaryParts.push(bundleLabel);
+  }
+
+  return {
+    badges,
+    description: summaryParts.join(', '),
+    summaryParts,
+  };
+}
+
 export type SessionSelectorSession = Pick<ChatSessionDto, 'id' | 'title' | 'status'> & {
   metrics?: SessionSelectorMetricsSummary;
 };
@@ -113,6 +168,18 @@ export function SessionSelector({
   const listId = useId();
   const sessionIds = useMemo(() => sessions.map((session) => session.id), [sessions]);
   const sessionIdsSignature = useMemo(() => sessionIds.join('|'), [sessionIds]);
+  const selectedSession = useMemo(() => {
+    if (!selectedSessionId) {
+      return null;
+    }
+
+    return sessions.find((session) => session.id === selectedSessionId) ?? null;
+  }, [selectedSessionId, sessions]);
+  const panelId = `${listId}-panel`;
+  const selectedSessionMetrics = useMemo(
+    () => buildSessionMetrics(selectedSession?.metrics),
+    [selectedSession],
+  );
 
   const clearHighlightTimeout = useCallback(() => {
     if (highlightTimeoutRef.current !== null) {
@@ -300,52 +367,9 @@ export function SessionSelector({
   const renderSession = (session: SessionSelectorSession): JSX.Element => {
     const isSelected = session.id === selectedSessionId;
     const metrics = session.metrics;
+    const tabId = `${listId}-${session.id}-tab`;
+    const { badges: formattedMetrics, description: metricsDescription } = buildSessionMetrics(metrics);
 
-    const formattedMetrics: SessionMetricBadge[] = [];
-    if (metrics) {
-      if (typeof metrics.messageCount === 'number') {
-        const messageLabel = formatMetricCount(
-          metrics.messageCount,
-          'message',
-          'messages',
-        );
-        if (messageLabel) {
-          formattedMetrics.push({
-            id: 'messages',
-            ariaLabel: messageLabel,
-            displayValue: `${metrics.messageCount}`,
-            icon: <ChatBubbleIcon aria-hidden="true" />,
-          });
-        }
-      }
-
-      const agentLabel = formatMetricCount(metrics.agentCount, 'agent', 'agents');
-      if (agentLabel) {
-        formattedMetrics.push({
-          id: 'agents',
-          ariaLabel: agentLabel,
-          displayValue: agentLabel,
-        });
-      }
-
-      if (typeof metrics.contextBundleCount === 'number') {
-        const bundleLabel = formatMetricCount(
-          metrics.contextBundleCount,
-          'bundle',
-          'bundles',
-        );
-        if (bundleLabel) {
-          formattedMetrics.push({
-            id: 'bundles',
-            ariaLabel: bundleLabel,
-            displayValue: `${metrics.contextBundleCount}`,
-            icon: <CardStackIcon aria-hidden="true" />,
-          });
-        }
-      }
-    }
-
-    const metricsDescription = formattedMetrics.map((item) => item.ariaLabel).join(', ');
     const metricsDescriptionId = metricsDescription
       ? `${session.id}-metrics-description`
       : undefined;
@@ -376,6 +400,8 @@ export function SessionSelector({
           aria-describedby={metricsDescriptionId}
           data-selected={selectedState}
           tabIndex={isSelected ? 0 : -1}
+          id={tabId}
+          aria-controls={panelId}
           onKeyDown={(event) => handleNavigationKeyDown(event, session.id)}
           ref={(element) => {
             registerTabTrigger(session.id, element);
@@ -505,6 +531,65 @@ export function SessionSelector({
           )}
         </ScrollArea>
       )}
+      <Flex
+        direction="column"
+        gap="3"
+        role="tabpanel"
+        id={panelId}
+        aria-labelledby={selectedSession ? `${listId}-${selectedSession.id}-tab` : undefined}
+        hidden={!selectedSession || isCollapsed}
+        data-testid="session-details"
+        className="rounded-lg border border-[var(--gray-a6)] bg-[var(--color-panel-solid)] p-3"
+      >
+        {selectedSession && !isCollapsed ? (
+          <>
+            <Flex align="start" justify="between" gap="3" wrap="wrap">
+              <Flex direction="column" gap="1">
+                <Text size="3" weight="medium">
+                  {selectedSession.title}
+                </Text>
+                {selectedSession.status === 'archived' ? (
+                  <Badge color="gray" variant="soft">
+                    Archived
+                  </Badge>
+                ) : null}
+                {selectedSessionMetrics.summaryParts.length > 0 ? (
+                  <Text size="2" color="gray">
+                    {selectedSessionMetrics.summaryParts.join(' • ')}
+                  </Text>
+                ) : null}
+              </Flex>
+              <Flex gap="2">
+                <Button
+                  size="1"
+                  variant="soft"
+                  color="jade"
+                  onClick={() => onRenameSession(selectedSession.id)}
+                  aria-label={`Rename session ${selectedSession.title}`}
+                >
+                  Rename
+                </Button>
+                <Button
+                  size="1"
+                  variant="soft"
+                  color="ruby"
+                  onClick={() => onDeleteSession(selectedSession.id)}
+                  aria-label={`Archive session ${selectedSession.title}`}
+                >
+                  Archive
+                </Button>
+              </Flex>
+            </Flex>
+            <Text size="2" color="gray">
+              Manage collaborators, rename the session, or archive it when the work is complete.
+            </Text>
+          </>
+        ) : (
+          <Text size="2" color="gray">
+            Select a session to view its activity and controls.
+          </Text>
+        )}
+      </Flex>
     </Flex>
   );
 }
