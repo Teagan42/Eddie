@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761030562195,
+  "lastUpdate": 1761044817193,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -1172,6 +1172,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 23.283,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e9185fd2a95583c32355a2dc4aa35299371f28d4",
+          "message": "Fix session selector collapse and surface context bundle files (#701)\n\n* refactor(chat): reuse bundle cloning helpers\n\n* feat: merge bundles in tree state",
+          "timestamp": "2025-10-21T04:55:56-06:00",
+          "tree_id": "bf08688e5fad7838392f1bf0d27f7824dcb04b3f",
+          "url": "https://github.com/Teagan42/Eddie/commit/e9185fd2a95583c32355a2dc4aa35299371f28d4"
+        },
+        "date": 1761044816509,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 47.318,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 33.649,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 24.159,
             "unit": "ms",
             "extra": "[object Object]"
           }
