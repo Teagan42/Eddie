@@ -3,8 +3,8 @@ import { PlusIcon } from "@radix-ui/react-icons";
 import { Panel } from "@eddie/ui";
 import type { ChatMessageDto, ChatSessionDto } from "@eddie/api-client";
 import { SessionsList } from "@eddie/ui/overview";
+import { MessageComposer } from "@eddie/ui/chat";
 import { SessionDetail } from "./SessionDetail";
-import { MessageComposer } from "./MessageComposer";
 import type { FormEvent } from "react";
 
 export interface ChatSessionsPanelProps {
@@ -18,7 +18,7 @@ export interface ChatSessionsPanelProps {
   activeSession: ChatSessionDto | null;
   messages: ChatMessageDto[] | undefined;
   isMessagesLoading: boolean;
-  onSubmitMessage: (event: FormEvent<HTMLFormElement>) => void;
+  onSubmitMessage: () => void;
   messageDraft: string;
   onMessageDraftChange: (value: string) => void;
   isMessagePending: boolean;

@@ -1,4 +1,4 @@
-import type { FormEventHandler, RefObject } from 'react';
+import type { RefObject } from 'react';
 import { Flex, SegmentedControl } from '@radix-ui/themes';
 
 import type { ChatMessageDto } from '@eddie/api-client';
@@ -7,7 +7,7 @@ import {
   AgentActivityIndicator,
   type AgentActivityState,
 } from '../AgentActivityIndicator';
-import { MessageComposer } from '../../components/MessageComposer';
+import { MessageComposer } from '@eddie/ui/chat';
 import { MessageList, type MessageListItem } from './MessageList';
 
 export type ComposerRole = 'user' | 'system';
@@ -25,7 +25,7 @@ export interface ChatWindowProps {
   composerDisabled?: boolean;
   composerSubmitDisabled?: boolean;
   composerPlaceholder?: string;
-  onComposerSubmit: FormEventHandler<HTMLFormElement>;
+  onComposerSubmit: () => void;
   onInspectToolInvocation?: (toolCallId: string | null) => void;
 }
 

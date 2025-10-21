@@ -271,8 +271,7 @@ export function OverviewPage(): JSX.Element {
     });
   };
 
-  const handleSendMessage = (event: FormEvent<HTMLFormElement>): void => {
-    event.preventDefault();
+  const handleSendMessage = (): void => {
     if (!selectedSessionId || !messageDraft.trim()) {
       return;
     }
