@@ -1,9 +1,10 @@
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { ChatMessageDto } from "@eddie/api-client";
-import { cn } from "@/vendor/lib/utils";
-import { JsonTreeView } from "@eddie/ui";
+
+import { JsonTreeView } from "../common";
+import { combineClassNames } from "../utils/class-names";
+import type { ChatMessageRole } from "./types";
 
 const CODE_BLOCK_CONTAINER_CLASSES =
   "mt-4 overflow-x-auto rounded-lg bg-slate-900/70 p-4 font-mono text-sm";
@@ -26,13 +27,18 @@ const LIST_BASE_CLASSES = "my-4 list-outside space-y-2 pl-6";
 const LIST_ITEM_CLASSES = "leading-relaxed marker:text-slate-300";
 const PARAGRAPH_CLASSES = "my-2 leading-6 first:mt-0 last:mb-0";
 
+const MARKDOWN_PLUGINS = [remarkGfm];
+
 const markdownComponents: Components = {
   code({ inline, className, children, ...props }) {
     const isCodeBlock = !inline && className?.includes("language-");
 
     if (!isCodeBlock) {
       return (
-        <code className={cn(INLINE_CODE_CLASSES, className)} {...props}>
+        <code
+          className={combineClassNames(INLINE_CODE_CLASSES, className)}
+          {...props}
+        >
           {children}
         </code>
       );
@@ -49,7 +55,7 @@ const markdownComponents: Components = {
   blockquote({ className, children, ...props }) {
     return (
       <blockquote
-        className={cn(BLOCKQUOTE_CLASSES, className)}
+        className={combineClassNames(BLOCKQUOTE_CLASSES, className)}
         {...props}
       >
         {children}
@@ -59,37 +65,54 @@ const markdownComponents: Components = {
   table({ className, children, ...props }) {
     return (
       <div className={TABLE_WRAPPER_CLASSES}>
-        <table className={cn(TABLE_CLASSES, className)} {...props}>
+        <table
+          className={combineClassNames(TABLE_CLASSES, className)}
+          {...props}
+        >
           {children}
         </table>
       </div>
     );
   },
   thead({ className, ...props }) {
-    return <thead className={cn(TABLE_HEADER_CLASSES, className)} {...props} />;
+    return (
+      <thead
+        className={combineClassNames(TABLE_HEADER_CLASSES, className)}
+        {...props}
+      />
+    );
   },
   tbody({ className, ...props }) {
-    return <tbody className={cn(TABLE_BODY_CLASSES, className)} {...props} />;
+    return (
+      <tbody
+        className={combineClassNames(TABLE_BODY_CLASSES, className)}
+        {...props}
+      />
+    );
   },
   tr({ className, ...props }) {
-    return <tr className={cn(TABLE_ROW_CLASSES, className)} {...props} />;
+    return (
+      <tr className={combineClassNames(TABLE_ROW_CLASSES, className)} {...props} />
+    );
   },
   th({ className, ...props }) {
     return (
       <th
-        className={cn(TABLE_HEAD_CELL_CLASSES, className)}
+        className={combineClassNames(TABLE_HEAD_CELL_CLASSES, className)}
         scope="col"
         {...props}
       />
     );
   },
   td({ className, ...props }) {
-    return <td className={cn(TABLE_CELL_CLASSES, className)} {...props} />;
+    return (
+      <td className={combineClassNames(TABLE_CELL_CLASSES, className)} {...props} />
+    );
   },
   caption({ className, ...props }) {
     return (
       <caption
-        className={cn(TABLE_CAPTION_CLASSES, className)}
+        className={combineClassNames(TABLE_CAPTION_CLASSES, className)}
         {...props}
       />
     );
@@ -97,7 +120,7 @@ const markdownComponents: Components = {
   ul({ className, ...props }) {
     return (
       <ul
-        className={cn(LIST_BASE_CLASSES, "list-disc", className)}
+        className={combineClassNames(LIST_BASE_CLASSES, "list-disc", className)}
         {...props}
       />
     );
@@ -105,23 +128,25 @@ const markdownComponents: Components = {
   ol({ className, ...props }) {
     return (
       <ol
-        className={cn(LIST_BASE_CLASSES, "list-decimal", className)}
+        className={combineClassNames(LIST_BASE_CLASSES, "list-decimal", className)}
         {...props}
       />
     );
   },
   li({ className, ...props }) {
-    return <li className={cn(LIST_ITEM_CLASSES, className)} {...props} />;
+    return (
+      <li className={combineClassNames(LIST_ITEM_CLASSES, className)} {...props} />
+    );
   },
   p({ className, ...props }) {
-    return <p className={cn(PARAGRAPH_CLASSES, className)} {...props} />;
+    return (
+      <p className={combineClassNames(PARAGRAPH_CLASSES, className)} {...props} />
+    );
   },
 };
 
-type MessageRole = ChatMessageDto["role"];
-
-interface ChatMessageContentProps {
-  messageRole: MessageRole;
+export interface ChatMessageContentProps {
+  messageRole: ChatMessageRole;
   content: string;
   className?: string;
 }
@@ -132,17 +157,19 @@ export function ChatMessageContent({
   className,
 }: ChatMessageContentProps): JSX.Element {
   const { success: hasJsonContent, value: jsonValue } = parseJsonContent(content);
-  const containerClassName = cn("whitespace-pre-wrap break-words", className);
-  const jsonRootLabel = `${formatRoleLabel(messageRole)} message JSON`;
+  const containerClassName = combineClassNames(
+    "whitespace-pre-wrap break-words",
+    className,
+  );
   const renderedContent = hasJsonContent ? (
     <JsonTreeView
       value={jsonValue}
       collapsedByDefault
       className="mt-4 text-left"
-      rootLabel={jsonRootLabel}
+      rootLabel={`${formatRoleLabel(messageRole)} message JSON`}
     />
   ) : (
-    <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+    <ReactMarkdown components={markdownComponents} remarkPlugins={MARKDOWN_PLUGINS}>
       {content}
     </ReactMarkdown>
   );
@@ -177,7 +204,7 @@ function parseJsonContent(content: string): JsonParseResult {
   }
 }
 
-function formatRoleLabel(role: MessageRole): string {
+function formatRoleLabel(role: ChatMessageRole): string {
   if (!role) {
     return "";
   }

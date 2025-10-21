@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   AgentExecutionTree,
+  ChatMessageContent,
   ChatSessionsPanel,
   ChatWindow,
   CollapsiblePanel,
@@ -23,6 +24,7 @@ import { expectTypeOf } from "vitest";
 describe("chat barrel", () => {
   it("exposes reusable chat building blocks", () => {
     expect(typeof AgentExecutionTree).toBe("function");
+    expect(typeof ChatMessageContent).toBe("function");
     expect(typeof ChatSessionsPanel).toBe("function");
     expect(typeof ChatWindow).toBe("function");
     expect(typeof CollapsiblePanel).toBe("function");

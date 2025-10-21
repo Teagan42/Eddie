@@ -7,6 +7,10 @@ export interface ChatWindowProps extends UnknownProps {}
 export interface CollapsiblePanelProps extends UnknownProps {}
 
 export { MessageComposer, type MessageComposerProps } from "./MessageComposer";
+export {
+  ChatMessageContent,
+  type ChatMessageContentProps,
+} from "./ChatMessageContent";
 
 export interface SessionSelectorProps extends UnknownProps {}
 
