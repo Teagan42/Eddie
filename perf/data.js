@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761052334769,
+  "lastUpdate": 1761056595061,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -1256,6 +1256,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 24.14,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "13d7dbd3a0db03bbca5483c9bdfefa9790e68d70",
+          "message": "Ensure config extensions deep merge tools lists (#707)\n\n* refactor(config): clarify extension tool merging\n\n* fix(config): preserve disabled tools across extensions",
+          "timestamp": "2025-10-21T14:12:18Z",
+          "tree_id": "7a3089e8d70816c3f14e9c90fe7c2ba82457869c",
+          "url": "https://github.com/Teagan42/Eddie/commit/13d7dbd3a0db03bbca5483c9bdfefa9790e68d70"
+        },
+        "date": 1761056594267,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 48.437,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 35.61,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 24.401,
             "unit": "ms",
             "extra": "[object Object]"
           }
