@@ -12,6 +12,11 @@ export {
   type ChatMessageContentProps,
 } from "./ChatMessageContent";
 export {
+  AgentActivityIndicator,
+  type AgentActivityIndicatorProps,
+  type AgentActivityState,
+} from "./AgentActivityIndicator";
+export {
   MessageList,
   type MessageListProps,
   type MessageListItem,

@@ -1,8 +1,9 @@
-import { type ComponentType } from "react";
+import type { ComponentType, JSX } from "react";
 import { Flex, Text } from "@radix-ui/themes";
 import { PaperPlaneIcon } from "@radix-ui/react-icons";
 import { AlertTriangle, Loader2, Sparkles as SparklesIcon, Wrench } from "lucide-react";
-import { cn } from "@/vendor/lib/utils";
+
+import { combineClassNames } from "../utils/class-names";
 
 export type AgentActivityState =
   | "idle"
@@ -21,7 +22,7 @@ interface AgentActivityDescriptor {
   ringClassName?: string;
 }
 
-const AGENT_ACTIVITY_VARIANTS = {
+const AGENT_ACTIVITY_VARIANTS: Record<Exclude<AgentActivityState, "idle">, AgentActivityDescriptor> = {
   sending: {
     title: "Dispatching message…",
     subtitle: "Contacting orchestrator",
@@ -46,7 +47,7 @@ const AGENT_ACTIVITY_VARIANTS = {
     iconClassName: "animate-spin text-amber-100",
     ringClassName: "animate-pulse bg-amber-400/30",
   },
-  'tool-error': {
+  "tool-error": {
     title: "Tool invocation failed",
     subtitle: "A tool call encountered an issue",
     icon: Wrench,
@@ -62,11 +63,11 @@ const AGENT_ACTIVITY_VARIANTS = {
     iconClassName: "text-rose-100 animate-pulse",
     ringClassName: "animate-[ping_1.8s_linear_infinite] bg-rose-500/30",
   },
-} satisfies Record<Exclude<AgentActivityState, "idle">, AgentActivityDescriptor>;
-
-export type AgentActivityIndicatorProps = {
-  state: AgentActivityState;
 };
+
+export interface AgentActivityIndicatorProps {
+  state: AgentActivityState;
+}
 
 export function AgentActivityIndicator({
   state,
@@ -75,7 +76,7 @@ export function AgentActivityIndicator({
     return null;
   }
 
-  const descriptor = AGENT_ACTIVITY_VARIANTS[state];
+  const descriptor = AGENT_ACTIVITY_VARIANTS[state as Exclude<AgentActivityState, "idle">];
   if (!descriptor) {
     return null;
   }
@@ -92,19 +93,24 @@ export function AgentActivityIndicator({
       className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-[0_35px_65px_-45px_rgba(56,189,248,0.65)] backdrop-blur-xl"
     >
       <div
-        className={cn(
+        className={combineClassNames(
           "relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br",
           descriptor.gradient,
         )}
       >
         <span
           aria-hidden="true"
-          className={cn(
+          className={combineClassNames(
             "pointer-events-none absolute -inset-1 rounded-full opacity-80",
             descriptor.ringClassName,
           )}
         />
-        <Icon className={cn("relative h-5 w-5 text-white drop-shadow-sm", descriptor.iconClassName)} />
+        <Icon
+          className={combineClassNames(
+            "relative h-5 w-5 text-white drop-shadow-sm",
+            descriptor.iconClassName,
+          )}
+        />
       </div>
       <Flex direction="column" gap="1">
         <Text size="2" weight="medium" className="text-white">

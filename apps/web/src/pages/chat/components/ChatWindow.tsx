@@ -4,8 +4,10 @@ import { Flex, SegmentedControl } from '@radix-ui/themes';
 import {
   AgentActivityIndicator,
   type AgentActivityState,
-} from '../AgentActivityIndicator';
-import { MessageComposer, MessageList, type MessageListItem } from '@eddie/ui/chat';
+  MessageComposer,
+  MessageList,
+  type MessageListItem,
+} from '@eddie/ui/chat';
 
 export type ComposerRole = 'user' | 'system';
 
