@@ -703,6 +703,47 @@ describe('ChatPage execution tree realtime updates', () => {
     ).toBeInTheDocument();
   }, 20000);
 
+  it('hydrates context bundles when tool results report bundle identifiers', async () => {
+    const { client } = renderChatPage();
+
+    await waitFor(() => {
+      expect(toolResultHandlers.length).toBeGreaterThan(0);
+    });
+
+    await act(async () => {
+      toolResultHandlers.forEach((handler) =>
+        handler({
+          sessionId: 'session-1',
+          id: 'call-identifier',
+          name: 'upload_context',
+          result: JSON.stringify({
+            metadata: {
+              contextBundleIds: ['bundle-identifier'],
+            },
+          }),
+          timestamp: '2024-05-01T12:07:00.000Z',
+          agentId: 'agent-primary',
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      const snapshot = client.getQueryData<any>([
+        'orchestrator-metadata',
+        'session-1',
+      ]);
+      const bundles = snapshot?.executionTree?.contextBundles ?? [];
+      expect(
+        bundles.some((bundle: { id?: string }) => bundle?.id === 'bundle-identifier'),
+      ).toBe(true);
+      const agentBundles =
+        snapshot?.executionTree?.contextBundlesByAgentId?.['agent-primary'] ?? [];
+      expect(
+        agentBundles.some((bundle: { id?: string }) => bundle?.id === 'bundle-identifier'),
+      ).toBe(true);
+    });
+  });
+
   it('shows context bundle files inside the agent tools drawer', async () => {
     const user = userEvent.setup();
 

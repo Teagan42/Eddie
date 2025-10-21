@@ -645,71 +645,99 @@ function extractContextBundlesFromToolResult(
     return [];
   }
 
-  const rawBundles = (metadata as { contextBundles?: unknown }).contextBundles;
-  if (!Array.isArray(rawBundles) || rawBundles.length === 0) {
-    return [];
-  }
-
   const normalizedAgentId = normalizeAgentId(fallbackAgentId) ?? UNKNOWN_AGENT_ID;
   const normalized: ExecutionContextBundle[] = [];
+  const seenIds = new Set<string>();
 
-  for (const entry of rawBundles) {
-    if (!entry || typeof entry !== 'object') {
-      continue;
-    }
+  const rawBundles = (metadata as { contextBundles?: unknown }).contextBundles;
+  if (Array.isArray(rawBundles)) {
+    for (const entry of rawBundles) {
+      if (!entry || typeof entry !== 'object') {
+        continue;
+      }
 
-    const candidate = entry as Record<string, unknown>;
-    const idValue = candidate.id;
-    const labelValue = candidate.label;
-    const id = typeof idValue === 'string' && idValue.trim().length > 0 ? idValue : null;
-    const label = typeof labelValue === 'string' && labelValue.trim().length > 0 ? labelValue : id;
-    if (!id || !label) {
-      continue;
-    }
+      const candidate = entry as Record<string, unknown>;
+      const idValue = candidate.id;
+      const labelValue = candidate.label;
+      const id = typeof idValue === 'string' && idValue.trim().length > 0 ? idValue : null;
+      const label = typeof labelValue === 'string' && labelValue.trim().length > 0 ? labelValue : id;
+      if (!id || !label) {
+        continue;
+      }
 
-    const sizeBytes = typeof candidate.sizeBytes === 'number' && candidate.sizeBytes >= 0
-      ? candidate.sizeBytes
-      : 0;
-    const fileCount = typeof candidate.fileCount === 'number' && candidate.fileCount >= 0
-      ? candidate.fileCount
-      : Array.isArray(candidate.files)
-        ? candidate.files.length
+      const sizeBytes = typeof candidate.sizeBytes === 'number' && candidate.sizeBytes >= 0
+        ? candidate.sizeBytes
         : 0;
-    const summary = typeof candidate.summary === 'string' ? candidate.summary : undefined;
-    const files = normalizeContextBundleFiles(
-      candidate.files as ExecutionContextBundle['files'],
-    );
-    const sourceCandidate = candidate.source as
-      | ExecutionContextBundle['source']
-      | undefined;
+      const fileCount = typeof candidate.fileCount === 'number' && candidate.fileCount >= 0
+        ? candidate.fileCount
+        : Array.isArray(candidate.files)
+          ? candidate.files.length
+          : 0;
+      const summary = typeof candidate.summary === 'string' ? candidate.summary : undefined;
+      const files = normalizeContextBundleFiles(
+        candidate.files as ExecutionContextBundle['files'],
+      );
+      const sourceCandidate = candidate.source as
+        | ExecutionContextBundle['source']
+        | undefined;
 
-    const sourceType =
-      sourceCandidate?.type === 'tool_call' ||
-      sourceCandidate?.type === 'tool_result' ||
-      sourceCandidate?.type === 'spawn_subagent'
-        ? sourceCandidate.type
-        : 'tool_result';
-    const sourceAgentId = normalizeAgentId(sourceCandidate?.agentId) ?? normalizedAgentId;
-    const sourceToolCallId =
-      typeof sourceCandidate?.toolCallId === 'string' && sourceCandidate.toolCallId.length > 0
-        ? sourceCandidate.toolCallId
-        : toolCallId;
+      const sourceType =
+        sourceCandidate?.type === 'tool_call' ||
+        sourceCandidate?.type === 'tool_result' ||
+        sourceCandidate?.type === 'spawn_subagent'
+          ? sourceCandidate.type
+          : 'tool_result';
+      const sourceAgentId = normalizeAgentId(sourceCandidate?.agentId) ?? normalizedAgentId;
+      const sourceToolCallId =
+        typeof sourceCandidate?.toolCallId === 'string' && sourceCandidate.toolCallId.length > 0
+          ? sourceCandidate.toolCallId
+          : toolCallId;
 
-    const bundle = cloneContextBundleEntry({
-      id,
-      label,
-      sizeBytes,
-      fileCount,
-      summary,
-      files,
-      source: {
-        type: sourceType,
-        agentId: sourceAgentId,
-        toolCallId: sourceToolCallId,
-      },
-    } as ExecutionContextBundle);
+      const bundle = cloneContextBundleEntry({
+        id,
+        label,
+        sizeBytes,
+        fileCount,
+        summary,
+        files,
+        source: {
+          type: sourceType,
+          agentId: sourceAgentId,
+          toolCallId: sourceToolCallId,
+        },
+      } as ExecutionContextBundle);
 
-    normalized.push(bundle);
+      normalized.push(bundle);
+      seenIds.add(bundle.id);
+    }
+  }
+
+  const rawBundleIds = (metadata as { contextBundleIds?: unknown }).contextBundleIds;
+  if (Array.isArray(rawBundleIds)) {
+    for (const candidate of rawBundleIds) {
+      if (typeof candidate !== 'string') {
+        continue;
+      }
+      const id = candidate.trim();
+      if (!id || seenIds.has(id)) {
+        continue;
+      }
+
+      const bundle = cloneContextBundleEntry({
+        id,
+        label: id,
+        sizeBytes: 0,
+        fileCount: 0,
+        source: {
+          type: 'tool_result',
+          agentId: normalizedAgentId,
+          toolCallId,
+        },
+      } as ExecutionContextBundle);
+
+      normalized.push(bundle);
+      seenIds.add(id);
+    }
   }
 
   return normalized;
