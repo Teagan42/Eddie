@@ -4,4 +4,5 @@ export interface CollapsiblePanelProps {
   description?: string;
   collapsed: boolean;
   onToggle: (id: string, collapsed: boolean) => void;
+  className?: string;
 }

@@ -30,6 +30,7 @@ import { getSurfaceLayoutClasses, SURFACE_CONTENT_CLASS } from '@/styles/surface
 import { sortSessions, upsertMessage } from './chat-utils';
 import { ContextBundlesPanel, AgentToolsDrawer } from './components';
 import {
+  CollapsiblePanel,
   SessionSelector,
   type SessionSelectorMetricsSummary,
   type SessionSelectorSession,
@@ -69,6 +70,7 @@ function resolveErrorMessage(error: unknown): string {
 
 const PANEL_IDS = {
   context: 'context-bundles',
+  sessions: 'session-selector',
 } as const;
 
 const SCROLL_VIEWPORT_SELECTOR = '[data-radix-scroll-area-viewport]';
@@ -1188,6 +1190,9 @@ export function ChatPage(): JSX.Element {
   });
 
   const collapsedPanels = preferences.chat?.collapsedPanels ?? {};
+  const isSessionSelectorCollapsed = Boolean(
+    collapsedPanels[PANEL_IDS.sessions],
+  );
   const sessionSettings = preferences.chat?.sessionSettings ?? {};
 
   const configSourceQuery = useQuery<EddieConfigSourceDto>({
@@ -1543,35 +1548,41 @@ export function ChatPage(): JSX.Element {
             </Box>
           </Flex>
 
-          <Panel
+          <CollapsiblePanel
+            id={PANEL_IDS.sessions}
             title="Sessions"
             description={
               sessions.length === 0
                 ? 'Create a session to begin orchestrating conversations.'
                 : undefined
             }
-            actions={
-              <Button
-                onClick={handleCreateSession}
-                size="2"
-                variant="solid"
-                color="jade"
-                disabled={createSessionMutation.isPending}
-              >
-                <PlusIcon /> New session
-              </Button>
-            }
+            collapsed={isSessionSelectorCollapsed}
+            onToggle={handleTogglePanel}
+            className={cn('flex flex-col gap-4')}
           >
-            <SessionSelector
-              sessions={sessionsWithMetrics}
-              selectedSessionId={selectedSessionId ?? null}
-              onSelectSession={handleSelectSession}
-              onRenameSession={handleRenameSession}
-              onDeleteSession={handleDeleteSession}
-              onCreateSession={handleCreateSession}
-              isCreatePending={createSessionMutation.isPending}
-            />
-          </Panel>
+            <Flex direction="column" gap="4">
+              <Flex justify="end">
+                <Button
+                  onClick={handleCreateSession}
+                  size="2"
+                  variant="solid"
+                  color="jade"
+                  disabled={createSessionMutation.isPending}
+                >
+                  <PlusIcon /> New session
+                </Button>
+              </Flex>
+              <SessionSelector
+                sessions={sessionsWithMetrics}
+                selectedSessionId={selectedSessionId ?? null}
+                onSelectSession={handleSelectSession}
+                onRenameSession={handleRenameSession}
+                onDeleteSession={handleDeleteSession}
+                onCreateSession={handleCreateSession}
+                isCreatePending={createSessionMutation.isPending}
+              />
+            </Flex>
+          </CollapsiblePanel>
 
           <div className="flex flex-col gap-6">
             <Panel

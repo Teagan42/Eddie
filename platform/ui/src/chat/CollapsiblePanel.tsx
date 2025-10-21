@@ -41,6 +41,7 @@ export function CollapsiblePanel({
   description,
   collapsed,
   onToggle,
+  className,
   children,
 }: CollapsiblePanelComponentProps): JSX.Element {
   const isExpanded = !collapsed;
@@ -48,6 +49,13 @@ export function CollapsiblePanel({
   const tooltipLabel = collapsed ? "Expand" : "Collapse";
   const actionLabel = collapsed ? "Expand panel" : "Collapse panel";
   const toggleIcon = collapsed ? <ChevronRightIcon /> : <ChevronDownIcon />;
+  const panelClassName = [
+    SIDEBAR_PANEL_CLASS,
+    "flex flex-col gap-3 p-5 text-white",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <CollapsibleRoot
@@ -55,7 +63,7 @@ export function CollapsiblePanel({
       open={!collapsed}
       onOpenChange={(isOpen) => onToggle(id, !isOpen)}
     >
-      <section className={`${SIDEBAR_PANEL_CLASS} flex flex-col gap-3 p-5 text-white`}>
+      <section id={id} className={panelClassName}>
         <Flex align="center" justify="between" gap="3">
           <Box>
             <Heading as="h3" size="3">

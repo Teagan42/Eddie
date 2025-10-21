@@ -49,4 +49,26 @@ describe("CollapsiblePanel", () => {
     expect(animatedRegion).toHaveAttribute("data-motion", "collapsible-panel-content");
     expect(animatedRegion).toHaveTextContent("Panel content");
   });
+
+  it("applies custom class names to the panel root", () => {
+    const { container } = render(
+      <TooltipProvider>
+        <CollapsiblePanel
+          id="panel-id"
+          title="Panel Title"
+          description="Helpful description"
+          collapsed={false}
+          onToggle={vi.fn()}
+          className="custom-class"
+        >
+          Panel content
+        </CollapsiblePanel>
+      </TooltipProvider>,
+    );
+
+    const panel = container.querySelector("section");
+
+    expect(panel).not.toBeNull();
+    expect(panel?.className).toContain("custom-class");
+  });
 });

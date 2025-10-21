@@ -3,12 +3,19 @@ import { QueryClient } from "@tanstack/react-query";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatSessionDto, LayoutPreferencesDto } from "@eddie/api-client";
-import type { SessionSelectorProps } from "@eddie/ui/chat";
+import type {
+  CollapsiblePanelProps,
+  SessionSelectorProps,
+} from "@eddie/ui/chat";
 import { createChatPageRenderer } from "./test-utils";
 import { SESSION_TABLIST_ARIA_LABEL } from "@eddie/ui/chat";
 
 const sessionSelectorCapture = vi.hoisted(() => ({
   props: undefined as SessionSelectorProps | undefined,
+}));
+
+const collapsiblePanelCapture = vi.hoisted(() => ({
+  props: undefined as (CollapsiblePanelProps & { className?: string }) | undefined,
 }));
 
 vi.mock("@eddie/ui/chat", async () => {
@@ -21,6 +28,12 @@ vi.mock("@eddie/ui/chat", async () => {
     SessionSelector: (props: SessionSelectorProps) => {
       sessionSelectorCapture.props = props;
       return <actual.SessionSelector {...props} />;
+    },
+    CollapsiblePanel: (props: CollapsiblePanelProps) => {
+      collapsiblePanelCapture.props = props as CollapsiblePanelProps & {
+        className?: string;
+      };
+      return <actual.CollapsiblePanel {...props} />;
     },
   };
 });
@@ -205,6 +218,7 @@ describe("ChatPage session creation", () => {
     messageUpdatedHandlers.length = 0;
     updatePreferencesMock.mockReset();
     sessionSelectorCapture.props = undefined;
+    collapsiblePanelCapture.props = undefined;
     preferencesState = {
       chat: {
         selectedSessionId: "session-1",
@@ -320,6 +334,36 @@ describe("ChatPage session creation", () => {
     expect(props?.sessions[0]).not.toHaveProperty("description");
     expect(props?.sessions[0]).not.toHaveProperty("createdAt");
     expect(props?.sessions[0]).not.toHaveProperty("updatedAt");
+  });
+
+  it("renders the session selector within a collapsible panel that syncs layout state", async () => {
+    preferencesState = {
+      chat: {
+        ...preferencesState.chat!,
+        collapsedPanels: { "session-selector": true },
+        sessionSettings: preferencesState.chat?.sessionSettings ?? {},
+        selectedSessionId: preferencesState.chat?.selectedSessionId ?? "session-1",
+        templates: preferencesState.chat?.templates ?? {},
+      },
+    } as LayoutPreferencesDto;
+
+    renderChatPage();
+
+    await waitFor(() => {
+      expect(collapsiblePanelCapture.props).toBeDefined();
+    });
+
+    const props = collapsiblePanelCapture.props!;
+
+    expect(props.id).toBe("session-selector");
+    expect(props.collapsed).toBe(true);
+    expect(props.title).toBe("Sessions");
+    expect(props.className).toContain("flex");
+
+    props.onToggle("session-selector", false);
+
+    expect(updatePreferencesMock).toHaveBeenCalled();
+    expect(preferencesState.chat?.collapsedPanels?.["session-selector"]).toBe(false);
   });
 
   it("displays cached aggregate metrics for each session", async () => {

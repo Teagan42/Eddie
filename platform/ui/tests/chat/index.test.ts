@@ -53,6 +53,7 @@ describe("chat types", () => {
       description?: string;
       collapsed: boolean;
       onToggle: (id: string, collapsed: boolean) => void;
+      className?: string;
     };
 
     expectTypeOf<CollapsiblePanelProps>().toMatchTypeOf<Expected>();
@@ -66,6 +67,7 @@ describe("chat types", () => {
     expectTypeOf<CollapsiblePanelProps["onToggle"]>().toEqualTypeOf<
       (id: string, collapsed: boolean) => void
     >();
+    expectTypeOf<CollapsiblePanelProps["className"]>().toEqualTypeOf<string | undefined>();
   });
 
   it("exposes composer role union for chat window", () => {
