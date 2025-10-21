@@ -7,7 +7,7 @@ import {
   SessionSelector,
   type SessionSelectorProps,
   type SessionSelectorSession,
-} from '../SessionSelector';
+} from '../../src/chat';
 
 function createSession(
   partial: Partial<SessionSelectorSession> = {},

@@ -1,35 +1,35 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Badge, Box, Flex, Text } from '@radix-ui/themes';
-import { ArrowUpRight, ChevronDown, ChevronRight } from 'lucide-react';
-import type { ToolCallStatusDto } from '@eddie/api-client';
-
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/vendor/components/ui/dialog';
-import { JsonTreeView } from '@eddie/ui';
-import { cn } from '@/vendor/lib/utils';
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentPropsWithoutRef,
+  type ElementRef,
+  type HTMLAttributes,
+} from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { AnimatePresence, motion } from "framer-motion";
+import { Badge, Box, Flex, Text } from "@radix-ui/themes";
+import { ArrowUpRight, ChevronDown, ChevronRight, X } from "lucide-react";
 
-import { summarizeObject } from '../chat-utils';
-import type { ExecutionTreeState } from '../execution-tree-state';
+import { JsonTreeView } from "../common";
+import type { ExecutionTreeState, ToolCallStatus } from "./types";
 
-const TOOL_STATUS_ORDER: ToolCallStatusDto[] = ['pending', 'running', 'completed', 'failed'];
-const TOOL_STATUS_LABELS: Record<ToolCallStatusDto, string> = {
-  pending: 'Pending tool invocations',
-  running: 'Running tool invocations',
-  completed: 'Completed tool invocations',
-  failed: 'Failed tool invocations',
+const TOOL_STATUS_ORDER: ToolCallStatus[] = ["pending", "running", "completed", "failed"];
+const TOOL_STATUS_LABELS: Record<ToolCallStatus, string> = {
+  pending: "Pending tool invocations",
+  running: "Running tool invocations",
+  completed: "Completed tool invocations",
+  failed: "Failed tool invocations",
 };
 
-const TOOL_STATUS_BADGE: Record<ToolCallStatusDto, 'gray' | 'blue' | 'green' | 'red'> = {
-  pending: 'gray',
-  running: 'blue',
-  completed: 'green',
-  failed: 'red',
+const TOOL_STATUS_BADGE: Record<ToolCallStatus, "gray" | "blue" | "green" | "red"> = {
+  pending: "gray",
+  running: "blue",
+  completed: "green",
+  failed: "red",
 };
 
 const EMPTY_AGENT_HIERARCHY = [] as ExecutionTreeState['agentHierarchy'];
@@ -76,6 +76,88 @@ const EXPANSION_MOTION_PROPS = {
   style: { overflow: 'hidden' },
 } as const;
 
+function cn(...values: Array<string | false | null | undefined>): string {
+  return values.filter(Boolean).join(' ');
+}
+
+const Dialog = DialogPrimitive.Root;
+const DialogPortal = DialogPrimitive.Portal;
+const DialogOverlay = forwardRef<
+  ElementRef<typeof DialogPrimitive.Overlay>,
+  ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Overlay
+    ref={ref}
+    className={cn(
+      'fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+      className,
+    )}
+    {...props}
+  />
+));
+
+DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
+
+const DialogContent = forwardRef<
+  ElementRef<typeof DialogPrimitive.Content>,
+  ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
+>(({ className, children, ...props }, ref) => (
+  <DialogPortal>
+    <DialogOverlay />
+    <DialogPrimitive.Content
+      ref={ref}
+      className={cn(
+        'fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-white/15 bg-slate-950/95 p-6 shadow-xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-xl',
+        className,
+      )}
+      {...props}
+    >
+      {children}
+      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 transition hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-slate-950">
+        <X className="h-4 w-4" />
+        <span className="sr-only">Close</span>
+      </DialogPrimitive.Close>
+    </DialogPrimitive.Content>
+  </DialogPortal>
+));
+
+DialogContent.displayName = DialogPrimitive.Content.displayName;
+
+const DialogHeader = ({ className, ...props }: HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn('flex flex-col space-y-1.5 text-center sm:text-left', className)}
+    {...props}
+  />
+);
+
+DialogHeader.displayName = 'DialogHeader';
+
+const DialogTitle = forwardRef<
+  ElementRef<typeof DialogPrimitive.Title>,
+  ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Title
+    ref={ref}
+    className={cn('text-lg font-semibold leading-none tracking-tight text-white', className)}
+    {...props}
+  />
+));
+
+DialogTitle.displayName = DialogPrimitive.Title.displayName;
+
+const DialogDescription = forwardRef<
+  ElementRef<typeof DialogPrimitive.Description>,
+  ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Description
+    ref={ref}
+    className={cn('text-sm text-slate-200/80', className)}
+    {...props}
+  />
+));
+
+DialogDescription.displayName = DialogPrimitive.Description.displayName;
+
 function formatContextSource(
   source: ExecutionTreeState['contextBundles'][number]['source'],
 ): string {
@@ -104,6 +186,158 @@ function formatContextSource(
   }
 }
 
+interface GraphemeSegment {
+  segment: string;
+}
+
+interface GraphemeSegmenter {
+  segment(value: string): IterableIterator<GraphemeSegment>;
+}
+
+type SegmenterConstructor = new (
+  locales?: string | string[],
+  options?: { granularity?: 'grapheme' | 'word' | 'sentence' },
+) => GraphemeSegmenter;
+
+const SegmenterCtor: SegmenterConstructor | undefined =
+  typeof Intl !== 'undefined' && typeof (Intl as { Segmenter?: SegmenterConstructor }).Segmenter === 'function'
+    ? (Intl as { Segmenter: SegmenterConstructor }).Segmenter
+    : undefined;
+
+let graphemeSegmenter: GraphemeSegmenter | null | undefined;
+
+function getSegmenter(): GraphemeSegmenter | null {
+  if (graphemeSegmenter !== undefined) {
+    return graphemeSegmenter;
+  }
+
+  graphemeSegmenter = SegmenterCtor ? new SegmenterCtor(undefined, { granularity: 'grapheme' }) : null;
+
+  return graphemeSegmenter;
+}
+
+function splitGraphemes(value: string): string[] {
+  if (!value) {
+    return [];
+  }
+
+  const segmenter = getSegmenter();
+  if (segmenter) {
+    return Array.from(segmenter.segment(value), ({ segment }) => segment);
+  }
+
+  return Array.from(value);
+}
+
+function truncateUnicode(value: string, limit: number): { text: string; truncated: boolean } {
+  if (!value) {
+    return { text: '', truncated: false };
+  }
+
+  if (limit === 0) {
+    return { text: '', truncated: value.length > 0 };
+  }
+
+  const graphemes = splitGraphemes(value);
+  if (graphemes.length <= limit) {
+    return { text: value, truncated: false };
+  }
+
+  return { text: graphemes.slice(0, limit).join(''), truncated: true };
+}
+
+function normalizeLimit(limit: number): number {
+  if (!Number.isFinite(limit)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.floor(limit));
+}
+
+function summarizeObject(obj: unknown, maxLen = 200): string | null {
+  try {
+    if (obj == null) {
+      return null;
+    }
+
+    const limit = normalizeLimit(maxLen);
+
+    if (typeof obj === 'string') {
+      const { text, truncated } = truncateUnicode(obj, limit);
+      return truncated ? `${text}…` : text;
+    }
+
+    const serialized = JSON.stringify(obj);
+    const { text, truncated } = truncateUnicode(serialized, limit);
+    return truncated ? `${text}…` : text;
+  } catch {
+    return null;
+  }
+}
+
+function resolveBundleTitle(bundle: ExecutionTreeState['contextBundles'][number]): string {
+  const candidate =
+    (bundle as { label?: string | null }).label ?? (bundle as { title?: string | null }).title;
+  if (typeof candidate === 'string' && candidate.trim().length > 0) {
+    return candidate;
+  }
+  return 'Context bundle';
+}
+
+function resolveBundleFileKey(
+  bundle: ExecutionTreeState['contextBundles'][number],
+  file: ExecutionTreeState['contextBundles'][number]['files'][number],
+  index: number,
+): string {
+  const metadata = file as { id?: string | null; path?: string | null };
+  if (metadata.id && metadata.id.trim().length > 0) {
+    return metadata.id;
+  }
+
+  if (metadata.path && metadata.path.trim().length > 0) {
+    return metadata.path;
+  }
+
+  return `${bundle.id}:file:${index}`;
+}
+
+function resolveBundleFileLabel(
+  file: ExecutionTreeState['contextBundles'][number]['files'][number],
+): string {
+  const metadata = file as { name?: string | null; path?: string | null };
+  if (typeof metadata.name === 'string' && metadata.name.trim().length > 0) {
+    return metadata.name;
+  }
+
+  if (typeof metadata.path === 'string' && metadata.path.trim().length > 0) {
+    return metadata.path;
+  }
+
+  return 'Unknown file';
+}
+
+function findFirstAgentWithGroups(
+  hierarchy: AgentHierarchyNode[],
+  groupsByAgentId: ExecutionTreeState['toolGroupsByAgentId'],
+): { agentId: string; statuses: ToolCallStatus[] } | null {
+  for (const node of hierarchy) {
+    const groups = groupsByAgentId[node.id];
+    const statuses = groups
+      ? TOOL_STATUS_ORDER.filter((status) => (groups[status]?.length ?? 0) > 0)
+      : [];
+    if (statuses.length > 0) {
+      return { agentId: node.id, statuses };
+    }
+
+    const childResult = findFirstAgentWithGroups(node.children ?? [], groupsByAgentId);
+    if (childResult) {
+      return childResult;
+    }
+  }
+
+  return null;
+}
+
 export interface AgentExecutionTreeProps {
   state: ExecutionTreeState | null | undefined;
   selectedAgentId: string | null;
@@ -114,7 +348,7 @@ export interface AgentExecutionTreeProps {
 
 type AgentHierarchyNode = ExecutionTreeState['agentHierarchy'][number];
 type ToolInvocationNode = ExecutionTreeState['toolInvocations'][number];
-type ToolGroupKey = `${string}:${ToolCallStatusDto}`;
+type ToolGroupKey = `${string}:${ToolCallStatus}`;
 
 type DetailsTarget = {
   agentId: string;
@@ -238,6 +472,33 @@ export function AgentExecutionTree({
     });
   }, [agentHierarchy, agentLineageById, selectedAgentId]);
 
+  useEffect(() => {
+    if (!selectedAgentId) {
+      return;
+    }
+
+    const groups = toolGroupsByAgentId[selectedAgentId];
+    if (!groups) {
+      return;
+    }
+
+    setExpandedGroups((previous) => {
+      let changed = false;
+      const next = new Set(previous);
+      for (const status of TOOL_STATUS_ORDER) {
+        if ((groups[status]?.length ?? 0) === 0) {
+          continue;
+        }
+        const key: ToolGroupKey = `${selectedAgentId}:${status}`;
+        if (!next.has(key)) {
+          next.add(key);
+          changed = true;
+        }
+      }
+      return changed ? next : previous;
+    });
+  }, [selectedAgentId, toolGroupsByAgentId]);
+
   const agentsWithActivity = useMemo(
     () =>
       Object.entries(toolGroupsByAgentId).filter(([, groups]) =>
@@ -269,6 +530,31 @@ export function AgentExecutionTree({
       return changed ? next : previous;
     });
   }, [agentLineageById, agentsWithActivity]);
+
+  useEffect(() => {
+    setExpandedGroups((previous) => {
+      if (previous.size > 0) {
+        return previous;
+      }
+
+      const candidate = findFirstAgentWithGroups(agentHierarchy, toolGroupsByAgentId);
+      if (!candidate) {
+        return previous;
+      }
+
+      const next = new Set(previous);
+      let changed = false;
+      for (const status of candidate.statuses) {
+        const key: ToolGroupKey = `${candidate.agentId}:${status}`;
+        if (!next.has(key)) {
+          next.add(key);
+          changed = true;
+        }
+      }
+
+      return changed ? next : previous;
+    });
+  }, [agentHierarchy, toolGroupsByAgentId]);
 
   useEffect(() => {
     if (!focusedInvocationId) {
@@ -514,7 +800,7 @@ export function AgentExecutionTree({
                     }
                   >
                     <Text weight="medium" className="text-white/90">
-                      {bundle.title}
+                      {resolveBundleTitle(bundle)}
                     </Text>
                     <Text size="1" color="gray">
                       {formatContextSource(bundle.source)}
@@ -528,8 +814,10 @@ export function AgentExecutionTree({
                     ) : null}
                     {bundle.files && bundle.files.length > 0 ? (
                       <ul className="space-y-1 text-xs text-white/80">
-                        {bundle.files.map((file) => (
-                          <li key={file.id}>{file.name}</li>
+                        {bundle.files.map((file, index) => (
+                          <li key={resolveBundleFileKey(bundle, file, index)}>
+                            {resolveBundleFileLabel(file)}
+                          </li>
                         ))}
                       </ul>
                     ) : null}
@@ -694,12 +982,14 @@ export function AgentExecutionTree({
                 {contextBundles.map((bundle) => (
                   <Box key={bundle.id} className="space-y-1">
                     <Text weight="medium" className="text-white/90">
-                      {bundle.title}
+                      {resolveBundleTitle(bundle)}
                     </Text>
                     {bundle.files && bundle.files.length > 0 ? (
                       <ul className="ml-4 list-disc space-y-1">
-                        {bundle.files.map((file) => (
-                          <li key={file.id}>{file.name}</li>
+                        {bundle.files.map((file, index) => (
+                          <li key={resolveBundleFileKey(bundle, file, index)}>
+                            {resolveBundleFileLabel(file)}
+                          </li>
                         ))}
                       </ul>
                     ) : null}
@@ -751,14 +1041,17 @@ function renderInvocationMetadata(entry: ToolInvocationNode): JSX.Element | null
 }
 
 function resolveInvocationPreviewSource(
-  status: ToolCallStatusDto,
+  status: ToolCallStatus,
   entry: ToolInvocationNode,
 ): unknown {
   const isTerminal = status === 'completed' || status === 'failed';
-  const metadata = entry.metadata as { args?: unknown; result?: unknown } | undefined;
-  const candidates = isTerminal
-    ? [entry.result, entry.args, metadata?.result, metadata?.args]
-    : [entry.args, entry.result, metadata?.args, metadata?.result];
+  const metadata = entry.metadata as { args?: unknown; result?: unknown; error?: unknown } | undefined;
+  const errorValue = metadata && 'error' in metadata ? metadata.error : undefined;
+  const candidates = status === 'failed'
+    ? [errorValue, entry.result, entry.args, metadata?.result, metadata?.args]
+    : isTerminal
+      ? [entry.result, entry.args, metadata?.result, metadata?.args, errorValue]
+      : [entry.args, entry.result, metadata?.args, metadata?.result, errorValue];
 
   for (const candidate of candidates) {
     if (candidate !== null && candidate !== undefined) {

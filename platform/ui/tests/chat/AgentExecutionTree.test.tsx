@@ -189,6 +189,75 @@ describe("AgentExecutionTree", () => {
     });
 
     expect(within(completedList).getByText(/ingest-records/i)).toBeInTheDocument();
-    expect(within(completedList).getByText(/All good/i)).toBeInTheDocument();
+    expect(within(completedList).getAllByText(/All good/i)[0]).toBeInTheDocument();
+  });
+
+  it("shows failed tool invocations grouped under the owning agent", async () => {
+    const user = userEvent.setup();
+    const failedInvocation: ExecutionTreeState["toolInvocations"][number] = {
+      id: "tool-failed",
+      agentId: "root-agent",
+      name: "perform-analysis",
+      status: "failed",
+      createdAt: "2024-05-01T12:05:00.000Z",
+      updatedAt: "2024-05-01T12:06:00.000Z",
+      metadata: {
+        args: { payload: { dataset: "records.json" } },
+        error: { message: "Timed out" },
+      },
+      children: [],
+    } as ExecutionTreeState["toolInvocations"][number];
+
+    const executionTree: ExecutionTreeState = {
+      agentHierarchy: [
+        {
+          id: "root-agent",
+          name: "orchestrator",
+          provider: "openai",
+          model: "gpt-4o",
+          depth: 0,
+          lineage: ["root-agent"],
+          children: [],
+        },
+      ],
+      toolInvocations: [failedInvocation],
+      contextBundles: [],
+      agentLineageById: { "root-agent": ["root-agent"] },
+      toolGroupsByAgentId: {
+        "root-agent": {
+          pending: [],
+          running: [],
+          completed: [],
+          failed: [failedInvocation],
+        },
+      },
+      contextBundlesByAgentId: { "root-agent": [] },
+      contextBundlesByToolCallId: {},
+      createdAt: "2024-05-01T12:00:00.000Z",
+      updatedAt: "2024-05-01T12:06:00.000Z",
+    } as ExecutionTreeState;
+
+    render(
+      <AgentExecutionTree
+        state={createExecutionTreeStateFromMetadata({ executionTree } as unknown)}
+        selectedAgentId={null}
+        onSelectAgent={() => {}}
+      />,
+    );
+
+    const agentSection = screen.getByRole("button", { name: /select orchestrator agent/i });
+    await user.click(agentSection);
+
+    const failedGroupToggle = screen.getByRole("button", {
+      name: /toggle failed tool invocations for orchestrator/i,
+    });
+    await user.click(failedGroupToggle);
+
+    const failedRegion = screen.getByRole("region", {
+      name: /failed tool invocations for orchestrator/i,
+    });
+
+    expect(within(failedRegion).getByText(/perform-analysis/i)).toBeInTheDocument();
+    expect(within(failedRegion).getByText(/Timed out/i)).toBeInTheDocument();
   });
 });
