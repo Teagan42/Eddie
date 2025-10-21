@@ -1,7 +1,12 @@
 import { render, waitFor, within } from "@testing-library/react";
-import { describe, it, vi } from "vitest";
+import { describe, expectTypeOf, it, vi } from "vitest";
 
-import { SessionDetail, type SessionDetailProps } from "../../src/chat";
+import {
+  SessionDetail,
+  type SessionDetailProps,
+  type ChatMessage,
+  type ChatSession,
+} from "../../src/chat";
 
 class ResizeObserverMock {
   observe(): void {}
@@ -11,8 +16,8 @@ class ResizeObserverMock {
 
 Object.assign(globalThis, { ResizeObserver: ResizeObserverMock });
 
-type TestSession = SessionDetailProps["session"];
-type TestMessage = SessionDetailProps["messages"][number];
+type TestSession = ChatSession;
+type TestMessage = ChatMessage;
 
 type StreamingMessage = TestMessage & { event?: string };
 
@@ -24,11 +29,12 @@ function createSession(partial?: Partial<TestSession>): TestSession {
   return {
     id: "session-1",
     title: "Session 1",
+    status: "active",
     description: "",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...partial,
-  } as TestSession;
+  } satisfies TestSession;
 }
 
 function createMessage(partial?: Partial<MessageWithMetadata>): MessageWithMetadata {
@@ -40,10 +46,18 @@ function createMessage(partial?: Partial<MessageWithMetadata>): MessageWithMetad
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...partial,
-  } as MessageWithMetadata;
+  } satisfies MessageWithMetadata;
 }
 
 describe("SessionDetail", () => {
+  it("exposes typed props for session detail inputs", () => {
+    expectTypeOf<SessionDetailProps>().toMatchTypeOf<{
+      session: ChatSession | null;
+      messages: ChatMessage[] | undefined;
+      isLoading: boolean;
+    }>();
+  });
+
   it("renders completed messages as individual cards with agent headings", () => {
     const session = createSession();
     const messages: StreamingMessage[] = [
