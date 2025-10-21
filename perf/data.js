@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760997870160,
+  "lastUpdate": 1761016127789,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -920,6 +920,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 23.715,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "14c0284237c19ffc88166788260aa8f270510fd6",
+          "message": "feat: redesign chat session selector with tabbed categories (#675)\n\n* refactor(session-selector): streamline category mapping\n\n* refactor(chat-page): share section surface styles\n\n* fix: resync session selector tab for active sessions\n\n* fix(web): resolve session selector lint issues\n\n* fix(web): keep archived tab opt-in stable",
+          "timestamp": "2025-10-21T02:57:34Z",
+          "tree_id": "384640e7d906fd4ae4f6ee993ea01ea0434f3e7f",
+          "url": "https://github.com/Teagan42/Eddie/commit/14c0284237c19ffc88166788260aa8f270510fd6"
+        },
+        "date": 1761016127045,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 48.386,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 33.416,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.909,
             "unit": "ms",
             "extra": "[object Object]"
           }
