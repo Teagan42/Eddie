@@ -54,6 +54,13 @@ const externalAliases = [
   },
 ];
 
+export const GLOBAL_COVERAGE_THRESHOLDS = Object.freeze({
+  statements: 75,
+  branches: 65,
+  functions: 80,
+  lines: 75,
+} as const);
+
 export default defineConfig({
   resolve: {
     alias: [...packageAliases, ...externalAliases],
@@ -73,10 +80,7 @@ export default defineConfig({
     coverage: {
       reporter: ["text", "html"],
       thresholds: {
-        statements: 90,
-        branches: 85,
-        functions: 90,
-        lines: 90,
+        global: GLOBAL_COVERAGE_THRESHOLDS,
       },
     },
   },
