@@ -15,7 +15,11 @@ import { Badge, Box, Flex, Text } from "@radix-ui/themes";
 import { ArrowUpRight, ChevronDown, ChevronRight, X } from "lucide-react";
 
 import { JsonTreeView } from "../common";
-import type { ExecutionTreeState, ToolCallStatus } from "./types";
+import type {
+  ExecutionContextBundleFile,
+  ExecutionTreeState,
+  ToolCallStatus,
+} from "./types";
 
 const TOOL_STATUS_ORDER: ToolCallStatus[] = ["pending", "running", "completed", "failed"];
 const TOOL_STATUS_LABELS: Record<ToolCallStatus, string> = {
@@ -199,9 +203,13 @@ type SegmenterConstructor = new (
   options?: { granularity?: 'grapheme' | 'word' | 'sentence' },
 ) => GraphemeSegmenter;
 
+type IntlWithSegmenter = typeof Intl & { Segmenter?: SegmenterConstructor };
+
+const intlWithSegmenter = Intl as IntlWithSegmenter;
+
 const SegmenterCtor: SegmenterConstructor | undefined =
-  typeof Intl !== 'undefined' && typeof (Intl as { Segmenter?: SegmenterConstructor }).Segmenter === 'function'
-    ? (Intl as { Segmenter: SegmenterConstructor }).Segmenter
+  typeof intlWithSegmenter.Segmenter === 'function'
+    ? intlWithSegmenter.Segmenter
     : undefined;
 
 let graphemeSegmenter: GraphemeSegmenter | null | undefined;
@@ -286,7 +294,7 @@ function resolveBundleTitle(bundle: ExecutionTreeState['contextBundles'][number]
 
 function resolveBundleFileKey(
   bundle: ExecutionTreeState['contextBundles'][number],
-  file: ExecutionTreeState['contextBundles'][number]['files'][number],
+  file: ExecutionContextBundleFile,
   index: number,
 ): string {
   const metadata = file as { id?: string | null; path?: string | null };
@@ -301,9 +309,7 @@ function resolveBundleFileKey(
   return `${bundle.id}:file:${index}`;
 }
 
-function resolveBundleFileLabel(
-  file: ExecutionTreeState['contextBundles'][number]['files'][number],
-): string {
+function resolveBundleFileLabel(file: ExecutionContextBundleFile): string {
   const metadata = file as { name?: string | null; path?: string | null };
   if (typeof metadata.name === 'string' && metadata.name.trim().length > 0) {
     return metadata.name;

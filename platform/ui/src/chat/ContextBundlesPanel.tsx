@@ -75,7 +75,7 @@ export function ContextBundlesPanel({
                     {hasFiles ? (
                       <ScrollArea type="always" scrollbars="vertical" className="max-h-56 pr-4">
                         <ul className="space-y-2">
-                          {bundle.files.map((file) => (
+                          {bundle.files?.map((file) => (
                             <li
                               key={file.path}
                               className="flex items-start justify-between gap-3 rounded-xl border border-white/5 bg-white/5 px-3 py-2"
@@ -94,7 +94,7 @@ export function ContextBundlesPanel({
                                 {formatByteSize(file.sizeBytes)}
                               </Text>
                             </li>
-                          ))}
+                          )) ?? null}
                         </ul>
                       </ScrollArea>
                     ) : (
