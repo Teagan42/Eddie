@@ -26,6 +26,7 @@ import { useAuth } from '@/auth/auth-context';
 import { useLayoutPreferences } from '@/hooks/useLayoutPreferences';
 import type { LayoutPreferencesDto } from '@eddie/api-client';
 import { Sheet, SheetTrigger } from "@/vendor/components/ui/sheet";
+import { Panel } from '@eddie/ui';
 import { cn } from "@/vendor/lib/utils";
 import { toast } from '@/vendor/hooks/use-toast';
 import { getSurfaceLayoutClasses, SURFACE_CONTENT_CLASS } from '@/styles/surfaces';
@@ -75,27 +76,6 @@ function resolveErrorMessage(error: unknown): string {
 const PANEL_IDS = {
   context: 'context-bundles',
 } as const;
-
-const SECTION_SURFACE_BASE_CLASS = [
-  'rounded-[2.5rem]',
-  'border border-[color:var(--slate-6)]/60',
-  'p-8',
-  'shadow-[0_30px_60px_-40px_rgba(15,23,42,0.65)]',
-  'backdrop-blur-sm',
-  'dark:border-[color:var(--slate-3)]/60',
-].join(' ');
-
-const SESSIONS_SECTION_CLASS = [
-  SECTION_SURFACE_BASE_CLASS,
-  'bg-white/90',
-  'dark:bg-[color:var(--slate-2)]/60',
-].join(' ');
-
-const CHAT_SECTION_CLASS = [
-  SECTION_SURFACE_BASE_CLASS,
-  'bg-white/95',
-  'dark:bg-[color:var(--slate-2)]/70',
-].join(' ');
 
 const SCROLL_VIEWPORT_SELECTOR = '[data-radix-scroll-area-viewport]';
 
@@ -1540,13 +1520,6 @@ export function ChatPage(): JSX.Element {
 
   const isContextBundlesCollapsed = Boolean(collapsedPanels[PANEL_IDS.context]);
 
-  const selectedSessionTitle = useMemo(() => {
-    return (
-      sessions.find((session) => session.id === selectedSessionId)?.title ??
-      'Select a session'
-    );
-  }, [sessions, selectedSessionId]);
-
   return (
     <Sheet
       open={isAgentToolsOpen}
@@ -1574,106 +1547,95 @@ export function ChatPage(): JSX.Element {
             </Box>
           </Flex>
 
-          <Box asChild className={SESSIONS_SECTION_CLASS}>
-            <section aria-labelledby="chat-sessions-heading">
-              <Flex direction="column" gap="5">
-                <Flex align="center" justify="between" gap="4" wrap="wrap">
-                  <Box className="space-y-2">
-                    <Heading as="h2" size="4" id="chat-sessions-heading">
-                      Sessions
-                    </Heading>
-                    {sessions.length === 0 ? (
-                      <Text size="2" color="gray">
-                        Create a session to begin orchestrating conversations.
-                      </Text>
-                    ) : null}
-                  </Box>
-                  <Button
-                    onClick={handleCreateSession}
-                    size="2"
-                    variant="solid"
-                    color="jade"
-                    disabled={createSessionMutation.isPending}
+          <Panel
+            title="Sessions"
+            description={
+              sessions.length === 0
+                ? 'Create a session to begin orchestrating conversations.'
+                : undefined
+            }
+            actions={
+              <Button
+                onClick={handleCreateSession}
+                size="2"
+                variant="solid"
+                color="jade"
+                disabled={createSessionMutation.isPending}
+              >
+                <PlusIcon /> New session
+              </Button>
+            }
+          >
+            <SessionSelector
+              sessions={sessionsWithMetrics}
+              selectedSessionId={selectedSessionId ?? null}
+              onSelectSession={handleSelectSession}
+              onRenameSession={handleRenameSession}
+              onDeleteSession={handleDeleteSession}
+              onCreateSession={handleCreateSession}
+              isCreatePending={createSessionMutation.isPending}
+            />
+          </Panel>
+
+          <Panel
+            title={
+              sessions.find((session) => session.id === selectedSessionId)?.title ??
+              'Select a session'
+            }
+            actions={
+              <Flex align="center" gap="3" wrap="wrap">
+                {providerOptions.length > 0 ? (
+                  <Select.Root
+                    value={selectedProviderValue}
+                    onValueChange={handleProviderChange}
+                    disabled={!selectedSessionId}
                   >
-                    <PlusIcon /> New session
+                    <Select.Trigger aria-label="Provider" placeholder="Provider" />
+                    <Select.Content>
+                      {providerOptions.map((option) => (
+                        <Select.Item key={option.value} value={option.value}>
+                          {option.label}
+                        </Select.Item>
+                      ))}
+                      <Select.Separator />
+                      <Select.Item value="__custom__">Custom provider…</Select.Item>
+                    </Select.Content>
+                  </Select.Root>
+                ) : null}
+                {selectedProviderName ? (
+                  <TextField.Root
+                    value={activeSettings.model ?? ''}
+                    onChange={(event) => handleModelInputChange(event.target.value)}
+                    placeholder="Model identifier"
+                    aria-label="Model"
+                    disabled={!selectedSessionId}
+                  />
+                ) : null}
+                <SheetTrigger asChild>
+                  <Button variant="solid" size="2">
+                    <MagicWandIcon /> Open agent tools
                   </Button>
-                </Flex>
-
-                <SessionSelector
-                  sessions={sessionsWithMetrics}
-                  selectedSessionId={selectedSessionId ?? null}
-                  onSelectSession={handleSelectSession}
-                  onRenameSession={handleRenameSession}
-                  onDeleteSession={handleDeleteSession}
-                  onCreateSession={handleCreateSession}
-                  isCreatePending={createSessionMutation.isPending}
-                />
+                </SheetTrigger>
               </Flex>
-            </section>
-          </Box>
-
-          <Box asChild className={CHAT_SECTION_CLASS}>
-            <section aria-labelledby="chat-session-window-heading">
-              <Flex direction="column" gap="5">
-                <Flex align="center" justify="between" gap="4" wrap="wrap">
-                  <Heading as="h2" size="4" id="chat-session-window-heading">
-                    {selectedSessionTitle}
-                  </Heading>
-                  <Flex align="center" gap="3" wrap="wrap">
-                    {providerOptions.length > 0 ? (
-                      <Select.Root
-                        value={selectedProviderValue}
-                        onValueChange={handleProviderChange}
-                        disabled={!selectedSessionId}
-                      >
-                        <Select.Trigger aria-label="Provider" placeholder="Provider" />
-                        <Select.Content>
-                          {providerOptions.map((option) => (
-                            <Select.Item key={option.value} value={option.value}>
-                              {option.label}
-                            </Select.Item>
-                          ))}
-                          <Select.Separator />
-                          <Select.Item value="__custom__">Custom provider…</Select.Item>
-                        </Select.Content>
-                      </Select.Root>
-                    ) : null}
-                    {selectedProviderName ? (
-                      <TextField.Root
-                        value={activeSettings.model ?? ''}
-                        onChange={(event) => handleModelInputChange(event.target.value)}
-                        placeholder="Model identifier"
-                        aria-label="Model"
-                        disabled={!selectedSessionId}
-                      />
-                    ) : null}
-                    <SheetTrigger asChild>
-                      <Button variant="solid" size="2">
-                        <MagicWandIcon /> Open agent tools
-                      </Button>
-                    </SheetTrigger>
-                  </Flex>
-                </Flex>
-
-                <ChatWindow
-                  messages={messagesWithMetadata}
-                  onReissueCommand={handleReissueCommand}
-                  scrollAnchorRef={scrollAnchorRef}
-                  agentActivityState={agentActivityState}
-                  composerRole={composerRole}
-                  onComposerRoleChange={setComposerRole}
-                  composerRoleDisabled={composerUnavailable}
-                  composerValue={composerValue}
-                  onComposerValueChange={setComposerValue}
-                  composerDisabled={composerInputDisabled}
-                  composerSubmitDisabled={composerSubmitDisabled}
-                  composerPlaceholder="Send a message to the orchestrator"
-                  onComposerSubmit={handleComposerSubmit}
-                  onInspectToolInvocation={handleInspectToolInvocation}
-                />
-              </Flex>
-            </section>
-          </Box>
+            }
+          >
+            <ChatWindow
+              messages={messagesWithMetadata}
+              onReissueCommand={handleReissueCommand}
+              scrollAnchorRef={scrollAnchorRef}
+              agentActivityState={agentActivityState}
+              composerRole={composerRole}
+              onComposerRoleChange={setComposerRole}
+              composerRoleDisabled={composerUnavailable}
+              composerValue={composerValue}
+              onComposerValueChange={setComposerValue}
+              composerDisabled={composerInputDisabled}
+              composerSubmitDisabled={composerSubmitDisabled}
+              composerPlaceholder="Send a message to the orchestrator"
+              onComposerSubmit={handleComposerSubmit}
+              onInspectToolInvocation={handleInspectToolInvocation}
+            />
+          </Panel>
         </Flex>
       </div>
 
