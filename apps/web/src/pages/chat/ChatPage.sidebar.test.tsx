@@ -131,6 +131,9 @@ describe("ChatPage sidebar accessibility", () => {
     await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
 
     expect(
+      screen.queryByRole("dialog", { name: /agent tools/i }),
+    ).not.toBeInTheDocument();
+    expect(
       screen.queryByRole("heading", { name: "Agent execution" }),
     ).not.toBeInTheDocument();
 

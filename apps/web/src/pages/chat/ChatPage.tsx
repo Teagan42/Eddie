@@ -23,7 +23,7 @@ import { useAuth } from '@/auth/auth-context';
 import { useLayoutPreferences } from '@/hooks/useLayoutPreferences';
 import type { LayoutPreferencesDto } from '@eddie/api-client';
 import { Panel } from "@eddie/ui";
-import { Sheet, SheetTrigger } from "@/vendor/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger } from "@/vendor/components/ui/sheet";
 import { cn } from "@/vendor/lib/utils";
 import { toast } from '@/vendor/hooks/use-toast';
 import { getSurfaceLayoutClasses, SURFACE_CONTENT_CLASS } from '@/styles/surfaces';
@@ -1639,17 +1639,25 @@ export function ChatPage(): JSX.Element {
         </Flex>
       </div>
 
-      <AgentToolsDrawer
-        executionTreeState={executionTreeState}
-        selectedAgentId={selectedAgentId}
-        onSelectAgent={setSelectedAgentId}
-        focusedToolInvocationId={focusedToolInvocationId}
-        onFocusToolInvocation={setFocusedToolInvocationId}
-        contextPanelId={PANEL_IDS.context}
-        contextBundles={selectedContextBundles}
-        isContextPanelCollapsed={isContextBundlesCollapsed}
-        onToggleContextPanel={handleTogglePanel}
-      />
+      <SheetContent
+        side="right"
+        className="w-full border-none bg-transparent p-0 sm:max-w-xl md:max-w-2xl lg:max-w-3xl"
+        aria-labelledby="agent-tools-drawer-title"
+        aria-describedby="agent-tools-drawer-description"
+      >
+        <AgentToolsDrawer
+          executionTreeState={executionTreeState}
+          selectedAgentId={selectedAgentId}
+          onSelectAgent={setSelectedAgentId}
+          focusedToolInvocationId={focusedToolInvocationId}
+          onFocusToolInvocation={setFocusedToolInvocationId}
+          contextPanelId={PANEL_IDS.context}
+          contextBundles={selectedContextBundles}
+          isContextPanelCollapsed={isContextBundlesCollapsed}
+          onToggleContextPanel={handleTogglePanel}
+          role="document"
+        />
+      </SheetContent>
     </Sheet>
   );
 }
