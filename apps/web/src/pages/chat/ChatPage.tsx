@@ -28,13 +28,12 @@ import { cn } from "@/vendor/lib/utils";
 import { toast } from '@/vendor/hooks/use-toast';
 import { getSurfaceLayoutClasses, SURFACE_CONTENT_CLASS } from '@/styles/surfaces';
 import { sortSessions, upsertMessage } from './chat-utils';
+import { ContextBundlesPanel, AgentToolsDrawer } from './components';
 import {
-  ContextBundlesPanel,
-  AgentToolsDrawer,
   SessionSelector,
   type SessionSelectorMetricsSummary,
   type SessionSelectorSession,
-} from './components';
+} from '@eddie/ui/chat';
 import { useChatMessagesRealtime } from './useChatMessagesRealtime';
 import {
   applyToolCallEvent,
@@ -560,6 +559,12 @@ export function ChatPage(): JSX.Element {
 
   const sessionsWithMetrics = useMemo<SessionSelectorSession[]>(() => {
     return sessions.map((session) => {
+      const summary: SessionSelectorSession = {
+        id: session.id,
+        title: session.title,
+        status: session.status === 'archived' ? 'archived' : 'active',
+      };
+
       const metrics: SessionSelectorMetricsSummary = {};
       const messageCount = resolveMessageCount(session.id);
       if (typeof messageCount === 'number') {
@@ -575,7 +580,7 @@ export function ChatPage(): JSX.Element {
         metrics.messageCount != null ||
         metrics.contextBundleCount != null;
 
-      return hasMetrics ? { ...session, metrics } : session;
+      return hasMetrics ? { ...summary, metrics } : summary;
     });
   }, [getSessionContextBundles, resolveMessageCount, sessions]);
 
