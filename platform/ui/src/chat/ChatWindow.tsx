@@ -1,23 +1,31 @@
-import type { RefObject } from 'react';
-import { Flex, SegmentedControl } from '@radix-ui/themes';
+import type { RefObject } from "react";
+import { Flex, SegmentedControl } from "@radix-ui/themes";
 
 import {
   AgentActivityIndicator,
   type AgentActivityState,
-  MessageComposer,
+} from "./AgentActivityIndicator";
+import {
   MessageList,
   type MessageListItem,
-} from '@eddie/ui/chat';
+} from "./MessageList";
+import { MessageComposer } from "./MessageComposer";
 
-export type ComposerRole = 'user' | 'system';
+const COMPOSER_ROLES = ["user", "system"] as const;
+const COMPOSER_ROLE_LABELS: Record<(typeof COMPOSER_ROLES)[number], string> = {
+  user: "Ask",
+  system: "Run",
+};
+
+export type ChatWindowComposerRole = (typeof COMPOSER_ROLES)[number];
 
 export interface ChatWindowProps {
   messages: MessageListItem[];
   onReissueCommand: (message: MessageListItem) => void;
   scrollAnchorRef: RefObject<HTMLDivElement>;
   agentActivityState: AgentActivityState;
-  composerRole: ComposerRole;
-  onComposerRoleChange: (role: ComposerRole) => void;
+  composerRole: ChatWindowComposerRole;
+  onComposerRoleChange: (role: ChatWindowComposerRole) => void;
   composerRoleDisabled?: boolean;
   composerValue: string;
   onComposerValueChange: (value: string) => void;
@@ -56,11 +64,16 @@ export function ChatWindow({
         <AgentActivityIndicator state={agentActivityState} />
         <SegmentedControl.Root
           value={composerRole}
-          onValueChange={(value) => onComposerRoleChange(value as ComposerRole)}
+          onValueChange={(value) =>
+            onComposerRoleChange(value as ChatWindowComposerRole)
+          }
           disabled={composerRoleDisabled}
         >
-          <SegmentedControl.Item value="user">Ask</SegmentedControl.Item>
-          <SegmentedControl.Item value="system">Run</SegmentedControl.Item>
+          {COMPOSER_ROLES.map((role) => (
+            <SegmentedControl.Item key={role} value={role}>
+              {COMPOSER_ROLE_LABELS[role]}
+            </SegmentedControl.Item>
+          ))}
         </SegmentedControl.Root>
         <MessageComposer
           disabled={composerDisabled}
