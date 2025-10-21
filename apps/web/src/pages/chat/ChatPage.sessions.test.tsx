@@ -3,8 +3,27 @@ import { QueryClient } from "@tanstack/react-query";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatSessionDto, LayoutPreferencesDto } from "@eddie/api-client";
+import type { SessionSelectorProps } from "@eddie/ui/chat";
 import { createChatPageRenderer } from "./test-utils";
-import { SESSION_TABLIST_ARIA_LABEL } from "./components";
+import { SESSION_TABLIST_ARIA_LABEL } from "@eddie/ui/chat";
+
+const sessionSelectorCapture = vi.hoisted(() => ({
+  props: undefined as SessionSelectorProps | undefined,
+}));
+
+vi.mock("@eddie/ui/chat", async () => {
+  const actual = await vi.importActual<typeof import("@eddie/ui/chat")>(
+    "@eddie/ui/chat",
+  );
+
+  return {
+    ...actual,
+    SessionSelector: (props: SessionSelectorProps) => {
+      sessionSelectorCapture.props = props;
+      return <actual.SessionSelector {...props} />;
+    },
+  };
+});
 
 const sessionCreatedHandlers: Array<(session: unknown) => void> = [];
 const sessionDeletedHandlers: Array<(sessionId: string) => void> = [];
@@ -185,6 +204,7 @@ describe("ChatPage session creation", () => {
     messageCreatedHandlers.length = 0;
     messageUpdatedHandlers.length = 0;
     updatePreferencesMock.mockReset();
+    sessionSelectorCapture.props = undefined;
     preferencesState = {
       chat: {
         selectedSessionId: "session-1",
@@ -277,6 +297,29 @@ describe("ChatPage session creation", () => {
     } finally {
       promptSpy.mockRestore();
     }
+  });
+
+  it("passes session summaries without DTO-only fields to SessionSelector", async () => {
+    const now = new Date().toISOString();
+    const sessionOne = buildSessionDto("session-1", "Session 1", now);
+    const sessionTwo = buildSessionDto("session-2", "Session 2", now);
+    listSessionsMock.mockResolvedValue([sessionOne, sessionTwo]);
+
+    renderChatPage();
+
+    await waitFor(() => {
+      expect(sessionSelectorCapture.props?.sessions).toHaveLength(2);
+    });
+
+    const props = sessionSelectorCapture.props;
+    expect(props?.sessions[0]).toMatchObject({
+      id: sessionOne.id,
+      title: sessionOne.title,
+      status: sessionOne.status,
+    });
+    expect(props?.sessions[0]).not.toHaveProperty("description");
+    expect(props?.sessions[0]).not.toHaveProperty("createdAt");
+    expect(props?.sessions[0]).not.toHaveProperty("updatedAt");
   });
 
   it("displays cached aggregate metrics for each session", async () => {
