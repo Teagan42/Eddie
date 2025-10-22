@@ -9,6 +9,10 @@ export default defineConfig({
     alias: {
       "@": resolve(workspaceRoot, "src"),
       "@eddie/ui": resolve(workspaceRoot, "../../platform/ui/src"),
+      "@shikijs/transformers": resolve(
+        workspaceRoot,
+        "src/vendor/shiki-transformers.ts",
+      ),
     },
   },
   test: {

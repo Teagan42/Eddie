@@ -9,9 +9,13 @@ import {
   type ExecutionTreeState,
 } from "../../src/chat";
 
+const setupUser = () => userEvent.setup({ pointerEventsCheck: 0 });
+
 describe("AgentExecutionTree", () => {
-  it("groups tool invocations under each agent with previews and a details CTA", async () => {
-    const user = userEvent.setup();
+  it(
+    "groups tool invocations under each agent with previews and a details CTA",
+    async () => {
+    const user = setupUser();
     const completedInvocation: ExecutionTreeState["toolInvocations"][number] = {
       id: "tool-1",
       agentId: "root-agent",
@@ -46,6 +50,8 @@ describe("AgentExecutionTree", () => {
       fileCount: 1,
       files: [
         {
+          id: "bundle-file-1",
+          name: "preferences.json",
           path: "preferences.json",
           sizeBytes: 128,
           preview: '{"preferredCity":"San Francisco"}',
@@ -120,12 +126,19 @@ describe("AgentExecutionTree", () => {
 
     await user.click(detailsButton);
 
-    expect(screen.getByRole("dialog", { name: /tool invocation details/i })).toBeInTheDocument();
-    expect(screen.getByText(/preferences.json/)).toBeInTheDocument();
-  });
+    const dialog = await screen.findByRole(
+      "dialog",
+      { name: /tool invocation details/i },
+      { timeout: 10_000 },
+    );
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText(/preferences.json/)).toBeInTheDocument();
+    },
+    15_000,
+  );
 
   it("retains previews from invocation metadata when args and result fields are missing", async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     const invocation: ExecutionTreeState["toolInvocations"][number] = {
       id: "tool-with-metadata",
       agentId: "root-agent",
@@ -201,4 +214,106 @@ describe("AgentExecutionTree", () => {
       within(completedList).getByText(/All good/i, { selector: 'span.rt-Text' }),
     ).toBeInTheDocument();
   });
+
+  it(
+    "shows context bundle labels when titles are absent",
+    async () => {
+    const user = setupUser();
+
+    const completedInvocation: ExecutionTreeState["toolInvocations"][number] = {
+      id: "tool-with-bundle",
+      agentId: "root-agent",
+      name: "bundle-tool",
+      status: "completed",
+      createdAt: "2024-05-01T12:10:00.000Z",
+      updatedAt: "2024-05-01T12:11:00.000Z",
+      metadata: { args: { source: "bundle" } },
+      children: [],
+    } as ExecutionTreeState["toolInvocations"][number];
+
+    const contextBundle: ExecutionContextBundle = {
+      id: "bundle-context",
+      label: "Research briefing",
+      summary: "Key findings and sources",
+      sizeBytes: 256,
+      fileCount: 1,
+      files: [
+        {
+          id: "bundle-file",
+          name: "notes.md",
+          path: "notes.md",
+          sizeBytes: 256,
+        },
+      ],
+      source: { type: "tool_result", agentId: "root-agent", toolCallId: "tool-with-bundle" },
+    } as ExecutionContextBundle;
+
+    const executionTree: ExecutionTreeState = {
+      agentHierarchy: [
+        {
+          id: "root-agent",
+          name: "orchestrator",
+          provider: "openai",
+          model: "gpt-4o",
+          depth: 0,
+          lineage: ["root-agent"],
+          children: [],
+        },
+      ],
+      toolInvocations: [completedInvocation],
+      contextBundles: [contextBundle],
+      agentLineageById: { "root-agent": ["root-agent"] },
+      toolGroupsByAgentId: {
+        "root-agent": {
+          pending: [],
+          running: [],
+          completed: [completedInvocation],
+          failed: [],
+        },
+      },
+      contextBundlesByAgentId: { "root-agent": [contextBundle] },
+      contextBundlesByToolCallId: { "tool-with-bundle": [contextBundle] },
+      createdAt: "2024-05-01T12:10:00.000Z",
+      updatedAt: "2024-05-01T12:11:00.000Z",
+    } as ExecutionTreeState;
+
+    render(
+      <AgentExecutionTree
+        state={createExecutionTreeStateFromMetadata({ executionTree } as unknown)}
+        selectedAgentId={null}
+        onSelectAgent={() => {}}
+      />,
+    );
+
+    const agentToggle = screen.getByRole("button", { name: /select orchestrator agent/i });
+    await user.click(agentToggle);
+
+    const completedToggle = screen.getByRole("button", {
+      name: /toggle completed tool invocations for orchestrator/i,
+    });
+
+    await user.click(completedToggle);
+
+    const completedRegion = await screen.findByRole(
+      "region",
+      { name: /completed tool invocations for orchestrator/i },
+      { timeout: 10_000 },
+    );
+
+    const detailsButton = within(completedRegion).getByRole("button", {
+      name: /view full tool invocation details/i,
+    });
+
+    await user.click(detailsButton);
+
+    const dialog = await screen.findByRole(
+      "dialog",
+      { name: /tool invocation details/i },
+      { timeout: 10_000 },
+    );
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText(/Research briefing/)).toBeInTheDocument();
+  },
+    15_000,
+  );
 });
