@@ -1,3 +1,4 @@
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
 import { act, screen, waitFor, within } from "@testing-library/react";
@@ -8,6 +9,7 @@ const catalogMock = vi.fn();
 const listSessionsMock = vi.fn();
 const listMessagesMock = vi.fn();
 const createSessionMock = vi.fn();
+const createMessageMock = vi.fn();
 const getMetadataMock = vi.fn();
 const getExecutionStateMock = vi.fn();
 const loadConfigMock = vi.fn();
@@ -67,7 +69,7 @@ vi.mock("@/api/api-provider", () => ({
         create: createSessionMock,
         get: vi.fn(),
         archive: vi.fn(),
-        createMessage: vi.fn(),
+        createMessage: createMessageMock,
       },
       orchestrator: {
         getMetadata: getMetadataMock,
@@ -109,6 +111,7 @@ describe("ChatPage authentication behaviours", () => {
     vi.clearAllMocks();
     useAuthMock.mockReset();
     updatePreferencesMock.mockReset();
+    createMessageMock.mockReset();
 
     getExecutionStateMock.mockResolvedValue(null);
     const timestamp = new Date().toISOString();
@@ -144,6 +147,13 @@ describe("ChatPage authentication behaviours", () => {
       status: "active",
       createdAt: timestamp,
       updatedAt: timestamp,
+    });
+    createMessageMock.mockResolvedValue({
+      id: "message-1",
+      sessionId: "session-auto",
+      role: "user",
+      content: "Hello world",
+      createdAt: timestamp,
     });
   });
 
@@ -236,5 +246,37 @@ describe("ChatPage authentication behaviours", () => {
 
     expect(composer).toBeDisabled();
     expect(sendButton).toBeDisabled();
+  });
+
+  it("defaults the composer role to Ask for automatically created sessions", async () => {
+    renderChatPage();
+
+    await waitFor(() => expect(createSessionMock).toHaveBeenCalledTimes(1));
+
+    const askOption = await screen.findByRole("radio", { name: "Ask" });
+    const runOption = screen.getByRole("radio", { name: "Run" });
+
+    expect(askOption).toBeChecked();
+    expect(runOption).not.toBeChecked();
+  });
+
+  it("sends the first composer message as a user command after auto session creation", async () => {
+    const user = userEvent.setup();
+    renderChatPage();
+
+    await waitFor(() => expect(createSessionMock).toHaveBeenCalledTimes(1));
+
+    const composer = await screen.findByPlaceholderText(
+      "Send a message to the orchestrator",
+    );
+
+    await user.type(composer, "Hello world");
+    await user.keyboard("{Alt>}{Enter}{/Alt}");
+
+    await waitFor(() => expect(createMessageMock).toHaveBeenCalledTimes(1));
+    expect(createMessageMock).toHaveBeenCalledWith("session-auto", {
+      role: "user",
+      content: "Hello world",
+    });
   });
 });

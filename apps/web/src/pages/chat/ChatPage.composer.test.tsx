@@ -212,4 +212,24 @@ describe("ChatPage composer interactions", () => {
     expect(sendButton).toBeDisabled();
     expect(sendButton).toHaveAttribute("aria-disabled", "true");
   });
+
+  it("coerces the first message to a user role when system is selected", async () => {
+    const user = userEvent.setup();
+    renderChatPage();
+
+    const runOption = await screen.findByRole("radio", { name: "Run" });
+    await user.click(runOption);
+
+    const composer = await screen.findByPlaceholderText(
+      "Send a message to the orchestrator",
+    );
+    await user.type(composer, "Inspect build settings");
+    await user.keyboard("{Alt>}{Enter}{/Alt}");
+
+    await waitFor(() => expect(createMessageMock).toHaveBeenCalledTimes(1));
+    expect(createMessageMock).toHaveBeenCalledWith("session-1", {
+      role: "user",
+      content: "Inspect build settings",
+    });
+  });
 });

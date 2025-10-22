@@ -759,6 +759,11 @@ export function ChatPage(): JSX.Element {
         : Promise.resolve([]),
   });
 
+  const hasUserMessage = useMemo(
+    () => (messagesQuery.data ?? []).some((message) => message.role === 'user'),
+    [messagesQuery.data],
+  );
+
   useEffect(() => {
     const error = messagesQuery.error as { status?: number } | null | undefined;
     if (!error) {
@@ -1372,14 +1377,32 @@ export function ChatPage(): JSX.Element {
     if (!apiKey || !selectedSessionId || !trimmed) {
       return;
     }
+
+    const shouldCoerceToUser = composerRole === 'system' && !hasUserMessage;
+    const nextRole: ComposerRole = shouldCoerceToUser
+      ? DEFAULT_COMPOSER_ROLE
+      : composerRole;
+
+    if (shouldCoerceToUser) {
+      setComposerRole(nextRole);
+    }
+
     sendMessageMutation.mutate({
       sessionId: selectedSessionId,
       message: {
-        role: composerRole,
+        role: nextRole,
         content: trimmed,
       },
     });
-  }, [apiKey, composerRole, composerValue, selectedSessionId, sendMessageMutation]);
+  }, [
+    apiKey,
+    composerRole,
+    composerValue,
+    hasUserMessage,
+    selectedSessionId,
+    sendMessageMutation,
+    setComposerRole,
+  ]);
 
   const handleComposerSubmit = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
