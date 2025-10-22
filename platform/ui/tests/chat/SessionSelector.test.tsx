@@ -154,6 +154,15 @@ describe('SessionSelector', () => {
     expect(handleDelete).toHaveBeenCalledWith('session-2');
   });
 
+  it('renders session action menus with native button semantics', () => {
+    renderSelector();
+
+    const firstMenuTrigger = screen.getByRole('button', { name: 'Session options for Session 1' });
+
+    expect(firstMenuTrigger.tagName.toLowerCase()).toBe('button');
+    expect(firstMenuTrigger).toHaveAttribute('type', 'button');
+  });
+
   it('organizes sessions into status-based tabs', async () => {
     const user = userEvent.setup();
 
