@@ -705,9 +705,13 @@ export function AgentExecutionTree({
     );
   }
 
-  const detailsInvocation = detailsTarget
-    ? toolInvocations.find((node) => node.id === detailsTarget.invocationId)
-    : null;
+  const detailsInvocation = useMemo(
+    () =>
+      detailsTarget
+        ? findInvocationById(toolInvocations, detailsTarget.invocationId)
+        : null,
+    [detailsTarget, toolInvocations],
+  );
   const detailsAgent = detailsTarget ? (agentsById.get(detailsTarget.agentId) ?? null) : null;
 
   return (

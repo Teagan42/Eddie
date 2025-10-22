@@ -316,4 +316,98 @@ describe("AgentExecutionTree", () => {
   },
     15_000,
   );
+
+  it("opens tool invocation details for nested entries", async () => {
+    const user = setupUser();
+
+    const nestedInvocation: ExecutionTreeState["toolInvocations"][number] = {
+      id: "child-invocation",
+      agentId: "root-agent",
+      name: "summarize-report",
+      status: "completed",
+      createdAt: "2024-05-01T12:12:00.000Z",
+      updatedAt: "2024-05-01T12:12:30.000Z",
+      metadata: { result: { summary: "Key findings" } },
+      children: [],
+    } as ExecutionTreeState["toolInvocations"][number];
+
+    const rootInvocation: ExecutionTreeState["toolInvocations"][number] = {
+      id: "root-invocation",
+      agentId: "root-agent",
+      name: "delegate-analysis",
+      status: "completed",
+      createdAt: "2024-05-01T12:11:00.000Z",
+      updatedAt: "2024-05-01T12:11:30.000Z",
+      metadata: { result: { status: "done" } },
+      children: [nestedInvocation],
+    } as ExecutionTreeState["toolInvocations"][number];
+
+    const executionTree: ExecutionTreeState = {
+      agentHierarchy: [
+        {
+          id: "root-agent",
+          name: "orchestrator",
+          provider: "openai",
+          model: "gpt-4o",
+          depth: 0,
+          lineage: ["root-agent"],
+          children: [],
+        },
+      ],
+      toolInvocations: [rootInvocation],
+      contextBundles: [],
+      agentLineageById: { "root-agent": ["root-agent"] },
+      toolGroupsByAgentId: {
+        "root-agent": {
+          pending: [],
+          running: [],
+          completed: [rootInvocation, nestedInvocation],
+          failed: [],
+        },
+      },
+      contextBundlesByAgentId: {},
+      contextBundlesByToolCallId: {},
+      createdAt: "2024-05-01T12:10:00.000Z",
+      updatedAt: "2024-05-01T12:13:00.000Z",
+    } as ExecutionTreeState;
+
+    render(
+      <AgentExecutionTree
+        state={createExecutionTreeStateFromMetadata({ executionTree } as unknown)}
+        selectedAgentId={null}
+        onSelectAgent={() => {}}
+      />,
+    );
+
+    const agentToggle = screen.getByRole("button", { name: /select orchestrator agent/i });
+    await user.click(agentToggle);
+
+    const completedToggle = screen.getByRole("button", {
+      name: /toggle completed tool invocations for orchestrator/i,
+    });
+
+    await user.click(completedToggle);
+
+    const completedRegion = await screen.findByRole("region", {
+      name: /completed tool invocations for orchestrator/i,
+    });
+
+    const nestedInvocationEntry = within(completedRegion).getByText(/summarize-report/i).closest("li");
+    if (!nestedInvocationEntry) {
+      throw new Error("Expected nested invocation entry to be present");
+    }
+
+    const nestedDetailsButton = within(nestedInvocationEntry).getByRole("button", {
+      name: /view full tool invocation details/i,
+    });
+
+    await user.click(nestedDetailsButton);
+
+    const dialog = await screen.findByRole("dialog", {
+      name: /tool invocation details/i,
+    });
+
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText(/summarize-report/i)).toBeInTheDocument();
+  });
 });
