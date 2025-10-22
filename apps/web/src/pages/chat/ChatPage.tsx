@@ -20,9 +20,10 @@ import type {
   CreateChatMessageDto,
   CreateChatSessionDto,
   EddieConfigSourceDto,
+  RuntimeConfigDto,
 } from '@eddie/api-client';
 import type { LayoutPreferencesDto } from '@eddie/api-client';
-import { applyToolCallEvent, applyToolResultEvent, ChatWindow, cloneExecutionTreeState, cn, coerceExecutionTreeState, composeExecutionTreeState, createEmptyExecutionTreeState, createExecutionTreeStateFromMetadata, Panel, SessionSelector, Sheet, sortSessions, ToolEventPayload, upsertMessage } from '@eddie/ui';
+import { applyToolCallEvent, applyToolResultEvent, AgentToolsDrawer, ChatWindow, cloneExecutionTreeState, cn, coerceExecutionTreeState, composeExecutionTreeState, createEmptyExecutionTreeState, createExecutionTreeStateFromMetadata, Panel, SessionSelector, Sheet, sortSessions, ToolEventPayload, upsertMessage } from '@eddie/ui';
 import { useApi } from '@/api/api-provider.js';
 import { useAuth } from '@/auth/auth-context.js';
 import { useLayoutPreferences } from '../../hooks/useLayoutPreferences.js';
@@ -30,8 +31,8 @@ import { extractProviderProfiles, createProviderProfileOptions, ProviderOption }
 import { getSurfaceLayoutClasses, SURFACE_CONTENT_CLASS } from '../../styles/surfaces.js';
 import { SessionSelectorSession, SessionSelectorMetricsSummary, SheetTrigger } from '@eddie/ui';
 import { useChatMessagesRealtime } from './useChatMessagesRealtime.js';
-import { AgentToolsDrawer } from './components/AgentToolsDrawer.js';
 import { toast } from '@/vendor/hooks/use-toast.js';
+import { useTheme } from '@/theme';
 
 const ORCHESTRATOR_METADATA_QUERY_KEY = 'orchestrator-metadata' as const;
 
@@ -53,6 +54,8 @@ const PANEL_IDS = {
 } as const;
 
 const SCROLL_VIEWPORT_SELECTOR = '[data-radix-scroll-area-viewport]';
+
+const DEFAULT_THEME: RuntimeConfigDto['theme'] = 'dark';
 
 const CHAT_SESSIONS_QUERY_KEY = ['chat-sessions'] as const;
 const CONFIG_EDITOR_QUERY_KEY = ['config', 'editor'] as const;
@@ -169,6 +172,8 @@ export function ChatPage(): JSX.Element {
   const queryClient = useQueryClient();
   const { preferences, updatePreferences } = useLayoutPreferences();
   useChatMessagesRealtime(api);
+  const { resolvedTheme } = useTheme();
+  const drawerTheme = (resolvedTheme ?? DEFAULT_THEME) as RuntimeConfigDto['theme'];
   const [composerValue, setComposerValue] = useState('');
   // Derive a safe default for composer role from the DTO union (fall back to 'user')
   const [composerRole, setComposerRole] = useState<Role>(DEFAULT_COMPOSER_ROLE);
@@ -1622,6 +1627,7 @@ export function ChatPage(): JSX.Element {
         contextBundles={selectedContextBundles}
         isContextPanelCollapsed={isContextBundlesCollapsed}
         onToggleContextPanel={handleTogglePanel}
+        theme={drawerTheme}
       />
     </Sheet>
   );

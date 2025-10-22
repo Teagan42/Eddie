@@ -1,10 +1,10 @@
 import type { ReactElement } from "react";
 import { render, type RenderResult } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Theme } from "@radix-ui/themes";
 import { AuthProvider } from "@/auth/auth-context";
 import { ChatPage } from "./ChatPage";
 import type { OrchestratorMetadataDto } from "@eddie/api-client";
+import { ThemeProvider } from "@/theme";
 
 type ToolInvocationNode = OrchestratorMetadataDto["toolInvocations"][number];
 
@@ -44,13 +44,13 @@ export function createChatPageRenderer(
   return () => {
     const client = createClient();
     const renderElement = (): ReactElement => (
-      <Theme>
-        <AuthProvider>
-          <QueryClientProvider client={client}>
+      <QueryClientProvider client={client}>
+        <ThemeProvider>
+          <AuthProvider>
             <ChatPage />
-          </QueryClientProvider>
-        </AuthProvider>
-      </Theme>
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
     );
 
     const result = render(renderElement());

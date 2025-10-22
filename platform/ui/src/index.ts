@@ -40,6 +40,7 @@ export type { NavigationLinkProps } from './navigation';
 
 export * from './chat';
 export * from './overview';
+export * from './theme';
 export { useToast, toast } from './vendor/hooks/use-toast'
 export { cn } from './vendor/lib/utils';
 export { Accordion } from './vendor/components/ui/accordion';

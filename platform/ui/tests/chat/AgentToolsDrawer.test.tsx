@@ -1,6 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { Theme } from "@radix-ui/themes";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { AgentToolsDrawerProps } from "../../src/chat/AgentToolsDrawer";
 import type { AgentExecutionTreeProps } from "../../src/chat/AgentExecutionTree";
@@ -8,57 +7,11 @@ import type { ContextBundlesPanelProps } from "../../src/chat/ContextBundlesPane
 import { Sheet } from "@/vendor/components/ui/sheet";
 import { createEmptyExecutionTreeState } from "../execution-tree-state";
 
-const DEFAULT_APPEARANCE = "dark" as const;
-const DEFAULT_ACCENT = "jade" as const;
-
 const executionTreeProps: AgentExecutionTreeProps[] = [];
 const contextPanelProps: ContextBundlesPanelProps[] = [];
-const useThemeMock = vi.fn(() => ({ theme: DEFAULT_APPEARANCE, setTheme: vi.fn(), isThemeStale: false }));
 
 type AgentToolsDrawerModule = typeof import("../../src/chat/AgentToolsDrawer");
 let AgentToolsDrawer: AgentToolsDrawerModule["AgentToolsDrawer"];
-
-vi.mock("@/theme", () => ({
-  useTheme: () => useThemeMock(),
-  getThemeAccentColor: () => DEFAULT_ACCENT,
-  getThemeAppearance: () => DEFAULT_APPEARANCE,
-}));
-
-function createDrawerProps(
-  overrides: Partial<AgentToolsDrawerProps> = {},
-): AgentToolsDrawerProps {
-  return {
-    executionTreeState: overrides.executionTreeState ?? createEmptyExecutionTreeState(),
-    selectedAgentId: overrides.selectedAgentId ?? null,
-    onSelectAgent: overrides.onSelectAgent ?? (() => {}),
-    focusedToolInvocationId: overrides.focusedToolInvocationId ?? null,
-    onFocusToolInvocation: overrides.onFocusToolInvocation ?? (() => {}),
-    contextPanelId: overrides.contextPanelId ?? "context-bundles",
-    contextBundles: overrides.contextBundles ?? [],
-    isContextPanelCollapsed: overrides.isContextPanelCollapsed ?? false,
-    onToggleContextPanel: overrides.onToggleContextPanel ?? (() => {}),
-    useTheme: overrides.useTheme ?? useThemeMock,
-    getThemeAccentColor: overrides.getThemeAccentColor ?? (() => DEFAULT_ACCENT),
-    getThemeAppearance: overrides.getThemeAppearance ?? (() => DEFAULT_APPEARANCE),
-  } satisfies AgentToolsDrawerProps;
-}
-
-function renderDrawer(
-  overrides: Partial<AgentToolsDrawerProps> = {},
-  options: { wrapWithTheme?: boolean } = {},
-): void {
-  const props = createDrawerProps(overrides);
-  const content = (
-    <Sheet open>
-      <AgentToolsDrawer {...props} />
-    </Sheet>
-  );
-  if (options.wrapWithTheme === false) {
-    render(content);
-    return;
-  }
-  render(<Theme>{content}</Theme>);
-}
 
 class ResizeObserverMock {
   observe(): void {}
@@ -88,6 +41,32 @@ vi.mock("../../src/chat/ContextBundlesPanel", () => ({
   },
 }));
 
+function createDrawerProps(
+  overrides: Partial<AgentToolsDrawerProps> = {},
+): AgentToolsDrawerProps {
+  return {
+    executionTreeState: createEmptyExecutionTreeState(),
+    selectedAgentId: null,
+    onSelectAgent: () => {},
+    focusedToolInvocationId: null,
+    onFocusToolInvocation: () => {},
+    contextPanelId: "context-bundles",
+    contextBundles: [],
+    isContextPanelCollapsed: false,
+    onToggleContextPanel: () => {},
+    ...overrides,
+  } satisfies AgentToolsDrawerProps;
+}
+
+function renderDrawer(overrides: Partial<AgentToolsDrawerProps> = {}): void {
+  const props = createDrawerProps(overrides);
+  render(
+    <Sheet open>
+      <AgentToolsDrawer {...props} />
+    </Sheet>,
+  );
+}
+
 describe("AgentToolsDrawer", () => {
   beforeAll(async () => {
     ({ AgentToolsDrawer } = await import("../../src/chat/AgentToolsDrawer"));
@@ -96,8 +75,6 @@ describe("AgentToolsDrawer", () => {
   beforeEach(() => {
     executionTreeProps.length = 0;
     contextPanelProps.length = 0;
-    useThemeMock.mockReset();
-    useThemeMock.mockReturnValue({ theme: "dark", setTheme: vi.fn(), isThemeStale: false });
   });
 
   it("renders drawer headings and forwards panel props", async () => {
@@ -106,26 +83,23 @@ describe("AgentToolsDrawer", () => {
     const handleFocusTool = vi.fn();
 
     const state = createEmptyExecutionTreeState();
-    renderDrawer(
-      {
-        executionTreeState: state,
-        selectedAgentId: "agent-42",
-        onSelectAgent: handleSelectAgent,
-        onFocusToolInvocation: handleFocusTool,
-        contextBundles: [
-          {
-            id: "bundle-1",
-            label: "Docs",
-            summary: "Primary docs",
-            sizeBytes: 1024,
-            fileCount: 0,
-          },
-        ],
-        isContextPanelCollapsed: true,
-        onToggleContextPanel: handleTogglePanel,
-      },
-      { wrapWithTheme: true },
-    );
+    renderDrawer({
+      executionTreeState: state,
+      selectedAgentId: "agent-42",
+      onSelectAgent: handleSelectAgent,
+      onFocusToolInvocation: handleFocusTool,
+      contextBundles: [
+        {
+          id: "bundle-1",
+          label: "Docs",
+          summary: "Primary docs",
+          sizeBytes: 1024,
+          fileCount: 0,
+        },
+      ],
+      isContextPanelCollapsed: true,
+      onToggleContextPanel: handleTogglePanel,
+    });
 
     expect(
       screen.getByRole("heading", { name: "Agent tools" }),
@@ -139,6 +113,7 @@ describe("AgentToolsDrawer", () => {
         { selector: "p" },
       ),
     ).toBeVisible();
+
     await waitFor(() => {
       expect(executionTreeProps).toHaveLength(1);
     });
@@ -164,21 +139,18 @@ describe("AgentToolsDrawer", () => {
     expect(handleTogglePanel).toHaveBeenCalledWith("context-bundles", false);
   });
 
-  it("applies the active theme to the sheet content", async () => {
-    renderDrawer({}, { wrapWithTheme: true });
+  it("applies accent colors based on the provided theme", async () => {
+    renderDrawer({ theme: "midnight" });
 
     const drawer = await screen.findByRole("dialog", { name: /agent tools/i });
     expect(drawer).toHaveClass("radix-themes");
+    expect(drawer).toHaveAttribute("data-accent-color", "iris");
   });
 
-  it("falls back to a default theme when the provider is unavailable", async () => {
-    useThemeMock.mockImplementation(() => {
-      throw new Error("no theme context");
-    });
-
-    renderDrawer({}, { wrapWithTheme: false });
+  it("falls back to the default theme when none is provided", async () => {
+    renderDrawer();
 
     const drawer = await screen.findByRole("dialog", { name: /agent tools/i });
-    expect(drawer).toHaveClass("radix-themes");
+    expect(drawer).toHaveAttribute("data-accent-color", "jade");
   });
 });

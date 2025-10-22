@@ -1,4 +1,4 @@
-import { Box, Flex, Heading, ScrollArea, Text, Theme, ThemeProps } from '@radix-ui/themes';
+import { Box, Flex, Heading, ScrollArea, Text, Theme } from '@radix-ui/themes';
 import type { RuntimeConfigDto } from '@eddie/api-client';
 
 import {
@@ -12,26 +12,16 @@ import type { ContextBundlesPanelProps } from './ContextBundlesPanel';
 import type { AgentExecutionTreeProps } from '@eddie/ui';
 import { AgentExecutionTree } from '@eddie/ui';
 import { ContextBundlesPanel } from './ContextBundlesPanel';
+import { getThemeAccentColor, getThemeAppearance } from '../theme';
 
 const DEFAULT_THEME: RuntimeConfigDto['theme'] = 'dark';
-type UseTheme = () => { theme: RuntimeConfigDto['theme'] };
-
-function useThemeNameOrFallback(useTheme: UseTheme): RuntimeConfigDto['theme'] {
-  try {
-    return useTheme().theme;
-  } catch {
-    return DEFAULT_THEME;
-  }
-}
-
-type GetThemeAttribute<T extends {theme: string}, R extends string> = (theme: T) => R;
 
 const AGENT_TOOLS_DESCRIPTION =
   'Inspect tool calls, context, and spawned agents for this session.';
 const AGENT_TOOLS_DRAWER_TITLE = 'Agent tools';
 const AGENT_EXECUTION_TITLE = 'Agent execution';
 
-export interface AgentToolsDrawerProps<TTheme extends { theme: string }, R1 extends string, R2 extends string> {
+export interface AgentToolsDrawerProps {
   executionTreeState: AgentExecutionTreeProps['state'];
   selectedAgentId: AgentExecutionTreeProps['selectedAgentId'];
   onSelectAgent: AgentExecutionTreeProps['onSelectAgent'];
@@ -41,12 +31,10 @@ export interface AgentToolsDrawerProps<TTheme extends { theme: string }, R1 exte
   contextBundles?: ContextBundlesPanelProps['bundles'];
   isContextPanelCollapsed: ContextBundlesPanelProps['collapsed'];
   onToggleContextPanel: ContextBundlesPanelProps['onToggle'];
-  useTheme: UseTheme;
-  getThemeAccentColor: GetThemeAttribute<TTheme, R1>;
-  getThemeAppearance: GetThemeAttribute<TTheme, R2>;
+  theme?: RuntimeConfigDto['theme'];
 }
 
-export function AgentToolsDrawer<TTheme extends { theme: string }, R1 extends string, R2 extends string>({
+export function AgentToolsDrawer({
   executionTreeState,
   selectedAgentId,
   onSelectAgent,
@@ -56,16 +44,13 @@ export function AgentToolsDrawer<TTheme extends { theme: string }, R1 extends st
   contextBundles,
   isContextPanelCollapsed,
   onToggleContextPanel,
-  useTheme,
-  getThemeAccentColor,
-  getThemeAppearance,
-}: AgentToolsDrawerProps<TTheme, R1, R2>): JSX.Element {
-  const themeName = useThemeNameOrFallback(useTheme);
-  const accentColor = getThemeAccentColor(themeName);
-  const appearance = getThemeAppearance(themeName);
+  theme = DEFAULT_THEME,
+}: AgentToolsDrawerProps): JSX.Element {
+  const accentColor = getThemeAccentColor(theme);
+  const appearance = getThemeAppearance(theme);
 
   return (
-    <Theme appearance={appearance as ThemeProps['appearance']} accentColor={accentColor as ThemeProps['accentColor']} radius="large" asChild>
+    <Theme appearance={appearance} accentColor={accentColor} radius="large" asChild>
       <SheetContent
         side="right"
         className="flex h-full w-full flex-col border-l border-white/10 bg-slate-950/95 text-white sm:max-w-xl md:max-w-2xl lg:max-w-3xl"

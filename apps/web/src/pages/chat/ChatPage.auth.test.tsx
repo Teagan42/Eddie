@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { createChatPageRenderer } from "./test-utils";
-import { getSessionTablistAriaLabel } from "./components/SessionSelector";
+import { getSessionTablistAriaLabel } from "@eddie/ui";
 
 const catalogMock = vi.fn();
 const listSessionsMock = vi.fn();
