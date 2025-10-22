@@ -39,6 +39,10 @@ function createMessage(partial?: Partial<TestMessage>): TestMessage {
 }
 
 describe("ChatSessionsPanel", () => {
+  it("is exported from the chat barrel", () => {
+    expect(typeof ChatSessionsPanel).toBe("function");
+  });
+
   it("renders empty states when no sessions or messages are present", () => {
     render(
       <ChatSessionsPanel
