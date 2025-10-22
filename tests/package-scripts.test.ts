@@ -42,6 +42,14 @@ const convenienceScripts = {
 } as const;
 
 describe('root package scripts', () => {
+  it('prefixes the workspace runner with change-detection environment variables', () => {
+    const changeDetectionPrefix = 'WORKSPACE_ONLY_CHANGED=1 WORKSPACE_DIFF_BASE=origin/main';
+
+    for (const script of ['build', 'lint'] as const) {
+      expect(packageJson.scripts[script]?.startsWith(`${changeDetectionPrefix} `)).toBe(true);
+    }
+  });
+
   it('runs build only for changed workspaces compared to origin/main', () => {
     expect(packageJson.scripts.build).toBe(`${changedWorkspacesRunner} build`);
   });
