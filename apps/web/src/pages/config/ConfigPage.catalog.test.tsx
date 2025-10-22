@@ -24,12 +24,10 @@ Object.defineProperty(globalThis, "ResizeObserver", {
   value: ResizeObserverMock,
 });
 
-vi.mock("@monaco-editor/react", () => ({
-  __esModule: true,
-  default: () => <div data-testid="monaco-editor" />,
-  DiffEditor: () => <div data-testid="monaco-diff-editor" />,
-  useMonaco: () => null,
-}));
+vi.mock("@monaco-editor/react", async () => {
+  const { createMonacoModuleStub } = await import("./__tests__/monaco-stub.js");
+  return createMonacoModuleStub();
+});
 
 vi.mock("monaco-yaml", () => ({
   configureMonacoYaml: vi.fn(),
