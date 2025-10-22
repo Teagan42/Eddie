@@ -5,7 +5,7 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
-    pool: "forks",
+    pool: "threads",
     include: ["**/*.test.ts", "**/*.test.tsx"],
     coverage: {
       provider: "v8",

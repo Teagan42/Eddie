@@ -15,7 +15,7 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
-    pool: "forks",
+    pool: "threads",
     exclude: ["tests/**"],
     coverage: {
       provider: "v8",
