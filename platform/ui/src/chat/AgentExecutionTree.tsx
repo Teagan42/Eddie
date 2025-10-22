@@ -38,6 +38,28 @@ const EMPTY_CONTEXT_BUNDLES_BY_AGENT = {} as ExecutionTreeState['contextBundlesB
 const EMPTY_TOOL_GROUPS = {} as ExecutionTreeState['toolGroupsByAgentId'];
 const EMPTY_AGENT_LINEAGE = {} as ExecutionTreeState['agentLineageById'];
 
+function collectSingleStatusGroupKeys(
+  groupsByAgentId: ExecutionTreeState['toolGroupsByAgentId'],
+): Set<ToolGroupKey> {
+  const keys = new Set<ToolGroupKey>();
+  for (const [agentId, groups] of Object.entries(groupsByAgentId)) {
+    if (!groups) {
+      continue;
+    }
+
+    const statusesWithEntries = TOOL_STATUS_ORDER.filter((status) =>
+      status ? (groups?.[status]?.length ?? 0) > 0 : false,
+    );
+
+    if (statusesWithEntries.length === 1) {
+      const status = statusesWithEntries[0]!;
+      keys.add(`${agentId}:${status}` as ToolGroupKey);
+    }
+  }
+
+  return keys;
+}
+
 const SECTION_TOGGLE_BUTTON_CLASS =
   'flex w-full items-center justify-between rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm transition hover:border-accent/50 hover:bg-slate-900/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
 
@@ -157,6 +179,26 @@ export function AgentExecutionTree({
   const [detailsTarget, setDetailsTarget] = useState<DetailsTarget | null>(null);
   const expandableAgentsRef = useRef<Set<string>>(new Set());
   const hasExpandedAgents = expandedAgentIds.size > 0;
+
+  useEffect(() => {
+    const autoExpandedKeys = collectSingleStatusGroupKeys(toolGroupsByAgentId);
+    if (autoExpandedKeys.size === 0) {
+      return;
+    }
+
+    setExpandedGroups((previous) => {
+      let changed = false;
+      const next = new Set(previous);
+      for (const key of autoExpandedKeys) {
+        if (!next.has(key)) {
+          next.add(key);
+          changed = true;
+        }
+      }
+
+      return changed ? next : previous;
+    });
+  }, [toolGroupsByAgentId]);
 
   useEffect(() => {
     if (hasExpandedAgents) {
