@@ -64,7 +64,7 @@ export const createPackageVitestConfig = (packageName: string) =>
       globals: true,
       include: ["test/**/*.test.ts"],
       environment: "node",
-      // pool: "threads",
+      pool: "threads",
       passWithNoTests: true,
       coverage: {
         reporter: ["text", "json-summary"],

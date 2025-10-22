@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const repoRoot = path.resolve(
-  fileURLToPath(new URL(".", import.meta.url)),
-  ".."
-);
 
 const loadConfig = async (relativePath: string) => {
   const configUrl = new URL(`../${relativePath}/vitest.config.ts`, import.meta.url);
@@ -20,39 +13,44 @@ const loadRootConfig = async () => {
   return module.default ?? module;
 };
 
-const enumerateWorkspaces = (group: "apps" | "packages") =>
-  fs
-    .readdirSync(path.resolve(repoRoot, group), { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => `${group}/${entry.name}`);
+const loadProjectExtends = async () => {
+  const config = await loadRootConfig();
+  return (
+    config.test?.projects
+      ?.map((project) => project?.extends)
+      .filter((value): value is string => typeof value === "string")
+      .map((value) => value.replace(/^\.\//, "")) ?? []
+  );
+};
+
+const enumerateWorkspaces = async (prefix: string) => {
+  const extendsPaths = await loadProjectExtends();
+  return extendsPaths
+    .filter((value) => value.startsWith(prefix))
+    .map((value) => path.dirname(value));
+};
+
+const expectWorkspaceUsesThreadPool = async (workspace: string) => {
+  const config = await loadConfig(workspace);
+
+  expect(config.test?.pool, `${workspace} should opt into threaded pooling`).toBe("threads");
+};
 
 describe("workspace vitest configuration", () => {
   it("ensures each app config opts into threaded pooling", async () => {
-    const appWorkspaces = enumerateWorkspaces("apps");
+    const appWorkspaces = await enumerateWorkspaces("apps/");
 
     expect(appWorkspaces.length).toBeGreaterThan(0);
 
-    await Promise.all(
-      appWorkspaces.map(async (workspace) => {
-        const config = await loadConfig(workspace);
-
-        expect(config.test?.pool).toBe("threads");
-      })
-    );
+    await Promise.all(appWorkspaces.map(expectWorkspaceUsesThreadPool));
   });
 
   it("ensures each package config opts into threaded pooling", async () => {
-    const packageWorkspaces = enumerateWorkspaces("packages");
+    const packageWorkspaces = await enumerateWorkspaces("platform/");
 
     expect(packageWorkspaces.length).toBeGreaterThan(0);
 
-    await Promise.all(
-      packageWorkspaces.map(async (workspace) => {
-        const config = await loadConfig(workspace);
-
-        expect(config.test?.pool).toBe("threads");
-      })
-    );
+    await Promise.all(packageWorkspaces.map(expectWorkspaceUsesThreadPool));
   });
 
   it("registers all vitest projects through the root config", async () => {
