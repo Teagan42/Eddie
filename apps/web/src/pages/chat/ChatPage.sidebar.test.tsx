@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
 import { screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { createChatPageRenderer } from "./test-utils";
+import { userEvent } from "@testing-library/user-event";
+import { createChatPageRenderer } from "./test-utils.js";
 
 const catalogMock = vi.fn();
 const listSessionsMock = vi.fn();
@@ -12,9 +12,9 @@ const getExecutionStateMock = vi.fn();
 const loadConfigMock = vi.fn();
 
 class ResizeObserverMock {
-  observe(): void {}
-  unobserve(): void {}
-  disconnect(): void {}
+  observe(): void { }
+  unobserve(): void { }
+  disconnect(): void { }
 }
 
 Object.defineProperty(globalThis, "ResizeObserver", {
@@ -66,12 +66,12 @@ vi.mock("@/api/api-provider", () => ({
     },
     sockets: {
       chatSessions: {
-        onSessionCreated: vi.fn().mockReturnValue(() => {}),
-        onSessionUpdated: vi.fn().mockReturnValue(() => {}),
-        onSessionDeleted: vi.fn().mockReturnValue(() => {}),
-        onMessageCreated: vi.fn().mockReturnValue(() => {}),
-        onMessageUpdated: vi.fn().mockReturnValue(() => {}),
-        onAgentActivity: vi.fn().mockReturnValue(() => {}),
+        onSessionCreated: vi.fn().mockReturnValue(() => { }),
+        onSessionUpdated: vi.fn().mockReturnValue(() => { }),
+        onSessionDeleted: vi.fn().mockReturnValue(() => { }),
+        onMessageCreated: vi.fn().mockReturnValue(() => { }),
+        onMessageUpdated: vi.fn().mockReturnValue(() => { }),
+        onAgentActivity: vi.fn().mockReturnValue(() => { }),
       },
     },
   }),

@@ -31,7 +31,7 @@ import {
   CheckIcon,
   TrashIcon,
 } from "@radix-ui/react-icons";
-import Editor, { DiffEditor, useMonaco } from "@monaco-editor/react";
+import { Editor, DiffEditor, useMonaco } from "@monaco-editor/react";
 import { configureMonacoYaml } from "monaco-yaml";
 import YAML from "js-yaml";
 import {
@@ -42,21 +42,15 @@ import {
   type EddieConfigSourceDto,
   type UpdateEddieConfigPayload,
 } from "@eddie/api-client";
-import { useApi } from "@/api/api-provider";
 import { Panel } from "@eddie/ui";
-import { cn } from "@/vendor/lib/utils";
-import {
-  getSurfaceLayoutClasses,
-  SURFACE_CONTENT_CLASS,
-} from "@/styles/surfaces";
-import {
-  createProviderProfileOptions,
-  extractProviderProfiles,
-  type ProviderOption,
-  type ProviderProfileSnapshot,
-} from "../shared/providerProfiles";
+import { cn } from "@eddie/ui";
+import { useApi } from "../../api/api-provider.js";
+import { extractProviderProfiles, createProviderProfileOptions, ProviderOption } from "../shared/providerProfiles.js";
+import { getSurfaceLayoutClasses, SURFACE_CONTENT_CLASS } from "../../styles/surfaces.js";
 
 const YAML_OPTIONS = { lineWidth: 120, noRefs: true } as const;
+const FROSTED_CALLOUT_CLASS =
+  "border border-white/10 bg-white/10 text-white/90 backdrop-blur";
 
 function uniqueProviderNames(
   ...candidates: Array<string | null | undefined>
@@ -564,15 +558,15 @@ export function ConfigPage(): JSX.Element {
       draft.tools = { ...(draft.tools ?? {}) };
       const currentEnabled = new Set(
         draft.tools.enabled ??
-          effectiveInput.tools?.enabled ??
-          currentConfig?.tools?.enabled ??
-          []
+        effectiveInput.tools?.enabled ??
+        currentConfig?.tools?.enabled ??
+        []
       );
       const currentDisabled = new Set(
         draft.tools.disabled ??
-          effectiveInput.tools?.disabled ??
-          currentConfig?.tools?.disabled ??
-          []
+        effectiveInput.tools?.disabled ??
+        currentConfig?.tools?.disabled ??
+        []
       );
       if (enabled) {
         currentEnabled.add(toolId);
@@ -774,7 +768,7 @@ export function ConfigPage(): JSX.Element {
         {statusMessage ? (
           <Callout.Root
             color={statusVariant === "error" ? "red" : "jade"}
-            className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
+            className={FROSTED_CALLOUT_CLASS}
           >
             <Callout.Icon>
               <CheckIcon />
@@ -786,7 +780,7 @@ export function ConfigPage(): JSX.Element {
         {parseError ? (
           <Callout.Root
             color="red"
-            className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
+            className={FROSTED_CALLOUT_CLASS}
           >
             <Callout.Icon>
               <MixerHorizontalIcon />
@@ -798,7 +792,7 @@ export function ConfigPage(): JSX.Element {
         {previewError ? (
           <Callout.Root
             color="amber"
-            className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
+            className={FROSTED_CALLOUT_CLASS}
           >
             <Callout.Icon>
               <MixerHorizontalIcon />
@@ -810,7 +804,7 @@ export function ConfigPage(): JSX.Element {
         {guardrailWarnings.length > 0 && !parseError ? (
           <Callout.Root
             color="amber"
-            className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
+            className={FROSTED_CALLOUT_CLASS}
           >
             <Callout.Icon>
               <EyeOpenIcon />
@@ -818,13 +812,15 @@ export function ConfigPage(): JSX.Element {
             <Flex direction="column" gap="2">
               <Callout.Text asChild>
                 <Text as="span" weight="medium">
-                Guardrails
+                  Guardrails
                 </Text>
               </Callout.Text>
               <ul className="list-disc space-y-1 pl-6 text-sm">
                 {guardrailWarnings.map((warning) => (
                   <Callout.Text asChild key={warning}>
-                    <li>{warning}</li>
+                    <li>
+                      <Text as="span">{warning}</Text>
+                    </li>
                   </Callout.Text>
                 ))}
               </ul>
@@ -883,7 +879,7 @@ export function ConfigPage(): JSX.Element {
                     }
                     placeholder={
                       currentConfig?.systemPrompt ??
-                    "System prompt used for orchestration"
+                      "System prompt used for orchestration"
                     }
                     rows={3}
                   />
@@ -1059,13 +1055,13 @@ export function ConfigPage(): JSX.Element {
                     onClick={handleAddInclude}
                     disabled={includeDraft.trim().length === 0}
                   >
-                  Add include
+                    Add include
                   </Button>
                 </Flex>
                 <Flex direction="column" gap="2">
                   {includeEntries.length === 0 ? (
                     <Text size="2" color="gray">
-                    No include globs configured yet.
+                      No include globs configured yet.
                     </Text>
                   ) : (
                     includeEntries.map((pattern, index) => {
@@ -1109,13 +1105,13 @@ export function ConfigPage(): JSX.Element {
                     onClick={handleAddExclude}
                     disabled={excludeDraft.trim().length === 0}
                   >
-                  Add exclude
+                    Add exclude
                   </Button>
                 </Flex>
                 <Flex direction="column" gap="2">
                   {excludeEntries.length === 0 ? (
                     <Text size="2" color="gray">
-                    No exclude globs configured yet.
+                      No exclude globs configured yet.
                     </Text>
                   ) : (
                     excludeEntries.map((pattern, index) => {
@@ -1201,11 +1197,11 @@ export function ConfigPage(): JSX.Element {
               </Flex>
               <Flex direction="column" gap="3">
                 <Text size="2" color="gray">
-                Enabled tools
+                  Enabled tools
                 </Text>
                 {configuredTools.length === 0 ? (
                   <Text size="2" color="gray">
-                  No tools discovered from the current configuration.
+                    No tools discovered from the current configuration.
                   </Text>
                 ) : (
                   configuredTools.map((toolId) => {
@@ -1378,7 +1374,7 @@ export function ConfigPage(): JSX.Element {
                 <Tabs.List>
                   <Tabs.Trigger value="editor">Editor</Tabs.Trigger>
                   <Tabs.Trigger value="diff" disabled={!isDirty}>
-                  Diff
+                    Diff
                   </Tabs.Trigger>
                 </Tabs.List>
                 <Tabs.Content value="editor" className="mt-3">
@@ -1387,7 +1383,7 @@ export function ConfigPage(): JSX.Element {
                     language={mode === "json" ? "json" : "yaml"}
                     value={editorValue}
                     path={editorPath}
-                    onChange={(value) => setEditorValue(value ?? "")}
+                    onChange={<T extends string | undefined,>(value: T) => setEditorValue(value ?? "")}
                     options={{
                       automaticLayout: true,
                       minimap: { enabled: false },

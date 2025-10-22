@@ -37,6 +37,12 @@ function createWrapper(queryClient: QueryClient) {
   return Wrapper;
 }
 
+function renderUseTheme(queryClient: QueryClient) {
+  return renderHook(() => useTheme(), {
+    wrapper: createWrapper(queryClient),
+  });
+}
+
 describe("ThemeProvider", () => {
   beforeEach(() => {
     document.documentElement.classList.remove("dark");
@@ -51,9 +57,7 @@ describe("ThemeProvider", () => {
 
   it("syncs document class and query cache when theme changes", async () => {
     const queryClient = new QueryClient();
-    const { result } = renderHook(() => useTheme(), {
-      wrapper: createWrapper(queryClient),
-    });
+    const { result } = renderUseTheme(queryClient);
 
     await waitFor(() => expect(result.current.theme).toBe("light"));
     expect(document.documentElement.classList.contains("dark")).toBe(false);
@@ -81,9 +85,7 @@ describe("ThemeProvider", () => {
         })
     );
 
-    const { result } = renderHook(() => useTheme(), {
-      wrapper: createWrapper(queryClient),
-    });
+    const { result } = renderUseTheme(queryClient);
 
     expect(result.current.theme).toBe("dark");
 
@@ -107,9 +109,7 @@ describe("ThemeProvider", () => {
   it("applies a temporary transition class when the theme changes", async () => {
     const queryClient = new QueryClient();
 
-    const { result } = renderHook(() => useTheme(), {
-      wrapper: createWrapper(queryClient),
-    });
+    const { result } = renderUseTheme(queryClient);
 
     await waitFor(() => expect(result.current.theme).toBe("light"));
 
@@ -134,9 +134,7 @@ describe("ThemeProvider", () => {
   it("syncs data-theme attribute and dark class for extended palettes", async () => {
     const queryClient = new QueryClient();
 
-    const { result } = renderHook(() => useTheme(), {
-      wrapper: createWrapper(queryClient),
-    });
+    const { result } = renderUseTheme(queryClient);
 
     await waitFor(() => expect(result.current.theme).toBe("light"));
     expect(document.documentElement.dataset.theme).toBe("light");
@@ -159,5 +157,10 @@ describe("ThemeProvider", () => {
     expect(document.documentElement.classList.contains("dark")).toBe(false);
 
     queryClient.clear();
+  });
+
+  it("exposes theme helpers via the UI package", () => {
+    expect(ThemeProvider).toBeDefined();
+    expect(typeof useTheme).toBe("function");
   });
 });

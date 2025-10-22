@@ -65,4 +65,12 @@ describe('platform tsconfig references', () => {
 
     expect(missingReferences).toEqual([]);
   });
+
+  const uiTsconfigPath = join(platformDir, 'ui', 'tsconfig.json');
+
+  it('parses UI workspace tsconfig as strict JSON for tooling compatibility', () => {
+    const contents = readFileSync(uiTsconfigPath, 'utf8');
+
+    expect(() => JSON.parse(contents)).not.toThrow();
+  });
 });

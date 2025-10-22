@@ -1,9 +1,9 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { userEvent } from "@testing-library/user-event";
 import { Theme } from "@radix-ui/themes";
-import { ConfigPage } from "./ConfigPage";
+import { ConfigPage } from "./ConfigPage.js";
 import { load as loadYaml } from "js-yaml";
 import type { UpdateEddieConfigPayload } from "@eddie/api-client";
 
@@ -58,21 +58,19 @@ const cloneSourceResponse = () =>
   JSON.parse(JSON.stringify(baseSourceResponse)) as typeof baseSourceResponse;
 
 class ResizeObserverMock {
-  observe(): void {}
-  unobserve(): void {}
-  disconnect(): void {}
+  observe(): void { }
+  unobserve(): void { }
+  disconnect(): void { }
 }
 
 Object.defineProperty(globalThis, "ResizeObserver", {
   value: ResizeObserverMock,
 });
 
-vi.mock("@monaco-editor/react", () => ({
-  __esModule: true,
-  default: () => <div data-testid="monaco-editor" />,
-  DiffEditor: () => <div data-testid="monaco-diff-editor" />,
-  useMonaco: () => null,
-}));
+vi.mock("@monaco-editor/react", async () => {
+  const { createMonacoModuleStub } = await import("./__tests__/monaco-stub.js");
+  return createMonacoModuleStub();
+});
 
 vi.mock("monaco-yaml", () => ({
   configureMonacoYaml: vi.fn(),
@@ -99,13 +97,13 @@ beforeAll(() => {
     window.HTMLElement.prototype.hasPointerCapture = () => false;
   }
   if (!window.HTMLElement.prototype.setPointerCapture) {
-    window.HTMLElement.prototype.setPointerCapture = () => {};
+    window.HTMLElement.prototype.setPointerCapture = () => { };
   }
   if (!window.HTMLElement.prototype.releasePointerCapture) {
-    window.HTMLElement.prototype.releasePointerCapture = () => {};
+    window.HTMLElement.prototype.releasePointerCapture = () => { };
   }
   if (!window.HTMLElement.prototype.scrollIntoView) {
-    window.HTMLElement.prototype.scrollIntoView = () => {};
+    window.HTMLElement.prototype.scrollIntoView = () => { };
   }
 });
 
@@ -371,5 +369,14 @@ describe("ConfigPage interactions", () => {
     expect(
       await screen.findByRole("textbox", { name: /system prompt/i })
     ).toBeInTheDocument();
+  });
+
+  it("renders the configuration editor tab", async () => {
+    const user = userEvent.setup();
+    renderConfigPage();
+
+    await user.click(await screen.findByRole("tab", { name: /editor/i }));
+
+    await screen.findByTestId("monaco-editor");
   });
 });

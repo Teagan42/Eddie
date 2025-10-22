@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { createApiClient, type ApiClient } from "@eddie/api-client";
-import { env } from "@/config/env";
-import { useAuth } from "@/auth/auth-context";
+import { env } from "../config/env.js";
+import { useAuth } from "../auth/auth-context.js";
 
 const ApiContext = createContext<ApiClient | null>(null);
 

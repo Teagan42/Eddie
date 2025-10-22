@@ -1,12 +1,13 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { App } from "./pages";
-import { AuthProvider } from "./auth/auth-context";
-import { ApiProvider } from "./api/api-provider";
-import { ThemeProvider } from "./theme";
+import { App } from "./pages/App.js";
+import { AuthProvider } from "./auth/auth-context.js";
+import { ApiProvider } from "./api/api-provider.js"
+import { ThemeProvider } from "./theme/theme-provider.js";
 import "@radix-ui/themes/styles.css";
 import "./styles/global.css";
+;
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -1,0 +1,275 @@
+import { render, screen, waitForElementToBeRemoved, within } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import userEvent from '@testing-library/user-event';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { Theme } from '@radix-ui/themes';
+
+import {
+  SESSION_TABLIST_ARIA_LABEL,
+  getSessionTablistAriaLabel,
+  SessionSelector,
+  type SessionSelectorProps,
+  type SessionSelectorSession,
+} from '../../src/chat';
+
+type Status = SessionSelectorSession['status'];
+
+function createSession(
+  partial: Partial<SessionSelectorSession> = {},
+): SessionSelectorSession {
+  return {
+    id: 'session-1',
+    title: 'Session 1',
+    status: 'active' as Status,
+    ...partial,
+  };
+}
+
+const baseSessions: SessionSelectorProps['sessions'] = [
+  createSession(),
+  createSession({ id: 'session-2', title: 'Session 2' }),
+];
+
+class ResizeObserverMock {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+
+beforeAll(() => {
+  vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+});
+
+describe('SessionSelector', () => {
+  const getSessionOptionsButton = (title: string) =>
+    screen.getByRole('button', { name: `Session options for ${title}` });
+
+  function renderSelector(overrideProps: Partial<SessionSelectorProps> = {}): void {
+    const props: SessionSelectorProps = {
+      sessions: baseSessions,
+      selectedSessionId: 'session-1',
+      onSelectSession: vi.fn(),
+      onRenameSession: vi.fn(),
+      onDeleteSession: vi.fn(),
+      onCreateSession: vi.fn(),
+      isCreatePending: false,
+      ...overrideProps,
+    };
+
+    render(
+      <Theme>
+        <SessionSelector {...props} />
+      </Theme>,
+    );
+  }
+
+  it('activates sessions via tab interactions', async () => {
+    const user = userEvent.setup();
+    const handleSelect = vi.fn();
+
+    renderSelector({ onSelectSession: handleSelect });
+
+    const sessionTablistLabel = getSessionTablistAriaLabel('Active');
+
+    expect(
+      screen.getByRole('tablist', { name: sessionTablistLabel }),
+    ).toBeInTheDocument();
+
+    const selectedTab = screen.getByRole('tab', { name: 'Session 1' });
+    expect(selectedTab).toHaveAttribute('aria-selected', 'true');
+
+    await user.click(screen.getByRole('tab', { name: 'Session 2' }));
+
+    expect(handleSelect).toHaveBeenCalledWith('session-2');
+  });
+
+  it('marks the selected session for styling cues', () => {
+    renderSelector();
+
+    expect(screen.getByRole('tab', { name: 'Session 1' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Session 2' })).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('renders archived status badges when present', () => {
+    renderSelector({
+      sessions: [
+        baseSessions[0],
+        createSession({ id: 'archived', title: 'Archived session', status: 'archived' as Status }),
+      ],
+      selectedSessionId: null,
+    });
+
+    expect(screen.getByText('Archived')).toBeInTheDocument();
+  });
+
+  it('renders session metrics with accessible labelling', () => {
+    renderSelector({
+      sessions: [
+        createSession({
+          metrics: {
+            messageCount: 12,
+            agentCount: 3,
+            contextBundleCount: 4,
+          },
+        }),
+      ],
+      selectedSessionId: null,
+    });
+
+    const tab = screen.getByRole('tab', { name: 'Session 1' });
+    const descriptionId = tab.getAttribute('aria-describedby');
+    expect(descriptionId).toBeTruthy();
+    const description = document.getElementById(descriptionId!);
+    expect(description).toHaveTextContent('12 messages');
+    expect(description).toHaveTextContent('3 agents');
+    expect(description).toHaveTextContent('4 bundles');
+    expect(description).toHaveTextContent('Session 1 metrics');
+
+    expect(screen.queryByText('12 messages')).not.toBeInTheDocument();
+    expect(screen.queryByText('4 bundles')).not.toBeInTheDocument();
+
+    const messageBadge = screen.getByLabelText('12 messages');
+    expect(messageBadge).toHaveTextContent('12');
+    expect(messageBadge.textContent).not.toContain('messages');
+    expect(messageBadge.querySelector('svg')).not.toBeNull();
+
+    const bundleBadge = screen.getByLabelText('4 bundles');
+    expect(bundleBadge).toHaveTextContent('4');
+    expect(bundleBadge.textContent).not.toContain('bundles');
+    expect(bundleBadge.querySelector('svg')).not.toBeNull();
+  });
+
+  it('allows session actions to be triggered from a context menu', async () => {
+    const user = userEvent.setup();
+    const handleRename = vi.fn();
+    const handleDelete = vi.fn();
+
+    renderSelector({
+      onRenameSession: handleRename,
+      onDeleteSession: handleDelete,
+    });
+
+    await user.click(getSessionOptionsButton('Session 1'));
+    const renameItem = await screen.findByRole('menuitem', { name: 'Rename session' });
+    await user.click(renameItem);
+
+    expect(handleRename).toHaveBeenCalledWith('session-1');
+    expect(handleRename).toHaveBeenCalledTimes(1);
+
+    if (renameItem.isConnected) {
+      await waitForElementToBeRemoved(renameItem);
+    }
+
+    await user.click(getSessionOptionsButton('Session 2'));
+    const archiveItem = await screen.findByRole('menuitem', { name: 'Archive session' });
+    await user.click(archiveItem);
+
+    expect(handleDelete).toHaveBeenCalledWith('session-2');
+    expect(handleDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders session action menus with native button semantics', () => {
+    renderSelector();
+
+    const firstMenuTrigger = screen.getByRole('button', { name: 'Session options for Session 1' });
+
+    expect(firstMenuTrigger.tagName.toLowerCase()).toBe('button');
+    expect(firstMenuTrigger).toHaveAttribute('type', 'button');
+  });
+
+  it('organizes sessions into status-based tabs', async () => {
+    const user = userEvent.setup();
+
+    renderSelector({
+      sessions: [
+        createSession({ id: 'active-session', title: 'Active session' }),
+        createSession({ id: 'archived-session', title: 'Archived session', status: 'archived' as Status }),
+      ],
+      selectedSessionId: null,
+    });
+
+    const categoriesTablist = screen.getByRole('tablist', { name: 'Session categories' });
+    const activeCategory = within(categoriesTablist).getByRole('tab', { name: 'Active' });
+    const archivedCategory = within(categoriesTablist).getByRole('tab', { name: 'Archived' });
+
+    expect(activeCategory).toHaveAttribute('aria-selected', 'true');
+    expect(archivedCategory).toHaveAttribute('aria-selected', 'false');
+
+    const sessionTablist = screen.getByRole('tablist', {
+      name: getSessionTablistAriaLabel('Active'),
+    });
+    expect(within(sessionTablist).getByRole('tab', { name: 'Active session' })).toBeInTheDocument();
+    expect(
+      within(sessionTablist).queryByRole('tab', { name: 'Archived session' }),
+    ).not.toBeInTheDocument();
+
+    await user.click(archivedCategory);
+
+    expect(activeCategory).toHaveAttribute('aria-selected', 'false');
+    expect(archivedCategory).toHaveAttribute('aria-selected', 'true');
+    const archivedSessionTablist = screen.getByRole('tablist', {
+      name: getSessionTablistAriaLabel('Archived'),
+    });
+    expect(
+      within(archivedSessionTablist).getByRole('tab', { name: 'Archived session' }),
+    ).toBeInTheDocument();
+    expect(
+      within(archivedSessionTablist).queryByRole('tab', { name: 'Active session' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('labels each session tablist with its category for accessible disambiguation', () => {
+    renderSelector({
+      sessions: [
+        createSession({ id: 'active-session', title: 'Active session' }),
+        createSession({ id: 'archived-session', title: 'Archived session', status: 'archived' as Status }),
+      ],
+      selectedSessionId: null,
+    });
+
+    const sessionTablists = screen
+      .getAllByRole('tablist', { hidden: true })
+      .filter((tablist) => tablist.getAttribute('data-testid') === 'session-tablist');
+
+    expect(sessionTablists).not.toHaveLength(0);
+
+    sessionTablists.forEach((tablist) => {
+      const label = tablist.getAttribute('aria-label');
+      expect(label).toBeTruthy();
+      expect(label?.startsWith(SESSION_TABLIST_ARIA_LABEL)).toBe(true);
+      expect(label).toMatch(/\(.+\)$/);
+    });
+
+    expect(
+      screen.queryByRole('tablist', { name: SESSION_TABLIST_ARIA_LABEL, hidden: true }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('always shows the session list without a collapse toggle', () => {
+    renderSelector();
+
+    expect(
+      screen.queryByRole('button', { name: /session list/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Session 1' })).toBeVisible();
+  });
+
+  it('renders an animated indicator for the active tab', () => {
+    renderSelector();
+
+    const indicator = screen.getByTestId('session-tab-indicator');
+
+    expect(indicator).toHaveAttribute('data-animated', 'true');
+    expect(indicator.className).toContain('transition-transform');
+  });
+
+  it('animates indicator transitions for movement and size', () => {
+    renderSelector();
+
+    const indicator = screen.getByTestId('session-tab-indicator');
+
+    expect(indicator.style.transition).toContain('transform');
+    expect(indicator.style.transition).toContain('width');
+    expect(indicator.style.transition).toContain('height');
+  });
+});

@@ -6,12 +6,14 @@ export interface ExecutionAgentNode {
   provider?: string;
   model?: string;
   depth: number;
+  metadata?: Record<string, unknown>;
   lineage: string[];
   children: ExecutionAgentNode[];
 }
 
 export interface ExecutionToolInvocationNode {
   id: string;
+  title?: string;
   agentId: string;
   name: string;
   status: ToolCallStatus;
@@ -19,10 +21,15 @@ export interface ExecutionToolInvocationNode {
   updatedAt?: string;
   metadata?: Record<string, unknown>;
   children: ExecutionToolInvocationNode[];
+  result?: Record<string, unknown>;
+  args?: Record<string, unknown>;
 }
 
 export interface ExecutionContextBundleFile {
+  id?: string;
   path: string;
+  name?: string;
+  media?: Record<string, unknown>;
   sizeBytes: number;
   preview?: string;
 }
@@ -35,10 +42,15 @@ export type ContextUpdateSourceType =
 export interface ExecutionContextBundle {
   id: string;
   label: string;
+  title?: string;
   sizeBytes: number;
   fileCount: number;
   summary?: string;
   files?: ExecutionContextBundleFile[];
+  metadata?: Record<string, unknown>;
+  media: string;
+  type: "text" | "image" | "audio" | "video" | "pdf" | "other";
+  createdAt: string;
   source: {
     type: ContextUpdateSourceType;
     agentId: string;

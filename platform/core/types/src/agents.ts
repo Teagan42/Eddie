@@ -6,6 +6,8 @@ import type {
   ToolDefinition,
 } from "./providers";
 
+export type AgentActivityState = "idle" | "thinking" | "tool" | "tool-error" | "error";
+
 /**
  * Unique identifier and prompt configuration for an agent.
  */

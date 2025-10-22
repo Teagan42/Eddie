@@ -9,13 +9,17 @@ export default defineConfig({
     alias: {
       "@": resolve(workspaceRoot, "src"),
       "@eddie/ui": resolve(workspaceRoot, "../../platform/ui/src"),
+      "@shikijs/transformers": resolve(
+        workspaceRoot,
+        "src/vendor/shiki-transformers.ts",
+      ),
     },
   },
   test: {
     globals: true,
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
-    pool: "forks",
+    pool: "threads",
     exclude: ["tests/**"],
     coverage: {
       provider: "v8",

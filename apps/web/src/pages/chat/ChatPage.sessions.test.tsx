@@ -4,7 +4,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatSessionDto, LayoutPreferencesDto } from "@eddie/api-client";
 import { createChatPageRenderer } from "./test-utils";
-import { SESSION_TABLIST_ARIA_LABEL } from "./components/SessionSelector";
+import { getSessionTablistAriaLabel } from "@eddie/ui";
 
 const sessionCreatedHandlers: Array<(session: unknown) => void> = [];
 const sessionDeletedHandlers: Array<(sessionId: string) => void> = [];
@@ -152,6 +152,12 @@ const renderChatPage = createChatPageRenderer(
 function getSessionMetricsDescription(tab: HTMLElement): HTMLElement | null {
   const descriptionId = tab.getAttribute("aria-describedby");
   return descriptionId ? document.getElementById(descriptionId) : null;
+}
+
+async function expectToastWith(match: { title: string; variant: string }) {
+  await waitFor(() =>
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining(match)),
+  );
 }
 
 describe("ChatPage session creation", () => {
@@ -324,7 +330,9 @@ describe("ChatPage session creation", () => {
 
     renderChatPage();
 
-    const tabList = await screen.findByRole("tablist", { name: SESSION_TABLIST_ARIA_LABEL });
+    const tabList = await screen.findByRole("tablist", {
+      name: getSessionTablistAriaLabel("Active"),
+    });
     expect(tabList).toBeInTheDocument();
 
     const sessionTab = within(tabList).getByRole("tab", { name: "Session 1" });
@@ -385,14 +393,10 @@ describe("ChatPage session creation", () => {
 
     const { client } = renderChatPage();
 
-    await waitFor(() =>
-      expect(toastMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: "Session no longer available",
-          variant: "warning",
-        }),
-      ),
-    );
+    await expectToastWith({
+      title: "Session no longer available",
+      variant: "warning",
+    });
 
     await waitFor(() => expect(updatePreferencesMock).toHaveBeenCalled());
 
@@ -441,14 +445,10 @@ describe("ChatPage session creation", () => {
 
     await waitFor(() => expect(listSessionsMock).toHaveBeenCalledTimes(2));
 
-    await waitFor(() =>
-      expect(toastMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: "Sessions no longer available",
-          variant: "warning",
-        }),
-      ),
-    );
+    await expectToastWith({
+      title: "Sessions no longer available",
+      variant: "warning",
+    });
 
     await waitFor(() =>
       expect(screen.queryByRole("tab", { name: "Session 2" })).not.toBeInTheDocument(),
@@ -622,6 +622,39 @@ describe("ChatPage session creation", () => {
     }
   });
 
+  it("shows a success toast when a rename mutation resolves", async () => {
+    const now = new Date().toISOString();
+    const renamedSession = {
+      id: "session-1",
+      title: "Session Prime",
+      description: "",
+      status: "active" as const,
+      createdAt: now,
+      updatedAt: now,
+    } satisfies ChatSessionDto;
+    renameSessionMock.mockResolvedValue(renamedSession);
+
+    const promptSpy = vi.spyOn(window, "prompt").mockReturnValue("Session Prime");
+
+    try {
+      const user = userEvent.setup();
+      renderChatPage();
+
+      await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
+
+      await chooseSessionMenuAction(user, "Session 1", "Rename session");
+
+      await waitFor(() => expect(renameSessionMock).toHaveBeenCalled());
+
+      await expectToastWith({
+        title: "Session renamed",
+        variant: "success",
+      });
+    } finally {
+      promptSpy.mockRestore();
+    }
+  });
+
   it("restores prior title and shows an error toast when rename fails", async () => {
     renameSessionMock.mockRejectedValue(new Error("nope"));
 
@@ -646,14 +679,10 @@ describe("ChatPage session creation", () => {
         );
       });
 
-      await waitFor(() =>
-        expect(toastMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            title: "Failed to rename session",
-            variant: "error",
-          }),
-        ),
-      );
+      await expectToastWith({
+        title: "Failed to rename session",
+        variant: "error",
+      });
     } finally {
       promptSpy.mockRestore();
     }
@@ -696,14 +725,10 @@ describe("ChatPage session creation", () => {
         "session-1",
       ]);
       expect(metadata).toBeNull();
-      await waitFor(() =>
-        expect(toastMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            title: "Session deleted",
-            variant: "success",
-          }),
-        ),
-      );
+      await expectToastWith({
+        title: "Session deleted",
+        variant: "success",
+      });
     } finally {
       confirmSpy.mockRestore();
     }
@@ -729,14 +754,10 @@ describe("ChatPage session creation", () => {
       ]) as ChatSessionDto[]) ?? [];
       expect(sessions.some((session) => session.id === "session-1")).toBe(true);
 
-      await waitFor(() =>
-        expect(toastMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            title: "Failed to delete session",
-            variant: "error",
-          }),
-        ),
-      );
+      await expectToastWith({
+        title: "Failed to delete session",
+        variant: "error",
+      });
     } finally {
       confirmSpy.mockRestore();
     }

@@ -7,7 +7,7 @@ import type {
   ChatMessageReasoningPartialPayload,
   ChatSessionDto,
 } from "@eddie/api-client";
-import { sortSessions, upsertMessage } from "./chat-utils";
+import { sortSessions, upsertMessage } from "@eddie/ui";
 
 type MessageReasoningSegment = {
   text: string;

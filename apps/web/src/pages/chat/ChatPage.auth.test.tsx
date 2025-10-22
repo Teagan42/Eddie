@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { createChatPageRenderer } from "./test-utils";
-import { SESSION_TABLIST_ARIA_LABEL } from "./components/SessionSelector";
+import { getSessionTablistAriaLabel } from "@eddie/ui";
 
 const catalogMock = vi.fn();
 const listSessionsMock = vi.fn();
@@ -157,7 +157,9 @@ describe("ChatPage authentication behaviours", () => {
       description: "",
     });
 
-    const tabList = await screen.findByRole("tablist", { name: SESSION_TABLIST_ARIA_LABEL });
+    const tabList = await screen.findByRole("tablist", {
+      name: getSessionTablistAriaLabel("Active"),
+    });
     const sessionTab = within(tabList).getByRole("tab", {
       name: "New orchestrator session",
     });

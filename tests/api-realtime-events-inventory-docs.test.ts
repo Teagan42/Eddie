@@ -25,6 +25,7 @@ const requiredTableRows = Object.freeze([
   /\| ChatSessionsService \| ChatMessageCreatedEvent \|/,
   /\| ChatSessionStreamRendererService \| ChatMessagePartialEvent \|/,
   /\| TracesService \| trace\.created \|/,
+  /\| TracesService \| trace\.updated \|/,
   /\| RuntimeConfigService \| config\.updated \|/,
   /\| LogsForwarderService \| logs\.created \|/,
 ]);

@@ -11,8 +11,8 @@ import {
 import { Theme } from "@radix-ui/themes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { RuntimeConfigDto } from "@eddie/api-client";
-import { useApi } from "@/api/api-provider";
-import { getThemeAccentColor, getThemeAppearance, isDarkTheme } from "./themes";
+import { getThemeAccentColor, getThemeAppearance, isDarkTheme } from "./themes.js";
+import { useApi } from "@/api/api-provider.js";
 
 const CONFIG_QUERY_KEY = ["config"] as const;
 
@@ -180,7 +180,7 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
       setThemeState(nextTheme);
       syncDocumentTheme(nextTheme);
       markThemeStable();
-      queryClient.setQueryData<RuntimeConfigDto | undefined>(CONFIG_QUERY_KEY, (current) => {
+      queryClient.setQueryData<RuntimeConfigDto | undefined>(CONFIG_QUERY_KEY, (current: RuntimeConfigDto | undefined) => {
         if (current) {
           return { ...current, theme: nextTheme };
         }

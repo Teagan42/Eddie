@@ -9,27 +9,24 @@
     "declarationMap": true,
     "sourceMap": true,
     "paths": {
-      "@/vendor/*": [
-        "vendor/*"
-      ],
-      "@/config": [
-        "config/env.ts"
-      ],
-      "@/auth/*": [
-        "auth/*"
-      ],
-      "@/api/*": [
-        "api/*"
-      ],
-      "@/*": [
-        "./src/*"
-      ],
-      "@eddie/ui": [
-        "../../platform/ui/src"
-      ],
-      "@eddie/ui/*": [
-        "../../platform/ui/src/*"
-      ]
+      "@/auth": ["auth"],
+      "@/auth/*": ["auth/*"],
+      "@/api": ["api"],
+      "@/api/*": ["api/*"],
+      "@/chat": ["pages/chat"],
+      "@/chat/*": ["pages/chat/*"],
+      "@/config": ["config"],
+      "@/config/*": ["config/*"],
+      "@/hooks": ["hooks"],
+      "@/hooks/*": ["hooks/*"],
+      "@/styles": ["styles"],
+      "@/styles/*": ["styles/*"],
+      "@/theme": ["theme"],
+      "@/theme/*": ["theme/*"],
+      "@/vendor": ["vendor"],
+      "@/vendor/*": ["vendor/*"],
+      "@/*": ["./*"],
+      "@shikijs/transformers": ["vendor/shiki-transformers.ts"]
     },
     "types": [
       "vite/client",
@@ -37,11 +34,10 @@
     ],
     "noEmit": true
   },
-  "include": [
-    "src",
-    "vitest.config.ts",
-    "playwright.config.ts",
-    "tailwind.config.ts"
-  ],
-  "references": []
+  "include": ["src"],
+  "references": [
+    {
+      "path": "../../platform/ui"
+    }
+  ]
 }

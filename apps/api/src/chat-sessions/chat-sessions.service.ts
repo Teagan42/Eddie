@@ -17,7 +17,7 @@ import {
   type ChatSessionSeedSnapshot,
   type ChatSessionStatus,
 } from "./chat-sessions.repository";
-import { ChatMessageCreatedEvent } from "@eddie/types";
+import { ChatMessageCreatedEvent, type AgentActivityState, } from "@eddie/types";
 import {
   AgentActivity,
   ChatMessageSent,
@@ -26,7 +26,6 @@ import {
   ChatSessionUpdated,
   type ChatSessionsDomainEvent,
 } from "./events";
-import type { AgentActivityState } from "./chat-session.types";
 
 export type { AgentInvocationSnapshot } from "./chat-sessions.repository";
 
@@ -59,7 +58,7 @@ export class ChatSessionsService {
     @Inject(CHAT_SESSIONS_REPOSITORY)
     private readonly repository: ChatSessionsRepository,
     @Optional() private readonly eventBus?: EventBus
-  ) {}
+  ) { }
 
   private publish(event: ChatSessionsDomainEvent): void {
     this.eventBus?.publish(event);

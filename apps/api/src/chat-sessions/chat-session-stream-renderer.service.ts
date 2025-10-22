@@ -8,9 +8,9 @@ import {
   ChatMessageReasoningDeltaEvent,
   ChatSessionToolCallEvent,
   ChatSessionToolResultEvent,
+  type AgentActivityState,
 } from "@eddie/types";
 import { ChatSessionsService } from "./chat-sessions.service";
-import type { AgentActivityState } from "./chat-session.types";
 import { ChatMessageRole } from "./dto/create-chat-message.dto";
 import type { ChatMessageDto } from "./dto/chat-session.dto";
 
@@ -50,7 +50,7 @@ export class ChatSessionStreamRendererService {
   constructor(
     private readonly chatSessions: ChatSessionsService,
     private readonly eventBus: EventBus,
-  ) {}
+  ) { }
 
   async capture<T>(
     sessionId: string,
