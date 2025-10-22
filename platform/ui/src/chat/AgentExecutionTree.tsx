@@ -727,7 +727,10 @@ export function AgentExecutionTree({
         }}
       >
         {detailsInvocation ? (
-          <DialogContent className="max-h-[85vh] space-y-4 overflow-y-auto">
+          <DialogContent
+            aria-label="Tool invocation details"
+            className="max-h-[85vh] space-y-4 overflow-y-auto"
+          >
             <DialogHeader className="text-left">
               <DialogTitle className="font-mono text-base">Tool invocation details</DialogTitle>
               <DialogDescription>
