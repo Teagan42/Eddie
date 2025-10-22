@@ -21,6 +21,10 @@ import {
 
 export const SESSION_TABLIST_ARIA_LABEL = 'Chat sessions';
 
+export function getSessionTablistAriaLabel(categoryLabel: string): string {
+  return `${SESSION_TABLIST_ARIA_LABEL} (${categoryLabel})`;
+}
+
 export interface SessionSelectorMetricsSummary {
   messageCount?: number | null;
   agentCount?: number | null;
@@ -571,6 +575,8 @@ export function SessionSelector({
       {categoryDefinitions.map((category) => {
         const categorySessions = sessionsByCategory[category.id] ?? [];
 
+        const tablistLabel = getSessionTablistAriaLabel(category.label);
+
         return (
           <TabsContent key={category.id} value={category.id} className="mt-1 outline-none">
             <ScrollArea type="always" className="max-h-40">
@@ -584,7 +590,7 @@ export function SessionSelector({
                     ref={tabListRef}
                     role="tablist"
                     aria-orientation="horizontal"
-                    aria-label={SESSION_TABLIST_ARIA_LABEL}
+                    aria-label={tablistLabel}
                     gap="2"
                     wrap="wrap"
                     className="relative"

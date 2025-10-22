@@ -6,6 +6,7 @@ import { Theme } from '@radix-ui/themes';
 
 import {
   SESSION_TABLIST_ARIA_LABEL,
+  getSessionTablistAriaLabel,
   SessionSelector,
   type SessionSelectorProps,
   type SessionSelectorSession,
@@ -68,8 +69,10 @@ describe('SessionSelector', () => {
 
     renderSelector({ onSelectSession: handleSelect });
 
+    const sessionTablistLabel = getSessionTablistAriaLabel('Active');
+
     expect(
-      screen.getByRole('tablist', { name: SESSION_TABLIST_ARIA_LABEL }),
+      screen.getByRole('tablist', { name: sessionTablistLabel }),
     ).toBeInTheDocument();
 
     const selectedTab = screen.getByRole('tab', { name: 'Session 1' });
@@ -192,7 +195,9 @@ describe('SessionSelector', () => {
     expect(activeCategory).toHaveAttribute('aria-selected', 'true');
     expect(archivedCategory).toHaveAttribute('aria-selected', 'false');
 
-    const sessionTablist = screen.getByRole('tablist', { name: SESSION_TABLIST_ARIA_LABEL });
+    const sessionTablist = screen.getByRole('tablist', {
+      name: getSessionTablistAriaLabel('Active'),
+    });
     expect(within(sessionTablist).getByRole('tab', { name: 'Active session' })).toBeInTheDocument();
     expect(
       within(sessionTablist).queryByRole('tab', { name: 'Archived session' }),
@@ -202,12 +207,41 @@ describe('SessionSelector', () => {
 
     expect(activeCategory).toHaveAttribute('aria-selected', 'false');
     expect(archivedCategory).toHaveAttribute('aria-selected', 'true');
-    const archivedSessionTablist = screen.getByRole('tablist', { name: SESSION_TABLIST_ARIA_LABEL });
+    const archivedSessionTablist = screen.getByRole('tablist', {
+      name: getSessionTablistAriaLabel('Archived'),
+    });
     expect(
       within(archivedSessionTablist).getByRole('tab', { name: 'Archived session' }),
     ).toBeInTheDocument();
     expect(
       within(archivedSessionTablist).queryByRole('tab', { name: 'Active session' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('labels each session tablist with its category for accessible disambiguation', () => {
+    renderSelector({
+      sessions: [
+        createSession({ id: 'active-session', title: 'Active session' }),
+        createSession({ id: 'archived-session', title: 'Archived session', status: 'archived' as Status }),
+      ],
+      selectedSessionId: null,
+    });
+
+    const sessionTablists = screen
+      .getAllByRole('tablist', { hidden: true })
+      .filter((tablist) => tablist.getAttribute('data-testid') === 'session-tablist');
+
+    expect(sessionTablists).not.toHaveLength(0);
+
+    sessionTablists.forEach((tablist) => {
+      const label = tablist.getAttribute('aria-label');
+      expect(label).toBeTruthy();
+      expect(label?.startsWith(SESSION_TABLIST_ARIA_LABEL)).toBe(true);
+      expect(label).toMatch(/\(.+\)$/);
+    });
+
+    expect(
+      screen.queryByRole('tablist', { name: SESSION_TABLIST_ARIA_LABEL, hidden: true }),
     ).not.toBeInTheDocument();
   });
 
