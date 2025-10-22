@@ -7,7 +7,28 @@ import { formatPrefix, pipeStream } from './utils/workspace-io';
 import { discoverWorkspacesWithScript, type Workspace } from './utils/workspaces';
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const forwardedArgs = process.argv.slice(2);
+export type TestRunnerOptions = {
+  forwardedArgs: string[];
+  concurrencyOverride?: number;
+};
+
+export function normalizeTestRunnerOptions(rawArgs: string[]): TestRunnerOptions {
+  const forwardedArgs: string[] = [];
+  let concurrencyOverride: number | undefined;
+
+  for (const arg of rawArgs) {
+    if (arg === '--runInBand') {
+      concurrencyOverride = 1;
+      continue;
+    }
+
+    forwardedArgs.push(arg);
+  }
+
+  return { forwardedArgs, concurrencyOverride };
+}
+
+const { forwardedArgs, concurrencyOverride } = normalizeTestRunnerOptions(process.argv.slice(2));
 
 type TestResult = {
   workspace: string;
@@ -42,7 +63,11 @@ process.once('SIGINT', () => {
   process.exit(1);
 });
 
-async function runWorkspaceTest(workspace: Workspace, prefixWidth: number): Promise<TestResult> {
+async function runWorkspaceTest(
+  workspace: Workspace,
+  prefixWidth: number,
+  forwardedArgs: string[],
+): Promise<TestResult> {
   const prefix = formatPrefix(workspace.name, prefixWidth);
   const args = ['run', 'test', '--workspace', workspace.name, '--if-present'];
 
@@ -84,12 +109,12 @@ async function main() {
 
   const prefixWidth = workspaces.reduce((width, workspace) => Math.max(width, workspace.name.length), 0);
 
-  const concurrency = determineConcurrency(workspaces.length);
+  const concurrency = concurrencyOverride ?? determineConcurrency(workspaces.length);
 
   console.log(`Running tests for ${workspaces.length} workspaces in parallel (concurrency ${concurrency})...`);
 
   const results = await runWithConcurrency(
-    workspaces.map((workspace) => () => runWorkspaceTest(workspace, prefixWidth)),
+    workspaces.map((workspace) => () => runWorkspaceTest(workspace, prefixWidth, forwardedArgs)),
     concurrency,
   );
 

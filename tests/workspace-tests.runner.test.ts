@@ -4,7 +4,16 @@ import { promises as fs, Dirent } from 'node:fs';
 import { join } from 'node:path';
 import { runWithConcurrency, determineConcurrency } from '../scripts/utils/workspace-concurrency';
 import { discoverWorkspacesWithScript } from '../scripts/utils/workspaces';
-import { createTestResult } from '../scripts/workspace-tests';
+import { createTestResult, normalizeTestRunnerOptions } from '../scripts/workspace-tests';
+
+describe('workspace test runner options', () => {
+  it('forces serial execution when runInBand is requested', () => {
+    const result = normalizeTestRunnerOptions(['--runInBand', '--reporter=dot']);
+
+    expect(result.forwardedArgs).toEqual(['--reporter=dot']);
+    expect(result.concurrencyOverride).toBe(1);
+  });
+});
 
 describe('workspace test runner concurrency', () => {
   it('does not exceed the requested concurrency', async () => {
