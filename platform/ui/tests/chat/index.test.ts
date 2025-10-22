@@ -2,13 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import {
   AgentExecutionTree,
-  ChatSessionsPanel,
   ChatWindow,
   CollapsiblePanel,
-  MessageComposer,
-  SessionDetail,
   SessionSelector,
 } from "../../src/chat";
+import {
+  MessageComposer
+} from "../../src/common";
+import {
+  ChatSessionsPanel,
+  SessionDetail,
+} from "../../src/overview";
 
 describe("chat barrel", () => {
   it("exposes reusable chat building blocks", () => {

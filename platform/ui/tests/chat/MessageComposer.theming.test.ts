@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 describe("message composer theming", () => {
   it("uses midnight cta tokens for the send button", () => {
     const source = readFileSync(
-      resolve(__dirname, "../../src/chat/MessageComposer.tsx"),
+      resolve(__dirname, "../../src/common/MessageComposer.tsx"),
       "utf8",
     );
 

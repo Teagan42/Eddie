@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 describe("session detail theming", () => {
   it("applies message surface variables for container and cards", () => {
     const source = readFileSync(
-      resolve(__dirname, "../../src/chat/SessionDetail.tsx"),
+      resolve(__dirname, "../../src/overview/SessionDetail.tsx"),
       "utf8",
     );
 

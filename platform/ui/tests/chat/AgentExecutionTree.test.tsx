@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it } from "vitest";
 
@@ -184,9 +184,9 @@ describe("AgentExecutionTree", () => {
     const agentSection = screen.getByRole("button", { name: /select orchestrator agent/i });
     await user.click(agentSection);
 
-    const completedList = screen.getByRole("region", {
+    const completedList = await waitFor(() => screen.getByRole("region", {
       name: /completed tool invocations for orchestrator/i,
-    });
+    }));
 
     expect(within(completedList).getByText(/ingest-records/i)).toBeInTheDocument();
     expect(within(completedList).getByText(/All good/i)).toBeInTheDocument();

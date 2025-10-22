@@ -9,9 +9,9 @@ describe("overview stats grid theming", () => {
       "utf8",
     );
 
-    expect(source).toContain('bg-[var(--overview-stat-bg)]');
-    expect(source).toContain('shadow-[var(--overview-stat-shadow)]');
-    expect(source).toContain('dark:bg-[var(--overview-stat-bg-dark)]');
-    expect(source).toContain('dark:shadow-[var(--overview-stat-shadow-dark)]');
+    expect(source).toContain('bg-[color:var(--overview-stat-card-bg)]');
+    expect(source).toContain('shadow-[var(--overview-stat-card-shadow)]');
+    expect(source).toContain('dark:bg-[color:var(--hero-console-icon-bg-dark)]');
+    expect(source).toContain('shadow-[var(--overview-stat-card-shadow)]');
   });
 });
