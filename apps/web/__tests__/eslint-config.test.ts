@@ -11,4 +11,12 @@ describe("eslint config", () => {
 
     expect(ignores).toContain("src/vendor/**/*");
   });
+
+  it("does not include malformed vendor globs", () => {
+    const config = require("../eslint.config.cjs");
+
+    const ignores = config[0]?.ignores ?? [];
+
+    expect(ignores).not.toContain("**src/vendor/**/*");
+  });
 });
