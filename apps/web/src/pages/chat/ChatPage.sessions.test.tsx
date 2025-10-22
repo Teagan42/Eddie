@@ -4,7 +4,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatSessionDto, LayoutPreferencesDto } from "@eddie/api-client";
 import { createChatPageRenderer } from "./test-utils";
-import { SESSION_TABLIST_ARIA_LABEL } from "./components/SessionSelector";
+import { getSessionTablistAriaLabel } from "./components/SessionSelector";
 
 const sessionCreatedHandlers: Array<(session: unknown) => void> = [];
 const sessionDeletedHandlers: Array<(sessionId: string) => void> = [];
@@ -330,7 +330,9 @@ describe("ChatPage session creation", () => {
 
     renderChatPage();
 
-    const tabList = await screen.findByRole("tablist", { name: SESSION_TABLIST_ARIA_LABEL });
+    const tabList = await screen.findByRole("tablist", {
+      name: getSessionTablistAriaLabel("Active"),
+    });
     expect(tabList).toBeInTheDocument();
 
     const sessionTab = within(tabList).getByRole("tab", { name: "Session 1" });

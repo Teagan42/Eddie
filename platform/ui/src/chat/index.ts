@@ -14,7 +14,13 @@ export { ChatWindow } from './ChatWindow';
 export type { ChatWindowProps } from './ChatWindow';
 export { CollapsiblePanel } from './CollapsiblePanel';
 export type { CollapsiblePanelProps } from './CollapsiblePanel';
-export { SessionSelector, SessionSelectorMetricsSummary, SessionSelectorSession } from './SessionSelector';
+export {
+  SessionSelector,
+  SessionSelectorMetricsSummary,
+  SessionSelectorSession,
+  SESSION_TABLIST_ARIA_LABEL,
+  getSessionTablistAriaLabel,
+} from './SessionSelector';
 export type { SessionSelectorProps } from './SessionSelector';
 export { MessageComposer } from '../common';
 export type { MessageComposerProps } from '../common';
