@@ -184,11 +184,21 @@ describe("AgentExecutionTree", () => {
     const agentSection = screen.getByRole("button", { name: /select orchestrator agent/i });
     await user.click(agentSection);
 
-    const completedList = await waitFor(() => screen.getByRole("region", {
+    const completedToggle = screen.getByRole("button", {
+      name: /toggle completed tool invocations for orchestrator/i,
+    });
+
+    await waitFor(() => {
+      expect(completedToggle).toHaveAttribute("aria-expanded", "true");
+    });
+
+    const completedList = screen.getByRole("region", {
       name: /completed tool invocations for orchestrator/i,
-    }));
+    });
 
     expect(within(completedList).getByText(/ingest-records/i)).toBeInTheDocument();
-    expect(within(completedList).getByText(/All good/i)).toBeInTheDocument();
+    expect(
+      within(completedList).getByText(/All good/i, { selector: 'span.rt-Text' }),
+    ).toBeInTheDocument();
   });
 });

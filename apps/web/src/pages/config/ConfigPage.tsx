@@ -49,6 +49,8 @@ import { extractProviderProfiles, createProviderProfileOptions, ProviderOption }
 import { getSurfaceLayoutClasses, SURFACE_CONTENT_CLASS } from "../../styles/surfaces.js";
 
 const YAML_OPTIONS = { lineWidth: 120, noRefs: true } as const;
+const FROSTED_CALLOUT_CLASS =
+  "border border-white/10 bg-white/10 text-white/90 backdrop-blur";
 
 function uniqueProviderNames(
   ...candidates: Array<string | null | undefined>
@@ -766,7 +768,7 @@ export function ConfigPage(): JSX.Element {
         {statusMessage ? (
           <Callout.Root
             color={statusVariant === "error" ? "red" : "jade"}
-            className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
+            className={FROSTED_CALLOUT_CLASS}
           >
             <Callout.Icon>
               <CheckIcon />
@@ -778,7 +780,7 @@ export function ConfigPage(): JSX.Element {
         {parseError ? (
           <Callout.Root
             color="red"
-            className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
+            className={FROSTED_CALLOUT_CLASS}
           >
             <Callout.Icon>
               <MixerHorizontalIcon />
@@ -790,7 +792,7 @@ export function ConfigPage(): JSX.Element {
         {previewError ? (
           <Callout.Root
             color="amber"
-            className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
+            className={FROSTED_CALLOUT_CLASS}
           >
             <Callout.Icon>
               <MixerHorizontalIcon />
@@ -802,18 +804,24 @@ export function ConfigPage(): JSX.Element {
         {guardrailWarnings.length > 0 && !parseError ? (
           <Callout.Root
             color="amber"
-            className="border border-white/10 bg-white/10 text-white/90 backdrop-blur"
+            className={FROSTED_CALLOUT_CLASS}
           >
             <Callout.Icon>
               <EyeOpenIcon />
             </Callout.Icon>
             <Flex direction="column" gap="2">
-              <Text weight="medium">Guardrails</Text>
+              <Callout.Text asChild>
+                <Text as="span" weight="medium">
+                  Guardrails
+                </Text>
+              </Callout.Text>
               <ul className="list-disc space-y-1 pl-6 text-sm">
                 {guardrailWarnings.map((warning) => (
-                  <li key={warning}>
-                    <Text as="span">{warning}</Text>
-                  </li>
+                  <Callout.Text asChild key={warning}>
+                    <li>
+                      <Text as="span">{warning}</Text>
+                    </li>
+                  </Callout.Text>
                 ))}
               </ul>
             </Flex>

@@ -154,14 +154,13 @@ describe('SessionSelector', () => {
     expect(handleDelete).toHaveBeenCalledWith('session-2');
   });
 
-  it('renders session action triggers as accessible buttons', () => {
+  it('renders session action menus with native button semantics', () => {
     renderSelector();
 
-    const firstTrigger = screen.getByRole('button', { name: 'Session options for Session 1' });
-    const secondTrigger = screen.getByRole('button', { name: 'Session options for Session 2' });
+    const firstMenuTrigger = screen.getByRole('button', { name: 'Session options for Session 1' });
 
-    expect(firstTrigger).toBeInstanceOf(HTMLButtonElement);
-    expect(secondTrigger).toBeInstanceOf(HTMLButtonElement);
+    expect(firstMenuTrigger.tagName.toLowerCase()).toBe('button');
+    expect(firstMenuTrigger).toHaveAttribute('type', 'button');
   });
 
   it('organizes sessions into status-based tabs', async () => {
