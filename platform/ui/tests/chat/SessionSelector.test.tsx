@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitForElementToBeRemoved, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
@@ -40,6 +40,9 @@ beforeAll(() => {
 });
 
 describe('SessionSelector', () => {
+  const getSessionOptionsButton = (title: string) =>
+    screen.getByRole('button', { name: `Session options for ${title}` });
+
   function renderSelector(overrideProps: Partial<SessionSelectorProps> = {}): void {
     const props: SessionSelectorProps = {
       sessions: baseSessions,
@@ -143,15 +146,23 @@ describe('SessionSelector', () => {
       onDeleteSession: handleDelete,
     });
 
-    await waitFor(() => user.click(screen.getByRole('button', { name: 'Session options for Session 1' })));
-    await user.click(await screen.findByRole('menuitem', { name: 'Rename session' }));
+    await user.click(getSessionOptionsButton('Session 1'));
+    const renameItem = await screen.findByRole('menuitem', { name: 'Rename session' });
+    await user.click(renameItem);
 
     expect(handleRename).toHaveBeenCalledWith('session-1');
+    expect(handleRename).toHaveBeenCalledTimes(1);
 
-    await user.click(screen.getByRole('button', { name: 'Session options for Session 2' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Archive session' }));
+    if (renameItem.isConnected) {
+      await waitForElementToBeRemoved(renameItem);
+    }
+
+    await user.click(getSessionOptionsButton('Session 2'));
+    const archiveItem = await screen.findByRole('menuitem', { name: 'Archive session' });
+    await user.click(archiveItem);
 
     expect(handleDelete).toHaveBeenCalledWith('session-2');
+    expect(handleDelete).toHaveBeenCalledTimes(1);
   });
 
   it('renders session action menus with native button semantics', () => {

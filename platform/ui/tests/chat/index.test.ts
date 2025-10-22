@@ -5,10 +5,9 @@ import {
   ChatWindow,
   CollapsiblePanel,
   SessionSelector,
+  MessageComposer as ChatMessageComposer,
 } from "../../src/chat";
-import {
-  MessageComposer
-} from "../../src/common";
+import { MessageComposer } from "../../src/common";
 import {
   ChatSessionsPanel,
   SessionDetail,
@@ -23,5 +22,9 @@ describe("chat barrel", () => {
     expect(typeof MessageComposer).toBe("function");
     expect(typeof SessionDetail).toBe("function");
     expect(typeof SessionSelector).toBe("function");
+  });
+
+  it("re-exports MessageComposer for chat consumers", () => {
+    expect(ChatMessageComposer).toBe(MessageComposer);
   });
 });
