@@ -5,10 +5,12 @@ const reactHooksPlugin = require("eslint-plugin-react-hooks");
 const jsxA11yPlugin = require("eslint-plugin-jsx-a11y");
 const globals = require("globals");
 
+const VENDOR_IGNORE_GLOB = "src/vendor/**/*";
+
 module.exports = [
   {
     ignores: [
-      "**src/vendor/**/*",
+      VENDOR_IGNORE_GLOB,
     ],
   },
   ...baseConfig,
