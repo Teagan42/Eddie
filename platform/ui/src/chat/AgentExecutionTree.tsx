@@ -735,12 +735,12 @@ export function AgentExecutionTree({
                 {contextBundles.map((bundle) => (
                   <Box key={bundle.id} className="space-y-1">
                     <Text weight="medium" className="text-white/90">
-                      {bundle.title}
+                      {bundle.title ?? bundle.label ?? 'Context bundle'}
                     </Text>
                     {bundle.files && bundle.files.length > 0 ? (
                       <ul className="ml-4 list-disc space-y-1">
                         {bundle.files.map((file) => (
-                          <li key={file.id}>{file.name}</li>
+                          <li key={file.id ?? file.path}>{file.name ?? file.path}</li>
                         ))}
                       </ul>
                     ) : null}
