@@ -1367,19 +1367,32 @@ export function ChatPage(): JSX.Element {
   const composerSubmitDisabled = composerUnavailable || !composerValue.trim();
   const composerInputDisabled = composerUnavailable || sendMessageMutation.isPending;
 
+  const isFirstMessage = messagesWithMetadata.length === 0;
+
   const handleSendMessage = useCallback(() => {
     const trimmed = composerValue.trim();
     if (!apiKey || !selectedSessionId || !trimmed) {
       return;
     }
+    const effectiveRole =
+      isFirstMessage && composerRole === 'system'
+        ? DEFAULT_COMPOSER_ROLE
+        : composerRole;
     sendMessageMutation.mutate({
       sessionId: selectedSessionId,
       message: {
-        role: composerRole,
+        role: effectiveRole,
         content: trimmed,
       },
     });
-  }, [apiKey, composerRole, composerValue, selectedSessionId, sendMessageMutation]);
+  }, [
+    apiKey,
+    composerRole,
+    composerValue,
+    isFirstMessage,
+    selectedSessionId,
+    sendMessageMutation,
+  ]);
 
   const handleComposerSubmit = useCallback(
     (event: FormEvent<HTMLFormElement>) => {

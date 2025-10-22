@@ -173,6 +173,27 @@ describe("ChatPage composer interactions", () => {
     });
   });
 
+  it("sends the initial submission as a user message even when 'Run' is selected", async () => {
+    const user = userEvent.setup();
+    renderChatPage();
+
+    const runToggle = await screen.findByRole("radio", { name: /run/i });
+    await user.click(runToggle);
+
+    const composer = await screen.findByPlaceholderText(
+      "Send a message to the orchestrator",
+    );
+    await user.type(composer, "Bootstrap workspace");
+
+    await user.keyboard("{Alt>}{Enter}{/Alt}");
+
+    await waitFor(() => expect(createMessageMock).toHaveBeenCalledTimes(1));
+    expect(createMessageMock).toHaveBeenCalledWith("session-1", {
+      role: "user",
+      content: "Bootstrap workspace",
+    });
+  });
+
   it("does not render template actions", async () => {
     renderChatPage();
 
