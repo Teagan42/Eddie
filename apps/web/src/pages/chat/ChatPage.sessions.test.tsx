@@ -154,6 +154,12 @@ function getSessionMetricsDescription(tab: HTMLElement): HTMLElement | null {
   return descriptionId ? document.getElementById(descriptionId) : null;
 }
 
+async function expectToastWith(match: { title: string; variant: string }) {
+  await waitFor(() =>
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining(match)),
+  );
+}
+
 describe("ChatPage session creation", () => {
   const buildSessionDto = (id: string, title: string, timestamp: string) => ({
     id,
@@ -385,14 +391,10 @@ describe("ChatPage session creation", () => {
 
     const { client } = renderChatPage();
 
-    await waitFor(() =>
-      expect(toastMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: "Session no longer available",
-          variant: "warning",
-        }),
-      ),
-    );
+    await expectToastWith({
+      title: "Session no longer available",
+      variant: "warning",
+    });
 
     await waitFor(() => expect(updatePreferencesMock).toHaveBeenCalled());
 
@@ -441,14 +443,10 @@ describe("ChatPage session creation", () => {
 
     await waitFor(() => expect(listSessionsMock).toHaveBeenCalledTimes(2));
 
-    await waitFor(() =>
-      expect(toastMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: "Sessions no longer available",
-          variant: "warning",
-        }),
-      ),
-    );
+    await expectToastWith({
+      title: "Sessions no longer available",
+      variant: "warning",
+    });
 
     await waitFor(() =>
       expect(screen.queryByRole("tab", { name: "Session 2" })).not.toBeInTheDocument(),
@@ -622,6 +620,39 @@ describe("ChatPage session creation", () => {
     }
   });
 
+  it("shows a success toast when a rename mutation resolves", async () => {
+    const now = new Date().toISOString();
+    const renamedSession = {
+      id: "session-1",
+      title: "Session Prime",
+      description: "",
+      status: "active" as const,
+      createdAt: now,
+      updatedAt: now,
+    } satisfies ChatSessionDto;
+    renameSessionMock.mockResolvedValue(renamedSession);
+
+    const promptSpy = vi.spyOn(window, "prompt").mockReturnValue("Session Prime");
+
+    try {
+      const user = userEvent.setup();
+      renderChatPage();
+
+      await waitFor(() => expect(listSessionsMock).toHaveBeenCalled());
+
+      await chooseSessionMenuAction(user, "Session 1", "Rename session");
+
+      await waitFor(() => expect(renameSessionMock).toHaveBeenCalled());
+
+      await expectToastWith({
+        title: "Session renamed",
+        variant: "success",
+      });
+    } finally {
+      promptSpy.mockRestore();
+    }
+  });
+
   it("restores prior title and shows an error toast when rename fails", async () => {
     renameSessionMock.mockRejectedValue(new Error("nope"));
 
@@ -646,14 +677,10 @@ describe("ChatPage session creation", () => {
         );
       });
 
-      await waitFor(() =>
-        expect(toastMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            title: "Failed to rename session",
-            variant: "error",
-          }),
-        ),
-      );
+      await expectToastWith({
+        title: "Failed to rename session",
+        variant: "error",
+      });
     } finally {
       promptSpy.mockRestore();
     }
@@ -696,14 +723,10 @@ describe("ChatPage session creation", () => {
         "session-1",
       ]);
       expect(metadata).toBeNull();
-      await waitFor(() =>
-        expect(toastMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            title: "Session deleted",
-            variant: "success",
-          }),
-        ),
-      );
+      await expectToastWith({
+        title: "Session deleted",
+        variant: "success",
+      });
     } finally {
       confirmSpy.mockRestore();
     }
@@ -729,14 +752,10 @@ describe("ChatPage session creation", () => {
       ]) as ChatSessionDto[]) ?? [];
       expect(sessions.some((session) => session.id === "session-1")).toBe(true);
 
-      await waitFor(() =>
-        expect(toastMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            title: "Failed to delete session",
-            variant: "error",
-          }),
-        ),
-      );
+      await expectToastWith({
+        title: "Failed to delete session",
+        variant: "error",
+      });
     } finally {
       confirmSpy.mockRestore();
     }
