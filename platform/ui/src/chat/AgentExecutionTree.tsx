@@ -310,8 +310,32 @@ export function AgentExecutionTree({
     (agentId: string) => {
       const nextSelection = agentId === selectedAgentId ? null : agentId;
       onSelectAgent(nextSelection);
+
+      if (nextSelection) {
+        const groups = toolGroupsByAgentId[nextSelection];
+        if (groups) {
+          setExpandedGroups((previous) => {
+            const next = new Set<string>();
+            for (const key of previous) {
+              if (key.startsWith(`context:${nextSelection}`)) {
+                next.add(key);
+              }
+            }
+            for (const status of TOOL_STATUS_ORDER) {
+              if (!status) {
+                continue;
+              }
+              const key: ToolGroupKey = `${nextSelection}:${status}`;
+              if ((groups[status]?.length ?? 0) > 0) {
+                next.add(key);
+              }
+            }
+            return next;
+          });
+        }
+      }
     },
-    [onSelectAgent, selectedAgentId],
+    [onSelectAgent, selectedAgentId, toolGroupsByAgentId],
   );
 
   const handleToggleGroup = useCallback((key: ToolGroupKey | string) => {

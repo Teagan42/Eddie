@@ -189,6 +189,68 @@ describe("AgentExecutionTree", () => {
     }));
 
     expect(within(completedList).getByText(/ingest-records/i)).toBeInTheDocument();
-    expect(within(completedList).getByText(/All good/i)).toBeInTheDocument();
+    expect(within(completedList).getByText(/^All good$/i)).toBeInTheDocument();
+  });
+
+  it("surfaces completed tool previews immediately after selecting an agent", async () => {
+    const user = userEvent.setup();
+    const invocation: ExecutionTreeState["toolInvocations"][number] = {
+      id: "tool-preview",
+      agentId: "root-agent",
+      name: "ingest-records",
+      status: "completed",
+      createdAt: "2024-05-01T12:03:00.000Z",
+      updatedAt: "2024-05-01T12:03:30.000Z",
+      metadata: {
+        result: "Preview from metadata",
+      },
+      children: [],
+    } as ExecutionTreeState["toolInvocations"][number];
+
+    const executionTree: ExecutionTreeState = {
+      agentHierarchy: [
+        {
+          id: "root-agent",
+          name: "orchestrator",
+          provider: "openai",
+          model: "gpt-4o",
+          depth: 0,
+          lineage: ["root-agent"],
+          children: [],
+        },
+      ],
+      toolInvocations: [invocation],
+      contextBundles: [],
+      agentLineageById: { "root-agent": ["root-agent"] },
+      toolGroupsByAgentId: {
+        "root-agent": {
+          pending: [],
+          running: [],
+          completed: [invocation],
+          failed: [],
+        },
+      },
+      contextBundlesByAgentId: { "root-agent": [] },
+      contextBundlesByToolCallId: {},
+      createdAt: "2024-05-01T12:00:00.000Z",
+      updatedAt: "2024-05-01T12:03:30.000Z",
+    } as ExecutionTreeState;
+
+    render(
+      <AgentExecutionTree
+        state={createExecutionTreeStateFromMetadata({ executionTree } as unknown)}
+        selectedAgentId={null}
+        onSelectAgent={() => {}}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /select orchestrator agent/i }));
+
+    const completedRegion = await screen.findByRole("region", {
+      name: /completed tool invocations for orchestrator/i,
+    });
+
+    expect(within(completedRegion).getByText(/ingest-records/i)).toBeInTheDocument();
+    expect(within(completedRegion).getByText(/^Preview from metadata$/i)).toBeInTheDocument();
   });
 });

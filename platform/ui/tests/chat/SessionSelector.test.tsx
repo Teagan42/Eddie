@@ -154,6 +154,14 @@ describe('SessionSelector', () => {
     expect(handleDelete).toHaveBeenCalledWith('session-2');
   });
 
+  it('exposes session action triggers as accessible buttons', () => {
+    renderSelector();
+
+    expect(
+      screen.getByRole('button', { name: 'Session options for Session 1' }),
+    ).toBeVisible();
+  });
+
   it('organizes sessions into status-based tabs', async () => {
     const user = userEvent.setup();
 

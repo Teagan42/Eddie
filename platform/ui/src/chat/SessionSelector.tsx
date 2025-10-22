@@ -515,16 +515,17 @@ export function SessionSelector({
           </Flex>
         </Button>
         <DropdownMenu.Root modal={false}>
-          <DropdownMenu.Trigger>
+          <DropdownMenu.Trigger asChild>
             <IconButton
-              asChild
               variant="ghost"
               color="gray"
               size="1"
               aria-label={menuTriggerLabel}
               title={menuTriggerLabel}
+              aria-haspopup="menu"
+              type="button"
             >
-              <DotsHorizontalIcon />
+              <DotsHorizontalIcon aria-hidden="true" focusable="false" />
             </IconButton>
           </DropdownMenu.Trigger>
           <DropdownMenu.Content align="end">
