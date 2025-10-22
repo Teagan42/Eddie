@@ -79,7 +79,7 @@ export class ExecutionTreeStateTracker {
     const timestamp = this.now().toISOString();
     const parentNode = parentId ? this.agents.get(parentId) : undefined;
     const lineage = parentNode
-      ? [ ...parentNode.lineage, parentNode.id ]
+      ? [...parentNode.lineage, parentNode.id]
       : [];
     const node: ExecutionAgentNode = {
       id: agentId,
@@ -290,6 +290,9 @@ export class ExecutionTreeStateTracker {
             agentId,
             toolCallId,
           },
+          media: "",
+          type: "other",
+          createdAt: this.now().toISOString(),
         });
       }
     }
@@ -328,6 +331,9 @@ export class ExecutionTreeStateTracker {
       sizeBytes,
       fileCount,
       summary,
+      media: "",
+      type: "other",
+      createdAt: this.now().toISOString(),
       files,
       source,
     };
@@ -418,7 +424,7 @@ export class ExecutionTreeStateTracker {
       provider: node.provider,
       model: node.model,
       depth: node.depth,
-      lineage: [ ...node.lineage ],
+      lineage: [...node.lineage],
       children: node.children.map((child) => this.cloneAgentNode(child)),
     };
   }
@@ -442,6 +448,9 @@ export class ExecutionTreeStateTracker {
       label: bundle.label,
       sizeBytes: bundle.sizeBytes,
       fileCount: bundle.fileCount,
+      media: bundle.media,
+      type: bundle.type,
+      createdAt: bundle.createdAt,
       summary: bundle.summary,
       files: bundle.files?.map((file) => ({ ...file })),
       source: { ...bundle.source },

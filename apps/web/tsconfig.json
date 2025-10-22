@@ -9,26 +9,41 @@
     "declarationMap": true,
     "sourceMap": true,
     "paths": {
-      "@/vendor/*": [
-        "vendor/*"
-      ],
-      "@/config": [
-        "config/env.ts"
+      "@/auth": [
+        "src/auth/*"
       ],
       "@/auth/*": [
-        "auth/*"
+        "src/auth/*"
+      ],
+      "@/api": [
+        "src/api/*"
       ],
       "@/api/*": [
-        "api/*"
+        "src/api/*"
+      ],
+      "@/chat": [
+        "pages/chat/*"
+      ],
+      "@/chat/*": [
+        "pages/chat/*"
+      ],
+      "@/config": [
+        "src/pages/config/*,"
+      ],
+      "@/config/*": [
+        "src/pages/config/*,"
+      ],
+      "@/styles": [
+        "src/styles/*"
+      ],
+      "@/styles/*": [
+        "src/styles/*"
+      ],
+      "@/": [
+        "./src/*"
       ],
       "@/*": [
         "./src/*"
-      ],
-      "@eddie/ui": [
-        "../../platform/ui/src"
-      ],
-      "@eddie/ui/*": [
-        "../../platform/ui/src/*"
       ]
     },
     "types": [
@@ -39,9 +54,10 @@
   },
   "include": [
     "src",
-    "vitest.config.ts",
-    "playwright.config.ts",
-    "tailwind.config.ts"
   ],
-  "references": []
+  "references": [
+    {
+      "path": "../../platform/ui"
+    }
+  ]
 }

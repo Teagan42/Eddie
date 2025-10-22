@@ -26,9 +26,24 @@
     "@testing-library/user-event": "^14.5.2",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react-swc": "^3.7.1",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.37.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "globals": "^15.12.0",
+    "jsdom": "^27.0.0",
+    "postcss": "^8.4.47",
+    "prettier": "^3.3.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0"
+    "react-router-dom": "^6.28.0",
+    "tailwindcss": "^3.4.18",
+    "typescript": "^5.9.3",
+    "vite": "^6.0.7",
+    "vitest": "^3.2.4"
   },
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
@@ -39,6 +54,8 @@
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "framer-motion": "^12.23.24"
+    "@shikijs/transformers": "^3.13.0",
+    "framer-motion": "^12.23.24",
+    "js-yaml": "^4.1.0"
   }
 }

@@ -8,7 +8,7 @@ const globals = require("globals");
 module.exports = [
   {
     ignores: [
-      "src/vendor/**/*",
+      "**src/vendor/**/*",
     ],
   },
   ...baseConfig,

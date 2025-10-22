@@ -13,9 +13,32 @@
       "vite/client",
       "vitest"
     ],
+    "paths": {
+      "@/vendor/*": [
+        "vendor/*"
+      ],
+      "@/config": [
+        "config/env.ts"
+      ],
+      "@/auth/*": [
+        "auth/*"
+      ],
+      "@/api/*": [
+        "api/*"
+      ],
+      "@/*": [
+        "./src/*"
+      ],
+      "@eddie/api-client": [
+        "../integrations/api-client/src/*"
+      ],
+      "@eddie/api-client/*": [
+        "../integrations/api-client/src/*"
+      ]
+    }
   },
   "include": [
     "src/**/*.ts",
-    "src/**/*.tsx"
+    "src/**/*.tsx",
   ]
 }

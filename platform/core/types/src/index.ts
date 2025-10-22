@@ -8,6 +8,7 @@ export type {
   AgentRuntimeDescriptor,
   AgentRuntimeMetadata,
   AgentSpawnHandler,
+  AgentActivityState,
 } from "./agents";
 
 export * from "./providers";

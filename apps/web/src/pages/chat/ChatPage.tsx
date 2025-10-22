@@ -6,13 +6,13 @@ import {
   useState,
   type FormEvent,
 } from 'react';
-import { Box, Button, Flex, Heading, ScrollArea, Select, Text, TextField } from '@radix-ui/themes';
+import { Box, Button, Flex, Heading, Select, Text, TextField } from '@radix-ui/themes';
 import {
   ChatBubbleIcon,
   MagicWandIcon,
   PlusIcon,
 } from '@radix-ui/react-icons';
-import { type AgentActivityState } from './AgentActivityIndicator';
+import { ExecutionTreeState, Role, type AgentActivityState } from '@eddie/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ChatMessageDto,
@@ -21,42 +21,15 @@ import type {
   CreateChatSessionDto,
   EddieConfigSourceDto,
 } from '@eddie/api-client';
-import { useApi } from '@/api/api-provider';
-import { useAuth } from '@/auth/auth-context';
-import { useLayoutPreferences } from '@/hooks/useLayoutPreferences';
 import type { LayoutPreferencesDto } from '@eddie/api-client';
-import { Sheet, SheetTrigger } from "@/vendor/components/ui/sheet";
-import { Panel } from '@eddie/ui';
-import { cn } from "@/vendor/lib/utils";
-import { toast } from '@/vendor/hooks/use-toast';
-import { getSurfaceLayoutClasses, SURFACE_CONTENT_CLASS } from '@/styles/surfaces';
-import { sortSessions, upsertMessage } from './chat-utils';
-import {
-  ChatWindow,
-  ContextBundlesPanel,
-  AgentToolsDrawer,
-  SessionSelector,
-  type ChatWindowComposerRole,
-  type SessionSelectorMetricsSummary,
-  type SessionSelectorSession,
-} from './components';
-import { useChatMessagesRealtime } from './useChatMessagesRealtime';
-import {
-  applyToolCallEvent,
-  applyToolResultEvent,
-  cloneExecutionTreeState,
-  coerceExecutionTreeState,
-  composeExecutionTreeState,
-  createEmptyExecutionTreeState,
-  createExecutionTreeStateFromMetadata,
-  type ExecutionTreeState,
-  type ToolEventPayload,
-} from './execution-tree-state';
-import {
-  createProviderProfileOptions,
-  extractProviderProfiles,
-  type ProviderOption,
-} from '../shared/providerProfiles';
+import { AgentToolsDrawer, applyToolCallEvent, applyToolResultEvent, ChatWindow, cloneExecutionTreeState, cn, coerceExecutionTreeState, composeExecutionTreeState, createEmptyExecutionTreeState, createExecutionTreeStateFromMetadata, Panel, SessionSelector, Sheet, sortSessions, ToolEventPayload, upsertMessage } from '@eddie/ui';
+import { useApi } from '@/api/api-provider.js';
+import { useAuth } from '@/auth/auth-context.js';
+import { useLayoutPreferences } from '../../hooks/useLayoutPreferences.js';
+import { extractProviderProfiles, createProviderProfileOptions, ProviderOption } from '../shared/providerProfiles.js';
+import { getSurfaceLayoutClasses, SURFACE_CONTENT_CLASS } from '../../styles/surfaces.js';
+import { SessionSelectorSession, SessionSelectorMetricsSummary, SheetTrigger, toast } from '@eddie/ui';
+import { useChatMessagesRealtime } from './useChatMessagesRealtime.js';
 
 const ORCHESTRATOR_METADATA_QUERY_KEY = 'orchestrator-metadata' as const;
 
@@ -98,10 +71,7 @@ const scrollMessageViewportToBottom = (anchor: HTMLElement): void => {
 };
 
 type ChatPreferences = NonNullable<LayoutPreferencesDto['chat']>;
-
-type ComposerRole = ChatWindowComposerRole;
-
-const DEFAULT_COMPOSER_ROLE: ComposerRole = 'user';
+const DEFAULT_COMPOSER_ROLE: Role = 'user';
 
 type AutoSessionAttemptStatus = 'idle' | 'pending' | 'failed';
 
@@ -199,7 +169,7 @@ export function ChatPage(): JSX.Element {
   useChatMessagesRealtime(api);
   const [composerValue, setComposerValue] = useState('');
   // Derive a safe default for composer role from the DTO union (fall back to 'user')
-  const [composerRole, setComposerRole] = useState<ComposerRole>(DEFAULT_COMPOSER_ROLE);
+  const [composerRole, setComposerRole] = useState<Role>(DEFAULT_COMPOSER_ROLE);
   const [agentStreamActivity, setAgentStreamActivity] = useState<
     Exclude<AgentActivityState, 'sending'>
   >('idle');
@@ -285,7 +255,7 @@ export function ChatPage(): JSX.Element {
       }
 
       const cloned = cloneSessionContext(snapshot);
-      setSessionContextById((previous) => ({ ...previous, [sessionId]: cloned }));
+      setSessionContextById(<T extends object,>(previous: T) => ({ ...previous, [sessionId]: cloned }));
       if (syncQueryCache) {
         syncSessionContextCache(sessionId, cloned);
       }

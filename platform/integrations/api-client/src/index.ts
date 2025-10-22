@@ -30,68 +30,70 @@ export type {
 export type ConfigFileFormat = "yaml" | "json";
 
 export interface EddieProviderConfigDto {
-    name?: string;
-    baseUrl?: string;
-    apiKey?: string;
-    version?: string;
+  name?: string;
+  baseUrl?: string;
+  apiKey?: string;
+  version?: string;
+  model?: string;
 }
 
 export interface EddieContextConfigDto {
-    baseDir?: string;
-    include?: string[];
-    exclude?: string[];
+  baseDir?: string;
+  include?: string[];
+  exclude?: string[];
 }
 
 export interface EddieToolsConfigDto {
-    enabled?: string[];
-    autoApprove?: boolean;
+  enabled?: string[];
+  disabled?: string[];
+  autoApprove?: boolean;
 }
 
 export interface EddieAgentsManagerDto {
-    prompt?: string;
+  prompt?: string;
 }
 
 export interface EddieAgentsConfigDto {
-    mode?: string;
-    manager?: EddieAgentsManagerDto;
-    enableSubagents?: boolean;
+  mode?: string;
+  manager?: EddieAgentsManagerDto;
+  enableSubagents?: boolean;
 }
 
 export interface EddieConfigDto {
-    model?: string;
-    provider?: EddieProviderConfigDto;
-    context?: EddieContextConfigDto;
-    systemPrompt?: string;
-    tools?: EddieToolsConfigDto;
-    agents?: EddieAgentsConfigDto;
-    logging?: { level?: string; };
+  model?: string;
+  provider?: EddieProviderConfigDto;
+  context?: EddieContextConfigDto;
+  systemPrompt?: string;
+  tools?: EddieToolsConfigDto;
+  agents?: EddieAgentsConfigDto;
+  logging?: { level?: string; };
 }
 
 export type EddieConfigInputDto = EddieConfigDto;
 
 export interface EddieConfigSchemaDto {
-    id: string;
-    version: string;
-    schema: Record<string, unknown>;
-    inputSchema: Record<string, unknown>;
+  id: string;
+  version: string;
+  schema: Record<string, unknown>;
+  inputSchema: Record<string, unknown>;
 }
 
 export interface EddieConfigPreviewDto {
-    input: EddieConfigInputDto;
-    config: EddieConfigDto;
+  input: EddieConfigInputDto;
+  config: EddieConfigDto;
 }
 
 export interface ProviderCatalogEntryDto {
-    name: string;
-    label?: string;
-    models: string[];
+  name: string;
+  label?: string;
+  models: string[];
 }
 
 export const FALLBACK_PROVIDER_CATALOG: ProviderCatalogEntryDto[] = [
   {
     name: "openai",
     label: "OpenAI",
-    models: [ "gpt-4o", "gpt-4o-mini" ],
+    models: ["gpt-4o", "gpt-4o-mini"],
   },
   {
     name: "anthropic",
@@ -112,254 +114,254 @@ export const FALLBACK_PROVIDER_CATALOG: ProviderCatalogEntryDto[] = [
 ];
 
 export interface EddieConfigSourceDto {
-    path: string | null;
-    format: ConfigFileFormat;
-    content: string;
-    input: EddieConfigInputDto;
-    config?: EddieConfigDto | null;
-    error?: string | null;
+  path: string | null;
+  format: ConfigFileFormat;
+  content: string;
+  input: EddieConfigInputDto;
+  config?: EddieConfigDto | null;
+  error?: string | null;
 }
 
 export interface UpdateEddieConfigPayload {
-    content: string;
-    format: ConfigFileFormat;
-    path?: string | null;
+  content: string;
+  format: ConfigFileFormat;
+  path?: string | null;
 }
 
 export interface ChatSessionTemplateDto {
-    id: string;
-    name: string;
-    provider: string;
-    model: string;
-    prompt: string;
-    createdAt: string;
+  id: string;
+  name: string;
+  provider: string;
+  model: string;
+  prompt: string;
+  createdAt: string;
 }
 
 export interface ChatLayoutPreferencesDto {
-    selectedSessionId?: string;
-    collapsedPanels?: Record<string, boolean>;
-    sessionSettings?: Record<
-        string,
-        {
-            provider?: string;
-            model?: string;
-        }
-    >;
-    templates?: Record<string, ChatSessionTemplateDto>;
+  selectedSessionId?: string;
+  collapsedPanels?: Record<string, boolean>;
+  sessionSettings?: Record<
+    string,
+    {
+      provider?: string;
+      model?: string;
+    }
+  >;
+  templates?: Record<string, ChatSessionTemplateDto>;
 }
 
 export interface LayoutPreferencesDto {
-    chat?: ChatLayoutPreferencesDto;
-    updatedAt?: string;
+  chat?: ChatLayoutPreferencesDto;
+  updatedAt?: string;
 }
 
 export type ToolCallStatusDto = "pending" | "running" | "completed" | "failed";
 
 export interface OrchestratorContextBundleFileDto {
-    path: string;
-    sizeBytes: number;
-    preview?: string;
+  path: string;
+  sizeBytes: number;
+  preview?: string;
 }
 
 export interface OrchestratorContextBundleDto {
-    id: string;
-    label: string;
-    summary?: string;
-    sizeBytes: number;
-    fileCount: number;
-    files?: OrchestratorContextBundleFileDto[];
+  id: string;
+  label: string;
+  summary?: string;
+  sizeBytes: number;
+  fileCount: number;
+  files?: OrchestratorContextBundleFileDto[];
 }
 
 export interface OrchestratorAgentMetadataDto
-    extends Record<string, unknown> {
-    finalMessage?: string;
-    transcriptSummary?: string;
-    historySnippet?: string;
-    contextBundleIds?: string[];
+  extends Record<string, unknown> {
+  finalMessage?: string;
+  transcriptSummary?: string;
+  historySnippet?: string;
+  contextBundleIds?: string[];
 }
 
 export interface OrchestratorToolCallNodeDto {
-    id: string;
-    name: string;
-    status: ToolCallStatusDto;
-    metadata?: OrchestratorAgentMetadataDto;
-    children: OrchestratorToolCallNodeDto[];
+  id: string;
+  name: string;
+  status: ToolCallStatusDto;
+  metadata?: OrchestratorAgentMetadataDto;
+  children: OrchestratorToolCallNodeDto[];
 }
 
 export interface OrchestratorAgentNodeDto {
-    id: string;
-    name: string;
-    provider?: string;
-    model?: string;
-    depth?: number;
-    metadata?: OrchestratorAgentMetadataDto;
-    children: OrchestratorAgentNodeDto[];
+  id: string;
+  name: string;
+  provider?: string;
+  model?: string;
+  depth?: number;
+  metadata?: OrchestratorAgentMetadataDto;
+  children: OrchestratorAgentNodeDto[];
 }
 
 export interface OrchestratorMetadataDto {
-    contextBundles: OrchestratorContextBundleDto[];
-    toolInvocations: OrchestratorToolCallNodeDto[];
-    agentHierarchy: OrchestratorAgentNodeDto[];
-    sessionId?: string;
-    capturedAt?: string;
+  contextBundles: OrchestratorContextBundleDto[];
+  toolInvocations: OrchestratorToolCallNodeDto[];
+  agentHierarchy: OrchestratorAgentNodeDto[];
+  sessionId?: string;
+  capturedAt?: string;
 }
 
 export type AgentActivityStateDto = "idle" | "thinking" | "tool" | "tool-error" | "error";
 
 export interface AgentActivityEventDto {
-    sessionId: string;
-    state: AgentActivityStateDto;
-    timestamp?: string;
+  sessionId: string;
+  state: AgentActivityStateDto;
+  timestamp?: string;
 }
 
 export interface ChatMessageReasoningPartialPayload {
-    sessionId: string;
-    messageId: string;
-    text: string;
-    metadata?: Record<string, unknown>;
-    timestamp?: string;
-    agentId?: string | null;
-    responseId?: string;
+  sessionId: string;
+  messageId: string;
+  text: string;
+  metadata?: Record<string, unknown>;
+  timestamp?: string;
+  agentId?: string | null;
+  responseId?: string;
 }
 
 export interface ChatMessageReasoningCompletePayload {
-    sessionId: string;
-    messageId: string;
-    responseId?: string;
-    text?: string;
-    metadata?: Record<string, unknown>;
-    timestamp?: string;
-    agentId?: string | null;
+  sessionId: string;
+  messageId: string;
+  responseId?: string;
+  text?: string;
+  metadata?: Record<string, unknown>;
+  timestamp?: string;
+  agentId?: string | null;
 }
 
 export interface ApiClientOptions {
-    baseUrl: string;
-    websocketUrl: string;
-    apiKey?: string;
+  baseUrl: string;
+  websocketUrl: string;
+  apiKey?: string;
 }
 
 export type Unsubscribe = () => void;
 
 export interface ChatSessionsSocket {
-    onSessionCreated(handler: (session: ChatSessionDto) => void): Unsubscribe;
-    onSessionUpdated(handler: (session: ChatSessionDto) => void): Unsubscribe;
-    onSessionDeleted(handler: (sessionId: string) => void): Unsubscribe;
-    onMessageCreated(handler: (message: ChatMessageDto) => void): Unsubscribe;
-    onMessageUpdated(handler: (message: ChatMessageDto) => void): Unsubscribe;
-    onAgentActivity(
-        handler: (activity: AgentActivityEventDto) => void
-    ): Unsubscribe;
-    onExecutionTreeUpdated(
-        handler: (
-            payload: { sessionId: string; state: ExecutionTreeState }
-        ) => void
-    ): Unsubscribe;
-    emitMessage(sessionId: string, payload: CreateChatMessageDto): void;
+  onSessionCreated(handler: (session: ChatSessionDto) => void): Unsubscribe;
+  onSessionUpdated(handler: (session: ChatSessionDto) => void): Unsubscribe;
+  onSessionDeleted(handler: (sessionId: string) => void): Unsubscribe;
+  onMessageCreated(handler: (message: ChatMessageDto) => void): Unsubscribe;
+  onMessageUpdated(handler: (message: ChatMessageDto) => void): Unsubscribe;
+  onAgentActivity(
+    handler: (activity: AgentActivityEventDto) => void
+  ): Unsubscribe;
+  onExecutionTreeUpdated(
+    handler: (
+      payload: { sessionId: string; state: ExecutionTreeState }
+    ) => void
+  ): Unsubscribe;
+  emitMessage(sessionId: string, payload: CreateChatMessageDto): void;
 }
 
 export interface ChatMessageReasoningPayload {
-    sessionId: string;
-    messageId: string;
-    text?: string;
-    metadata?: Record<string, unknown> | undefined;
-    timestamp?: string | undefined;
-    agentId?: string | null | undefined;
-    responseId?: string | undefined;
+  sessionId: string;
+  messageId: string;
+  text?: string;
+  metadata?: Record<string, unknown> | undefined;
+  timestamp?: string | undefined;
+  agentId?: string | null | undefined;
+  responseId?: string | undefined;
 }
 
 export interface ChatMessagesSocket {
-    onMessagePartial(handler: (message: ChatMessageDto) => void): Unsubscribe;
-    onReasoningPartial(
-        handler: (payload: ChatMessageReasoningPartialPayload) => void,
-    ): Unsubscribe;
-    onReasoningComplete(
-        handler: (payload: ChatMessageReasoningCompletePayload) => void,
-    ): Unsubscribe;
+  onMessagePartial(handler: (message: ChatMessageDto) => void): Unsubscribe;
+  onReasoningPartial(
+    handler: (payload: ChatMessageReasoningPartialPayload) => void,
+  ): Unsubscribe;
+  onReasoningComplete(
+    handler: (payload: ChatMessageReasoningCompletePayload) => void,
+  ): Unsubscribe;
 }
 
 export interface TracesSocket {
-    onTraceCreated(handler: (trace: TraceDto) => void): Unsubscribe;
-    onTraceUpdated(handler: (trace: TraceDto) => void): Unsubscribe;
+  onTraceCreated(handler: (trace: TraceDto) => void): Unsubscribe;
+  onTraceUpdated(handler: (trace: TraceDto) => void): Unsubscribe;
 }
 
 export interface LogsSocket {
-    onLogCreated(handler: (entry: LogEntryDto) => void): Unsubscribe;
+  onLogCreated(handler: (entry: LogEntryDto) => void): Unsubscribe;
 }
 
 export interface LogsListOptions {
-    offset?: number;
-    limit?: number;
+  offset?: number;
+  limit?: number;
 }
 
 const DEFAULT_LOGS_OFFSET = 0;
 const DEFAULT_LOGS_LIMIT = 50;
 
 export interface ConfigSocket {
-    onConfigUpdated(handler: (config: RuntimeConfigDto) => void): Unsubscribe;
+  onConfigUpdated(handler: (config: RuntimeConfigDto) => void): Unsubscribe;
 }
 
 export interface ApiClient {
-    http: {
-        chatSessions: {
-            list(): Promise<ChatSessionDto[]>;
-            create(input: CreateChatSessionDto): Promise<ChatSessionDto>;
-            get(id: string): Promise<ChatSessionDto>;
-            rename(id: string, input: UpdateChatSessionDto): Promise<ChatSessionDto>;
-            delete(id: string): Promise<void>;
-            archive(id: string): Promise<ChatSessionDto>;
-            listMessages(id: string): Promise<ChatMessageDto[]>;
-            createMessage(
-                id: string,
-                input: CreateChatMessageDto
-            ): Promise<ChatMessageDto>;
-        };
-        traces: {
-            list(): Promise<TraceDto[]>;
-            get(id: string): Promise<TraceDto>;
-        };
-        logs: {
-            list(params?: LogsListOptions): Promise<LogEntryDto[]>;
-            emit(): Promise<LogEntryDto>;
-        };
-        config: {
-            get(): Promise<RuntimeConfigDto>;
-            update(input: UpdateRuntimeConfigDto): Promise<RuntimeConfigDto>;
-            getSchema(): Promise<EddieConfigSchemaDto>;
-            loadEddieConfig(): Promise<EddieConfigSourceDto>;
-            previewEddieConfig(
-                payload: UpdateEddieConfigPayload
-            ): Promise<EddieConfigPreviewDto>;
-            saveEddieConfig(
-                payload: UpdateEddieConfigPayload
-            ): Promise<EddieConfigSourceDto>;
-        };
-        providers: {
-            catalog(): Promise<ProviderCatalogEntryDto[]>;
-        };
-        preferences: {
-            getLayout(): Promise<LayoutPreferencesDto>;
-            updateLayout(input: LayoutPreferencesDto): Promise<LayoutPreferencesDto>;
-        };
-        orchestrator: {
-            getMetadata(sessionId?: string): Promise<OrchestratorMetadataDto>;
-            getExecutionState(
-                sessionId: string
-            ): Promise<ExecutionTreeState | null>;
-        };
+  http: {
+    chatSessions: {
+      list(): Promise<ChatSessionDto[]>;
+      create(input: CreateChatSessionDto): Promise<ChatSessionDto>;
+      get(id: string): Promise<ChatSessionDto>;
+      rename(id: string, input: UpdateChatSessionDto): Promise<ChatSessionDto>;
+      delete(id: string): Promise<void>;
+      archive(id: string): Promise<ChatSessionDto>;
+      listMessages(id: string): Promise<ChatMessageDto[]>;
+      createMessage(
+        id: string,
+        input: CreateChatMessageDto
+      ): Promise<ChatMessageDto>;
     };
-    sockets: {
-        chatSessions: ChatSessionsSocket;
-        chatMessages: ChatMessagesSocket;
-        traces: TracesSocket;
-        logs: LogsSocket;
-        config: ConfigSocket;
-        tools?: {
-            onToolCall(handler: (payload: unknown) => void): Unsubscribe;
-            onToolResult(handler: (payload: unknown) => void): Unsubscribe;
-        };
+    traces: {
+      list(): Promise<TraceDto[]>;
+      get(id: string): Promise<TraceDto>;
     };
-    updateAuth(apiKey?: string): void;
-    dispose(): void;
+    logs: {
+      list(params?: LogsListOptions): Promise<LogEntryDto[]>;
+      emit(): Promise<LogEntryDto>;
+    };
+    config: {
+      get(): Promise<RuntimeConfigDto>;
+      update(input: UpdateRuntimeConfigDto): Promise<RuntimeConfigDto>;
+      getSchema(): Promise<EddieConfigSchemaDto>;
+      loadEddieConfig(): Promise<EddieConfigSourceDto>;
+      previewEddieConfig(
+        payload: UpdateEddieConfigPayload
+      ): Promise<EddieConfigPreviewDto>;
+      saveEddieConfig(
+        payload: UpdateEddieConfigPayload
+      ): Promise<EddieConfigSourceDto>;
+    };
+    providers: {
+      catalog(): Promise<ProviderCatalogEntryDto[]>;
+    };
+    preferences: {
+      getLayout(): Promise<LayoutPreferencesDto>;
+      updateLayout(input: LayoutPreferencesDto): Promise<LayoutPreferencesDto>;
+    };
+    orchestrator: {
+      getMetadata(sessionId?: string): Promise<OrchestratorMetadataDto>;
+      getExecutionState(
+        sessionId: string
+      ): Promise<ExecutionTreeState | null>;
+    };
+  };
+  sockets: {
+    chatSessions: ChatSessionsSocket;
+    chatMessages: ChatMessagesSocket;
+    traces: TracesSocket;
+    logs: LogsSocket;
+    config: ConfigSocket;
+    tools?: {
+      onToolCall(handler: (payload: unknown) => void): Unsubscribe;
+      onToolResult(handler: (payload: unknown) => void): Unsubscribe;
+    };
+  };
+  updateAuth(apiKey?: string): void;
+  dispose(): void;
 }
 
 function normalizeBaseUrl(url: string): string {
@@ -419,14 +421,14 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     };
 
     if (init.body !== undefined && !(init.body instanceof FormData)) {
-      headers[ "Content-Type" ] = "application/json";
+      headers["Content-Type"] = "application/json";
     }
 
     if (init.headers) {
       Object.assign(headers, init.headers as Record<string, string>);
     }
 
-    const response = await fetch(`${ httpBase }${ path }`, {
+    const response = await fetch(`${httpBase}${path}`, {
       ...init,
       headers,
     });
@@ -437,7 +439,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
 
     if (!response.ok) {
       const error = new Error(
-        `Request to ${ path } failed with status ${ response.status }`
+        `Request to ${path} failed with status ${response.status}`
       );
       (error as { status?: number; }).status = response.status;
       (error as { body?: string; }).body = await response.text();
@@ -675,7 +677,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       return logsChannel.on(
         "logs.created",
         (entries: LogEntryDto[] | LogEntryDto) => {
-          const batch = Array.isArray(entries) ? entries : [ entries ];
+          const batch = Array.isArray(entries) ? entries : [entries];
           batch.forEach((entry) => handler(entry));
         }
       );
@@ -780,7 +782,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         getMetadata: (sessionId) =>
           performRequest<OrchestratorMetadataDto>(
             sessionId
-              ? `/orchestrator/metadata?sessionId=${ encodeURIComponent(sessionId) }`
+              ? `/orchestrator/metadata?sessionId=${encodeURIComponent(sessionId)}`
               : "/orchestrator/metadata"
           ),
         getExecutionState: async (sessionId) => {
@@ -790,7 +792,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
 
           try {
             return await performRequest<ExecutionTreeState>(
-              `/orchestrator/execution-state?sessionId=${ encodeURIComponent(sessionId) }`
+              `/orchestrator/execution-state?sessionId=${encodeURIComponent(sessionId)}`
             );
           } catch (error) {
             const status = (error as { status?: number; }).status;

@@ -31,7 +31,7 @@ import {
   CheckIcon,
   TrashIcon,
 } from "@radix-ui/react-icons";
-import Editor, { DiffEditor, useMonaco } from "@monaco-editor/react";
+import { Editor, DiffEditor, useMonaco } from "@monaco-editor/react";
 import { configureMonacoYaml } from "monaco-yaml";
 import YAML from "js-yaml";
 import {
@@ -42,19 +42,11 @@ import {
   type EddieConfigSourceDto,
   type UpdateEddieConfigPayload,
 } from "@eddie/api-client";
-import { useApi } from "@/api/api-provider";
 import { Panel } from "@eddie/ui";
-import { cn } from "@/vendor/lib/utils";
-import {
-  getSurfaceLayoutClasses,
-  SURFACE_CONTENT_CLASS,
-} from "@/styles/surfaces";
-import {
-  createProviderProfileOptions,
-  extractProviderProfiles,
-  type ProviderOption,
-  type ProviderProfileSnapshot,
-} from "../shared/providerProfiles";
+import { cn } from "@eddie/ui";
+import { useApi } from "@/api/api-provider.js";
+import { extractProviderProfiles, createProviderProfileOptions, ProviderOption } from "../shared/providerProfiles.js";
+import { getSurfaceLayoutClasses, SURFACE_CONTENT_CLASS } from "../../styles/surfaces.js";
 
 const YAML_OPTIONS = { lineWidth: 120, noRefs: true } as const;
 
@@ -816,16 +808,12 @@ export function ConfigPage(): JSX.Element {
               <EyeOpenIcon />
             </Callout.Icon>
             <Flex direction="column" gap="2">
-              <Callout.Text asChild>
-                <Text as="span" weight="medium">
-                Guardrails
-                </Text>
-              </Callout.Text>
+              <Text weight="medium">Guardrails</Text>
               <ul className="list-disc space-y-1 pl-6 text-sm">
                 {guardrailWarnings.map((warning) => (
-                  <Callout.Text asChild key={warning}>
-                    <li>{warning}</li>
-                  </Callout.Text>
+                  <li key={warning}>
+                    <Text as="span">{warning}</Text>
+                  </li>
                 ))}
               </ul>
             </Flex>
@@ -1387,7 +1375,7 @@ export function ConfigPage(): JSX.Element {
                     language={mode === "json" ? "json" : "yaml"}
                     value={editorValue}
                     path={editorPath}
-                    onChange={(value) => setEditorValue(value ?? "")}
+                    onChange={<T extends string | undefined,>(value: T) => setEditorValue(value ?? "")}
                     options={{
                       automaticLayout: true,
                       minimap: { enabled: false },

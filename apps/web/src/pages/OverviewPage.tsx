@@ -1,4 +1,27 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useApi } from '@/api/api-provider';
+import { useAuth } from '@/auth/auth-context';
+import { AVAILABLE_THEMES, formatThemeLabel, useTheme } from '@/theme';
+import type {
+  ChatSessionDto,
+  CreateChatMessageDto,
+  CreateChatSessionDto,
+  LogEntryDto,
+  RuntimeConfigDto
+} from '@eddie/api-client';
+import { cn, ChatSessionsPanel, OverviewAuthPanel, OverviewHero,  Panel } from "@eddie/ui";
+import { ReloadIcon } from '@radix-ui/react-icons';
+import {
+  Badge,
+  Box,
+  Button,
+  Flex,
+  Grid,
+  ScrollArea,
+  Select,
+  Separator,
+  Skeleton,
+  Text
+} from '@radix-ui/themes';
 import {
   useInfiniteQuery,
   useMutation,
@@ -6,37 +29,8 @@ import {
   useQueryClient,
   type InfiniteData,
 } from '@tanstack/react-query';
-import {
-  Badge,
-  Box,
-  Button,
-  Flex,
-  Grid,
-  Heading,
-  ScrollArea,
-  Select,
-  Separator,
-  Text,
-  TextField,
-  Skeleton,
-} from '@radix-ui/themes';
-import { ArrowUpRight, KeyRound, Sparkles, Waves } from 'lucide-react';
-import { PaperPlaneIcon, PlusIcon, ReloadIcon } from '@radix-ui/react-icons';
-import { Panel } from "@eddie/ui";
-import { useAuth } from '@/auth/auth-context';
-import { useApi } from '@/api/api-provider';
-import { AVAILABLE_THEMES, formatThemeLabel, useTheme } from '@/theme';
-import { cn } from '@/vendor/lib/utils';
-import { ChatSessionsPanel, OverviewAuthPanel, OverviewHero } from './components';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useChatSessionEvents, useOverviewStats } from './hooks';
-import type {
-  ChatMessageDto,
-  ChatSessionDto,
-  CreateChatMessageDto,
-  CreateChatSessionDto,
-  LogEntryDto,
-  RuntimeConfigDto,
-} from '@eddie/api-client';
 
 type StatItem = {
   label: string;

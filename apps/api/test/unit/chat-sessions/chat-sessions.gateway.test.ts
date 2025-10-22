@@ -2,11 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CommandBus } from "@nestjs/cqrs";
 import { ChatSessionsGateway } from "../../../src/chat-sessions/chat-sessions.gateway";
 import type { ChatMessageDto, ChatSessionDto } from "../../../src/chat-sessions/dto/chat-session.dto";
-import type { AgentActivityState } from "../../../src/chat-sessions/chat-session.types";
 import * as websocketUtils from "../../../src/websocket/utils";
 import { SendChatMessageCommand } from "../../../src/chat-sessions/commands/send-chat-message.command";
 import { SendChatMessagePayloadDto } from "../../../src/chat-sessions/dto/send-chat-message.dto";
-import type { ExecutionTreeState } from "@eddie/types";
+import type { AgentActivityState, ExecutionTreeState } from "@eddie/types";
 
 const emitEventSpy = vi.spyOn(websocketUtils, "emitEvent");
 

@@ -8,11 +8,10 @@ import {
 } from "@nestjs/websockets";
 import type { Server } from "ws";
 import { emitEvent } from "../websocket/utils";
-import type { AgentActivityState } from "./chat-session.types";
 import { ChatMessageDto, ChatSessionDto } from "./dto/chat-session.dto";
 import { SendChatMessagePayloadDto } from "./dto/send-chat-message.dto";
 import { SendChatMessageCommand } from "./commands/send-chat-message.command";
-import type { ExecutionTreeState } from "@eddie/types";
+import type { ExecutionTreeState, AgentActivityState } from "@eddie/types";
 
 @WebSocketGateway({
   path: "/chat-sessions",
@@ -21,7 +20,7 @@ export class ChatSessionsGateway {
   @WebSocketServer()
   private server!: Server;
 
-  constructor(private readonly commandBus: CommandBus) {}
+  constructor(private readonly commandBus: CommandBus) { }
 
   emitSessionCreated(session: ChatSessionDto): void {
     emitEvent(this.server, "session.created", session);
