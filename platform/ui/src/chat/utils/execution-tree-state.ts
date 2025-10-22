@@ -803,6 +803,14 @@ function groupToolInvocations(
   const visit = (node: ExecutionToolInvocationNode) => {
     const agentId = normalizeAgentId(node.agentId) ?? UNKNOWN_AGENT_ID;
     const status = node.status ?? 'pending';
+    // Prevent prototype pollution by filtering dangerous keys
+    if (
+      agentId === '__proto__' ||
+      agentId === 'constructor' ||
+      agentId === 'prototype'
+    ) {
+      return;
+    }
     if (!grouped[agentId]) {
       grouped[agentId] = {} as ExecutionToolInvocationGroupsByAgentId[string];
     }
