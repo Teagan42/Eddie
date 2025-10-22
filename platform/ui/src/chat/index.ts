@@ -16,6 +16,8 @@ export { CollapsiblePanel } from './CollapsiblePanel';
 export type { CollapsiblePanelProps } from './CollapsiblePanel';
 export { SessionSelector, SessionSelectorMetricsSummary, SessionSelectorSession } from './SessionSelector';
 export type { SessionSelectorProps } from './SessionSelector';
+export { MessageComposer } from '../common';
+export type { MessageComposerProps } from '../common';
 export { ChatSessionsPanel, SessionDetail } from '../overview';
 export type { ChatSessionsPanelProps, SessionDetailProps } from '../overview';
 export * from './utils';
