@@ -118,7 +118,7 @@ const markdownComponents: Components = {
   },
 };
 
-type MessageRole = ChatMessageDto["role"];
+export type MessageRole = ChatMessageDto["role"];
 
 export interface ChatMessageContentProps {
   messageRole: MessageRole;

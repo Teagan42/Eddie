@@ -38,6 +38,8 @@ const THIRD_PARTY_NOTICE_HEADER = [
   '',
 ].join('\n');
 
+const THIRD_PARTY_NOTICE_PATH = join(process.cwd(), 'THIRD_PARTY_NOTICES.md');
+
 function createTempDir(prefix: string) {
   return mkdtempSync(join(tmpdir(), prefix));
 }
@@ -667,9 +669,14 @@ describe('repository automation', () => {
 });
 
 describe('THIRD_PARTY_NOTICES document', () => {
+  it('documents chownr dependency from the lockfile', () => {
+    const contents = readFileSync(THIRD_PARTY_NOTICE_PATH, 'utf8');
+
+    expect(contents).toContain('## chownr@3.0.0');
+  });
+
   it('begins with the standard header and description', () => {
-    const noticePath = join(process.cwd(), 'THIRD_PARTY_NOTICES.md');
-    const contents = readFileSync(noticePath, 'utf8');
+    const contents = readFileSync(THIRD_PARTY_NOTICE_PATH, 'utf8');
     expect(contents.startsWith(THIRD_PARTY_NOTICE_HEADER)).toBe(true);
   });
 });

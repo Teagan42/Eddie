@@ -5,7 +5,7 @@ export type { AgentActivityIndicatorProps } from './AgentActivityIndicator';
 export { AgentToolsDrawer } from './AgentToolsDrawer';
 export type { AgentToolsDrawerProps } from './AgentToolsDrawer';
 export { ChatMessageContent } from './ChatMessageContent';
-export type { ChatMessageContentProps } from './ChatMessageContent';
+export type { ChatMessageContentProps, MessageRole } from './ChatMessageContent';
 export { ContextBundlesPanel } from './ContextBundlesPanel';
 export type { ContextBundlesPanelProps } from './ContextBundlesPanel';
 export { MessageList } from './MessageList';

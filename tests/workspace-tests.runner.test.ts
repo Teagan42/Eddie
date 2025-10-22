@@ -104,7 +104,12 @@ describe('workspace discovery', () => {
       const workspaces = await discoverWorkspacesWithScript('lint');
 
       expect(workspaces).toEqual([
-        { name: 'pkg-a', dir: 'platform/runtime/pkg-a' },
+        {
+          name: 'pkg-a',
+          dir: 'platform/runtime/pkg-a',
+          testFileCount: 0,
+          hasChanges: false,
+        },
       ]);
     } finally {
       readFileSpy.mockRestore();
@@ -174,8 +179,18 @@ describe('workspace discovery', () => {
       const workspaces = await discoverWorkspacesWithScript('lint');
 
       expect(workspaces).toEqual([
-        { name: '@eddie/core-a', dir: 'platform/core/pkg-a' },
-        { name: '@eddie/runtime-b', dir: 'platform/runtime/pkg-b' },
+        {
+          name: '@eddie/core-a',
+          dir: 'platform/core/pkg-a',
+          testFileCount: 0,
+          hasChanges: false,
+        },
+        {
+          name: '@eddie/runtime-b',
+          dir: 'platform/runtime/pkg-b',
+          testFileCount: 0,
+          hasChanges: false,
+        },
       ]);
     } finally {
       readFileSpy.mockRestore();
