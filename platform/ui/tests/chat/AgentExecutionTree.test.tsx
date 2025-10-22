@@ -189,6 +189,74 @@ describe("AgentExecutionTree", () => {
     }));
 
     expect(within(completedList).getByText(/ingest-records/i)).toBeInTheDocument();
-    expect(within(completedList).getByText(/All good/i)).toBeInTheDocument();
+    expect(
+      within(completedList).getByText(/All good/i, { selector: "span.rt-Text" }),
+    ).toBeInTheDocument();
+  });
+
+  it("auto expands completed tool groups when an agent is interacted with", async () => {
+    const user = userEvent.setup();
+    const invocation: ExecutionTreeState["toolInvocations"][number] = {
+      id: "tool-auto-expand",
+      agentId: "root-agent",
+      name: "summarize-report",
+      status: "completed",
+      createdAt: "2024-05-01T10:00:00.000Z",
+      updatedAt: "2024-05-01T10:00:30.000Z",
+      metadata: { result: "Summary" },
+      children: [],
+    } as ExecutionTreeState["toolInvocations"][number];
+
+    const executionTree: ExecutionTreeState = {
+      agentHierarchy: [
+        {
+          id: "root-agent",
+          name: "orchestrator",
+          provider: "openai",
+          model: "gpt-4o",
+          depth: 0,
+          lineage: ["root-agent"],
+          children: [],
+        },
+      ],
+      toolInvocations: [invocation],
+      contextBundles: [],
+      agentLineageById: { "root-agent": ["root-agent"] },
+      toolGroupsByAgentId: {
+        "root-agent": {
+          pending: [],
+          running: [],
+          completed: [invocation],
+          failed: [],
+        },
+      },
+      contextBundlesByAgentId: { "root-agent": [] },
+      contextBundlesByToolCallId: {},
+      createdAt: "2024-05-01T10:00:00.000Z",
+      updatedAt: "2024-05-01T10:00:30.000Z",
+    } as ExecutionTreeState;
+
+    render(
+      <AgentExecutionTree
+        state={executionTree}
+        selectedAgentId={null}
+        onSelectAgent={() => {}}
+      />,
+    );
+
+    const agentSection = screen.getByRole("button", { name: /select orchestrator agent/i });
+    await user.click(agentSection);
+
+    const toggle = await screen.findByRole("button", {
+      name: /toggle completed tool invocations for orchestrator/i,
+    });
+
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+
+    const region = await screen.findByRole("region", {
+      name: /completed tool invocations for orchestrator/i,
+    });
+
+    expect(within(region).getByText(/summarize-report/i)).toBeInTheDocument();
   });
 });

@@ -6,8 +6,10 @@ import type { OverviewStat } from "./OverviewStatsGrid";
 import { OverviewStatsGrid } from "./OverviewStatsGrid";
 import type { RuntimeConfigDto } from "@eddie/api-client";
 import { EddieButton, EddieIcon } from "../components";
-
-export declare function formatThemeLabel(theme: RuntimeConfigDto["theme"]): string;
+import {
+  AVAILABLE_THEMES as DEFAULT_AVAILABLE_THEMES,
+  formatThemeLabel as defaultFormatThemeLabel,
+} from "./theme";
 
 export interface OverviewHeroProps {
   apiKey: string | null;
@@ -15,10 +17,10 @@ export interface OverviewHeroProps {
   theme: RuntimeConfigDto["theme"];
   onSelectTheme: (theme: RuntimeConfigDto["theme"]) => void;
   onRemoveApiKey: () => void;
-  formatThemeLabel: (theme: RuntimeConfigDto["theme"]) => string;
+  formatThemeLabel?: (theme: RuntimeConfigDto["theme"]) => string;
   stats: OverviewStat[];
   isThemeSelectorDisabled?: boolean;
-  availableThemes: RuntimeConfigDto["theme"][];
+  availableThemes?: RuntimeConfigDto["theme"][];
 }
 
 export function OverviewHero({
@@ -29,8 +31,8 @@ export function OverviewHero({
   onRemoveApiKey,
   stats,
   isThemeSelectorDisabled,
-  formatThemeLabel,
-  availableThemes,
+  formatThemeLabel = defaultFormatThemeLabel,
+  availableThemes = [...DEFAULT_AVAILABLE_THEMES],
 }: OverviewHeroProps): JSX.Element {
   const consoleSeparatorClass = cn(
     "border-[color:var(--hero-console-separator)]",

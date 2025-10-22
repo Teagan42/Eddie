@@ -306,12 +306,51 @@ export function AgentExecutionTree({
     });
   }, [agentLineageById, focusedInvocationId, toolInvocations]);
 
+  const primaryGroupKeyByAgentId = useMemo(() => {
+    const entries = Object.entries(toolGroupsByAgentId ?? {});
+    const map = new Map<string, ToolGroupKey>();
+    for (const [agentId, groups] of entries) {
+      if (!groups) {
+        continue;
+      }
+
+      const firstPopulatedStatus = TOOL_STATUS_ORDER.find(
+        (status) => (groups?.[status]?.length ?? 0) > 0,
+      );
+
+      if (firstPopulatedStatus) {
+        map.set(agentId, `${agentId}:${firstPopulatedStatus}` as ToolGroupKey);
+      }
+    }
+    return map;
+  }, [toolGroupsByAgentId]);
+
+  const expandPrimaryGroupForAgent = useCallback(
+    (agentId: string) => {
+      const key = primaryGroupKeyByAgentId.get(agentId);
+      if (!key) {
+        return;
+      }
+
+      setExpandedGroups((previous) => {
+        if (previous.has(key)) {
+          return previous;
+        }
+        const next = new Set(previous);
+        next.add(key);
+        return next;
+      });
+    },
+    [primaryGroupKeyByAgentId],
+  );
+
   const handleSelectAgent = useCallback(
     (agentId: string) => {
       const nextSelection = agentId === selectedAgentId ? null : agentId;
       onSelectAgent(nextSelection);
+      expandPrimaryGroupForAgent(agentId);
     },
-    [onSelectAgent, selectedAgentId],
+    [expandPrimaryGroupForAgent, onSelectAgent, selectedAgentId],
   );
 
   const handleToggleGroup = useCallback((key: ToolGroupKey | string) => {
