@@ -67,12 +67,10 @@ Object.defineProperty(globalThis, "ResizeObserver", {
   value: ResizeObserverMock,
 });
 
-vi.mock("@monaco-editor/react", () => ({
-  __esModule: true,
-  default: () => <div data-testid="monaco-editor" />,
-  DiffEditor: () => <div data-testid="monaco-diff-editor" />,
-  useMonaco: () => null,
-}));
+vi.mock("@monaco-editor/react", async () => {
+  const { createMonacoModuleStub } = await import("./__tests__/monaco-stub.js");
+  return createMonacoModuleStub();
+});
 
 vi.mock("monaco-yaml", () => ({
   configureMonacoYaml: vi.fn(),
@@ -371,5 +369,14 @@ describe("ConfigPage interactions", () => {
     expect(
       await screen.findByRole("textbox", { name: /system prompt/i })
     ).toBeInTheDocument();
+  });
+
+  it("renders the configuration editor tab", async () => {
+    const user = userEvent.setup();
+    renderConfigPage();
+
+    await user.click(await screen.findByRole("tab", { name: /editor/i }));
+
+    await screen.findByTestId("monaco-editor");
   });
 });
