@@ -1,9 +1,9 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { userEvent } from "@testing-library/user-event";
 import { Theme } from "@radix-ui/themes";
-import { ConfigPage } from "./ConfigPage";
+import { ConfigPage } from "./ConfigPage.js";
 import { load as loadYaml } from "js-yaml";
 import type { UpdateEddieConfigPayload } from "@eddie/api-client";
 
@@ -58,9 +58,9 @@ const cloneSourceResponse = () =>
   JSON.parse(JSON.stringify(baseSourceResponse)) as typeof baseSourceResponse;
 
 class ResizeObserverMock {
-  observe(): void {}
-  unobserve(): void {}
-  disconnect(): void {}
+  observe(): void { }
+  unobserve(): void { }
+  disconnect(): void { }
 }
 
 Object.defineProperty(globalThis, "ResizeObserver", {
@@ -99,13 +99,13 @@ beforeAll(() => {
     window.HTMLElement.prototype.hasPointerCapture = () => false;
   }
   if (!window.HTMLElement.prototype.setPointerCapture) {
-    window.HTMLElement.prototype.setPointerCapture = () => {};
+    window.HTMLElement.prototype.setPointerCapture = () => { };
   }
   if (!window.HTMLElement.prototype.releasePointerCapture) {
-    window.HTMLElement.prototype.releasePointerCapture = () => {};
+    window.HTMLElement.prototype.releasePointerCapture = () => { };
   }
   if (!window.HTMLElement.prototype.scrollIntoView) {
-    window.HTMLElement.prototype.scrollIntoView = () => {};
+    window.HTMLElement.prototype.scrollIntoView = () => { };
   }
 });
 

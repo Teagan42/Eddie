@@ -44,7 +44,7 @@ import {
 } from "@eddie/api-client";
 import { Panel } from "@eddie/ui";
 import { cn } from "@eddie/ui";
-import { useApi } from "@/api/api-provider.js";
+import { useApi } from "../../api/api-provider.js";
 import { extractProviderProfiles, createProviderProfileOptions, ProviderOption } from "../shared/providerProfiles.js";
 import { getSurfaceLayoutClasses, SURFACE_CONTENT_CLASS } from "../../styles/surfaces.js";
 
@@ -558,15 +558,15 @@ export function ConfigPage(): JSX.Element {
       draft.tools = { ...(draft.tools ?? {}) };
       const currentEnabled = new Set(
         draft.tools.enabled ??
-          effectiveInput.tools?.enabled ??
-          currentConfig?.tools?.enabled ??
-          []
+        effectiveInput.tools?.enabled ??
+        currentConfig?.tools?.enabled ??
+        []
       );
       const currentDisabled = new Set(
         draft.tools.disabled ??
-          effectiveInput.tools?.disabled ??
-          currentConfig?.tools?.disabled ??
-          []
+        effectiveInput.tools?.disabled ??
+        currentConfig?.tools?.disabled ??
+        []
       );
       if (enabled) {
         currentEnabled.add(toolId);
@@ -879,7 +879,7 @@ export function ConfigPage(): JSX.Element {
                     }
                     placeholder={
                       currentConfig?.systemPrompt ??
-                    "System prompt used for orchestration"
+                      "System prompt used for orchestration"
                     }
                     rows={3}
                   />
@@ -1055,13 +1055,13 @@ export function ConfigPage(): JSX.Element {
                     onClick={handleAddInclude}
                     disabled={includeDraft.trim().length === 0}
                   >
-                  Add include
+                    Add include
                   </Button>
                 </Flex>
                 <Flex direction="column" gap="2">
                   {includeEntries.length === 0 ? (
                     <Text size="2" color="gray">
-                    No include globs configured yet.
+                      No include globs configured yet.
                     </Text>
                   ) : (
                     includeEntries.map((pattern, index) => {
@@ -1105,13 +1105,13 @@ export function ConfigPage(): JSX.Element {
                     onClick={handleAddExclude}
                     disabled={excludeDraft.trim().length === 0}
                   >
-                  Add exclude
+                    Add exclude
                   </Button>
                 </Flex>
                 <Flex direction="column" gap="2">
                   {excludeEntries.length === 0 ? (
                     <Text size="2" color="gray">
-                    No exclude globs configured yet.
+                      No exclude globs configured yet.
                     </Text>
                   ) : (
                     excludeEntries.map((pattern, index) => {
@@ -1197,11 +1197,11 @@ export function ConfigPage(): JSX.Element {
               </Flex>
               <Flex direction="column" gap="3">
                 <Text size="2" color="gray">
-                Enabled tools
+                  Enabled tools
                 </Text>
                 {configuredTools.length === 0 ? (
                   <Text size="2" color="gray">
-                  No tools discovered from the current configuration.
+                    No tools discovered from the current configuration.
                   </Text>
                 ) : (
                   configuredTools.map((toolId) => {
@@ -1374,7 +1374,7 @@ export function ConfigPage(): JSX.Element {
                 <Tabs.List>
                   <Tabs.Trigger value="editor">Editor</Tabs.Trigger>
                   <Tabs.Trigger value="diff" disabled={!isDirty}>
-                  Diff
+                    Diff
                   </Tabs.Trigger>
                 </Tabs.List>
                 <Tabs.Content value="editor" className="mt-3">
