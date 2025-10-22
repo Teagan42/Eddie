@@ -9,6 +9,9 @@ const VENDOR_IGNORE_GLOB = "src/vendor/**/*";
 
 module.exports = [
   {
+    ignores: [
+      VENDOR_IGNORE_GLOB,
+    ],
     ignores: [VENDOR_IGNORE_GLOB],
   },
   ...baseConfig,

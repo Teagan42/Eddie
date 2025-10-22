@@ -93,7 +93,7 @@ describe("ConfigPage structure", () => {
         /<Callout\.Text asChild>\s*<Text as="span" weight="medium">\s*Guardrails\s*<\/Text>\s*<\/Callout\.Text>/
       );
       expect(guardrailBlock).toMatch(
-        /guardrailWarnings\.map\(\(warning\) => \(\s*<Callout\.Text asChild key=\{warning\}>\s*<li>\{warning\}<\/li>\s*<\/Callout\.Text>\s*\)\)/
+        /guardrailWarnings\.map\(\(warning\) => \(\s*<Callout\.Text asChild key=\{warning\}>\s*<li>\s*<Text as="span">\{warning\}<\/Text>\s*<\/li>\s*<\/Callout\.Text>\s*\)\)/
       );
     }
   );
