@@ -517,7 +517,6 @@ export function SessionSelector({
         <DropdownMenu.Root modal={false}>
           <DropdownMenu.Trigger>
             <IconButton
-              asChild
               variant="ghost"
               color="gray"
               size="1"

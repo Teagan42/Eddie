@@ -154,6 +154,16 @@ describe('SessionSelector', () => {
     expect(handleDelete).toHaveBeenCalledWith('session-2');
   });
 
+  it('renders session action triggers as accessible buttons', () => {
+    renderSelector();
+
+    const firstTrigger = screen.getByRole('button', { name: 'Session options for Session 1' });
+    const secondTrigger = screen.getByRole('button', { name: 'Session options for Session 2' });
+
+    expect(firstTrigger).toBeInstanceOf(HTMLButtonElement);
+    expect(secondTrigger).toBeInstanceOf(HTMLButtonElement);
+  });
+
   it('organizes sessions into status-based tabs', async () => {
     const user = userEvent.setup();
 

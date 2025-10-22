@@ -44,6 +44,10 @@ function createMessage(partial?: Partial<MessageWithMetadata>): MessageWithMetad
 }
 
 describe("SessionDetail", () => {
+  it("is exported from the chat barrel", () => {
+    expect(typeof SessionDetail).toBe("function");
+  });
+
   it("renders completed messages as individual cards with agent headings", () => {
     const session = createSession();
     const messages: StreamingMessage[] = [
