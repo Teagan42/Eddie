@@ -1,4 +1,5 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { Theme } from '@radix-ui/themes';
@@ -8,7 +9,9 @@ import {
   SessionSelector,
   type SessionSelectorProps,
   type SessionSelectorSession,
-} from '../SessionSelector';
+} from '../../src/chat/SessionSelector';
+
+type Status = SessionSelectorSession['status'];
 
 function createSession(
   partial: Partial<SessionSelectorSession> = {},
@@ -16,7 +19,7 @@ function createSession(
   return {
     id: 'session-1',
     title: 'Session 1',
-    status: 'active',
+    status: 'active' as Status,
     ...partial,
   };
 }
@@ -85,7 +88,7 @@ describe('SessionSelector', () => {
     renderSelector({
       sessions: [
         baseSessions[0],
-        createSession({ id: 'archived', title: 'Archived session', status: 'archived' }),
+        createSession({ id: 'archived', title: 'Archived session', status: 'archived' as Status }),
       ],
       selectedSessionId: null,
     });
@@ -140,7 +143,7 @@ describe('SessionSelector', () => {
       onDeleteSession: handleDelete,
     });
 
-    await user.click(screen.getByRole('button', { name: 'Session options for Session 1' }));
+    await waitFor(() => user.click(screen.getByRole('button', { name: 'Session options for Session 1' })));
     await user.click(await screen.findByRole('menuitem', { name: 'Rename session' }));
 
     expect(handleRename).toHaveBeenCalledWith('session-1');
@@ -157,7 +160,7 @@ describe('SessionSelector', () => {
     renderSelector({
       sessions: [
         createSession({ id: 'active-session', title: 'Active session' }),
-        createSession({ id: 'archived-session', title: 'Archived session', status: 'archived' }),
+        createSession({ id: 'archived-session', title: 'Archived session', status: 'archived' as Status }),
       ],
       selectedSessionId: null,
     });

@@ -11,7 +11,8 @@
     "jsx": "react-jsx",
     "types": [
       "vite/client",
-      "vitest"
+      "vitest",
+      "@testing-library/jest-dom"
     ],
     "paths": {
       "@/vendor/*": [

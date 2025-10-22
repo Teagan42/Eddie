@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { ChatMessageContent } from "../chat/ChatMessageContent";
+import { ChatMessageContent, MessageRole } from "../../src/chat";
+
 
 describe("ChatMessageContent", () => {
   it("renders bold markdown emphasis", () => {
