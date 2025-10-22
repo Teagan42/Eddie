@@ -9,45 +9,24 @@
     "declarationMap": true,
     "sourceMap": true,
     "paths": {
-      "@/auth": [
-        "src/auth/*"
-      ],
-      "@/auth/*": [
-        "src/auth/*"
-      ],
-      "@/api": [
-        "src/api/*"
-      ],
-      "@/api/*": [
-        "src/api/*"
-      ],
-      "@/chat": [
-        "pages/chat/*"
-      ],
-      "@/chat/*": [
-        "pages/chat/*"
-      ],
-      "@/config": [
-        "src/pages/config/*,"
-      ],
-      "@/config/*": [
-        "src/pages/config/*,"
-      ],
-      "@/styles": [
-        "src/styles/*"
-      ],
-      "@/styles/*": [
-        "src/styles/*"
-      ],
-      "@/": [
-        "./src/*"
-      ],
-      "@/*": [
-        "./src/*"
-      ],
-      "@shikijs/transformers": [
-        "src/vendor/shiki-transformers.ts"
-      ]
+      "@/auth": ["auth"],
+      "@/auth/*": ["auth/*"],
+      "@/api": ["api"],
+      "@/api/*": ["api/*"],
+      "@/chat": ["pages/chat"],
+      "@/chat/*": ["pages/chat/*"],
+      "@/config": ["config"],
+      "@/config/*": ["config/*"],
+      "@/hooks": ["hooks"],
+      "@/hooks/*": ["hooks/*"],
+      "@/styles": ["styles"],
+      "@/styles/*": ["styles/*"],
+      "@/theme": ["theme"],
+      "@/theme/*": ["theme/*"],
+      "@/vendor": ["vendor"],
+      "@/vendor/*": ["vendor/*"],
+      "@/*": ["./*"],
+      "@shikijs/transformers": ["vendor/shiki-transformers.ts"]
     },
     "types": [
       "vite/client",
@@ -55,9 +34,7 @@
     ],
     "noEmit": true
   },
-  "include": [
-    "src",
-  ],
+  "include": ["src"],
   "references": [
     {
       "path": "../../platform/ui"

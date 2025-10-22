@@ -9,7 +9,7 @@ import {
   SessionSelector,
   type SessionSelectorProps,
   type SessionSelectorSession,
-} from '../../src/chat/SessionSelector';
+} from '../../src/chat';
 
 type Status = SessionSelectorSession['status'];
 
