@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Badge, Box, Flex, Text } from '@radix-ui/themes';
 import { ArrowUpRight, ChevronDown, ChevronRight } from 'lucide-react';
@@ -714,6 +714,9 @@ export function AgentExecutionTree({
   );
   const detailsAgent = detailsTarget ? (agentsById.get(detailsTarget.agentId) ?? null) : null;
 
+  const dialogTitleId = useId();
+  const dialogDescriptionId = useId();
+
   return (
     <>
       {renderAgents(agentHierarchy)}
@@ -728,12 +731,15 @@ export function AgentExecutionTree({
       >
         {detailsInvocation ? (
           <DialogContent
-            aria-label="Tool invocation details"
+            aria-labelledby={dialogTitleId}
+            aria-describedby={dialogDescriptionId}
             className="max-h-[85vh] space-y-4 overflow-y-auto"
           >
             <DialogHeader className="text-left">
-              <DialogTitle className="font-mono text-base">Tool invocation details</DialogTitle>
-              <DialogDescription>
+              <DialogTitle id={dialogTitleId} className="font-mono text-base">
+                Tool invocation details
+              </DialogTitle>
+              <DialogDescription id={dialogDescriptionId}>
                 {detailsInvocation.name ?? 'Tool invocation'} • Status {detailsInvocation.status}
               </DialogDescription>
             </DialogHeader>
