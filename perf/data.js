@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761071410984,
+  "lastUpdate": 1761175518317,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -1382,6 +1382,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 24.409,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "41f78408cf7148c0c29c34b421ed322ca36ff094",
+          "message": "test: relocate chat and overview specs to platform (#668)\n\n* test(ui): port overview and chat specs to platform\n\n* fix: add missing dependencies to platform/ui package.json\n\n* feat: finish migrating ui components to new design system\n\n* tests: fix tests\n\n* chore: update third-party notices\n\n* refactor(docs): clarify traces service context (#719)\n\n* refactor(vitest): share thread pool assertion helper (#720)\n\n* refactor(repo): dedupe workspace script and sdk assertions (#721)\n\n* refactor(web): centralize vendor ignore glob (#722)\n\n* refactor(ui): dedupe vitest source aliases (#723)\n\n* refactor(licenses): share third-party notice path (#724)\n\n* fix: Make tests runnable\n\n* chore: update third-party notices\n\n* refactor(web): share vendor ignore glob constant (#725)\n\n* chore: update third-party notices (#726)\n\n* refactor(ui): extract helper to detect single-status tool groups (#727)\n\n* refactor(chat): reuse overview barrel for shared panels (#729)\n\n* Fix linting\n\n* refactor(ui): reuse helper for session menu buttons (#733)\n\n* refactor(scripts): pass forwarded args to workspace test runner (#735)\n\n* refactor(licenses): reuse third-party notice contents (#734)\n\n* chore: update third-party notices\n\n* fix: fix some tests\n\n* refactor(chat-page): centralize toast expectations (#737)\n\n* refactor(ui): wait for execution tree sections before asserting (#738)\n\n* refactor(web): forward execution tree state type (#736)\n\n* refactor(web): extract helper for theme hook rendering (#739)\n\n* Potential fix for code scanning alert no. 12: Prototype-polluting assignment\n\nCo-authored-by: Copilot Autofix powered by AI <62310815+github-advanced-security[bot]@users.noreply.github.com>\n\n* Summary\n\nCorrected apps/web/tsconfig.json so the @/… aliases resolve against the real src subdirectories and the include list remains valid JSON.\n\nImported ReactNode into the Radix theme augmentation and tidied the ambient interfaces to keep the declaration file type-safe.\n\nDeclared the new Radix and framer-motion packages as peer/dev dependencies, and pointed the SessionSelector test (and overview barrel) at the shared chat exports.\n\nTesting\n\n❌ npm run test --workspace @eddie/ui -- SessionSelector *(fails because the current markup exposes multiple tablists with the same aria label, so the query is ambiguous)*\n\n* refactor(ui): reuse tablist label helper in tests (#740)\n\n* feat(ui): expose shared theme helpers for chat drawer\n\n* refactor(ui): memoize details invocation lookup\n\n* fix: label agent execution details dialog\n\n* fix(ui): label agent execution dialog content\n\n---------\n\nCo-authored-by: Teagan Glenn <teagan@extrahop.com>\nCo-authored-by: Copilot Autofix powered by AI <62310815+github-advanced-security[bot]@users.noreply.github.com>",
+          "timestamp": "2025-10-22T17:14:37-06:00",
+          "tree_id": "31754236104042b99f06904806534512da63e80b",
+          "url": "https://github.com/Teagan42/Eddie/commit/41f78408cf7148c0c29c34b421ed322ca36ff094"
+        },
+        "date": 1761175517985,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 45.835,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 33.062,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.05,
             "unit": "ms",
             "extra": "[object Object]"
           }
