@@ -25,6 +25,15 @@ export function createUiMetadata(metadata: UiPackageMetadata): UiMetadata {
   return { ...metadata };
 }
 
+export {
+  COMPONENT_LIBRARY,
+  getComponentLibraryEntry,
+  type ComponentLibrary,
+  type ComponentLibraryCategory,
+  type ComponentLibraryEntry,
+  type ComponentLibraryLookupResult,
+} from './component-library';
+
 export { EddieButton, type EddieButtonProps } from './components/EddieButton';
 export { EddieIcon, type EddieIconProps } from './components/EddieIcon';
 export { AuroraBackground, JsonTreeView, Panel } from './common';
