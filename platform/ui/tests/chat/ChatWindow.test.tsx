@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { Theme } from "@radix-ui/themes";
 
 import { ChatWindow, type ChatWindowProps } from "../../src/chat";
 
@@ -71,9 +72,11 @@ describe("ChatWindow", () => {
     };
 
     return render(
-      <TooltipProvider>
-        <ChatWindow {...defaultProps} {...props} />
-      </TooltipProvider>,
+      <Theme>
+        <TooltipProvider>
+          <ChatWindow {...defaultProps} {...props} />
+        </TooltipProvider>
+      </Theme>,
     );
   }
 
@@ -261,7 +264,7 @@ describe("ChatWindow", () => {
     expect(handleInspectTool).toHaveBeenCalledWith("meta-tool-id");
   });
 
-  it("renders the agent activity indicator and segmented role control", async () => {
+  it("renders the agent activity indicator and composer role select", async () => {
     const user = userEvent.setup();
     const handleRoleChange = vi.fn();
 
@@ -273,11 +276,14 @@ describe("ChatWindow", () => {
     expect(
       screen.getByRole("status", { name: "Dispatching message…" }),
     ).toBeInTheDocument();
-    const askOption = screen.getByRole("radio", { name: "Ask" });
-    const runOption = screen.getByRole("radio", { name: "Run" });
-    expect(askOption).toBeChecked();
+    const roleTrigger = screen.getByRole("combobox", { name: /composer role/i });
 
-    await user.click(runOption);
+    await user.click(roleTrigger);
+
+    const systemOption = await screen.findByRole("option", {
+      name: /system command/i,
+    });
+    await user.click(systemOption);
 
     expect(handleRoleChange).toHaveBeenCalledWith("system");
   });

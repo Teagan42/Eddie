@@ -19,6 +19,7 @@ export class AgentInvocation {
   readonly context: PackedContext;
   readonly history: ChatMessage[];
   readonly prompt: string;
+  readonly promptRole: ChatMessage["role"];
   readonly toolRegistry: ToolRegistry;
   private spawnHandler?: AgentInvocationSpawnHandler;
   private runtimeDetails?: AgentInvocationRuntimeDetails;
@@ -32,11 +33,12 @@ export class AgentInvocation {
     this.prompt = options.prompt;
     this.context = options.context ?? definition.context ?? EMPTY_CONTEXT;
     this.history = options.history ? [...options.history] : [];
+    this.promptRole = options.promptRole ?? "user";
     this.toolRegistry = toolRegistryFactory.create(definition.tools ?? []);
     this.messages = [
       { role: "system", content: definition.systemPrompt },
       ...this.history,
-      { role: "user", content: this.composeUserContent(options.prompt) },
+      { role: this.promptRole, content: this.composePromptContent(options.prompt) },
     ];
   }
 
@@ -74,7 +76,7 @@ export class AgentInvocation {
     return this.spawnHandler(definition, options);
   }
 
-  private composeUserContent(prompt: string): string {
+  private composePromptContent(prompt: string): string {
     const contextText = this.context.text?.trim();
     if (contextText && contextText.length > 0) {
       return `${prompt}\n\n<workspace_context>\n${contextText}\n</workspace_context>`;

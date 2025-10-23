@@ -703,6 +703,7 @@
               "user",
               "assistant",
               "system",
+              "developer",
               "tool"
             ],
             "description": "Message role"
@@ -741,6 +742,7 @@
               "user",
               "assistant",
               "system",
+              "developer",
               "tool"
             ],
             "default": "user"

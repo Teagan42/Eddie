@@ -3,6 +3,7 @@ import type {
   ChatMessage,
   PackedContext,
   ProviderAdapter,
+  Role,
   ToolDefinition,
 } from "./providers";
 
@@ -53,6 +54,7 @@ export interface AgentInvocationOptions {
   prompt: string;
   context?: PackedContext;
   history?: ChatMessage[];
+  promptRole?: Role;
   promptTemplate?: TemplateDescriptor;
   variables?: TemplateVariables;
 }

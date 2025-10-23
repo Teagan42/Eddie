@@ -11,7 +11,7 @@ export type { ContextBundlesPanelProps } from './ContextBundlesPanel';
 export { MessageList } from './MessageList';
 export type { MessageListProps } from './MessageList';
 export { ChatWindow } from './ChatWindow';
-export type { ChatWindowProps } from './ChatWindow';
+export type { ChatWindowProps, ComposerRole } from './ChatWindow';
 export { CollapsiblePanel } from './CollapsiblePanel';
 export type { CollapsiblePanelProps } from './CollapsiblePanel';
 export {
