@@ -310,8 +310,13 @@ describe("AgentExecutionTree", () => {
         { exact: false },
         { timeout: 10_000 },
       );
-      expect(dialog).toBeInTheDocument();
-      expect(within(dialog).getByText(/Research briefing/)).toBeInTheDocument();
+      try {
+        expect(dialog).toBeInTheDocument();
+        expect(within(dialog).getByText(/Research briefing/)).toBeInTheDocument();
+      } catch (error) {
+        screen.debug(document.body, Infinity);
+        throw error;
+      }
     },
     15_000,
   );
