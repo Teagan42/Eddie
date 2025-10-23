@@ -128,6 +128,13 @@ function createService(
   };
 }
 
+function getFirstRuntimeOptions(
+  agentOrchestrator: { runAgent: ReturnType<typeof vi.fn> },
+): Record<string, unknown> | undefined {
+  const [, runtimeOptions] = agentOrchestrator.runAgent.mock.calls[0] ?? [];
+  return runtimeOptions as Record<string, unknown> | undefined;
+}
+
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2024-01-01T00:00:00.000Z"));
@@ -165,8 +172,23 @@ describe("EngineService", () => {
     await service.run("prompt");
 
     expect(agentOrchestrator.runAgent).toHaveBeenCalled();
-    const [, runtimeOptions] = agentOrchestrator.runAgent.mock.calls[0] ?? [];
+    const runtimeOptions = getFirstRuntimeOptions(agentOrchestrator);
     expect(runtimeOptions?.metrics).toBe(metrics);
+  });
+
+  it("uses the configured projectDir as the tool workspace", async () => {
+    const projectDir = "/tmp/custom-project";
+    const alternateContextBaseDir = "/tmp/context-base";
+    const { service, agentOrchestrator } = createService({
+      projectDir,
+      context: { ...baseConfig.context, baseDir: alternateContextBaseDir },
+    });
+
+    await service.run("prompt");
+
+    expect(agentOrchestrator.runAgent).toHaveBeenCalled();
+    const runtimeOptions = getFirstRuntimeOptions(agentOrchestrator);
+    expect(runtimeOptions?.cwd).toBe(projectDir);
   });
 
   it("resolves trace output relative to the projectDir when configured", async () => {
@@ -190,7 +212,7 @@ describe("EngineService", () => {
 
     expect(result.tracePath).toBe(expectedTracePath);
     expect(agentOrchestrator.runAgent).toHaveBeenCalled();
-    const [, runtimeOptions] = agentOrchestrator.runAgent.mock.calls[0] ?? [];
+    const runtimeOptions = getFirstRuntimeOptions(agentOrchestrator);
     expect(runtimeOptions?.tracePath).toBe(expectedTracePath);
   });
 

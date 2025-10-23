@@ -220,7 +220,7 @@ export class EngineService {
         cfg,
       );
 
-      const runtimeCwd = cfg.context.baseDir ?? projectDir;
+      const runtimeCwd = projectDir;
 
       const runtime: AgentRuntimeOptions = {
         catalog,
