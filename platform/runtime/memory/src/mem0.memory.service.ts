@@ -47,6 +47,14 @@ export interface FacetExtractorStrategy {
   ): Record<string, unknown> | undefined;
 }
 
+const PROTECTED_MEMORY_METADATA_KEYS = new Set([
+  "agentId",
+  "sessionId",
+  "userId",
+  "vectorStore",
+  "facets",
+]);
+
 interface Mem0ClientContract {
   searchMemories(
     request: Mem0SearchMemoriesRequest,
@@ -131,10 +139,7 @@ export class Mem0MemoryService {
     const memories: Mem0MemoryMessage[] = options.memories.map((memory) => ({
       role: memory.role,
       content: memory.content,
-      metadata: {
-        ...baseMetadata,
-        ...(memory.metadata ?? {}),
-      },
+      metadata: this.mergeMemoryMetadata(memory.metadata, baseMetadata),
     }));
 
     const payload: Mem0CreateMemoriesRequest = {
@@ -148,6 +153,26 @@ export class Mem0MemoryService {
     };
 
     await this.client.createMemories(payload);
+  }
+
+  private mergeMemoryMetadata(
+    memoryMetadata: Record<string, unknown> | undefined,
+    baseMetadata: Record<string, unknown>,
+  ): Record<string, unknown> {
+    if (!memoryMetadata) {
+      return { ...baseMetadata };
+    }
+
+    const sanitizedMemoryMetadata = Object.fromEntries(
+      Object.entries(memoryMetadata).filter(
+        ([key]) => !PROTECTED_MEMORY_METADATA_KEYS.has(key),
+      ),
+    );
+
+    return {
+      ...sanitizedMemoryMetadata,
+      ...baseMetadata,
+    };
   }
 
   private buildBaseMetadata(
