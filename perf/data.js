@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761175518317,
+  "lastUpdate": 1761191851066,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -1424,6 +1424,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 23.05,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d7134e06b3181a6d1583b78b3133477e438fb79e",
+          "message": "fix: fix migration issues (#741)\n\n* chore: update package\n\n* fix: migration fixes\n\n* Update tsconfig\n\n* fix: export types and classes\n\n* Fix tests\n\n* fix: add ui to tailwind\n\n* fix: add dialog label for tool invocation details\n\n* refactor(chat): extract grouped invocation lookup\n\n* refactor(chat): streamline focused agent resolution\n\n* Chevron collapse\n\n* fix: skip flakey test\n\n* fix tests\n\n* Add aria label\n\n* Fix state tree",
+          "timestamp": "2025-10-22T21:46:33-06:00",
+          "tree_id": "48cdd605bad17ab3a552b6a75cfada7f0984092b",
+          "url": "https://github.com/Teagan42/Eddie/commit/d7134e06b3181a6d1583b78b3133477e438fb79e"
+        },
+        "date": 1761191850393,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 47.222,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 35.509,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 24.404,
             "unit": "ms",
             "extra": "[object Object]"
           }
