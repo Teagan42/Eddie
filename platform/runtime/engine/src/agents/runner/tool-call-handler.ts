@@ -17,6 +17,8 @@ export interface ToolCallHandlerArgs {
 
 @Injectable()
 export class ToolCallHandler {
+  private readonly handledToolCallIds = new Set<string>();
+
   constructor(private readonly traceWriter: TraceWriterDelegate) {}
 
   async handle(args: ToolCallHandlerArgs): Promise<boolean> {
@@ -33,6 +35,23 @@ export class ToolCallHandler {
       confirm,
       writeTrace,
     } = options;
+
+    const toolCallId = event.id;
+
+    if (toolCallId) {
+      if (this.handledToolCallIds.has(toolCallId)) {
+        logger.warn(
+          {
+            tool: event.name,
+            agent: invocation.id,
+            toolCallId,
+          },
+          "Skipping duplicate tool call"
+        );
+        return false;
+      }
+      this.handledToolCallIds.add(toolCallId);
+    }
 
     executionTreeTracker?.recordToolCall(invocation.id, event);
 
@@ -197,6 +216,10 @@ export class ToolCallHandler {
       });
 
       executionTreeTracker?.recordToolError(invocation.id, event, serialized);
+
+      if (toolCallId) {
+        this.handledToolCallIds.delete(toolCallId);
+      }
 
       metrics.observeToolCall({
         name: event.name,

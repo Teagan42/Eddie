@@ -151,6 +151,45 @@ describe("AgentRunLoop", () => {
     });
   });
 
+  it("executes each tool call id only once", async () => {
+    const invocation = createInvocation();
+    const toolResult: ToolResult = { schema: "tool", content: "ok" };
+
+    invocation.toolRegistry.execute = vi.fn().mockResolvedValue(toolResult);
+
+    const provider = {
+      name: "mock",
+      stream: vi
+        .fn()
+        .mockReturnValueOnce(
+          createStream([
+            { type: "tool_call", id: "call_1", name: "echo", arguments: { text: "hi" } },
+            { type: "tool_call", id: "call_1", name: "echo", arguments: { text: "hi" } },
+            { type: "end" },
+          ])
+        )
+        .mockReturnValueOnce(createStream([{ type: "end" }])),
+    };
+
+    const descriptor = createDescriptor({ provider });
+
+    const { runner } = createAgentRunnerTestContext({ invocation, descriptor });
+
+    await runner.run();
+
+    expect(invocation.toolRegistry.execute).toHaveBeenCalledTimes(1);
+
+    const assistantCalls = invocation.messages.filter(
+      (message) => message.role === "assistant" && message.tool_call_id === "call_1"
+    );
+    expect(assistantCalls).toHaveLength(1);
+
+    const toolMessages = invocation.messages.filter(
+      (message) => message.role === "tool" && message.tool_call_id === "call_1"
+    );
+    expect(toolMessages).toHaveLength(1);
+  });
+
   it("writes trace events for model and tool iterations", async () => {
     const invocation = createInvocation();
     const descriptor = createDescriptor({
