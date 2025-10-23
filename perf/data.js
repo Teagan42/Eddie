@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761191851066,
+  "lastUpdate": 1761195737095,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -1466,6 +1466,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 24.404,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7212baea6327c246a657b717b67a01ba4636f3f2",
+          "message": "Add composer role dropdown with developer role support (#742)\n\n* refactor(ui): centralize composer role options\n\n* feat(engine): support prompt role propagation",
+          "timestamp": "2025-10-22T22:51:43-06:00",
+          "tree_id": "e96a4589ab9f87f462f7aa3b198ddf8f1528b12b",
+          "url": "https://github.com/Teagan42/Eddie/commit/7212baea6327c246a657b717b67a01ba4636f3f2"
+        },
+        "date": 1761195736784,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 46.732,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 35.349,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.754,
             "unit": "ms",
             "extra": "[object Object]"
           }
