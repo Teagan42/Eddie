@@ -92,13 +92,9 @@ describe("AgentExecutionTree", () => {
         updatedAt: "2024-05-01T12:02:00.000Z",
       } as ExecutionTreeState;
 
-      const metadata = {
-        executionTree,
-      } as unknown;
-
       const tree = (
         <AgentExecutionTree
-          state={createExecutionTreeStateFromMetadata(metadata)}
+          state={executionTree}
           selectedAgentId={null}
           onSelectAgent={() => { }}
         />
