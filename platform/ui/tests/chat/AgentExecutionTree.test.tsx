@@ -312,6 +312,9 @@ describe("AgentExecutionTree", () => {
         );
 
         expect(dialog).toBeInTheDocument();
+        await user.click(await screen.findByRole("button", {
+          name: /toggle contextbundles/i,
+        }));
         expect(within(dialog).getByText(/Research briefing/)).toBeInTheDocument();
       } catch (error) {
         screen.debug(document.body, Infinity);
