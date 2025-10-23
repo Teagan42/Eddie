@@ -11,7 +11,7 @@ import {
 import { Theme } from "@radix-ui/themes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { RuntimeConfigDto } from "@eddie/api-client";
-import { getThemeAccentColor, getThemeAppearance, isDarkTheme } from "./themes.js";
+import { getThemeAccentColor, getThemeAppearance, isDarkTheme } from "@eddie/ui";
 import { useApi } from "@/api/api-provider.js";
 
 const CONFIG_QUERY_KEY = ["config"] as const;

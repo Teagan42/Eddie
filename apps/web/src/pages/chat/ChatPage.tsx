@@ -23,16 +23,14 @@ import type {
   RuntimeConfigDto,
 } from '@eddie/api-client';
 import type { LayoutPreferencesDto } from '@eddie/api-client';
-import { applyToolCallEvent, applyToolResultEvent, AgentToolsDrawer, ChatWindow, cloneExecutionTreeState, cn, coerceExecutionTreeState, composeExecutionTreeState, createEmptyExecutionTreeState, createExecutionTreeStateFromMetadata, Panel, SessionSelector, Sheet, sortSessions, ToolEventPayload, upsertMessage } from '@eddie/ui';
+import { applyToolCallEvent, applyToolResultEvent, AgentToolsDrawer, ChatWindow, cloneExecutionTreeState, cn, coerceExecutionTreeState, composeExecutionTreeState, createEmptyExecutionTreeState, createExecutionTreeStateFromMetadata, Panel, SessionSelector, Sheet, sortSessions, ToolEventPayload, upsertMessage, SessionSelectorSession, SessionSelectorMetricsSummary, SheetTrigger } from '@eddie/ui';
 import { useApi } from '@/api/api-provider.js';
 import { useAuth } from '@/auth/auth-context.js';
 import { useLayoutPreferences } from '../../hooks/useLayoutPreferences.js';
 import { extractProviderProfiles, createProviderProfileOptions, ProviderOption } from '../shared/providerProfiles.js';
 import { getSurfaceLayoutClasses, SURFACE_CONTENT_CLASS } from '../../styles/surfaces.js';
-import { SessionSelectorSession, SessionSelectorMetricsSummary, SheetTrigger } from '@eddie/ui';
 import { useChatMessagesRealtime } from './useChatMessagesRealtime.js';
 import { toast } from '@/vendor/hooks/use-toast.js';
-import { useTheme } from '@/theme';
 
 const ORCHESTRATOR_METADATA_QUERY_KEY = 'orchestrator-metadata' as const;
 

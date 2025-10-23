@@ -3,7 +3,6 @@ import path from "node:path";
 import {
   Inject,
   Injectable,
-  Optional,
   type OnModuleDestroy,
   type OnModuleInit,
 } from "@nestjs/common";
@@ -23,10 +22,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   } satisfies Knex.MigratorConfig;
 
   constructor(
-    @Optional()
     @Inject(KNEX_INSTANCE)
-    private readonly knex?: Knex
-  ) {}
+    private readonly knex: Knex
+  ) { }
 
   getClient(): Knex {
     const knex = this.knex;
