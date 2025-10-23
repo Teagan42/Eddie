@@ -315,7 +315,7 @@ describe("AgentExecutionTree", () => {
         await user.click(await screen.findByRole("button", {
           name: /toggle contextbundles/i,
         }));
-        const contextBundlesRegion = await screen.findByTestId("json-entry-contextBundles");
+        const contextBundlesRegion = await screen.findByTestId("json-entry-contextBundles[0]");
         await user.click(await within(contextBundlesRegion).findByRole("button"));
         expect(within(dialog).getByText(/Research briefing/)).toBeInTheDocument();
       } catch (error) {
