@@ -58,6 +58,28 @@ describe("@eddie/types agent contracts", () => {
       allowedSubagents?: string[];
     }>();
 
+    expectTypeOf<AgentRuntimeMetadata>().toMatchTypeOf<{
+      name?: string;
+      description?: string;
+      routingThreshold?: number;
+      profileId?: string;
+      allowedSubagents?: string[];
+      memory: {
+        recall?: boolean;
+        store?: boolean;
+        facets?: { defaultStrategy?: string };
+        vectorStore?: {
+          provider: string;
+          qdrant?: {
+            url?: string;
+            apiKey?: string;
+            collection?: string;
+            timeoutMs?: number;
+          };
+        };
+      };
+    }>();
+
     expectTypeOf<AgentRuntimeDescriptor>().toMatchTypeOf<{
       id: string;
       definition: AgentDefinition;

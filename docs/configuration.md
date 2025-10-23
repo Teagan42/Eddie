@@ -18,6 +18,52 @@ to regenerate it after making schema changes.
 - [View the Mermaid diagram](./generated/config-schema-diagram.md)
 - [`platform/core/config/scripts/render-config-schema-diagram.ts`](../platform/core/config/scripts/render-config-schema-diagram.ts)
 
+## Memory configuration
+
+Global and per-agent memory controls live under the `memory` keys in the schema.
+At the top level you can enable or disable memory capture entirely, choose the
+default facet extraction strategy, and provide vector store connection details.
+The initial configuration ships disabled with a Qdrant stub so deployments can
+toggle the feature without provisioning infrastructure immediately.【F:platform/core/config/src/defaults.ts†L20-L42】 The schema
+currently recognises the `qdrant` provider and accepts optional `url`, `apiKey`,
+`collection`, and `timeoutMs` fields to match the hosted instance you are
+connecting to.【F:platform/core/config/src/schema.ts†L38-L78】
+
+Agents inherit the global defaults but can override them through
+`agents.manager.memory` and each `subagents[].memory` block. These blocks expose
+`recall` and `store` booleans so you can disable retrieval while still writing
+new memories, or vice versa. They also accept optional `facets` and `vectorStore`
+overrides to direct specific agents to custom collections or strategies.【F:platform/core/config/src/schema.ts†L104-L170】
+
+Example YAML enabling memory globally while pointing the manager at a dedicated
+collection and limiting a subagent to write-only storage:
+
+```yaml
+memory:
+  enabled: true
+  facets:
+    defaultStrategy: semantic
+  vectorStore:
+    provider: qdrant
+    qdrant:
+      url: http://localhost:6333
+      collection: team-memory
+agents:
+  manager:
+    memory:
+      recall: true
+      store: true
+      vectorStore:
+        provider: qdrant
+        qdrant:
+          collection: manager-notes
+  subagents:
+    - id: researcher
+      memory:
+        recall: false
+        store: true
+```
+
 ## Metrics configuration
 
 The metrics section (the `metrics` block) controls which backend the runtime uses when publishing counters and histograms. By default Eddie ships with the noop backend so installations without observability requirements incur no logging overhead.【F:platform/core/config/src/defaults.ts†L99-L101】【F:platform/runtime/engine/src/telemetry/metrics.service.ts†L103-L118】 The configuration schema accepts three backend types:【F:platform/core/config/src/schema.ts†L235-L279】

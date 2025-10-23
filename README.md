@@ -191,6 +191,9 @@ Every top-level key in `EddieConfig` serves a specific subsystem:
 - **`hooks`** – Module list and optional directory scanned for lifecycle hook
   implementations.
 - **`tokenizer`** – Provider used when computing token budgets.
+- **`memory`** – Global toggle, facet extraction defaults, and vector store
+  connection settings shared across agents, with per-agent overrides available
+  under `agents.manager.memory` and each subagent definition.
 - **`agents`** – The agent manager prompt, subagent definitions, routing knobs,
   and an enable/disable switch for hierarchical execution.
 

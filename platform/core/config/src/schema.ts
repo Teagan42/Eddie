@@ -65,6 +65,49 @@ const STRING_ARRAY_SCHEMA: JSONSchema7 = {
   minItems: 1,
 };
 
+const MEMORY_FACETS_CONFIG_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    defaultStrategy: { type: "string", minLength: 1 },
+  },
+};
+
+const MEMORY_VECTOR_STORE_QDRANT_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    url: { type: "string", minLength: 1 },
+    apiKey: { type: "string", minLength: 1 },
+    collection: { type: "string", minLength: 1 },
+    timeoutMs: { type: "integer", minimum: 0 },
+  },
+};
+
+const MEMORY_VECTOR_STORE_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["provider"],
+  properties: {
+    provider: { type: "string", enum: ["qdrant"] },
+    qdrant: MEMORY_VECTOR_STORE_QDRANT_SCHEMA,
+  },
+};
+
+const MEMORY_SHARED_PROPERTIES = {
+  facets: MEMORY_FACETS_CONFIG_SCHEMA,
+  vectorStore: MEMORY_VECTOR_STORE_SCHEMA,
+} as const;
+
+const MEMORY_CONFIG_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    enabled: { type: "boolean" },
+    ...MEMORY_SHARED_PROPERTIES,
+  },
+};
+
 const TEMPLATE_DESCRIPTOR_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: false,
@@ -388,6 +431,16 @@ const AGENT_PROVIDER_CONFIG_SCHEMA: JSONSchema7 = {
   ],
 };
 
+const AGENT_MEMORY_CONFIG_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    recall: { type: "boolean" },
+    store: { type: "boolean" },
+    ...MEMORY_SHARED_PROPERTIES,
+  },
+};
+
 const AGENT_MANAGER_SCHEMA: JSONSchema7 = {
   type: "object",
   additionalProperties: true,
@@ -411,6 +464,7 @@ const AGENT_MANAGER_SCHEMA: JSONSchema7 = {
       type: "array",
       items: { type: "string", minLength: 1 },
     },
+    memory: AGENT_MEMORY_CONFIG_SCHEMA,
   },
 };
 
@@ -444,6 +498,7 @@ const AGENT_DEFINITION_SCHEMA: JSONSchema7 = {
       type: "array",
       items: { type: "string", minLength: 1 },
     },
+    memory: AGENT_MEMORY_CONFIG_SCHEMA,
   },
 };
 
@@ -720,6 +775,7 @@ export const EDDIE_CONFIG_SCHEMA: JSONSchema7 = {
     tools: TOOLS_CONFIG_SCHEMA,
     hooks: HOOKS_CONFIG_SCHEMA,
     tokenizer: TOKENIZER_CONFIG_SCHEMA,
+    memory: MEMORY_CONFIG_SCHEMA,
     agents: AGENTS_CONFIG_SCHEMA,
     transcript: TRANSCRIPT_CONFIG_SCHEMA,
     metrics: METRICS_CONFIG_SCHEMA,
@@ -760,6 +816,7 @@ export const EDDIE_CONFIG_INPUT_SCHEMA: JSONSchema7 = {
     tools: TOOLS_CONFIG_SCHEMA,
     hooks: HOOKS_CONFIG_SCHEMA,
     tokenizer: TOKENIZER_CONFIG_SCHEMA,
+    memory: MEMORY_CONFIG_SCHEMA,
     agents: {
       ...AGENTS_CONFIG_SCHEMA,
       required: [],

@@ -16,4 +16,27 @@ describe("DEFAULT_CONFIG tools", () => {
   it("tracks the current configuration version", () => {
     expect(DEFAULT_CONFIG.version).toBe(CURRENT_CONFIG_VERSION);
   });
+
+  it("disables memory features by default", () => {
+    expect(DEFAULT_CONFIG.memory).toEqual({
+      enabled: false,
+      facets: {
+        defaultStrategy: "none",
+      },
+      vectorStore: {
+        provider: "qdrant",
+        qdrant: {
+          url: "http://localhost:6333",
+          apiKey: undefined,
+          collection: "eddie-memory",
+          timeoutMs: 5000,
+        },
+      },
+    });
+
+    expect(DEFAULT_CONFIG.agents.manager?.memory).toEqual({
+      recall: false,
+      store: false,
+    });
+  });
 });

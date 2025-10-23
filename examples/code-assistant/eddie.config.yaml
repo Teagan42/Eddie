@@ -13,6 +13,15 @@ context:
   variables:
     project_type: "multi-language"
     tdd_mode: "strict"
+memory:
+  enabled: true
+  facets:
+    defaultStrategy: semantic
+  vectorStore:
+    provider: qdrant
+    qdrant:
+      url: http://localhost:6333
+      collection: code-assistant-memory
 agents:
   mode: router
   enableSubagents: true
@@ -46,6 +55,15 @@ agents:
           title: "Manager Follow-up"
           audience: "Router Manager"
         cadence: "Summarize current phase and next routing decision"
+    memory:
+      recall: true
+      store: true
+      facets:
+        defaultStrategy: conversation
+      vectorStore:
+        provider: qdrant
+        qdrant:
+          collection: manager-scratchpad
   subagents:
     - id: architect
       name: Architecture Designer
@@ -170,6 +188,9 @@ agents:
             audience: "Implementation Developer"
           cadence: "Report code changes and verification results"
       routingThreshold: 0.4
+      memory:
+        recall: false
+        store: true
 
     - id: refactor
       name: REFACTOR Agent
