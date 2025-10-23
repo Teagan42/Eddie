@@ -11,3 +11,4 @@ declare module '@radix-ui/themes' {
 
   export interface DropdownMenuTriggerProps extends WithChild, SelectHTMLAttributes { };
 }
+
