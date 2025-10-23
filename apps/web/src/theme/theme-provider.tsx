@@ -11,7 +11,7 @@ import {
 import { Theme } from "@radix-ui/themes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { RuntimeConfigDto } from "@eddie/api-client";
-import { getThemeAccentColor, getThemeAppearance, isDarkTheme } from "@eddie/ui";
+import { getThemeAccentColor, getThemeAppearance, syncDocumentTheme } from "@eddie/ui";
 import { useApi } from "@/api/api-provider.js";
 
 const CONFIG_QUERY_KEY = ["config"] as const;
@@ -23,19 +23,6 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
-
-function syncDocumentTheme(theme: RuntimeConfigDto["theme"]): void {
-  if (typeof document === "undefined") {
-    return;
-  }
-  const root = document.documentElement;
-  root.dataset.theme = theme;
-  if (isDarkTheme(theme)) {
-    root.classList.add("dark");
-  } else {
-    root.classList.remove("dark");
-  }
-}
 
 const THEME_TRANSITION_CLASS = "theme-transition";
 const THEME_TRANSITION_MS = 320;

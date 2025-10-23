@@ -1,93 +1,62 @@
-import { describe, expect, it } from "vitest";
-import { render } from "@testing-library/react";
-import { createElement } from "react";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { render, waitFor } from "@testing-library/react";
+import { createElement, type ReactNode } from "react";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { EddieThemeProvider } from "../src/theme/EddieThemeProvider";
-import { AVAILABLE_THEMES } from "../src/theme/themes";
 
-type ThemeName = (typeof AVAILABLE_THEMES)[number];
+const ThemeMock = vi.hoisted(() =>
+  vi.fn((props: Record<string, unknown> & { children?: ReactNode }) => {
+    return createElement("div", { "data-testid": "radix-theme" }, props.children);
+  }),
+) as Mock;
 
-type TokenCategory = "cta" | "badge" | "surface" | "console";
+vi.mock("@radix-ui/themes", () => ({
+  Theme: ThemeMock,
+}));
 
-function extractThemeBlock(cssText: string, theme: ThemeName): string {
-  const pattern = new RegExp(`:root\\[data-theme="${theme}"\\]\\s*{([\\s\\S]*?)}`, "m");
-  const match = pattern.exec(cssText);
+describe("EddieThemeProvider", () => {
+  beforeEach(() => {
+    ThemeMock.mockClear();
+    document.documentElement.dataset.theme = "light";
+    document.documentElement.classList.remove("dark");
+  });
 
-  if (!match) {
-    throw new Error(`No CSS block found for theme: ${theme}`);
-  }
+  it("configures the Radix Theme accent color and appearance for the active theme", async () => {
+    render(
+      createElement(EddieThemeProvider, { theme: "midnight" }, createElement("div", { "data-testid": "content" })),
+    );
 
-  return match[1];
-}
+    await waitFor(() => {
+      expect(ThemeMock).toHaveBeenCalled();
+    });
 
-function renderThemeTokens(): string {
-  const { container } = render(
-    createElement(EddieThemeProvider, null, createElement("div", { "data-testid": "content" })),
-  );
+    const [props] = ThemeMock.mock.calls[0] as [Record<string, unknown>];
 
-  const styleElement = container.querySelector("style[data-eddie-theme]");
-
-  if (!styleElement) {
-    throw new Error("Expected EddieThemeProvider to inject a style[data-eddie-theme] element");
-  }
-
-  return styleElement.textContent ?? "";
-}
-
-describe("EddieThemeProvider theming", () => {
-  it("injects CSS tokens for every available theme", () => {
-    const cssText = renderThemeTokens();
-
-    AVAILABLE_THEMES.forEach((theme) => {
-      expect(cssText).toContain(`:root[data-theme="${theme}"]`);
+    expect(props).toMatchObject({
+      accentColor: "iris",
+      appearance: "dark",
+      radius: "large",
     });
   });
 
-  it("exposes CTA, badge, surface, and console variables across themes", () => {
-    const cssText = renderThemeTokens();
+  it("syncs the document root theme attributes", async () => {
+    render(createElement(EddieThemeProvider, { theme: "aurora" }, createElement("div")));
 
-    const requiredVariables: Record<TokenCategory, readonly string[]> = {
-      cta: [
-        "--hero-cta-from",
-        "--hero-cta-via",
-        "--hero-cta-to",
-        "--hero-cta-shadow",
-        "--hero-cta-foreground",
-      ],
-      badge: ["--hero-badge-bg", "--hero-badge-fg"],
-      surface: [
-        "--hero-surface-from",
-        "--hero-surface-via",
-        "--hero-surface-to",
-        "--hero-surface-shadow",
-        "--hero-surface-overlay",
-        "--hero-surface-lens",
-      ],
-      console: [
-        "--hero-console-overlay",
-        "--hero-console-overlay-dark",
-        "--hero-console-bg",
-        "--hero-console-bg-dark",
-        "--hero-console-border",
-        "--hero-console-border-dark",
-        "--hero-console-icon-bg",
-        "--hero-console-icon-bg-dark",
-        "--hero-console-icon-fg",
-        "--hero-console-icon-fg-dark",
-        "--hero-console-separator",
-        "--hero-console-separator-dark",
-      ],
-    };
-
-    AVAILABLE_THEMES.forEach((theme) => {
-      const block = extractThemeBlock(cssText, theme);
-
-      (Object.values(requiredVariables).flat() as string[]).forEach((variable) => {
-        expect(block).toContain(variable);
-      });
+    await waitFor(() => {
+      expect(document.documentElement.dataset.theme).toBe("aurora");
     });
+
+    expect(document.documentElement.classList.contains("dark")).toBe(false);
+
+    render(createElement(EddieThemeProvider, { theme: "midnight" }, createElement("div")));
+
+    await waitFor(() => {
+      expect(document.documentElement.dataset.theme).toBe("midnight");
+    });
+
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
   });
 
   it("packages aurora and midnight overrides in tokens.css", () => {
