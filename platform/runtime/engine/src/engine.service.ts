@@ -7,6 +7,7 @@ import type {
   AgentProviderConfig,
   AgentRuntimeCatalog,
   AgentRuntimeDescriptor,
+  AgentRecalledMemory,
   CliRuntimeOptions,
   ContextConfig,
   EddieConfig,
@@ -619,12 +620,21 @@ export class EngineService {
     const adapter: AgentMemoryAdapter = {
       recallMemories: async (request) => {
         const sessionId = request.session?.id ?? session.id;
-        return this.memoryFacade!.recallMemories({
+        const recalled = await this.memoryFacade!.recallMemories({
           query: request.query,
           agentId: request.agent.id,
           sessionId,
           metadata: request.metadata,
         });
+
+        return this.normalizeRecalledMemories(
+          recalled as Array<{
+            id: string;
+            memory?: unknown;
+            metadata?: unknown;
+            facets?: unknown;
+          }>
+        );
       },
     };
 
@@ -632,6 +642,41 @@ export class EngineService {
       adapter,
       session,
     };
+  }
+
+  private normalizeRecalledMemories(
+    recalled: Array<{
+      id: string;
+      memory?: unknown;
+      metadata?: unknown;
+      facets?: unknown;
+    }>
+  ): AgentRecalledMemory[] {
+    return recalled
+      .filter(
+        (memory): memory is {
+          id: string;
+          memory: string;
+          metadata?: Record<string, unknown>;
+          facets?: Record<string, unknown>;
+        } => typeof memory.memory === "string" && memory.memory.trim().length > 0
+      )
+      .map((memory) => ({
+        id: memory.id,
+        memory: memory.memory,
+        metadata: this.cloneRecord(memory.metadata),
+        facets: this.cloneRecord(memory.facets),
+      }));
+  }
+
+  private cloneRecord(
+    value: unknown
+  ): Record<string, unknown> | undefined {
+    if (!value || typeof value !== "object") {
+      return undefined;
+    }
+
+    return { ...(value as Record<string, unknown>) };
   }
 
   private resolveAgentProviderConfig(

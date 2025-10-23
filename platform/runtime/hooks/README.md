@@ -114,3 +114,37 @@ unexpected shape and logs errors (with stack traces when available) if a module
 throws during resolution or execution. These messages flow through Nest's
 standard logging pipeline, making them visible in CLI output and any configured
 transport such as application insights or file loggers.
+
+## Stop hook responses
+
+`HOOK_EVENTS.stop` now understands structured responses that enqueue additional
+messages before the provider is invoked again. Returning the helper
+`continueHook(...)` from `@eddie/types` clones each supplied `ChatMessage` and
+signals the runtime to append them to the invocation transcript. Every enqueued
+message increments the per-role message counter and triggers another provider
+streaming pass, enabling hooks to inject follow-up user prompts or developer
+notes without mutating shared state.
+
+```ts
+import { continueHook } from "@eddie/types";
+import type { HookEventHandlers } from "@eddie/types";
+
+export const hooks: HookEventHandlers = {
+  stop: ({ messages }) => {
+    const [last] = messages.slice(-1);
+
+    if (last?.role === "assistant" && last.content.includes("policy")) {
+      return continueHook({
+        role: "user",
+        content: "Please explain which policy applies before stopping.",
+      });
+    }
+  },
+};
+```
+
+When consuming hook dispatch results directly, the runtime exports the
+`isHookStopEnqueueResponse` type guard from `@eddie/hooks`. The guard verifies
+the response carries `continue: true` and a well-formed `enqueue` array before
+the engine normalises each message via `normalizeHookStopMessages(...)` prior to
+appending them.【F:platform/core/types/src/hooks.ts†L224-L252】【F:platform/runtime/hooks/src/types.ts†L1-L44】

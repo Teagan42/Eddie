@@ -339,25 +339,30 @@ describe("AgentRunner", () => {
     const flush = vi.fn();
     const hooks = { emitAsync: vi.fn().mockResolvedValue({}) };
     const streamRenderer = { render: vi.fn(), flush };
-    const { runner, hooks: hookBus } = createAgentRunnerTestContext({
-      invocation: createInvocation({ isRoot: false }),
-      streamRenderer: streamRenderer as RunnerOverrides["streamRenderer"],
-      hooks: hooks as RunnerOverrides["hooks"],
-      composeToolSchemas: () => [],
-      writeTrace: vi.fn(),
-    });
+    const { runner, hooks: hookBus, dispatchHookOrThrow } =
+      createAgentRunnerTestContext({
+        invocation: createInvocation({ isRoot: false }),
+        streamRenderer: streamRenderer as RunnerOverrides["streamRenderer"],
+        hooks: hooks as RunnerOverrides["hooks"],
+        composeToolSchemas: () => [],
+        writeTrace: vi.fn(),
+      });
 
     await runner.run();
 
     expect(flush).toHaveBeenCalledOnce();
-    const events = hookBus.emitAsync.mock.calls.map(([event]) => event);
-    expect(events).toEqual([
+    const emittedEvents = hookBus.emitAsync.mock.calls.map(([event]) => event);
+    expect(emittedEvents).toEqual([
       HOOK_EVENTS.beforeAgentStart,
       HOOK_EVENTS.beforeModelCall,
-      HOOK_EVENTS.stop,
       HOOK_EVENTS.afterAgentComplete,
       HOOK_EVENTS.subagentStop,
     ]);
+
+    const dispatchedEvents = dispatchHookOrThrow.mock.calls.map(
+      ([event]) => event
+    );
+    expect(dispatchedEvents).toContain(HOOK_EVENTS.stop);
   });
 
   it("dispatches hooks and executes tools when tool calls are streamed", async () => {
