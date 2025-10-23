@@ -1,12 +1,17 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { Buffer } from "buffer";
 import { Test } from "@nestjs/testing";
 import type {
+  AgentInvocationMemoryUsage,
+  AgentRecalledMemory,
   AgentRuntimeDescriptor,
   ChatMessage,
   PackedContext,
 } from "@eddie/types";
-import { AgentInvocationFactory } from "../../src/agents/agent-invocation.factory";
+import {
+  AgentInvocationFactory,
+  EMPTY_RECALL_RESULT,
+} from "../../src/agents/agent-invocation.factory";
 import type { AgentDefinition } from "@eddie/types";
 import { ToolRegistryFactory } from "@eddie/tools";
 import { TemplateRuntimeService } from "@eddie/templates";
@@ -32,6 +37,16 @@ describe("AgentInvocationFactory", () => {
   let factory: AgentInvocationFactory;
   let templateRuntime: TemplateRuntimeStub;
   let toolRegistryFactory: StubToolRegistryFactory;
+
+  it("exposes empty recall result for reuse", () => {
+    expect(EMPTY_RECALL_RESULT).toEqual({ memories: [], usage: [] });
+    expectTypeOf<typeof EMPTY_RECALL_RESULT>().toMatchTypeOf<{
+      memories: AgentRecalledMemory[];
+      usage: AgentInvocationMemoryUsage[];
+      appendText?: string;
+      appendBytes?: number;
+    }>();
+  });
 
   const createRuntime = (
     descriptor: AgentRuntimeDescriptor,
