@@ -303,14 +303,14 @@ describe("AgentExecutionTree", () => {
       });
 
       await user.click(detailsButton);
-
-      const dialog = await screen.findByText(
-        (content: string, element: Element | null) =>
-          content.toLowerCase().includes("tool invocation details"),
-        { exact: false },
-        { timeout: 10_000 },
-      );
       try {
+        const dialog = await screen.findByText(
+          (content: string, element: Element | null) =>
+            content.toLowerCase().includes("tool invocation details"),
+          { exact: false },
+          { timeout: 10_000 },
+        );
+
         expect(dialog).toBeInTheDocument();
         expect(within(dialog).getByText(/Research briefing/)).toBeInTheDocument();
       } catch (error) {
