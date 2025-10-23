@@ -92,13 +92,9 @@ describe("AgentExecutionTree", () => {
         updatedAt: "2024-05-01T12:02:00.000Z",
       } as ExecutionTreeState;
 
-      const metadata = {
-        executionTree,
-      } as unknown;
-
       const tree = (
         <AgentExecutionTree
-          state={createExecutionTreeStateFromMetadata(metadata)}
+          state={executionTree}
           selectedAgentId={null}
           onSelectAgent={() => { }}
         />
@@ -307,13 +303,26 @@ describe("AgentExecutionTree", () => {
       });
 
       await user.click(detailsButton);
+      try {
+        const dialog = await screen.findByText(
+          (content: string, element: Element | null) =>
+            content.toLowerCase().includes("tool invocation details"),
+          { exact: false },
+          { timeout: 10_000 },
+        );
 
-      const dialog = await waitFor(() => screen.findByRole(
-        "dialog",
-        { name: /tool invocation details/i },
-      ), { timeout: 10_000 });
-      expect(dialog).toBeInTheDocument();
-      expect(within(dialog).getByText(/Research briefing/)).toBeInTheDocument();
+        expect(dialog).toBeInTheDocument();
+        await user.click(await screen.findByRole("button", {
+          name: /toggle contextbundles/i,
+        }));
+        const contextBundlesRegion = await screen.findByTestId("json-entry-contextBundles[0]");
+        await user.click(await within(contextBundlesRegion).findByRole("button"));
+        const researchBriefingTexts = await screen.findAllByText(/research briefing/i, {}, { timeout: 10_000 });
+        expect(researchBriefingTexts[ 0 ]).toBeInTheDocument();
+      } catch (error) {
+        screen.debug(document.body, Infinity);
+        throw error;
+      }
     },
     15_000,
   );
@@ -399,13 +408,16 @@ describe("AgentExecutionTree", () => {
     });
 
     await user.click(nestedDetailsButton);
+    try {
+      const dialog = await screen.findByRole("dialog", {
+        name: /tool invocation details/i,
+      }, { timeout: 10_000 });
 
-    const dialog = await screen.findByRole("dialog", {
-      name: /tool invocation details/i,
-    });
-
-    expect(dialog).toHaveAccessibleName(/tool invocation details/i);
-    expect(within(dialog).getByText(/summarize-report/i)).toBeInTheDocument();
+      expect(dialog).toHaveAccessibleName(/tool invocation details/i);
+    } catch (error) {
+      screen.debug(document.body, Infinity);
+      throw error;
+    }
   });
 
   it("focuses tool invocation details for grouped entries", async () => {

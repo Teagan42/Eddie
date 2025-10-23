@@ -1,3 +1,4 @@
+@import '@eddie/ui/theme/tokens.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,13 +11,13 @@
   --color-muted: 210 12% 28%;
   --color-accent: 160 84% 44%;
   --shadow-soft: 0 40px 80px -40px rgba(15, 23, 42, 0.7);
-  --font-sans: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  --font-sans: 'Inter', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 body {
   font-family: var(--font-sans);
-  background: radial-gradient(circle at 20% 20%, rgba(34, 197, 94, 0.08), transparent 60%),
+  background:
+    radial-gradient(circle at 20% 20%, rgba(34, 197, 94, 0.08), transparent 60%),
     radial-gradient(circle at 80% 0%, rgba(6, 182, 212, 0.06), transparent 55%),
     hsl(var(--color-background));
   color: hsl(var(--color-foreground));
@@ -58,7 +59,9 @@ a {
   color: hsl(var(--color-accent));
   text-decoration: none;
   font-weight: 500;
-  transition: color 150ms ease, text-shadow 150ms ease;
+  transition:
+    color 150ms ease,
+    text-shadow 150ms ease;
 }
 
 a:hover,
@@ -97,472 +100,28 @@ a:focus-visible {
 }
 
 /* Radix theming overrides to ensure legibility on dark glass surfaces */
-.rt-Text[data-accent-color="gray"] {
+.rt-Text[data-accent-color='gray'] {
   color: rgba(226, 232, 240, 0.82);
 }
 
-.rt-Text[data-accent-color="gray"] a {
+.rt-Text[data-accent-color='gray'] a {
   color: rgba(226, 232, 240, 0.9);
 }
 
-.rt-Badge[class*="rt-variant-soft"][data-accent-color] {
+.rt-Badge[class*='rt-variant-soft'][data-accent-color] {
   color: rgba(241, 245, 249, 0.9);
 }
 
-.rt-Badge[class*="rt-variant-soft"][data-accent-color="gray"] {
+.rt-Badge[class*='rt-variant-soft'][data-accent-color='gray'] {
   color: rgba(226, 232, 240, 0.85);
 }
 
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 215 30% 16%;
-    --card: 0 0% 100%;
-    --card-foreground: 215 30% 16%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 215 30% 16%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 215 30% 18%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215 19% 32%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 215 30% 18%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
-    --app-shell-overlay: circle_at_top, rgba(56, 189, 248, 0.12), transparent 65%;
-    --app-shell-overlay-dark: circle_at_top, rgba(56, 189, 248, 0.2), transparent 60%;
-    --app-shell-main-overlay: circle_at_top_right, rgba(59, 130, 246, 0.12), transparent 65%;
-    --app-shell-main-overlay-dark: circle_at_top_right, rgba(59, 130, 246, 0.08), transparent 60%;
-    --hero-surface-from: 210 36% 99%;
-    --hero-surface-via: 212 34% 96%;
-    --hero-surface-to: 214 32% 94%;
-    --hero-surface-from-dark: 222 47% 12%;
-    --hero-surface-via-dark: 220 36% 18%;
-    --hero-surface-to-dark: 222 47% 12%;
-    --hero-surface-shadow: 0 65px 120px -60px rgba(56, 189, 248, 0.35);
-    --hero-surface-shadow-dark: 0 65px 120px -60px rgba(14, 116, 144, 0.6);
-    --hero-surface-overlay: radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 55%), radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.18), transparent 50%);
-    --hero-surface-overlay-dark: radial-gradient(circle at top left, rgba(96, 165, 250, 0.28), transparent 55%), radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.28), transparent 50%);
-    --hero-surface-lens: conic-gradient(from 120deg at 50% 50%, rgba(59, 130, 246, 0.3) 0deg, transparent 140deg, rgba(34, 197, 94, 0.25) 240deg, transparent 360deg);
-    --hero-surface-lens-dark: conic-gradient(from 120deg at 50% 50%, rgba(59, 130, 246, 0.4) 0deg, transparent 140deg, rgba(74, 222, 128, 0.35) 240deg, transparent 360deg);
-    --hero-badge-bg: rgba(16, 185, 129, 0.18);
-    --hero-badge-fg: rgba(15, 23, 42, 0.9);
-    --hero-badge-bg-dark: rgba(16, 185, 129, 0.2);
-    --hero-badge-fg-dark: rgba(236, 253, 245, 0.92);
-    --hero-cta-from: 152 65% 45%;
-    --hero-cta-via: 158 75% 46%;
-    --hero-cta-to: 198 88% 55%;
-    --hero-cta-from-dark: 152 72% 55%;
-    --hero-cta-via-dark: 160 84% 44%;
-    --hero-cta-to-dark: 199 89% 56%;
-    --hero-cta-foreground: hsl(215 30% 18%);
-    --hero-cta-foreground-dark: hsl(210 40% 98%);
-    --hero-cta-shadow: 0 30px 70px -40px rgba(34, 197, 94, 0.4);
-    --hero-cta-shadow-dark: 0 30px 70px -40px rgba(45, 212, 191, 0.9);
-    --hero-outline-border: hsl(var(--border) / 0.4);
-    --hero-outline-border-dark: hsl(var(--border) / 0.5);
-    --hero-outline-bg: hsl(var(--background) / 0.85);
-    --hero-outline-bg-dark: hsl(var(--foreground) / 0.12);
-    --hero-outline-bg-hover: hsl(var(--background) / 0.9);
-    --hero-outline-bg-hover-dark: hsl(var(--foreground) / 0.16);
-    --hero-outline-foreground: hsl(var(--foreground));
-    --hero-outline-foreground-dark: hsl(var(--foreground));
-    --hero-console-border: hsl(var(--border) / 0.35);
-    --hero-console-border-dark: hsl(var(--border) / 0.4);
-    --hero-console-bg: hsl(var(--card) / 0.65);
-    --hero-console-bg-dark: hsl(var(--card) / 0.1);
-    --hero-console-overlay: radial-gradient(circle at top, rgba(34, 197, 94, 0.18), transparent 60%);
-    --hero-console-overlay-dark: radial-gradient(circle at top, rgba(16, 185, 129, 0.3), transparent 60%);
-    --hero-console-icon-bg: rgba(56, 189, 248, 0.18);
-    --hero-console-icon-bg-dark: rgba(16, 185, 129, 0.2);
-    --hero-console-icon-fg: rgba(14, 116, 144, 0.9);
-    --hero-console-icon-fg-dark: rgba(167, 243, 208, 0.95);
-    --hero-console-separator: hsl(var(--border) / 0.3);
-    --hero-console-separator-dark: hsl(var(--border) / 0.35);
-    --overview-panel-border: hsl(var(--border) / 0.35);
-    --overview-panel-bg: hsl(var(--card) / 0.85);
-    --overview-panel-overlay: radial-gradient(
-      circle at top left,
-      rgba(56, 189, 248, 0.3),
-      transparent 60%
-    ),
-      radial-gradient(
-        circle at bottom right,
-        rgba(16, 185, 129, 0.28),
-        transparent 55%
-      );
-    --overview-panel-glare: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.2),
-      transparent 60%
-    );
-    --overview-panel-shadow: 0 35px 70px -60px rgba(56, 189, 248, 0.35);
-    --overview-panel-foreground: hsl(var(--foreground));
-    --overview-panel-item-border: hsl(var(--border) / 0.22);
-    --overview-panel-item-bg: hsl(var(--card) / 0.7);
-    --overview-panel-item-shadow: 0 28px 60px -45px rgba(15, 23, 42, 0.22);
-    --overview-panel-muted: hsl(var(--muted-foreground));
-    --overview-panel-code: hsl(160 70% 35%);
-    --overview-panel-divider: hsl(var(--border) / 0.25);
-    --overview-message-overlay: radial-gradient(
-      circle at top,
-      rgba(56, 189, 248, 0.18),
-      transparent 65%
-    );
-    --overview-message-border: hsl(var(--border) / 0.28);
-    --overview-message-bg: hsl(var(--card) / 0.72);
-    --overview-message-shadow: 0 25px 65px -55px rgba(59, 130, 246, 0.45);
-    --overview-message-label: rgba(14, 165, 233, 0.75);
-    --overview-message-timestamp: hsl(var(--muted-foreground));
-    --overview-message-accent: rgba(34, 197, 94, 0.85);
-    --overview-message-glow: rgba(34, 197, 94, 0.18);
-    --overview-message-badge-bg: rgba(16, 185, 129, 0.18);
-    --overview-message-badge-fg: rgba(15, 23, 42, 0.88);
-    --overview-composer-border: hsl(var(--border) / 0.28);
-    --overview-composer-bg: hsl(var(--card) / 0.78);
-    --overview-composer-shadow: 0 20px 60px -30px rgba(34, 197, 94, 0.35);
-    --overview-composer-glow-primary: rgba(34, 197, 94, 0.25);
-    --overview-composer-glow-secondary: rgba(59, 130, 246, 0.18);
-    --overview-composer-input-border: hsl(var(--border) / 0.25);
-    --overview-composer-input-bg: hsl(var(--card) / 0.65);
-    --overview-composer-hint-active: rgba(16, 185, 129, 0.85);
-    --overview-composer-hint-disabled: hsl(var(--muted-foreground));
-    --overview-composer-cta-foreground: var(--hero-cta-foreground);
-    --overview-composer-cta-shadow: var(--hero-cta-shadow);
-    --overview-composer-cta-shine: rgba(255, 255, 255, 0.25);
-    --overview-stat-card-border: hsl(var(--border) / 0.18);
-    --overview-stat-card-bg: hsl(var(--card) / 0.75);
-    --overview-stat-card-shadow: 0 35px 70px -55px rgba(56, 189, 248, 0.45);
-    --overview-stat-card-overlay: radial-gradient(circle at top, rgba(74, 222, 128, 0.22), transparent 65%);
-    --overview-stat-icon-bg: rgba(15, 23, 42, 0.55);
-    --overview-stat-icon-fg: rgba(16, 185, 129, 0.88);
-    --overview-stat-value: hsl(var(--foreground));
-    --overview-stat-hint: hsl(var(--muted-foreground));
-  }
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --app-shell-overlay: circle_at_top, rgba(56, 189, 248, 0.2), transparent 60%;
-    --app-shell-overlay-dark: circle_at_top, rgba(56, 189, 248, 0.2), transparent 60%;
-    --app-shell-main-overlay: circle_at_top_right, rgba(59, 130, 246, 0.08), transparent 60%;
-    --app-shell-main-overlay-dark: circle_at_top_right, rgba(59, 130, 246, 0.08), transparent 60%;
-    --hero-surface-from: 222 47% 12%;
-    --hero-surface-via: 220 36% 18%;
-    --hero-surface-to: 222 47% 12%;
-    --hero-surface-shadow: 0 65px 120px -60px rgba(14, 116, 144, 0.6);
-    --hero-surface-overlay: radial-gradient(circle at top left, rgba(96, 165, 250, 0.28), transparent 55%), radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.28), transparent 50%);
-    --hero-surface-lens: conic-gradient(from 120deg at 50% 50%, rgba(59, 130, 246, 0.4) 0deg, transparent 140deg, rgba(74, 222, 128, 0.35) 240deg, transparent 360deg);
-    --hero-badge-bg: rgba(16, 185, 129, 0.2);
-    --hero-badge-fg: rgba(236, 253, 245, 0.92);
-    --hero-cta-from: 152 72% 55%;
-    --hero-cta-via: 160 84% 44%;
-    --hero-cta-to: 199 89% 56%;
-    --hero-cta-foreground: hsl(210 40% 98%);
-    --hero-cta-shadow: 0 30px 70px -40px rgba(45, 212, 191, 0.9);
-    --hero-outline-border: hsl(var(--border) / 0.5);
-    --hero-outline-bg: hsl(var(--foreground) / 0.12);
-    --hero-outline-bg-hover: hsl(var(--foreground) / 0.16);
-    --hero-outline-foreground: hsl(var(--foreground));
-    --hero-console-border: hsl(var(--border) / 0.4);
-    --hero-console-bg: hsl(var(--card) / 0.1);
-    --hero-console-overlay: radial-gradient(circle at top, rgba(16, 185, 129, 0.3), transparent 60%);
-    --hero-console-icon-bg: rgba(16, 185, 129, 0.2);
-    --hero-console-icon-fg: rgba(167, 243, 208, 0.95);
-    --hero-console-separator: hsl(var(--border) / 0.35);
-    --overview-panel-border: hsl(var(--border) / 0.45);
-    --overview-panel-bg: hsl(var(--card) / 0.18);
-    --overview-panel-overlay: radial-gradient(
-      circle at top left,
-      rgba(56, 189, 248, 0.32),
-      transparent 60%
-    ),
-      radial-gradient(
-        circle at bottom right,
-        rgba(16, 185, 129, 0.32),
-        transparent 55%
-      );
-    --overview-panel-glare: linear-gradient(
-      135deg,
-      rgba(148, 163, 184, 0.18),
-      transparent 65%
-    );
-    --overview-panel-shadow: 0 35px 70px -60px rgba(14, 116, 144, 0.58);
-    --overview-panel-foreground: hsl(var(--foreground));
-    --overview-panel-item-border: hsl(var(--border) / 0.35);
-    --overview-panel-item-bg: hsl(var(--card) / 0.24);
-    --overview-panel-item-shadow: 0 28px 60px -45px rgba(15, 118, 110, 0.45);
-    --overview-panel-muted: rgba(226, 232, 240, 0.8);
-    --overview-panel-code: rgba(134, 239, 172, 0.88);
-    --overview-panel-divider: hsl(var(--border) / 0.4);
-    --overview-message-overlay: radial-gradient(
-      circle at top,
-      rgba(56, 189, 248, 0.24),
-      transparent 65%
-    );
-    --overview-message-border: hsl(var(--border) / 0.38);
-    --overview-message-bg: hsl(var(--card) / 0.26);
-    --overview-message-shadow: 0 25px 65px -55px rgba(37, 99, 235, 0.55);
-    --overview-message-label: rgba(167, 243, 208, 0.75);
-    --overview-message-timestamp: rgba(191, 219, 254, 0.75);
-    --overview-message-accent: rgba(16, 185, 129, 0.9);
-    --overview-message-glow: rgba(34, 197, 94, 0.22);
-    --overview-message-badge-bg: rgba(34, 197, 94, 0.22);
-    --overview-message-badge-fg: rgba(240, 253, 244, 0.92);
-    --overview-composer-border: hsl(var(--border) / 0.4);
-    --overview-composer-bg: hsl(var(--card) / 0.2);
-    --overview-composer-shadow: 0 20px 60px -30px rgba(45, 212, 191, 0.45);
-    --overview-composer-glow-primary: rgba(34, 197, 94, 0.3);
-    --overview-composer-glow-secondary: rgba(59, 130, 246, 0.25);
-    --overview-composer-input-border: hsl(var(--border) / 0.35);
-    --overview-composer-input-bg: hsl(var(--card) / 0.26);
-    --overview-composer-hint-active: rgba(167, 243, 208, 0.85);
-    --overview-composer-hint-disabled: rgba(191, 219, 254, 0.75);
-    --overview-composer-cta-foreground: var(--hero-cta-foreground);
-    --overview-composer-cta-shadow: var(--hero-cta-shadow);
-    --overview-composer-cta-shine: rgba(148, 163, 184, 0.3);
-    --overview-stat-card-border: hsl(var(--border) / 0.42);
-    --overview-stat-card-bg: hsl(var(--card) / 0.22);
-    --overview-stat-card-shadow: 0 35px 70px -55px rgba(14, 116, 144, 0.65);
-    --overview-stat-card-overlay: radial-gradient(circle at top, rgba(56, 189, 248, 0.28), transparent 68%);
-    --overview-stat-icon-bg: rgba(15, 118, 110, 0.42);
-    --overview-stat-icon-fg: rgba(134, 239, 172, 0.95);
-    --overview-stat-value: hsl(var(--foreground));
-    --overview-stat-hint: rgba(226, 232, 240, 0.75);
-  }
   .theme {
     --animate-aurora: aurora 8s ease-in-out infinite alternate;
     --animate-gradient: gradient 8s linear infinite;
     --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite alternate;
     --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
-  }
-
-  :root[data-theme="aurora"] {
-    --color-accent: 28 96% 54%;
-    --hero-surface-from: 32 100% 97%;
-    --hero-surface-via: 45 96% 95%;
-    --hero-surface-to: 48 94% 92%;
-    --hero-surface-shadow: 0 65px 120px -60px rgba(249, 115, 22, 0.28);
-    --hero-surface-overlay: radial-gradient(
-        circle at top left,
-        rgba(249, 115, 22, 0.24),
-        transparent 55%
-      ),
-      radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.22), transparent 50%);
-    --hero-surface-overlay-dark: radial-gradient(
-        circle at top left,
-        rgba(249, 115, 22, 0.28),
-        transparent 55%
-      ),
-      radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.24), transparent 50%);
-    --hero-surface-lens: conic-gradient(
-      from 100deg at 50% 50%,
-      rgba(249, 115, 22, 0.2) 0deg,
-      transparent 140deg,
-      rgba(56, 189, 248, 0.18) 240deg,
-      transparent 360deg
-    );
-    --hero-cta-from: 18 92% 60%;
-    --hero-cta-via: 40 93% 60%;
-    --hero-cta-to: 156 68% 52%;
-    --hero-cta-shadow: 0 30px 70px -40px rgba(249, 115, 22, 0.45);
-    --hero-cta-foreground: hsl(26 64% 20%);
-    --hero-badge-bg: rgba(251, 191, 36, 0.22);
-    --hero-badge-fg: rgba(102, 51, 0, 0.82);
-    --hero-badge-bg-dark: rgba(251, 191, 36, 0.28);
-    --hero-badge-fg-dark: rgba(32, 18, 3, 0.9);
-    --hero-console-overlay: radial-gradient(
-      circle at top,
-      rgba(251, 191, 36, 0.24),
-      transparent 60%
-    );
-    --hero-console-overlay-dark: radial-gradient(
-      circle at top,
-      rgba(251, 191, 36, 0.3),
-      transparent 60%
-    );
-    --hero-console-icon-bg: rgba(253, 186, 116, 0.22);
-    --hero-console-icon-bg-dark: rgba(253, 186, 116, 0.28);
-    --hero-console-icon-fg: rgba(120, 53, 15, 0.88);
-    --hero-console-icon-fg-dark: rgba(253, 230, 138, 0.94);
-    --app-shell-overlay: circle_at_top, rgba(253, 230, 138, 0.16), transparent 60%;
-    --app-shell-main-overlay: circle_at_top_right, rgba(251, 191, 36, 0.14), transparent 65%;
-    --overview-panel-border: hsla(40, 86%, 70%, 0.45);
-    --overview-panel-bg: hsla(42, 94%, 92%, 0.85);
-    --overview-panel-overlay: radial-gradient(
-      circle at top left,
-      rgba(249, 115, 22, 0.24),
-      transparent 60%
-    ),
-      radial-gradient(
-        circle at bottom right,
-        rgba(16, 185, 129, 0.22),
-        transparent 55%
-      );
-    --overview-panel-glare: linear-gradient(
-      135deg,
-      rgba(253, 244, 215, 0.35),
-      transparent 60%
-    );
-    --overview-panel-foreground: rgba(82, 47, 7, 0.92);
-    --overview-panel-shadow: 0 35px 70px -60px rgba(249, 115, 22, 0.32);
-    --overview-panel-item-border: hsla(35, 80%, 72%, 0.45);
-    --overview-panel-item-bg: hsla(48, 94%, 90%, 0.78);
-    --overview-panel-item-shadow: 0 28px 60px -45px rgba(249, 115, 22, 0.28);
-    --overview-panel-muted: rgba(120, 53, 15, 0.78);
-    --overview-panel-code: rgba(250, 204, 21, 0.92);
-    --overview-panel-divider: hsla(35, 78%, 72%, 0.5);
-    --overview-message-overlay: radial-gradient(
-      circle at top,
-      rgba(253, 186, 116, 0.26),
-      transparent 65%
-    );
-    --overview-message-border: hsla(35, 80%, 72%, 0.45);
-    --overview-message-bg: hsla(48, 94%, 90%, 0.82);
-    --overview-message-shadow: 0 25px 65px -55px rgba(249, 115, 22, 0.35);
-    --overview-message-label: rgba(234, 88, 12, 0.7);
-    --overview-message-timestamp: rgba(120, 53, 15, 0.7);
-    --overview-message-accent: rgba(251, 191, 36, 0.85);
-    --overview-message-glow: rgba(251, 191, 36, 0.2);
-    --overview-message-badge-bg: rgba(253, 186, 116, 0.24);
-    --overview-message-badge-fg: rgba(88, 28, 0, 0.85);
-    --overview-composer-border: hsla(35, 80%, 72%, 0.5);
-    --overview-composer-bg: hsla(48, 96%, 92%, 0.88);
-    --overview-composer-shadow: 0 20px 60px -30px rgba(249, 115, 22, 0.35);
-    --overview-composer-glow-primary: rgba(253, 186, 116, 0.3);
-    --overview-composer-glow-secondary: rgba(249, 115, 22, 0.2);
-    --overview-composer-input-border: hsla(35, 78%, 72%, 0.55);
-    --overview-composer-input-bg: hsla(45, 96%, 92%, 0.8);
-    --overview-composer-hint-active: rgba(201, 100, 32, 0.85);
-    --overview-composer-hint-disabled: rgba(120, 53, 15, 0.7);
-    --overview-composer-cta-foreground: rgba(82, 47, 7, 0.9);
-    --overview-composer-cta-shadow: 0 20px 60px -30px rgba(249, 115, 22, 0.4);
-    --overview-composer-cta-shine: rgba(253, 244, 215, 0.35);
-    --overview-stat-card-shadow: 0 35px 70px -55px rgba(249, 115, 22, 0.45);
-    --overview-stat-card-overlay: radial-gradient(circle at top, rgba(253, 186, 116, 0.26), transparent 65%);
-    --overview-stat-icon-bg: rgba(253, 186, 116, 0.26);
-    --overview-stat-icon-fg: rgba(250, 204, 21, 0.9);
-    --overview-stat-hint: rgba(120, 53, 15, 0.75);
-  }
-
-  :root[data-theme="midnight"] {
-    --color-accent: 260 92% 66%;
-    --hero-surface-from-dark: 252 64% 14%;
-    --hero-surface-via-dark: 245 55% 12%;
-    --hero-surface-to-dark: 262 58% 18%;
-    --hero-surface-shadow-dark: 0 65px 120px -60px rgba(76, 29, 149, 0.65);
-    --hero-surface-overlay-dark: radial-gradient(
-        circle at top left,
-        rgba(129, 140, 248, 0.32),
-        transparent 55%
-      ),
-      radial-gradient(circle at bottom right, rgba(165, 180, 252, 0.28), transparent 50%);
-    --hero-surface-lens-dark: conic-gradient(
-      from 120deg at 50% 50%,
-      rgba(129, 140, 248, 0.4) 0deg,
-      transparent 140deg,
-      rgba(76, 29, 149, 0.35) 240deg,
-      transparent 360deg
-    );
-    --hero-cta-from-dark: 248 95% 66%;
-    --hero-cta-via-dark: 280 84% 64%;
-    --hero-cta-to-dark: 210 82% 64%;
-    --hero-cta-shadow-dark: 0 30px 70px -40px rgba(59, 130, 246, 0.7);
-    --hero-badge-bg-dark: rgba(129, 140, 248, 0.3);
-    --hero-badge-fg-dark: rgba(224, 231, 255, 0.94);
-    --hero-console-overlay-dark: radial-gradient(
-      circle at top,
-      rgba(129, 140, 248, 0.3),
-      transparent 60%
-    );
-    --hero-console-icon-bg-dark: rgba(129, 140, 248, 0.32);
-    --hero-console-icon-fg-dark: rgba(224, 231, 255, 0.96);
-    --app-shell-overlay-dark: circle_at_top, rgba(91, 33, 182, 0.28), transparent 60%;
-    --app-shell-main-overlay-dark: circle_at_top_right, rgba(59, 130, 246, 0.14), transparent 60%;
-    --overview-panel-shadow: 0 35px 70px -60px rgba(76, 29, 149, 0.55);
-    --overview-panel-overlay: radial-gradient(
-      circle at top left,
-      rgba(129, 140, 248, 0.32),
-      transparent 60%
-    ),
-      radial-gradient(
-        circle at bottom right,
-        rgba(76, 29, 149, 0.28),
-        transparent 55%
-      );
-    --overview-panel-glare: linear-gradient(
-      135deg,
-      rgba(224, 231, 255, 0.22),
-      transparent 65%
-    );
-    --overview-panel-foreground: rgba(224, 231, 255, 0.94);
-    --overview-panel-item-shadow: 0 28px 60px -45px rgba(129, 140, 248, 0.32);
-    --overview-panel-muted: rgba(196, 181, 253, 0.85);
-    --overview-panel-code: rgba(165, 180, 252, 0.92);
-    --overview-panel-divider: hsla(230, 65%, 70%, 0.5);
-    --overview-stat-card-shadow: 0 35px 70px -55px rgba(91, 33, 182, 0.55);
-    --overview-stat-card-overlay: radial-gradient(circle at top, rgba(129, 140, 248, 0.32), transparent 65%);
-    --overview-stat-icon-bg: rgba(129, 140, 248, 0.38);
-    --overview-stat-icon-fg: rgba(224, 231, 255, 0.96);
-    --overview-stat-hint: rgba(196, 181, 253, 0.82);
-    --overview-message-overlay: radial-gradient(
-      circle at top,
-      rgba(129, 140, 248, 0.32),
-      transparent 65%
-    );
-    --overview-message-border: hsla(240, 67%, 72%, 0.35);
-    --overview-message-bg: hsla(249, 65%, 20%, 0.6);
-    --overview-message-shadow: 0 25px 65px -55px rgba(91, 33, 182, 0.45);
-    --overview-message-label: rgba(196, 181, 253, 0.8);
-    --overview-message-timestamp: rgba(165, 180, 252, 0.75);
-    --overview-message-accent: rgba(129, 140, 248, 0.9);
-    --overview-message-glow: rgba(129, 140, 248, 0.25);
-    --overview-message-badge-bg: rgba(129, 140, 248, 0.24);
-    --overview-message-badge-fg: rgba(224, 231, 255, 0.92);
-    --overview-composer-border: hsla(240, 60%, 68%, 0.4);
-    --overview-composer-bg: hsla(249, 60%, 18%, 0.6);
-    --overview-composer-shadow: 0 20px 60px -30px rgba(91, 33, 182, 0.45);
-    --overview-composer-glow-primary: rgba(129, 140, 248, 0.32);
-    --overview-composer-glow-secondary: rgba(59, 130, 246, 0.25);
-    --overview-composer-input-border: hsla(240, 65%, 70%, 0.5);
-    --overview-composer-input-bg: hsla(249, 58%, 22%, 0.65);
-    --overview-composer-hint-active: rgba(196, 181, 253, 0.85);
-    --overview-composer-hint-disabled: rgba(165, 180, 252, 0.75);
-    --overview-composer-cta-foreground: rgba(224, 231, 255, 0.95);
-    --overview-composer-cta-shadow: 0 20px 60px -30px rgba(91, 33, 182, 0.5);
-    --overview-composer-cta-shine: rgba(129, 140, 248, 0.35);
   }
 }
 
@@ -575,9 +134,10 @@ a:focus-visible {
   }
 }
 
-::view-transition-old(root), ::view-transition-new(root) {
-    animation: none;
-    mix-blend-mode: normal;
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
 }
 
 @theme inline {
@@ -604,7 +164,8 @@ a:focus-visible {
     }
   }
   @keyframes aurora-pulse {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 0.35;
       filter: blur(0px);
       transform: scale(0.9) translate3d(0, 0, 0);
@@ -621,27 +182,29 @@ a:focus-visible {
     }
   }
   @keyframes gradient {
-  to {
-    background-position: var(--bg-size, 300%) 0;
+    to {
+      background-position: var(--bg-size, 300%) 0;
     }
   }
   @keyframes shimmer-slide {
-  to {
-    transform: translate(calc(100cqw - 100%), 0);
+    to {
+      transform: translate(calc(100cqw - 100%), 0);
     }
   }
   @keyframes spin-around {
-  0% {
-    transform: translateZ(0) rotate(0);
+    0% {
+      transform: translateZ(0) rotate(0);
     }
-  15%, 35% {
-    transform: translateZ(0) rotate(90deg);
+    15%,
+    35% {
+      transform: translateZ(0) rotate(90deg);
     }
-  65%, 85% {
-    transform: translateZ(0) rotate(270deg);
+    65%,
+    85% {
+      transform: translateZ(0) rotate(270deg);
     }
-  100% {
-    transform: translateZ(0) rotate(360deg);
+    100% {
+      transform: translateZ(0) rotate(360deg);
     }
   }
 }
