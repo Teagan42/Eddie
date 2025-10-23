@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761197807030,
+  "lastUpdate": 1761208246127,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -1550,6 +1550,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 24.415,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2e1702c492235b1ba43d8affdd1003b352ffe9fe",
+          "message": "Add EddieThemeProvider theming support and tests (#747)\n\n* refactor(theme): partition theme css blocks\n\n* Fix state\n\n* use testid\n\n* Dump the screen\n\n* change to a div\n\n* Add shared Eddie theme provider and expose theme tokens (#749)\n\n* refactor(theme): memoize derived Radix props\n\n* fix: restore dark theme tokens\n\n* find by text\n\n* matching function\n\n* log screen on error\n\n* expand try/catch\n\n* expand the context bundles\n\n* expand again\n\n* fix testid\n\n* findbytext\n\n* find all by text\n\n* debug test",
+          "timestamp": "2025-10-23T02:19:54-06:00",
+          "tree_id": "6cca77dbe310f2676254da89306b0dd1e3b1b047",
+          "url": "https://github.com/Teagan42/Eddie/commit/2e1702c492235b1ba43d8affdd1003b352ffe9fe"
+        },
+        "date": 1761208245661,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 48.939,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 33.332,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.561,
             "unit": "ms",
             "extra": "[object Object]"
           }
