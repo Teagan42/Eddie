@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761219884520,
+  "lastUpdate": 1761225949254,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -1802,6 +1802,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 23.356,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "82db8de6d86747069dac389877c72de6212cbace",
+          "message": "feat: add mem0 runtime memory service (#757)\n\n* refactor(memory): tighten service typings\n\n* fix(memory): redact vector store api key from metadata\n\n* refactor(memory): align nest module naming conventions (#758)\n\n* fix(memory): export module class and redact api key\n\n* fix(memory): protect base metadata from overrides",
+          "timestamp": "2025-10-23T07:14:42-06:00",
+          "tree_id": "8ca50dd0f3b6c48af8badd2cc0a3f6a27b764a4e",
+          "url": "https://github.com/Teagan42/Eddie/commit/82db8de6d86747069dac389877c72de6212cbace"
+        },
+        "date": 1761225948816,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 48.67,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 35.253,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 24.37,
             "unit": "ms",
             "extra": "[object Object]"
           }
