@@ -44,6 +44,7 @@ import {
   ExecutionTreeTrackerFactory,
   type ExecutionTreeTrackerFactoryFn,
 } from "../execution-tree/execution-tree-tracker.factory";
+import type { AgentMemoryRuntime } from "./memory.types";
 export type {
   TranscriptCompactionPlan,
   TranscriptCompactionResult,
@@ -74,6 +75,8 @@ export interface AgentRuntimeOptions {
     metrics: MetricsService;
     executionTreeTracker?: ExecutionTreeStateTracker;
     executionTreeTrackerFactory?: ExecutionTreeTrackerFactoryLike;
+    memory?: AgentMemoryRuntime;
+    contextMaxBytes?: number;
 }
 
 export interface AgentRunRequest extends AgentInvocationOptions {
@@ -122,6 +125,7 @@ export class AgentOrchestratorService {
         history: request.history,
         promptRole: request.promptRole,
       },
+      runtime,
       request.parent
     );
 
@@ -157,6 +161,7 @@ export class AgentOrchestratorService {
     const invocation = await this.agentInvocationFactory.create(
       definition,
       options,
+      runtime,
       parent
     );
 
