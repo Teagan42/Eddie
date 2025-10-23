@@ -1,5 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import { AgentStreamEvent, HOOK_EVENTS, type StreamEvent } from "@eddie/types";
+import {
+  AgentStreamEvent,
+  HOOK_EVENTS,
+  normalizeHookStopMessages,
+  type StreamEvent,
+} from "@eddie/types";
+import { isHookStopEnqueueResponse } from "@eddie/hooks";
 
 import type { AgentIterationPayload, AgentRunnerOptions } from "../agent-runner";
 import type { SerializeErrorFn } from "./types";
@@ -204,10 +210,28 @@ export class AgentRunLoop {
               metrics.countMessage("assistant");
             }
 
-            await hooks.emitAsync(HOOK_EVENTS.stop, {
+            const stopDispatch = await dispatchHookOrThrow(HOOK_EVENTS.stop, {
               ...iterationPayload,
               messages: invocation.messages,
             });
+
+            for (const result of stopDispatch.results ?? []) {
+              if (!isHookStopEnqueueResponse(result)) {
+                continue;
+              }
+
+              const normalized = normalizeHookStopMessages(result.enqueue);
+              if (normalized.length === 0) {
+                continue;
+              }
+
+              for (const message of normalized) {
+                invocation.messages.push(message);
+                metrics.countMessage(message.role);
+              }
+
+              continueConversation = true;
+            }
             await this.traceWriter.write({
               writeTrace,
               event: {

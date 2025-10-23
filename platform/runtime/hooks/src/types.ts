@@ -1,4 +1,8 @@
-import { HookBlockResponse, SpawnSubagentOverride } from '@eddie/types';
+import {
+  HookBlockResponse,
+  HookStopEnqueueResponse,
+  SpawnSubagentOverride,
+} from '@eddie/types';
 
 export function isSpawnSubagentOverride(
   value: unknown
@@ -27,4 +31,30 @@ export function isHookBlockResponse(value: unknown): value is HookBlockResponse 
     "blocked" in value &&
     (value as Record<string, unknown>).blocked === true
   );
+}
+
+export function isHookStopEnqueueResponse(
+  value: unknown
+): value is HookStopEnqueueResponse {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  if (candidate.continue !== true) {
+    return false;
+  }
+
+  if (!Array.isArray(candidate.enqueue)) {
+    return false;
+  }
+
+  return candidate.enqueue.every((message) => {
+    if (typeof message !== "object" || message === null) {
+      return false;
+    }
+
+    const record = message as Record<string, unknown>;
+    return typeof record.role === "string" && typeof record.content === "string";
+  });
 }
