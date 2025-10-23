@@ -303,8 +303,11 @@ describe("AgentExecutionTree", () => {
       });
 
       await user.click(detailsButton);
-      screen.debug(document.body, Infinity, { maxDepth: Infinity }); // no truncation
-      const dialog = await waitFor(() => screen.getByTestId("tool-invocation-details"), { timeout: 10_000 });
+
+      const dialog = await waitFor(() => screen.findByRole(
+        "div",
+        { name: /tool invocation details/i },
+      ), { timeout: 10_000 });
       expect(dialog).toBeInTheDocument();
       expect(within(dialog).getByText(/Research briefing/)).toBeInTheDocument();
     },
