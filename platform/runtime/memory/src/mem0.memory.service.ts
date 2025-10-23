@@ -102,6 +102,7 @@ export class Mem0MemoryService {
     }
 
     const vectorStore = this.vectorStore?.describe();
+    const vectorStoreMetadata = this.sanitizeVectorStoreMetadata(vectorStore);
     const context: FacetExtractionContext = {
       agentId: options.agentId,
       sessionId: options.sessionId,
@@ -112,7 +113,11 @@ export class Mem0MemoryService {
     const rawFacets = this.facetExtractor?.extract(options.memories, context);
     const facets = this.normalizeFacets(rawFacets);
 
-    const baseMetadata = this.buildBaseMetadata(options, vectorStore, facets);
+    const baseMetadata = this.buildBaseMetadata(
+      options,
+      vectorStoreMetadata,
+      facets,
+    );
 
     const memories: Mem0MemoryMessage[] = options.memories.map((memory) => ({
       role: memory.role,
@@ -138,7 +143,7 @@ export class Mem0MemoryService {
 
   private buildBaseMetadata(
     options: PersistAgentMemoriesOptions,
-    vectorStore?: QdrantVectorStoreMetadata,
+    vectorStore?: Record<string, unknown>,
     facets?: Record<string, unknown>,
   ): Record<string, unknown> {
     const metadata: Record<string, unknown> = {
@@ -162,6 +167,17 @@ export class Mem0MemoryService {
     }
 
     return metadata;
+  }
+
+  private sanitizeVectorStoreMetadata(
+    vectorStore?: QdrantVectorStoreMetadata,
+  ): Record<string, unknown> | undefined {
+    if (!vectorStore) {
+      return undefined;
+    }
+
+    const { apiKey, ...rest } = vectorStore;
+    return rest;
   }
 
   private normalizeFacets(

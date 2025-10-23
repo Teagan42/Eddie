@@ -94,10 +94,11 @@ describe("Mem0MemoryService", () => {
       vectorStore: {
         type: "qdrant",
         url: "https://qdrant.example",
-        apiKey: "vector-key",
         collection: "agent-memories",
       },
     });
+
+    expect(payload?.metadata?.vectorStore).not.toHaveProperty("apiKey");
 
     expect(payload?.memories).toEqual([
       {
@@ -112,7 +113,6 @@ describe("Mem0MemoryService", () => {
           vectorStore: {
             type: "qdrant",
             url: "https://qdrant.example",
-            apiKey: "vector-key",
             collection: "agent-memories",
           },
           mood: "curious",
@@ -130,12 +130,15 @@ describe("Mem0MemoryService", () => {
           vectorStore: {
             type: "qdrant",
             url: "https://qdrant.example",
-            apiKey: "vector-key",
             collection: "agent-memories",
           },
         },
       },
     ]);
+
+    for (const memory of payload?.memories ?? []) {
+      expect(memory.metadata?.vectorStore).not.toHaveProperty("apiKey");
+    }
 
     expect(facetExtractor.extract).toHaveBeenCalledWith(
       [
