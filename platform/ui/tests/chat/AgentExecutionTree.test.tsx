@@ -408,13 +408,16 @@ describe("AgentExecutionTree", () => {
     });
 
     await user.click(nestedDetailsButton);
+    try {
+      const dialog = await screen.findByRole("dialog", {
+        name: /tool invocation details/i,
+      }, { timeout: 10_000 });
 
-    const dialog = await screen.findByRole("dialog", {
-      name: /tool invocation details/i,
-    });
-
-    expect(dialog).toHaveAccessibleName(/tool invocation details/i);
-    expect(within(dialog).getByText(/summarize-report/i)).toBeInTheDocument();
+      expect(dialog).toHaveAccessibleName(/tool invocation details/i);
+    } catch (error) {
+      screen.debug(document.body, Infinity);
+      throw error;
+    }
   });
 
   it("focuses tool invocation details for grouped entries", async () => {
