@@ -5,9 +5,12 @@ import { describe, expect, it } from "vitest";
 import {
   AgentExecutionTree,
   createExecutionTreeStateFromMetadata,
-  type ExecutionContextBundle,
-  type ExecutionTreeState,
 } from "../../src/chat";
+import type {
+  ExecutionContextBundle,
+  ExecutionTreeState,
+} from "@eddie/types";
+import { OrchestratorAgentMetadataDto } from '@eddie/api-client';
 
 const setupUser = () => userEvent.setup({ pointerEventsCheck: 0 });
 
@@ -278,7 +281,7 @@ describe("AgentExecutionTree", () => {
 
       render(
         <AgentExecutionTree
-          state={createExecutionTreeStateFromMetadata({ executionTree } as unknown)}
+          state={executionTree}
           selectedAgentId={null}
           onSelectAgent={() => { }}
         />,
