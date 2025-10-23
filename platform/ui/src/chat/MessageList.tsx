@@ -6,6 +6,7 @@ import type {
 } from 'react';
 import { Badge, Box, Flex, IconButton, ScrollArea, Text, Tooltip } from '@radix-ui/themes';
 import {
+  CodeIcon,
   CubeIcon,
   GearIcon,
   MagicWandIcon,
@@ -36,6 +37,8 @@ type MessageRoleStyle = {
   contentClassName?: string;
 };
 
+const DEFAULT_MESSAGE_CONTENT_CLASS = 'leading-relaxed text-white/95';
+
 const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
   user: {
     label: 'User',
@@ -45,7 +48,7 @@ const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
       'border border-emerald-400/30 bg-gradient-to-br from-emerald-500/25 via-emerald-500/5 to-slate-950/70 text-emerald-50 shadow-[0_30px_60px_-35px_rgba(16,185,129,0.7)]',
     icon: PersonIcon,
     iconClassName: 'text-emerald-200',
-    contentClassName: 'leading-relaxed text-white/95',
+    contentClassName: DEFAULT_MESSAGE_CONTENT_CLASS,
   },
   assistant: {
     label: 'Assistant',
@@ -55,7 +58,7 @@ const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
       'border border-sky-400/30 bg-gradient-to-br from-sky-500/25 via-sky-500/5 to-slate-950/70 text-sky-50 shadow-[0_30px_60px_-35px_rgba(56,189,248,0.6)]',
     icon: MagicWandIcon,
     iconClassName: 'text-sky-200',
-    contentClassName: 'leading-relaxed text-white/95',
+    contentClassName: DEFAULT_MESSAGE_CONTENT_CLASS,
   },
   system: {
     label: 'Command',
@@ -67,6 +70,16 @@ const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
     iconClassName: 'text-amber-200',
     contentClassName: 'text-sm font-mono text-amber-50',
   },
+  developer: {
+    label: 'Developer',
+    badgeColor: 'violet',
+    align: 'end',
+    cardClassName:
+      'border border-violet-400/30 bg-gradient-to-br from-violet-500/25 via-violet-500/5 to-slate-950/70 text-violet-50 shadow-[0_30px_60px_-35px_rgba(139,92,246,0.6)]',
+    icon: CodeIcon,
+    iconClassName: 'text-violet-200',
+    contentClassName: DEFAULT_MESSAGE_CONTENT_CLASS,
+  },
   tool: {
     label: 'Agent',
     badgeColor: 'amber',
@@ -75,7 +88,7 @@ const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
       'border border-fuchsia-400/30 bg-gradient-to-br from-fuchsia-500/25 via-fuchsia-500/5 to-slate-950/70 text-fuchsia-50 shadow-[0_30px_60px_-35px_rgba(217,70,239,0.55)]',
     icon: CubeIcon,
     iconClassName: 'text-fuchsia-200',
-    contentClassName: 'leading-relaxed text-white/95',
+    contentClassName: DEFAULT_MESSAGE_CONTENT_CLASS,
   },
 };
 

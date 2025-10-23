@@ -98,6 +98,8 @@ vi.mock("@/api/api-provider", () => ({
   }),
 }));
 
+const COMPOSER_PLACEHOLDER = "Send a message to the orchestrator";
+
 const renderChatPage = createChatPageRenderer(
   () =>
     new QueryClient({
@@ -159,9 +161,7 @@ describe("ChatPage composer interactions", () => {
     const user = userEvent.setup();
     renderChatPage();
 
-    const composer = await screen.findByPlaceholderText(
-      "Send a message to the orchestrator",
-    );
+    const composer = await screen.findByPlaceholderText(COMPOSER_PLACEHOLDER);
     await user.type(composer, "Hello world");
 
     await user.keyboard("{Alt>}{Enter}{/Alt}");
@@ -170,6 +170,27 @@ describe("ChatPage composer interactions", () => {
     expect(createMessageMock).toHaveBeenCalledWith("session-1", {
       role: "user",
       content: "Hello world",
+    });
+  });
+
+  it("sends developer role messages when selected", async () => {
+    const user = userEvent.setup();
+    renderChatPage();
+
+    await screen.findByPlaceholderText(COMPOSER_PLACEHOLDER);
+
+    const roleControl = screen.getByRole("combobox", { name: "Message role" });
+    await user.click(roleControl);
+    await user.click(screen.getByRole("option", { name: "Developer" }));
+
+    const composer = screen.getByPlaceholderText(COMPOSER_PLACEHOLDER);
+    await user.type(composer, "Refine the plan");
+    await user.click(screen.getByRole("button", { name: /^send$/i }));
+
+    await waitFor(() => expect(createMessageMock).toHaveBeenCalledTimes(1));
+    expect(createMessageMock).toHaveBeenCalledWith("session-1", {
+      role: "developer",
+      content: "Refine the plan",
     });
   });
 

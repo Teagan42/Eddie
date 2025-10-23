@@ -53,11 +53,14 @@ implements IEventHandler<ChatMessageCreatedEvent> {
     await this.executeEngine(message, messages);
   }
 
+  private static readonly ENGINE_TRIGGER_ROLES = new Set<ChatMessageRole>([
+    ChatMessageRole.User,
+    ChatMessageRole.System,
+    ChatMessageRole.Developer,
+  ]);
+
   private shouldInvokeEngine(message: ChatMessageDto): boolean {
-    return (
-      message.role === ChatMessageRole.User ||
-      message.role === ChatMessageRole.System
-    );
+    return ChatSessionsEngineListener.ENGINE_TRIGGER_ROLES.has(message.role);
   }
 
   private async executeEngine(
@@ -330,6 +333,8 @@ implements IEventHandler<ChatMessageCreatedEvent> {
         return ChatMessageRole.Assistant;
       case "system":
         return ChatMessageRole.System;
+      case "developer":
+        return ChatMessageRole.Developer;
       case "tool":
         return ChatMessageRole.Tool;
       case "user":

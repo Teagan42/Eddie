@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { Theme } from "@radix-ui/themes";
 
 import { ChatWindow, type ChatWindowProps } from "../../src/chat";
 
@@ -71,9 +72,11 @@ describe("ChatWindow", () => {
     };
 
     return render(
-      <TooltipProvider>
-        <ChatWindow {...defaultProps} {...props} />
-      </TooltipProvider>,
+      <Theme>
+        <TooltipProvider>
+          <ChatWindow {...defaultProps} {...props} />
+        </TooltipProvider>
+      </Theme>,
     );
   }
 
@@ -261,7 +264,7 @@ describe("ChatWindow", () => {
     expect(handleInspectTool).toHaveBeenCalledWith("meta-tool-id");
   });
 
-  it("renders the agent activity indicator and segmented role control", async () => {
+  it("renders the agent activity indicator and role dropdown", async () => {
     const user = userEvent.setup();
     const handleRoleChange = vi.fn();
 
@@ -273,13 +276,30 @@ describe("ChatWindow", () => {
     expect(
       screen.getByRole("status", { name: "Dispatching message…" }),
     ).toBeInTheDocument();
-    const askOption = screen.getByRole("radio", { name: "Ask" });
-    const runOption = screen.getByRole("radio", { name: "Run" });
-    expect(askOption).toBeChecked();
+    const roleControl = screen.getByRole("combobox", { name: "Message role" });
+    expect(roleControl).toHaveTextContent("User");
 
-    await user.click(runOption);
+    await user.click(roleControl);
+    await user.click(screen.getByRole("option", { name: "Developer" }));
 
-    expect(handleRoleChange).toHaveBeenCalledWith("system");
+    expect(handleRoleChange).toHaveBeenCalledWith("developer");
+  });
+
+  it("renders developer-authored messages with distinct styling", () => {
+    const developerMessage = createMessage({
+      id: "message-developer",
+      role: "developer",
+      content: "Refine the execution plan",
+    });
+
+    renderChatWindow({ messages: [developerMessage] });
+
+    const logRegion = screen.getByRole("log");
+    const developerBadges = within(logRegion).getAllByText("Developer");
+    expect(developerBadges.length).toBeGreaterThan(0);
+    expect(
+      within(logRegion).getByText("Refine the execution plan"),
+    ).toBeInTheDocument();
   });
 
   it("forwards composer interactions to the provided handlers", async () => {

@@ -22,6 +22,7 @@ export namespace CreateChatMessageDto {
         USER = 'user',
         ASSISTANT = 'assistant',
         SYSTEM = 'system',
+        DEVELOPER = 'developer',
         TOOL = 'tool',
     }
 }

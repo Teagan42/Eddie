@@ -235,6 +235,52 @@ describe("ChatSessionsEngineListener", () => {
     expect(saveAgentInvocations).toHaveBeenCalledWith("session-1", []);
   });
 
+  it("invokes the engine for developer-authored messages", async () => {
+    const developerMessage = createChatMessage({
+      id: "developer-message",
+      role: "developer" as ChatMessageRole,
+      content: "Adjust workflow",
+    });
+
+    listMessages.mockReturnValue([developerMessage]);
+
+    const engineResult: EngineResult = {
+      messages: [
+        { role: "system", content: "system" },
+        { role: "user", content: "Adjust workflow" },
+        { role: "assistant", content: "Updated plan" },
+      ],
+      context: { files: [], totalBytes: 0, text: "" },
+      agents: [],
+    };
+
+    engineRun.mockResolvedValue(engineResult);
+
+    capture.mockImplementation(async (_sessionId: string, handler: () => Promise<EngineResult>) => {
+      const result = await handler();
+      return {
+        result,
+        error: undefined,
+        state: {
+          sessionId: developerMessage.sessionId,
+          messageId: "assistant-1",
+          buffer: "Updated plan",
+        },
+      };
+    });
+
+    await listener.handle(
+      new ChatMessageCreatedEvent(developerMessage.sessionId, developerMessage.id)
+    );
+
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(engineRun).toHaveBeenCalledWith(
+      "Adjust workflow",
+      expect.objectContaining({ history: [] })
+    );
+  });
+
   it("captures agent runtime metadata in invocation snapshots", async () => {
     const message = createChatMessage();
     listMessages.mockReturnValue([message]);
