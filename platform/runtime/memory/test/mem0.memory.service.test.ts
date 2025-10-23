@@ -109,10 +109,10 @@ describe("Mem0MemoryService", () => {
       vectorStore: {
         type: "qdrant",
         url: "https://qdrant.example",
-        apiKey: "vector-key",
         collection: "agent-memories",
       },
     });
+    expect(payload?.metadata?.vectorStore).not.toHaveProperty("apiKey");
 
     expect(payload?.memories).toEqual([
       {
@@ -127,7 +127,6 @@ describe("Mem0MemoryService", () => {
           vectorStore: {
             type: "qdrant",
             url: "https://qdrant.example",
-            apiKey: "vector-key",
             collection: "agent-memories",
           },
           mood: "curious",
@@ -145,7 +144,6 @@ describe("Mem0MemoryService", () => {
           vectorStore: {
             type: "qdrant",
             url: "https://qdrant.example",
-            apiKey: "vector-key",
             collection: "agent-memories",
           },
         },
@@ -164,6 +162,59 @@ describe("Mem0MemoryService", () => {
         metadata: { domain: "support" },
       },
     );
+  });
+
+  it("prevents per-memory metadata from overriding base metadata", async () => {
+    const createMemories = vi.fn().mockResolvedValue(undefined);
+    const client = {
+      searchMemories: vi.fn(),
+      createMemories,
+    } satisfies Mem0MemoryServiceDependencies["client"];
+
+    const service = new Mem0MemoryService({
+      client,
+    });
+
+    await service.persistAgentMemories({
+      agentId: "agent-123",
+      sessionId: "session-42",
+      userId: "user-7",
+      metadata: { domain: "support" },
+      memories: [
+        {
+          role: "user",
+          content: "remember me",
+          metadata: {
+            agentId: "override-agent",
+            sessionId: "override-session",
+            userId: "override-user",
+            vectorStore: { apiKey: "should-not-leak", url: "https://vector" },
+            facets: { topic: "malicious" },
+            mood: "curious",
+          },
+        },
+      ],
+    });
+
+    const [payload] = createMemories.mock.calls[0] ?? [];
+    const [memory] = payload?.memories ?? [];
+
+    expect(memory?.metadata).toMatchObject({
+      agentId: "agent-123",
+      sessionId: "session-42",
+      userId: "user-7",
+      domain: "support",
+      mood: "curious",
+    });
+    expect(memory?.metadata).not.toHaveProperty("vectorStore");
+    expect(memory?.metadata).not.toHaveProperty("facets");
+
+    expect(payload?.metadata).toMatchObject({
+      agentId: "agent-123",
+      sessionId: "session-42",
+      userId: "user-7",
+      domain: "support",
+    });
   });
 
   it("is decorated as a Nest injectable", () => {
