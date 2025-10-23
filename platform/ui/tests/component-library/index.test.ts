@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
   AppHeader,
@@ -9,6 +9,7 @@ import {
   NavigationLink,
   Panel,
   getComponentLibraryEntry,
+  type ComponentLibraryEntry,
 } from '../../src';
 
 const findCategory = (id: string) =>
@@ -51,5 +52,19 @@ describe('component library catalog', () => {
     expect(lookup?.entry.description.length).toBeGreaterThan(0);
     expect(Array.isArray(lookup?.entry.tags)).toBe(true);
     expect(lookup?.entry.tags.length).toBeGreaterThan(0);
+  });
+
+  it('accepts components with required props when defining entries', () => {
+    const entry = {
+      slug: 'app-header',
+      name: 'App Header',
+      description: 'Header component for authenticated Eddie surfaces.',
+      tags: ['layout', 'navigation'],
+      component: AppHeader,
+    } satisfies ComponentLibraryEntry;
+
+    expect(entry.component).toBe(AppHeader);
+    expectTypeOf(entry.component).toMatchTypeOf<typeof AppHeader>();
+    expectTypeOf<typeof AppHeader>().toMatchTypeOf<ComponentLibraryEntry['component']>();
   });
 });

@@ -1,5 +1,7 @@
 import type { ComponentType } from 'react';
 
+export type ComponentLibraryComponent = ComponentType<any>;
+
 import { EddieButton } from '../components/EddieButton';
 import { EddieIcon } from '../components/EddieIcon';
 import { Panel } from '../common/Panel';
@@ -11,7 +13,10 @@ export interface ComponentLibraryEntry {
   readonly name: string;
   readonly description: string;
   readonly tags: ReadonlyArray<string>;
-  readonly component: ComponentType<unknown>;
+  /**
+   * Catalogued component for browsing surfaces; accepts strongly typed props at call sites.
+   */
+  readonly component: ComponentLibraryComponent;
 }
 
 export interface ComponentLibraryCategory {

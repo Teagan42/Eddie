@@ -29,6 +29,7 @@ export {
   COMPONENT_LIBRARY,
   getComponentLibraryEntry,
   type ComponentLibrary,
+  type ComponentLibraryComponent,
   type ComponentLibraryCategory,
   type ComponentLibraryEntry,
   type ComponentLibraryLookupResult,
