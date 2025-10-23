@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761217751053,
+  "lastUpdate": 1761219884520,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -1760,6 +1760,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 24.556,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b5a75de447cc05bcf7ddebb63f57d223b768324f",
+          "message": "Add mem0-backed memory integration module (#756)\n\n* refactor(memory): extract metadata helpers\n\n* chore: update third-party notices\n\n* CI",
+          "timestamp": "2025-10-23T05:33:54-06:00",
+          "tree_id": "52a07be46d10bc522110be20a9903b411482cdf3",
+          "url": "https://github.com/Teagan42/Eddie/commit/b5a75de447cc05bcf7ddebb63f57d223b768324f"
+        },
+        "date": 1761219883963,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 46.81,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 32.683,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.356,
             "unit": "ms",
             "extra": "[object Object]"
           }
