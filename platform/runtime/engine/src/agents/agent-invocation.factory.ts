@@ -157,7 +157,8 @@ export class AgentInvocationFactory {
       return this.emptyRecall();
     }
 
-    const session = memoryRuntime.session;
+    const session = memoryRuntime.session ??
+      (runtime.sessionId ? { id: runtime.sessionId } : undefined);
 
     const metadata = this.composeMemoryRecallMetadata(
       memoryRuntime.metadata,
