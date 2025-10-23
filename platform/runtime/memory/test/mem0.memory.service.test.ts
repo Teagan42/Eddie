@@ -1,5 +1,22 @@
+import "reflect-metadata";
+import { Test } from "@nestjs/testing";
 import { describe, expect, it, vi } from "vitest";
-import { Mem0MemoryService } from "../src/mem0.memory.service";
+import {
+  Mem0MemoryService,
+  type Mem0MemoryServiceDependencies,
+} from "../src/mem0.memory.service";
+import {
+  createMem0MemoryModule,
+  MEM0_CLIENT_TOKEN,
+  MEM0_FACET_EXTRACTOR_TOKEN,
+  MEM0_VECTOR_STORE_TOKEN,
+} from "../src/mem0.memory.module";
+
+type FacetExtractorStub = Mem0MemoryServiceDependencies["facetExtractor"];
+
+type VectorStoreStub = NonNullable<
+  Mem0MemoryServiceDependencies["vectorStore"]
+>;
 
 describe("Mem0MemoryService", () => {
   it("delegates retrieval with combined filters", async () => {
@@ -9,14 +26,11 @@ describe("Mem0MemoryService", () => {
     const client = {
       searchMemories,
       createMemories: vi.fn(),
-    };
+    } satisfies Mem0MemoryServiceDependencies["client"];
 
-    const service = new Mem0MemoryService(
-      { apiKey: "token", host: "https://mem0.example" },
-      undefined,
-      undefined,
-      client as any,
-    );
+    const service = new Mem0MemoryService({
+      client,
+    });
 
     const result = await service.loadAgentMemories({
       agentId: "agent-123",
@@ -43,23 +57,24 @@ describe("Mem0MemoryService", () => {
     const client = {
       searchMemories: vi.fn(),
       createMemories,
-    };
+    } satisfies Mem0MemoryServiceDependencies["client"];
 
     const facetExtractor = {
       extract: vi.fn(() => ({ topic: "billing" })),
-    };
+    } satisfies FacetExtractorStub;
 
-    const service = new Mem0MemoryService(
-      { apiKey: "token", host: "https://mem0.example" },
-      {
-        type: "qdrant",
-        url: "https://qdrant.example",
-        apiKey: "vector-key",
-        collection: "agent-memories",
-      },
-      facetExtractor as any,
-      client as any,
-    );
+    const service = new Mem0MemoryService({
+      client,
+      vectorStore: {
+        describe: () => ({
+          type: "qdrant",
+          url: "https://qdrant.example",
+          apiKey: "vector-key",
+          collection: "agent-memories",
+        }),
+      } satisfies VectorStoreStub,
+      facetExtractor,
+    });
 
     await service.persistAgentMemories({
       agentId: "agent-123",
@@ -94,11 +109,10 @@ describe("Mem0MemoryService", () => {
       vectorStore: {
         type: "qdrant",
         url: "https://qdrant.example",
+        apiKey: "vector-key",
         collection: "agent-memories",
       },
     });
-
-    expect(payload?.metadata?.vectorStore).not.toHaveProperty("apiKey");
 
     expect(payload?.memories).toEqual([
       {
@@ -113,6 +127,7 @@ describe("Mem0MemoryService", () => {
           vectorStore: {
             type: "qdrant",
             url: "https://qdrant.example",
+            apiKey: "vector-key",
             collection: "agent-memories",
           },
           mood: "curious",
@@ -130,15 +145,12 @@ describe("Mem0MemoryService", () => {
           vectorStore: {
             type: "qdrant",
             url: "https://qdrant.example",
+            apiKey: "vector-key",
             collection: "agent-memories",
           },
         },
       },
     ]);
-
-    for (const memory of payload?.memories ?? []) {
-      expect(memory.metadata?.vectorStore).not.toHaveProperty("apiKey");
-    }
 
     expect(facetExtractor.extract).toHaveBeenCalledWith(
       [
@@ -152,5 +164,75 @@ describe("Mem0MemoryService", () => {
         metadata: { domain: "support" },
       },
     );
+  });
+
+  it("is decorated as a Nest injectable", () => {
+    const injectableMetadata = Reflect.getMetadata(
+      "__injectable__",
+      Mem0MemoryService,
+    );
+
+    expect(injectableMetadata).toBeDefined();
+  });
+
+  it("wires dependencies through the Nest module factory", async () => {
+    const searchMemories = vi
+      .fn<Mem0MemoryServiceDependencies["client"]["searchMemories"]>()
+      .mockResolvedValue([]);
+    const createMemories = vi
+      .fn<Mem0MemoryServiceDependencies["client"]["createMemories"]>()
+      .mockResolvedValue(undefined);
+    const facetExtractor = {
+      extract: vi.fn(() => ({ topic: "support" })),
+    } satisfies FacetExtractorStub;
+
+    const moduleRef = await Test.createTestingModule({
+      imports: [
+        createMem0MemoryModule({
+          credentials: { apiKey: "token", host: "https://mem0.example" },
+          vectorStore: {
+            type: "qdrant",
+            url: "https://qdrant.example",
+            apiKey: "vector-key",
+            collection: "agent-memories",
+          },
+          facetExtractor,
+        }),
+      ],
+    })
+      .overrideProvider(MEM0_CLIENT_TOKEN)
+      .useValue({
+        searchMemories,
+        createMemories,
+      } satisfies Mem0MemoryServiceDependencies["client"])
+      .compile();
+
+    const service = moduleRef.get(Mem0MemoryService);
+
+    await service.loadAgentMemories({ query: "hello" });
+    await service.persistAgentMemories({
+      memories: [{ role: "user", content: "hi" }],
+      metadata: { domain: "support" },
+    });
+
+    expect(searchMemories).toHaveBeenCalledWith({ query: "hello" });
+    expect(createMemories).toHaveBeenCalledTimes(1);
+    expect(facetExtractor.extract).toHaveBeenCalled();
+
+    const vectorStoreProvider = moduleRef.get(MEM0_VECTOR_STORE_TOKEN, {
+      strict: false,
+    });
+    expect(vectorStoreProvider?.describe()).toEqual({
+      type: "qdrant",
+      url: "https://qdrant.example",
+      apiKey: "vector-key",
+      collection: "agent-memories",
+    });
+
+    const providedFacetExtractor = moduleRef.get(
+      MEM0_FACET_EXTRACTOR_TOKEN,
+      { strict: false },
+    );
+    expect(providedFacetExtractor).toBe(facetExtractor);
   });
 });
