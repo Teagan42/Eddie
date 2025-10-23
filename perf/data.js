@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761213839519,
+  "lastUpdate": 1761215052759,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -1634,6 +1634,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 23.288,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "73e855731b911526c0e14d3d3f8c7905fbbc51cd",
+          "message": "Add memory configuration controls and defaults (#753)\n\n* refactor(memory): reuse shared schema fields\n\n* chore: update config schema diagram",
+          "timestamp": "2025-10-23T04:13:29-06:00",
+          "tree_id": "2d520365f9cc78b90ce493c26e869dc6e02ddb4b",
+          "url": "https://github.com/Teagan42/Eddie/commit/73e855731b911526c0e14d3d3f8c7905fbbc51cd"
+        },
+        "date": 1761215052297,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 47.686,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 34.852,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.292,
             "unit": "ms",
             "extra": "[object Object]"
           }
