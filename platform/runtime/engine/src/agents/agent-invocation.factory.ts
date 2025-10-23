@@ -18,6 +18,20 @@ import {
 } from "@eddie/templates";
 import type { AgentRuntimeOptions } from "./agent-orchestrator.service";
 
+export type MemoryRecallResult = {
+  memories: AgentRecalledMemory[],
+  usage: AgentInvocationMemoryUsage[],
+  appendText?: string,
+  appendBytes?: number,
+};
+
+const createEmptyRecallResult = (): MemoryRecallResult => ({
+  memories: [],
+  usage: [],
+});
+
+export const EMPTY_RECALL_RESULT: MemoryRecallResult = createEmptyRecallResult();
+
 const EMPTY_CONTEXT: PackedContext = { files: [], totalBytes: 0, text: "" };
 
 const cloneContext = (context: PackedContext): PackedContext => ({
@@ -114,12 +128,7 @@ export class AgentInvocationFactory {
     options: AgentInvocationOptions,
     runtime: AgentRuntimeOptions | undefined,
     context: PackedContext
-  ): Promise<{
-      memories: AgentRecalledMemory[];
-      usage: AgentInvocationMemoryUsage[];
-      appendText?: string;
-      appendBytes?: number;
-    }> {
+  ): Promise<MemoryRecallResult> {
     if (!runtime) {
       return this.emptyRecall();
     }
@@ -148,8 +157,7 @@ export class AgentInvocationFactory {
       return this.emptyRecall();
     }
 
-    const session = memoryRuntime.session ??
-      (runtime.sessionId ? { id: runtime.sessionId } : undefined);
+    const session = memoryRuntime.session;
 
     const metadata = this.composeMemoryRecallMetadata(
       memoryRuntime.metadata,
@@ -188,12 +196,7 @@ export class AgentInvocationFactory {
     memories: AgentRecalledMemory[],
     maxBytes: number | undefined,
     context: PackedContext
-  ): {
-      memories: AgentRecalledMemory[];
-      usage: AgentInvocationMemoryUsage[];
-      appendText?: string;
-      appendBytes?: number;
-    } {
+  ): MemoryRecallResult {
     const accepted: AgentRecalledMemory[] = [];
     const usage: AgentInvocationMemoryUsage[] = [];
     let appendText: string | undefined;
@@ -270,13 +273,8 @@ export class AgentInvocationFactory {
     return { memories: accepted, usage, appendText, appendBytes };
   }
 
-  private emptyRecall(): {
-      memories: AgentRecalledMemory[];
-      usage: AgentInvocationMemoryUsage[];
-      appendText?: string;
-      appendBytes?: number;
-    } {
-    return { memories: [], usage: [] };
+  private emptyRecall(): MemoryRecallResult {
+    return createEmptyRecallResult();
   }
 
   private composeMemoryRecallMetadata(

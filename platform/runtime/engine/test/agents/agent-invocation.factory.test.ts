@@ -1,12 +1,17 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { Buffer } from "buffer";
 import { Test } from "@nestjs/testing";
 import type {
+  AgentInvocationMemoryUsage,
+  AgentRecalledMemory,
   AgentRuntimeDescriptor,
   ChatMessage,
   PackedContext,
 } from "@eddie/types";
-import { AgentInvocationFactory } from "../../src/agents/agent-invocation.factory";
+import {
+  AgentInvocationFactory,
+  EMPTY_RECALL_RESULT,
+} from "../../src/agents/agent-invocation.factory";
 import type { AgentDefinition } from "@eddie/types";
 import { ToolRegistryFactory } from "@eddie/tools";
 import { TemplateRuntimeService } from "@eddie/templates";
@@ -32,6 +37,16 @@ describe("AgentInvocationFactory", () => {
   let factory: AgentInvocationFactory;
   let templateRuntime: TemplateRuntimeStub;
   let toolRegistryFactory: StubToolRegistryFactory;
+
+  it("exposes empty recall result for reuse", () => {
+    expect(EMPTY_RECALL_RESULT).toEqual({ memories: [], usage: [] });
+    expectTypeOf<typeof EMPTY_RECALL_RESULT>().toMatchTypeOf<{
+      memories: AgentRecalledMemory[];
+      usage: AgentInvocationMemoryUsage[];
+      appendText?: string;
+      appendBytes?: number;
+    }>();
+  });
 
   const createRuntime = (
     descriptor: AgentRuntimeDescriptor,
@@ -260,6 +275,42 @@ describe("AgentInvocationFactory", () => {
           },
         },
       }),
+    );
+  });
+
+  it("omits fallback session metadata when runtime does not provide it", async () => {
+    const definition: AgentDefinition = {
+      id: "planner",
+      systemPrompt: "System",
+    };
+
+    const descriptor: AgentRuntimeDescriptor = {
+      id: "planner",
+      definition,
+      model: "gpt-4",
+      provider: {} as ProviderAdapter,
+      metadata: {
+        memory: { recall: true },
+      },
+    };
+
+    const memoryAdapter = {
+      recallMemories: vi.fn(async () => [] as AgentRecalledMemory[]),
+    };
+
+    const runtime = createRuntime(descriptor, {
+      sessionId: "session-123",
+      memory: {
+        adapter: memoryAdapter,
+      },
+    });
+
+    await factory.create(definition, { prompt: "Plan the sprint" }, runtime);
+
+    expect(memoryAdapter.recallMemories).toHaveBeenCalledWith(
+      expect.objectContaining({
+        session: undefined,
+      })
     );
   });
 
