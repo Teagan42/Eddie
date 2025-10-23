@@ -155,6 +155,7 @@ export class DemoDataSeeder implements OnModuleInit {
       case ChatMessageRole.User:
       case ChatMessageRole.Assistant:
       case ChatMessageRole.System:
+      case ChatMessageRole.Developer:
       case ChatMessageRole.Tool:
         return role;
       default:

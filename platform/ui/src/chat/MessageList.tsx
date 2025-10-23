@@ -11,6 +11,7 @@ import {
   MagicWandIcon,
   PersonIcon,
   ReloadIcon,
+  CodeIcon,
 } from '@radix-ui/react-icons';
 
 import type { ChatMessageDto } from '@eddie/api-client';
@@ -66,6 +67,16 @@ const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
     icon: GearIcon,
     iconClassName: 'text-amber-200',
     contentClassName: 'text-sm font-mono text-amber-50',
+  },
+  developer: {
+    label: 'Developer',
+    badgeColor: 'indigo',
+    align: 'start',
+    cardClassName:
+      'border border-indigo-400/30 bg-gradient-to-br from-indigo-500/25 via-indigo-500/5 to-slate-950/70 text-indigo-50 shadow-[0_30px_60px_-35px_rgba(99,102,241,0.55)]',
+    icon: CodeIcon,
+    iconClassName: 'text-indigo-200',
+    contentClassName: 'text-sm font-mono text-indigo-50',
   },
   tool: {
     label: 'Agent',

@@ -11,6 +11,7 @@ export enum ChatMessageRole {
   User = "user",
   Assistant = "assistant",
   System = "system",
+  Developer = "developer",
   Tool = "tool",
 }
 

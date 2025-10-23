@@ -56,7 +56,8 @@ implements IEventHandler<ChatMessageCreatedEvent> {
   private shouldInvokeEngine(message: ChatMessageDto): boolean {
     return (
       message.role === ChatMessageRole.User ||
-      message.role === ChatMessageRole.System
+      message.role === ChatMessageRole.System ||
+      message.role === ChatMessageRole.Developer
     );
   }
 
@@ -332,6 +333,8 @@ implements IEventHandler<ChatMessageCreatedEvent> {
         return ChatMessageRole.System;
       case "tool":
         return ChatMessageRole.Tool;
+      case "developer":
+        return ChatMessageRole.Developer;
       case "user":
       default:
         return ChatMessageRole.User;

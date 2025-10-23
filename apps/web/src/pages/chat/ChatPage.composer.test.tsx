@@ -212,4 +212,37 @@ describe("ChatPage composer interactions", () => {
     expect(sendButton).toBeDisabled();
     expect(sendButton).toHaveAttribute("aria-disabled", "true");
   });
+
+  it("sends a message with the selected composer role", async () => {
+    const user = userEvent.setup();
+    renderChatPage();
+
+    await waitFor(() =>
+      expect(
+        document.querySelector('button[aria-label="Composer role"]'),
+      ).not.toBeNull(),
+    );
+
+    const roleTrigger = document.querySelector(
+      'button[aria-label="Composer role"]',
+    ) as HTMLButtonElement;
+    await user.click(roleTrigger);
+
+    const developerOption = await screen.findByRole("option", {
+      name: /developer/i,
+    });
+    await user.click(developerOption);
+
+    const composer = await screen.findByPlaceholderText(
+      "Send a message to the orchestrator",
+    );
+    await user.type(composer, "Developer instructions");
+    await user.keyboard("{Alt>}{Enter}{/Alt}");
+
+    await waitFor(() => expect(createMessageMock).toHaveBeenCalledTimes(1));
+    expect(createMessageMock).toHaveBeenCalledWith("session-1", {
+      role: "developer",
+      content: "Developer instructions",
+    });
+  });
 });

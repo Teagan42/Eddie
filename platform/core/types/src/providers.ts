@@ -1,6 +1,6 @@
 import type { ProviderConfig } from "./config";
 
-export type Role = "system" | "user" | "assistant" | "tool";
+export type Role = "system" | "user" | "assistant" | "tool" | "developer";
 
 export interface ChatMessage {
   role: Role;

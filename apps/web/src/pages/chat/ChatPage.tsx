@@ -12,7 +12,7 @@ import {
   MagicWandIcon,
   PlusIcon,
 } from '@radix-ui/react-icons';
-import { ExecutionTreeState, Role, type AgentActivityState } from '@eddie/types';
+import { ExecutionTreeState, type AgentActivityState } from '@eddie/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ChatMessageDto,
@@ -23,7 +23,7 @@ import type {
   RuntimeConfigDto,
 } from '@eddie/api-client';
 import type { LayoutPreferencesDto } from '@eddie/api-client';
-import { applyToolCallEvent, applyToolResultEvent, AgentToolsDrawer, ChatWindow, cloneExecutionTreeState, cn, coerceExecutionTreeState, composeExecutionTreeState, createEmptyExecutionTreeState, createExecutionTreeStateFromMetadata, Panel, SessionSelector, Sheet, sortSessions, ToolEventPayload, upsertMessage, SessionSelectorSession, SessionSelectorMetricsSummary, SheetTrigger } from '@eddie/ui';
+import { applyToolCallEvent, applyToolResultEvent, AgentToolsDrawer, ChatWindow, cloneExecutionTreeState, cn, coerceExecutionTreeState, composeExecutionTreeState, createEmptyExecutionTreeState, createExecutionTreeStateFromMetadata, Panel, SessionSelector, Sheet, sortSessions, ToolEventPayload, upsertMessage, SessionSelectorSession, SessionSelectorMetricsSummary, SheetTrigger, type ComposerRole } from '@eddie/ui';
 import { useApi } from '@/api/api-provider.js';
 import { useAuth } from '@/auth/auth-context.js';
 import { useLayoutPreferences } from '../../hooks/useLayoutPreferences.js';
@@ -75,7 +75,15 @@ const scrollMessageViewportToBottom = (anchor: HTMLElement): void => {
 };
 
 type ChatPreferences = NonNullable<LayoutPreferencesDto[ 'chat' ]>;
-const DEFAULT_COMPOSER_ROLE: Role = 'user';
+const DEFAULT_COMPOSER_ROLE: ComposerRole = 'user';
+const COMPOSER_ROLES: readonly ComposerRole[] = [
+  'user',
+  'system',
+  'developer',
+] as const;
+
+const isComposerRole = (value: string): value is ComposerRole =>
+  COMPOSER_ROLES.includes(value as ComposerRole);
 
 type AutoSessionAttemptStatus = 'idle' | 'pending' | 'failed';
 
@@ -175,7 +183,7 @@ export function ChatPage(): JSX.Element {
   const drawerTheme = (resolvedTheme ?? DEFAULT_THEME) as RuntimeConfigDto[ 'theme' ];
   const [ composerValue, setComposerValue ] = useState('');
   // Derive a safe default for composer role from the DTO union (fall back to 'user')
-  const [ composerRole, setComposerRole ] = useState<Role>(DEFAULT_COMPOSER_ROLE);
+  const [ composerRole, setComposerRole ] = useState<ComposerRole>(DEFAULT_COMPOSER_ROLE);
   const [ agentStreamActivity, setAgentStreamActivity ] = useState<
     Exclude<AgentActivityState, 'sending'>
   >('idle');
@@ -1492,7 +1500,7 @@ export function ChatPage(): JSX.Element {
 
   const handleReissueCommand = useCallback((message: ChatMessageDto) => {
     setComposerValue(message.content);
-    setComposerRole(message.role as ComposerRole);
+    setComposerRole(isComposerRole(message.role) ? message.role : DEFAULT_COMPOSER_ROLE);
   }, []);
 
   const isContextBundlesCollapsed = Boolean(collapsedPanels[ PANEL_IDS.context ]);
