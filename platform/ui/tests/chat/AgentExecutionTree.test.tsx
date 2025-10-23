@@ -317,7 +317,8 @@ describe("AgentExecutionTree", () => {
         }));
         const contextBundlesRegion = await screen.findByTestId("json-entry-contextBundles[0]");
         await user.click(await within(contextBundlesRegion).findByRole("button"));
-        expect(await screen.findByText(/research briefing/i, {}, { timeout: 10_000 })).toBeInTheDocument();
+        const researchBriefingTexts = await screen.findAllByText(/research briefing/i, {}, { timeout: 10_000 });
+        expect(researchBriefingTexts[ 0 ]).toBeInTheDocument();
       } catch (error) {
         screen.debug(document.body, Infinity);
         throw error;
