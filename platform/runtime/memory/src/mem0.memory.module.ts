@@ -25,6 +25,9 @@ export interface Mem0MemoryModuleOptions {
   facetExtractor?: FacetExtractorStrategy;
 }
 
+@Module({})
+export class Mem0MemoryModule {}
+
 export function createMem0MemoryModule(
   options: Mem0MemoryModuleOptions,
 ): DynamicModule {
@@ -65,9 +68,6 @@ export function createMem0MemoryModule(
     ],
   };
 
-  @Module({})
-  class Mem0MemoryModule {}
-
   return {
     module: Mem0MemoryModule,
     providers: [
@@ -84,5 +84,3 @@ export function createMem0MemoryModule(
     ],
   };
 }
-
-export { Mem0MemoryModule };
