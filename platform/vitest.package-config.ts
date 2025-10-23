@@ -13,6 +13,7 @@ const packageDirectoryMap = {
   engine: path.join("runtime", "engine"),
   hooks: path.join("runtime", "hooks"),
   io: path.join("runtime", "io"),
+  memory: path.join("runtime", "memory"),
   mcp: path.join("integrations", "mcp"),
   providers: path.join("integrations", "providers"),
   templates: path.join("core", "templates"),

@@ -16,6 +16,7 @@ const workspaceProjects = [
   ],
   ["./platform/runtime/engine/vitest.config.ts", "./platform/runtime/engine"],
   ["./platform/runtime/hooks/vitest.config.ts", "./platform/runtime/hooks"],
+  ["./platform/runtime/memory/vitest.config.ts", "./platform/runtime/memory"],
   ["./platform/runtime/context/vitest.config.ts", "./platform/runtime/context"],
   ["./platform/runtime/io/vitest.config.ts", "./platform/runtime/io"],
   ["./platform/runtime/tools/vitest.config.ts", "./platform/runtime/tools"],
