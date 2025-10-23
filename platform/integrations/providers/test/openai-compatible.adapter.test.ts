@@ -209,6 +209,32 @@ describe("OpenAICompatibleAdapter", () => {
     ]);
   });
 
+  it("streams reasoning entries from delta.reasoning", async () => {
+    const chunks = [
+      'data: {"choices":[{"delta":{"reasoning":{"text":"Deep thought"}}}]}\n',
+      'data: {"choices":[{"delta":{"content":"Visible"},"finish_reason":"stop"}]}\n',
+      'data: [DONE]\n',
+    ];
+
+    fetchMock.mockResolvedValueOnce(createStreamingResponse(chunks));
+
+    const adapter = new OpenAICompatibleAdapter({ baseUrl: "https://example.com", apiKey: "sk-test" });
+    const events: unknown[] = [];
+    for await (const event of adapter.stream({ model: "gpt-test", messages: [] } as StreamOptions)) {
+      events.push(event);
+    }
+
+    expect(events).toEqual([
+      { type: "reasoning_delta", text: "Deep thought" },
+      { type: "delta", text: "Visible" },
+      expect.objectContaining({
+        type: "reasoning_end",
+        metadata: { text: "Deep thought" },
+      }),
+      expect.objectContaining({ type: "end", reason: "stop" }),
+    ]);
+  });
+
   it("strips <think> blocks from deltas while streaming reasoning events", async () => {
     const chunks = [
       'data: {"choices":[{"delta":{"content":"<think>Hidden</think>"}}]}\n',

@@ -325,10 +325,17 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
 
           if (delta) {
             const reasoningContent = (delta as { reasoning_content?: unknown; }).reasoning_content;
-            for (const chunk of extractReasoningChunks(reasoningContent)) {
-              const event = pushReasoningChunk(chunk);
-              if (event) {
-                yield event;
+            const reasoning = (delta as { reasoning?: unknown; }).reasoning;
+            const reasoningPayloads = [reasoningContent, reasoning].filter(
+              (value): value is unknown => value !== undefined,
+            );
+
+            for (const payload of reasoningPayloads) {
+              for (const chunk of extractReasoningChunks(payload)) {
+                const event = pushReasoningChunk(chunk);
+                if (event) {
+                  yield event;
+                }
               }
             }
           }
