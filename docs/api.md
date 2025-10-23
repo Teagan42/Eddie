@@ -210,6 +210,10 @@ in `apps/api/migrations`, so simply starting the server (`npm run api:start`) is
 enough to keep the schema current. Trigger the same process in CI by launching
 the API with your production configuration and letting the bootstrap complete.
 
+The [database diagram](./generated/database-diagram.md) captures the relational
+model produced by these migrations. Regenerate it via
+`npm run docs:database-diagram` whenever the persistence schema changes.
+
 ## Public Routes
 
 Use the exported `@Public()` decorator to mark controllers or individual

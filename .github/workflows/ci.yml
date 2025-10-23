@@ -145,6 +145,64 @@ jobs:
           push: true
           skip_empty: true
 
+  docs-database-diagram:
+    name: Docs (database diagram)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Configure git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-20.x-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        run: ./scripts/install.sh
+
+      - name: Regenerate database diagram
+        run: npm run docs:database-diagram
+
+      - name: Detect database diagram changes
+        id: database-diagram-diff
+        run: |
+          set -euo pipefail
+          changed=false
+
+          if ! git diff --quiet -- docs/generated/database-diagram.md; then
+            changed=true
+          fi
+
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
+      - name: Commit updated diagram
+        if: steps.database-diagram-diff.outputs.changed == 'true'
+        id: commit-database
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: ./docs/generated/database-diagram.md
+          message: "chore: update database diagram"
+          push: true
+          skip_empty: true
+
   build-test:
     name: Build & Test (${{ matrix.workspace.name }} @ Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
