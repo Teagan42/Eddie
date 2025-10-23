@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761208246127,
+  "lastUpdate": 1761213839519,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -1592,6 +1592,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 23.561,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a8cb4c6c01e4a13c405f37cc4c72731257a6bcf6",
+          "message": "feat: add database diagram generation to tooling and CI (#752)\n\n* chore(ci): automate database diagram updates\n\n* refactor(ci-workflow): add helper for job dependency asserts",
+          "timestamp": "2025-10-23T03:53:24-06:00",
+          "tree_id": "393a46bacff0653a26cd6e48c8c988bb7975087c",
+          "url": "https://github.com/Teagan42/Eddie/commit/a8cb4c6c01e4a13c405f37cc4c72731257a6bcf6"
+        },
+        "date": 1761213839143,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 46.908,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 32.937,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.288,
             "unit": "ms",
             "extra": "[object Object]"
           }
