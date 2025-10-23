@@ -23,7 +23,7 @@ interface ToolAccumulator {
   args: string;
 }
 
-type TextContentPart = { type: "text"; text: string };
+type TextContentPart = { type: "text"; text: string; };
 
 type NormalizedAssistantMessage = {
   role: "assistant";
@@ -32,7 +32,7 @@ type NormalizedAssistantMessage = {
   tool_calls?: {
     id?: string;
     type: "function";
-    function: { name: string; arguments: string };
+    function: { name: string; arguments: string; };
   }[];
 };
 
@@ -56,16 +56,16 @@ type NormalizedChatMessage =
 export class OpenAICompatibleAdapter implements ProviderAdapter {
   readonly name = "openai_compatible";
 
-  constructor(private readonly config: OpenAICompatConfig) {}
+  constructor(private readonly config: OpenAICompatConfig) { }
 
   private endpoint(): string {
-    return `${this.config.baseUrl ?? "https://api.groq.com/v1"}/chat/completions`;
+    return `${ this.config.baseUrl ?? "https://api.groq.com/v1" }/chat/completions`;
   }
 
   async *stream(options: StreamOptions): AsyncIterable<StreamEvent> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${this.config.apiKey ?? process.env.OPENAI_API_KEY ?? ""}`,
+      Authorization: `Bearer ${ this.config.apiKey ?? process.env.OPENAI_API_KEY ?? "" }`,
       ...this.config.headers,
     };
 
@@ -88,7 +88,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
     if (!response.ok || !response.body) {
       yield {
         type: "error",
-        message: `OpenAI-compatible request failed: ${response.status} ${response.statusText}`,
+        message: `OpenAI-compatible request failed: ${ response.status } ${ response.statusText }`,
       };
       return;
     }
@@ -194,9 +194,9 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
         return undefined;
       }
 
-      const prefix = lastMatch[1] ?? "";
-      const closingPattern = new RegExp(`</${escapeForRegex(prefix)}think>`, "i");
-      if (closingPattern.test(text.slice(lastMatch.index + lastMatch[0].length))) {
+      const prefix = lastMatch[ 1 ] ?? "";
+      const closingPattern = new RegExp(`</${ escapeForRegex(prefix) }think>`, "i");
+      if (closingPattern.test(text.slice(lastMatch.index + lastMatch[ 0 ].length))) {
         return undefined;
       }
 
@@ -320,11 +320,11 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
             yield notification;
           }
 
-          const delta = json.choices?.[0]?.delta;
-          const choice = json.choices?.[0];
+          const delta = json.choices?.[ 0 ]?.delta;
+          const choice = json.choices?.[ 0 ];
 
           if (delta) {
-            const reasoningContent = (delta as { reasoning_content?: unknown }).reasoning_content;
+            const reasoningContent = (delta as { reasoning_content?: unknown; }).reasoning_content;
             for (const chunk of extractReasoningChunks(reasoningContent)) {
               const event = pushReasoningChunk(chunk);
               if (event) {
@@ -348,7 +348,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
               }
 
               if (item && typeof item === "object") {
-                const text = (item as { text?: unknown }).text;
+                const text = (item as { text?: unknown; }).text;
                 if (typeof text === "string") {
                   for (const event of appendAssistantContent(text)) {
                     yield event;
@@ -430,7 +430,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
     }));
   }
 
-  private formatMessages(messages: StreamOptions["messages"]): NormalizedChatMessage[] {
+  private formatMessages(messages: StreamOptions[ "messages" ]): NormalizedChatMessage[] {
     const toTextSegments = (content: string): TextContentPart[] => [
       { type: "text" as const, text: content },
     ];
@@ -505,8 +505,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
 
 @Injectable()
 export class OpenAICompatibleAdapterFactory
-implements ProviderAdapterFactory
-{
+implements ProviderAdapterFactory {
   readonly name = "openai_compatible";
 
   create(config: ProviderConfig): ProviderAdapter {
@@ -517,14 +516,13 @@ implements ProviderAdapterFactory
     const adapterConfig = this.toAdapterConfig(config);
     const baseUrl = (adapterConfig.baseUrl ?? "https://api.groq.com/v1").replace(/\/$/, "");
     const headers: Record<string, string> = {
-      Authorization: `Bearer ${
-        adapterConfig.apiKey ?? process.env.OPENAI_API_KEY ?? ""
+      Authorization: `Bearer ${ adapterConfig.apiKey ?? process.env.OPENAI_API_KEY ?? ""
       }`,
       "Content-Type": "application/json",
       ...adapterConfig.headers,
     };
 
-    const response = await fetch(`${baseUrl}/models`, {
+    const response = await fetch(`${ baseUrl }/models`, {
       method: "GET",
       headers,
     });
@@ -533,7 +531,7 @@ implements ProviderAdapterFactory
       return [];
     }
 
-    const body = (await response.json()) as { data?: Array<{ id?: unknown }> };
+    const body = (await response.json()) as { data?: Array<{ id?: unknown; }>; };
     const data = Array.isArray(body.data) ? body.data : [];
 
     return data

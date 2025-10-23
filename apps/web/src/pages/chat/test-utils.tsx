@@ -1,19 +1,19 @@
 import type { ReactElement } from "react";
 import { render, type RenderResult } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider } from "@/auth/auth-context";
-import { ChatPage } from "./ChatPage";
+import { ChatPage } from "./ChatPage.js";
 import type { OrchestratorMetadataDto } from "@eddie/api-client";
-import { ThemeProvider } from "@/theme";
+import { ThemeProvider } from "../../theme/theme-provider.js";
+import { AuthProvider } from '@/auth/auth-context.js';
 
-type ToolInvocationNode = OrchestratorMetadataDto["toolInvocations"][number];
+type ToolInvocationNode = OrchestratorMetadataDto[ "toolInvocations" ][ number ];
 
 export interface ToolInvocationFixture {
   id: string;
   name: string;
-  status: ToolInvocationNode["status"];
+  status: ToolInvocationNode[ "status" ];
   agentId: string;
-  metadata?: Partial<ToolInvocationNode["metadata"]>;
+  metadata?: Partial<ToolInvocationNode[ "metadata" ]>;
   children?: ToolInvocationFixture[];
 }
 
@@ -22,7 +22,7 @@ export function buildToolInvocationFixture(fixture: ToolInvocationFixture): Tool
     agentId: fixture.agentId,
     createdAt: new Date().toISOString(),
     ...fixture.metadata,
-  } as ToolInvocationNode["metadata"];
+  } as ToolInvocationNode[ "metadata" ];
 
   return {
     id: fixture.id,

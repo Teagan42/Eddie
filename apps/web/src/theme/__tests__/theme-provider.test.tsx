@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import type { RuntimeConfigDto } from "@eddie/api-client";
-import { ThemeProvider, useTheme } from "@/theme";
+import { ThemeProvider, useTheme } from "../theme-provider.js";
 
 const getConfigMock = vi.fn(() =>
   Promise.resolve({ theme: initialTheme } satisfies Pick<RuntimeConfigDto, "theme">)
@@ -25,10 +25,10 @@ vi.mock("@/api/api-provider", () => {
   };
 });
 
-let initialTheme: RuntimeConfigDto["theme"];
+let initialTheme: RuntimeConfigDto[ "theme" ];
 
 function createWrapper(queryClient: QueryClient) {
-  const Wrapper = ({ children }: { children: ReactNode }) => (
+  const Wrapper = ({ children }: { children: ReactNode; }) => (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>{children}</ThemeProvider>
     </QueryClientProvider>
@@ -68,7 +68,7 @@ describe("ThemeProvider", () => {
 
     await waitFor(() => expect(result.current.theme).toBe("dark"));
     expect(document.documentElement.classList.contains("dark")).toBe(true);
-    expect(queryClient.getQueryData<RuntimeConfigDto>(["config"])?.theme).toBe("dark");
+    expect(queryClient.getQueryData<RuntimeConfigDto>([ "config" ])?.theme).toBe("dark");
 
     queryClient.clear();
   });
