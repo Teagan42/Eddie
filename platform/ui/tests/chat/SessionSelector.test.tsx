@@ -10,6 +10,7 @@ import {
   SessionSelector,
   type SessionSelectorProps,
   type SessionSelectorSession,
+  resolveSessionSelectorCategory,
 } from '../../src/chat';
 
 type Status = SessionSelectorSession['status'];
@@ -271,5 +272,27 @@ describe('SessionSelector', () => {
     expect(indicator.style.transition).toContain('transform');
     expect(indicator.style.transition).toContain('width');
     expect(indicator.style.transition).toContain('height');
+  });
+
+  it('derives the archived category when the selected session becomes archived', () => {
+    const result = resolveSessionSelectorCategory({
+      availableCategoryIds: new Set(['active', 'archived']),
+      fallbackCategory: 'active',
+      preferredCategory: 'active',
+      isArchivedSelected: true,
+      previouslyArchivedSelected: false,
+    });
+
+    expect(result).toBe('archived');
+
+    const reverted = resolveSessionSelectorCategory({
+      availableCategoryIds: new Set(['active']),
+      fallbackCategory: 'active',
+      preferredCategory: 'archived',
+      isArchivedSelected: false,
+      previouslyArchivedSelected: true,
+    });
+
+    expect(reverted).toBe('active');
   });
 });

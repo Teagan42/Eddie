@@ -60,6 +60,51 @@ const CATEGORY_LABELS: Record<SessionCategory, string> = {
   archived: 'Archived',
 };
 
+interface ResolveSessionSelectorCategoryOptions {
+  availableCategoryIds: Set<SessionCategory>;
+  fallbackCategory: SessionCategory;
+  preferredCategory: SessionCategory;
+  isArchivedSelected: boolean;
+  previouslyArchivedSelected: boolean;
+}
+
+export function resolveSessionSelectorCategory({
+  availableCategoryIds,
+  fallbackCategory,
+  preferredCategory,
+  isArchivedSelected,
+  previouslyArchivedSelected,
+}: ResolveSessionSelectorCategoryOptions): SessionCategory {
+  const hasArchived = availableCategoryIds.has('archived');
+  const hasActive = availableCategoryIds.has('active');
+  const normalizedFallback = availableCategoryIds.has(fallbackCategory)
+    ? fallbackCategory
+    : hasActive
+      ? 'active'
+      : availableCategoryIds.values().next().value ?? fallbackCategory;
+
+  if (!availableCategoryIds.has(preferredCategory)) {
+    return hasArchived ? 'archived' : normalizedFallback;
+  }
+
+  if (isArchivedSelected && hasArchived) {
+    return 'archived';
+  }
+
+  if (
+    previouslyArchivedSelected &&
+    !isArchivedSelected &&
+    preferredCategory === 'archived'
+  ) {
+    if (hasActive) {
+      return 'active';
+    }
+    return normalizedFallback;
+  }
+
+  return preferredCategory;
+}
+
 function createMetricsSignature(metrics: SessionSelectorMetricsSummary | undefined): string {
   if (!metrics) {
     return '';
@@ -163,7 +208,7 @@ export function SessionSelector({
 
   const fallbackCategory = categoryDefinitions[0]?.id ?? 'active';
 
-  const [activeCategory, setActiveCategory] = useState<SessionCategory>(() => {
+  const [preferredCategory, setPreferredCategory] = useState<SessionCategory>(() => {
     if (isArchivedSelected && hasArchivedSessions) {
       return 'archived';
     }
@@ -172,38 +217,44 @@ export function SessionSelector({
 
   const previousArchivedSelectionRef = useRef(isArchivedSelected);
 
-  useEffect(() => {
-    const availableIds = new Set(categoryDefinitions.map((category) => category.id));
-    const fallback = availableIds.has(fallbackCategory) ? fallbackCategory : 'active';
+  const availableCategoryIds = useMemo(
+    () => new Set(categoryDefinitions.map((category) => category.id)),
+    [categoryDefinitions],
+  );
 
-    if (!availableIds.has(activeCategory)) {
-      const next = availableIds.has('archived') ? 'archived' : fallback;
-      if (next !== activeCategory) {
-        setActiveCategory(next);
-      }
-    } else {
-      if (isArchivedSelected && activeCategory !== 'archived' && availableIds.has('archived')) {
-        setActiveCategory('archived');
-      } else {
-        const previouslyArchived = previousArchivedSelectionRef.current;
+  const previouslyArchivedSelected = previousArchivedSelectionRef.current;
 
-        if (
-          previouslyArchived &&
-          !isArchivedSelected &&
-          activeCategory === 'archived' &&
-          (availableIds.has('active') || availableIds.has(fallback))
-        ) {
-          const next = availableIds.has('active') ? 'active' : fallback;
-          setActiveCategory(next);
-        }
-      }
+  const resolvedActiveCategory = useMemo(
+    () =>
+      resolveSessionSelectorCategory({
+        availableCategoryIds,
+        fallbackCategory,
+        preferredCategory,
+        isArchivedSelected,
+        previouslyArchivedSelected,
+      }),
+    [
+      availableCategoryIds,
+      fallbackCategory,
+      preferredCategory,
+      isArchivedSelected,
+      previouslyArchivedSelected,
+    ],
+  );
+
+  useLayoutEffect(() => {
+    if (resolvedActiveCategory !== preferredCategory) {
+      setPreferredCategory(resolvedActiveCategory);
     }
+  }, [resolvedActiveCategory, preferredCategory]);
+
+  useEffect(() => {
     previousArchivedSelectionRef.current = isArchivedSelected;
-  }, [categoryDefinitions, activeCategory, fallbackCategory, isArchivedSelected]);
+  }, [isArchivedSelected]);
 
   const visibleSessions = useMemo(() => {
-    return sessionsByCategory[activeCategory] ?? [];
-  }, [sessionsByCategory, activeCategory]);
+    return sessionsByCategory[resolvedActiveCategory] ?? [];
+  }, [sessionsByCategory, resolvedActiveCategory]);
 
   const sessionIds = useMemo(
     () => visibleSessions.map((session) => session.id),
@@ -325,7 +376,7 @@ export function SessionSelector({
 
   useLayoutEffect(() => {
     updateIndicatorPosition();
-  }, [updateIndicatorPosition, sessionIdsSignature, activeCategory]);
+  }, [updateIndicatorPosition, sessionIdsSignature, resolvedActiveCategory]);
 
   const focusSession = useCallback((sessionId: string) => {
     const trigger = tabTriggerRefs.current.get(sessionId);
@@ -546,8 +597,8 @@ export function SessionSelector({
 
   return (
     <TabsRoot
-      value={activeCategory}
-      onValueChange={<T extends string = SessionCategory>(value: T) => setActiveCategory(value as SessionCategory)}
+      value={resolvedActiveCategory}
+      onValueChange={<T extends string = SessionCategory>(value: T) => setPreferredCategory(value as SessionCategory)}
       className="mt-4 flex flex-col gap-3"
     >
       <Flex align="center" justify="start" gap="3" wrap="wrap">

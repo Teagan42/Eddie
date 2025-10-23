@@ -18,6 +18,7 @@ export {
   SessionSelector,
   SESSION_TABLIST_ARIA_LABEL,
   getSessionTablistAriaLabel,
+  resolveSessionSelectorCategory,
 } from './SessionSelector';
 export type {
   SessionSelectorProps, SessionSelectorMetricsSummary,
