@@ -1,4 +1,5 @@
 import { Button } from '@radix-ui/themes';
+import type { FC } from 'react';
 import type { ButtonProps } from '@radix-ui/themes';
 
 import { combineClassNames } from '../utils/class-names';
@@ -15,14 +16,14 @@ const BASE_BUTTON_CLASSES = [
 
 export type EddieButtonProps = ButtonProps;
 
-export function EddieButton({
+export const EddieButton: FC<EddieButtonProps> = ({
   className,
   children,
   size = '3',
   variant = 'solid',
   asChild = true,
   ...props
-}: EddieButtonProps): JSX.Element {
+}) => {
   const buttonClasses = combineClassNames(BASE_BUTTON_CLASSES, className);
 
   return (
@@ -36,4 +37,4 @@ export function EddieButton({
       {children}
     </Button>
   );
-}
+};

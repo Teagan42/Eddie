@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import type { FC } from "react";
 import { Avatar, Button, Flex, Heading, IconButton, Separator, Text } from "@radix-ui/themes";
 import { ExitIcon } from "@radix-ui/react-icons";
 
@@ -12,7 +13,7 @@ export interface AppHeaderProps {
   addApiKeyHref?: string;
 }
 
-export function AppHeader({ apiConnected, onClearApiKey, navigation, addApiKeyHref = "/" }: AppHeaderProps): JSX.Element {
+export const AppHeader: FC<AppHeaderProps> = ({ apiConnected, onClearApiKey, navigation, addApiKeyHref = "/" }) => {
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-900/75 backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
@@ -72,4 +73,4 @@ export function AppHeader({ apiConnected, onClearApiKey, navigation, addApiKeyHr
       </div>
     </header>
   );
-}
+};

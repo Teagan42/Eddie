@@ -1,4 +1,4 @@
-import type { ComponentProps, ComponentType } from 'react';
+import type { ComponentProps, ComponentType, FC } from 'react';
 
 import { combineClassNames } from '../utils/class-names';
 
@@ -22,7 +22,7 @@ const BASE_ICON_CLASSES = [
   'dark:text-[color:var(--hero-console-icon-fg-dark)]',
 ].join(' ');
 
-export function EddieIcon({ icon: Icon, className, iconClassName }: EddieIconProps): JSX.Element {
+export const EddieIcon: FC<EddieIconProps> = ({ icon: Icon, className, iconClassName }) => {
   const wrapperClasses = combineClassNames(BASE_WRAPPER_CLASSES, className);
   const iconClasses = combineClassNames(BASE_ICON_CLASSES, iconClassName);
 
@@ -31,4 +31,4 @@ export function EddieIcon({ icon: Icon, className, iconClassName }: EddieIconPro
       <Icon className={iconClasses} />
     </div>
   );
-}
+};
