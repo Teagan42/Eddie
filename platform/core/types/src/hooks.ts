@@ -222,9 +222,15 @@ export type HookEventMap = {
   [HOOK_EVENTS.subagentStop]: AgentLifecyclePayload;
 };
 
+type HookListenerResultMap = {
+  [HOOK_EVENTS.stop]: HookStopEnqueueResponse | void | undefined;
+} & {
+  [K in Exclude<HookEventName, typeof HOOK_EVENTS.stop>]: unknown;
+};
+
 export type HookListener<K extends HookEventName> = (
   payload: HookEventMap[K]
-) => unknown | Promise<unknown>;
+) => HookListenerResultMap[K] | Promise<HookListenerResultMap[K]>;
 
 export type HookListenerResult<K extends HookEventName> = Awaited<
   ReturnType<HookListener<K>>
@@ -233,6 +239,43 @@ export type HookListenerResult<K extends HookEventName> = Awaited<
 export type HookEventHandlers = {
   [K in HookEventName]?: HookListener<K>;
 };
+
+export type HookStopEnqueueMessage = ChatMessage;
+
+export interface HookStopEnqueueResponse {
+  continue: true;
+  enqueue: HookStopEnqueueMessage[];
+}
+
+export function normalizeHookStopMessages(
+  messages: HookStopEnqueueMessage[]
+): ChatMessage[] {
+  return messages.map((message) => {
+    const normalized: ChatMessage = {
+      role: message.role,
+      content: message.content,
+    };
+
+    if (message.name) {
+      normalized.name = message.name;
+    }
+
+    if (message.tool_call_id) {
+      normalized.tool_call_id = message.tool_call_id;
+    }
+
+    return normalized;
+  });
+}
+
+export function continueHook(
+  ...messages: HookStopEnqueueMessage[]
+): HookStopEnqueueResponse {
+  return {
+    continue: true,
+    enqueue: normalizeHookStopMessages(messages),
+  };
+}
 
 export interface HookBlockResponse {
   blocked: true;

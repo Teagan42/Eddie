@@ -141,6 +141,8 @@ Upstream sources feed two primary notification categories:
 
 Integrators can capture or reroute these events through the hook system. `HOOK_EVENTS.notification` delivers the full payload (including agent ID, iteration number, and metadata) to custom listeners so logging pipelines or alerting systems can react without scraping CLI output.【F:platform/core/types/src/hooks.ts†L195-L220】 Configure hook modules in `eddie.config.*` via the `hooks.modules` array (and optional `hooks.directory`) to register handlers that forward notifications to Slack, webhooks, or other sinks before a run starts.【F:platform/core/config/src/defaults.ts†L81-L104】【F:platform/core/config/src/schema.ts†L520-L547】【F:platform/runtime/hooks/src/hooks-loader.service.ts†L24-L78】
 
+The stop hook can also push the conversation forward. Returning `continueHook(...)` from a `HOOK_EVENTS.stop` handler enqueues additional chat messages (for example, a follow-up user question) and forces the agent run loop to begin another provider pass with the augmented transcript.【F:platform/core/types/src/hooks.ts†L224-L252】【F:platform/runtime/engine/src/agents/runner/agent-run-loop.ts†L205-L241】 This makes it possible to build policy modules that request clarifications or escalate prompts without patching the core CLI.
+
 ## Error handling and troubleshooting
 
 - Missing prompts for `ask` or `run` raise clear errors before contacting a model, so scripts can exit early with actionable feedback.【F:apps/cli/src/cli/commands/ask.command.ts†L19-L27】【F:apps/cli/src/cli/commands/run.command.ts†L19-L27】
