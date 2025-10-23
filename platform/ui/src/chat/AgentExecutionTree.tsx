@@ -183,6 +183,20 @@ function findInvocationInGroups(
   return null;
 }
 
+function findInvocationInAgentGroups(
+  groupsByAgentId: ExecutionTreeState['toolGroupsByAgentId'],
+  id: string,
+): { agentId: string; invocation: ToolInvocationNode } | null {
+  for (const [agentId, groups] of Object.entries(groupsByAgentId)) {
+    const invocation = findInvocationInGroups(groups, id);
+    if (invocation) {
+      return { agentId, invocation };
+    }
+  }
+
+  return null;
+}
+
 export function AgentExecutionTree({
   state,
   selectedAgentId,
@@ -342,24 +356,33 @@ export function AgentExecutionTree({
       return;
     }
 
-    const invocation = findInvocationById(toolInvocations, focusedInvocationId);
+    let invocation = findInvocationById(toolInvocations, focusedInvocationId);
+    let resolvedAgentId: string | null = invocation?.agentId ?? null;
+
     if (!invocation) {
-      return;
+      const groupedMatch = findInvocationInAgentGroups(toolGroupsByAgentId, focusedInvocationId);
+      if (!groupedMatch) {
+        return;
+      }
+
+      invocation = groupedMatch.invocation;
+      resolvedAgentId = groupedMatch.agentId ?? invocation.agentId ?? null;
     }
 
-    const agentId = invocation.agentId ?? null;
-    if (agentId) {
-      const lineage = agentLineageById[agentId] ?? [];
+    const targetAgentId = resolvedAgentId ?? invocation.agentId ?? null;
+
+    if (targetAgentId) {
+      const lineage = agentLineageById[targetAgentId] ?? [];
       setExpandedAgentIds((previous) => {
         const next = new Set(previous);
         for (const id of lineage) {
           next.add(id);
         }
-        next.add(agentId);
+        next.add(targetAgentId);
         return next;
       });
 
-      const statusKey: ToolGroupKey = `${agentId}:${invocation.status ?? 'pending'}` as ToolGroupKey;
+      const statusKey: ToolGroupKey = `${targetAgentId}:${invocation.status ?? 'pending'}` as ToolGroupKey;
       setExpandedGroups((previous) => {
         const next = new Set(previous);
         next.add(statusKey);
@@ -368,10 +391,10 @@ export function AgentExecutionTree({
     }
 
     setDetailsTarget({
-      agentId: agentId ?? invocation.agentId ?? 'unknown',
+      agentId: targetAgentId ?? 'unknown',
       invocationId: focusedInvocationId,
     });
-  }, [agentLineageById, focusedInvocationId, toolInvocations]);
+  }, [agentLineageById, focusedInvocationId, toolGroupsByAgentId, toolInvocations]);
 
   const handleSelectAgent = useCallback(
     (agentId: string) => {

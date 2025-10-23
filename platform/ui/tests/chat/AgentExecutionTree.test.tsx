@@ -406,4 +406,62 @@ describe("AgentExecutionTree", () => {
     expect(dialog).toHaveAccessibleName(/tool invocation details/i);
     expect(within(dialog).getByText(/summarize-report/i)).toBeInTheDocument();
   });
+
+  it("focuses tool invocation details for grouped entries", async () => {
+    const state = {
+      agentHierarchy: [
+        {
+          id: "root-agent",
+          name: "orchestrator",
+          provider: "openai",
+          model: "gpt-4o",
+          depth: 0,
+          lineage: ["root-agent"],
+          children: [],
+        },
+      ],
+      toolInvocations: [],
+      contextBundles: [],
+      agentLineageById: { "root-agent": ["root-agent"] },
+      toolGroupsByAgentId: {
+        "root-agent": {
+          pending: [],
+          running: [],
+          completed: [
+            {
+              id: "child-invocation",
+              agentId: "root-agent",
+              name: "summarize-report",
+              status: "completed",
+              createdAt: "2024-05-01T12:12:00.000Z",
+              updatedAt: "2024-05-01T12:12:30.000Z",
+              metadata: { result: { summary: "Key findings" } },
+              children: [],
+            },
+          ],
+          failed: [],
+        },
+      },
+      contextBundlesByAgentId: {},
+      contextBundlesByToolCallId: {},
+      createdAt: "2024-05-01T12:10:00.000Z",
+      updatedAt: "2024-05-01T12:13:00.000Z",
+    } satisfies ExecutionTreeState;
+
+    render(
+      <AgentExecutionTree
+        state={state}
+        selectedAgentId={null}
+        onSelectAgent={() => {}}
+        focusedInvocationId="child-invocation"
+      />,
+    );
+
+    const dialog = await screen.findByRole("dialog", {
+      name: /tool invocation details/i,
+    });
+
+    expect(dialog).toHaveAccessibleName(/tool invocation details/i);
+    expect(within(dialog).getByText(/summarize-report/i)).toBeInTheDocument();
+  });
 });
