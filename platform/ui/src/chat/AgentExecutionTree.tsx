@@ -731,6 +731,7 @@ export function AgentExecutionTree({
       >
         {detailsInvocation ? (
           <DialogContent
+            aria-label="Tool invocation details"
             aria-labelledby={dialogTitleId}
             aria-describedby={dialogDescriptionId}
             className="max-h-[85vh] space-y-4 overflow-y-auto"
