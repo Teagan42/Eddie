@@ -292,8 +292,15 @@ export class AgentInvocationFactory {
       ...(runtimeMetadata ?? {}),
     };
 
-    if (configFacets) {
-      metadata.facets = structuredClone(configFacets);
+    const runtimeFacets = runtimeMetadata
+      ? (runtimeMetadata as { facets?: Record<string, unknown> }).facets
+      : undefined;
+
+    if (configFacets || runtimeFacets) {
+      metadata.facets = {
+        ...(configFacets ? structuredClone(configFacets) : {}),
+        ...(runtimeFacets ? structuredClone(runtimeFacets) : {}),
+      };
     }
 
     return metadata;
