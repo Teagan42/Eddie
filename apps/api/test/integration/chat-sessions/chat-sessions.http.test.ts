@@ -254,6 +254,30 @@ describe("ChatSessionsController HTTP", () => {
     );
   });
 
+  it("accepts developer role messages via POST /chat-sessions/:id/messages", async () => {
+    const session = await service.createSession({ title: "Developer" });
+    const payload: SendChatMessagePayloadDto = {
+      sessionId: session.id,
+      message: {
+        role: ChatMessageRole.Developer,
+        content: "Outline integration steps",
+      },
+    };
+
+    await request(app.getHttpServer())
+      .post(`/chat-sessions/${session.id}/messages`)
+      .send(payload.message)
+      .expect(201);
+
+    const messages = await service.listMessages(session.id);
+    const latest = messages.at(-1);
+
+    expect(latest).toMatchObject({
+      role: ChatMessageRole.Developer,
+      content: payload.message.content,
+    });
+  });
+
   it("broadcasts reasoning updates over the chat messages gateway", async () => {
     const session = await service.createSession({ title: "Reasoning" });
     const gateway = app.get(ChatMessagesGateway);

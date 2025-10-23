@@ -203,6 +203,29 @@ describe('ChatWindow', () => {
     expect(within(segment).getByText(expectedTime)).toBeVisible();
   });
 
+  it('renders developer messages with a dedicated badge and content', () => {
+    const developerMessage = createMessage({
+      id: 'message-developer',
+      role: 'developer',
+      content: 'Set max concurrency to 4',
+    });
+
+    renderChatWindow({ messages: [developerMessage] });
+
+    const logRegion = screen.getByRole('log');
+    expect(
+      within(logRegion).getByText('Developer', {
+        selector: 'span[data-accent-color="indigo"]',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(logRegion).getByTestId('chat-message-content'),
+    ).toHaveAttribute('data-chat-role', 'developer');
+    expect(
+      within(logRegion).getByText('Set max concurrency to 4'),
+    ).toBeInTheDocument();
+  });
+
   it('opens the tool drawer when clicking a tool message', async () => {
     const user = userEvent.setup();
     const handleInspectTool = vi.fn();
@@ -265,7 +288,7 @@ describe('ChatWindow', () => {
     expect(handleInspectTool).toHaveBeenCalledWith('meta-tool-id');
   });
 
-  it('renders the agent activity indicator and segmented role control', async () => {
+  it('renders the agent activity indicator and composer role dropdown', async () => {
     const user = userEvent.setup();
     const handleRoleChange = vi.fn();
 
@@ -277,13 +300,18 @@ describe('ChatWindow', () => {
     expect(
       screen.getByRole('status', { name: 'Dispatching message…' }),
     ).toBeInTheDocument();
-    const askOption = screen.getByRole('radio', { name: 'Ask' });
-    const runOption = screen.getByRole('radio', { name: 'Run' });
-    expect(askOption).toBeChecked();
+    const roleSelect = screen.getByRole('combobox', { name: 'Message role' });
+    expect(roleSelect).toHaveTextContent('User');
 
-    await user.click(runOption);
+    await user.click(roleSelect);
+    await user.click(await screen.findByRole('option', { name: 'System' }));
 
     expect(handleRoleChange).toHaveBeenCalledWith('system');
+
+    await user.click(roleSelect);
+    await user.click(await screen.findByRole('option', { name: 'Developer' }));
+
+    expect(handleRoleChange).toHaveBeenCalledWith('developer');
   });
 
   it('forwards composer interactions to the provided handlers', async () => {

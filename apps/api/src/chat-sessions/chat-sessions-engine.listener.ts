@@ -22,6 +22,12 @@ import { ChatMessageCreatedEvent } from "@eddie/types";
 const DEFAULT_ENGINE_FAILURE_MESSAGE =
     "Engine failed to respond. Check server logs for details.";
 
+const ENGINE_TRIGGER_ROLES = new Set<ChatMessageRole>([
+  ChatMessageRole.User,
+  ChatMessageRole.System,
+  ChatMessageRole.Developer,
+]);
+
 @EventsHandler(ChatMessageCreatedEvent)
 @Injectable()
 export class ChatSessionsEngineListener
@@ -54,10 +60,7 @@ implements IEventHandler<ChatMessageCreatedEvent> {
   }
 
   private shouldInvokeEngine(message: ChatMessageDto): boolean {
-    return (
-      message.role === ChatMessageRole.User ||
-      message.role === ChatMessageRole.System
-    );
+    return ENGINE_TRIGGER_ROLES.has(message.role);
   }
 
   private async executeEngine(
@@ -330,6 +333,8 @@ implements IEventHandler<ChatMessageCreatedEvent> {
         return ChatMessageRole.Assistant;
       case "system":
         return ChatMessageRole.System;
+      case "developer":
+        return ChatMessageRole.Developer;
       case "tool":
         return ChatMessageRole.Tool;
       case "user":

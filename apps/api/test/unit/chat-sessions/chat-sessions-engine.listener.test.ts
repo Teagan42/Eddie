@@ -117,6 +117,36 @@ describe("ChatSessionsEngineListener", () => {
     expect(engineRun).not.toHaveBeenCalled();
   });
 
+  it("invokes the engine for developer messages", async () => {
+    const message = createChatMessage({ role: ChatMessageRole.Developer });
+
+    listMessages.mockReturnValue([message]);
+    engineRun.mockResolvedValue({
+      messages: [],
+      context: { files: [], totalBytes: 0, text: "" },
+      agents: [],
+    });
+    capture.mockImplementation(async (_sessionId: string, handler: () => Promise<EngineResult>) => {
+      const result = await handler();
+      return {
+        result,
+        error: undefined,
+        state: {
+          sessionId: message.sessionId,
+          messageId: null,
+          buffer: "",
+        },
+      };
+    });
+
+    await listener.handle(new ChatMessageCreatedEvent(message.sessionId, message.id));
+
+    expect(engineRun).toHaveBeenCalledWith(
+      message.content,
+      expect.objectContaining({ sessionId: message.sessionId })
+    );
+  });
+
   it("invokes the engine with prior history and appends responses", async () => {
     const historyMessages = [
       createChatMessage({ id: "m-1", role: ChatMessageRole.User, content: "Earlier" }),

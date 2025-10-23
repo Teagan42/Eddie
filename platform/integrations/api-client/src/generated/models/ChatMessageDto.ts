@@ -40,6 +40,7 @@ export namespace ChatMessageDto {
         USER = 'user',
         ASSISTANT = 'assistant',
         SYSTEM = 'system',
+        DEVELOPER = 'developer',
         TOOL = 'tool',
     }
 }

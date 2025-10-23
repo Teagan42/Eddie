@@ -1,7 +1,10 @@
 import type { FormEventHandler, RefObject } from 'react';
-import { Flex, SegmentedControl } from '@radix-ui/themes';
+import { Flex, Select, Theme } from '@radix-ui/themes';
 
-import type { ChatMessageDto } from '@eddie/api-client';
+import type {
+  ChatMessageDto,
+  CreateChatMessageDto,
+} from '@eddie/api-client';
 
 import {
   AgentActivityIndicator,
@@ -10,7 +13,16 @@ import {
 import { MessageComposer } from '../../components/MessageComposer';
 import { MessageList, type MessageListItem } from './MessageList';
 
-export type ComposerRole = 'user' | 'system';
+export type ComposerRole = Extract<
+  CreateChatMessageDto['role'],
+  'user' | 'system' | 'developer'
+>;
+
+const COMPOSER_ROLE_OPTIONS: Array<{ value: ComposerRole; label: string }> = [
+  { value: 'user', label: 'User' },
+  { value: 'system', label: 'System' },
+  { value: 'developer', label: 'Developer' },
+];
 
 export interface ChatWindowProps {
   messages: MessageListItem[];
@@ -55,14 +67,22 @@ export function ChatWindow({
       />
       <Flex direction="column" gap="3">
         <AgentActivityIndicator state={agentActivityState} />
-        <SegmentedControl.Root
-          value={composerRole}
-          onValueChange={(value) => onComposerRoleChange(value as ComposerRole)}
-          disabled={composerRoleDisabled}
-        >
-          <SegmentedControl.Item value="user">Ask</SegmentedControl.Item>
-          <SegmentedControl.Item value="system">Run</SegmentedControl.Item>
-        </SegmentedControl.Root>
+        <Theme asChild>
+          <Select.Root
+            value={composerRole}
+            onValueChange={(value) => onComposerRoleChange(value as ComposerRole)}
+            disabled={composerRoleDisabled}
+          >
+            <Select.Trigger aria-label="Message role" placeholder="Message role" />
+            <Select.Content>
+              {COMPOSER_ROLE_OPTIONS.map((option) => (
+                <Select.Item key={option.value} value={option.value}>
+                  {option.label}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+        </Theme>
         <MessageComposer
           disabled={composerDisabled}
           value={composerValue}

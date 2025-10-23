@@ -164,7 +164,12 @@ export class DemoSeedReplayService {
   }
 
   private toChatRole(role: string | undefined): ChatMessage["role"] {
-    if (role === "assistant" || role === "system" || role === "tool") {
+    if (
+      role === "assistant" ||
+      role === "system" ||
+      role === "developer" ||
+      role === "tool"
+    ) {
       return role;
     }
 

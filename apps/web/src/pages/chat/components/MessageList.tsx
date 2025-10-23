@@ -6,6 +6,7 @@ import type {
 } from 'react';
 import { Badge, Box, Flex, IconButton, ScrollArea, Text, Tooltip } from '@radix-ui/themes';
 import {
+  CodeIcon,
   CubeIcon,
   GearIcon,
   MagicWandIcon,
@@ -56,6 +57,16 @@ const MESSAGE_ROLE_STYLES: Record<MessageRole, MessageRoleStyle> = {
     icon: MagicWandIcon,
     iconClassName: 'text-sky-200',
     contentClassName: 'leading-relaxed text-white/95',
+  },
+  developer: {
+    label: 'Developer',
+    badgeColor: 'indigo',
+    align: 'start',
+    cardClassName:
+      'border border-indigo-400/30 bg-gradient-to-br from-indigo-500/25 via-indigo-500/5 to-slate-950/70 text-indigo-50 shadow-[0_30px_60px_-35px_rgba(99,102,241,0.65)]',
+    icon: CodeIcon,
+    iconClassName: 'text-indigo-200',
+    contentClassName: 'text-sm font-mono text-indigo-50',
   },
   system: {
     label: 'Command',
@@ -359,14 +370,21 @@ export function MessageList({
           ) : (
             messages.map((message) => {
               const roleStyle = MESSAGE_ROLE_STYLES[message.role];
+              const {
+                align,
+                badgeColor,
+                cardClassName,
+                contentClassName,
+                icon: Icon,
+                iconClassName,
+                label,
+              } = roleStyle;
               const timestamp = formatTime(message.createdAt);
-              const Icon = roleStyle.icon;
               const alignmentClass =
-                roleStyle.align === 'end' ? 'ml-auto w-full max-w-2xl' : 'mr-auto w-full max-w-2xl';
-              const containerClassName = cn(MESSAGE_CONTAINER_CLASS, roleStyle.cardClassName);
+                align === 'end' ? 'ml-auto w-full max-w-2xl' : 'mr-auto w-full max-w-2xl';
+              const containerClassName = cn(MESSAGE_CONTAINER_CLASS, cardClassName);
               const showReissueButton = message.role !== 'assistant';
-              const fallbackHeading =
-                message.role === 'user' ? 'You' : roleStyle.label;
+              const fallbackHeading = message.role === 'user' ? 'You' : label;
               const messageWithMetadata = message as MessageWithMetadata;
               const { heading, subheading } = getMessageProvenance(
                 messageWithMetadata,
@@ -438,8 +456,8 @@ export function MessageList({
                             ) : null}
                           </Flex>
                           <Flex align="center" gap="2" className="flex-wrap">
-                            <Badge color={roleStyle.badgeColor} variant="soft">
-                              {roleStyle.label}
+                            <Badge color={badgeColor} variant="soft">
+                              {label}
                             </Badge>
                             {timestamp ? (
                               <Text size="1" color="gray">
@@ -478,7 +496,7 @@ export function MessageList({
                       <ChatMessageContent
                         messageRole={message.role}
                         content={message.content}
-                        className={cn('text-base text-white', roleStyle.contentClassName)}
+                        className={cn('text-base text-white', contentClassName)}
                       />
                     )}
                     {hasReasoning ? (
