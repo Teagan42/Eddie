@@ -68,6 +68,7 @@ export class AgentInvocationFactory {
       prompt,
       context,
       history,
+      promptRole: options.promptRole,
     };
 
     return new AgentInvocation(

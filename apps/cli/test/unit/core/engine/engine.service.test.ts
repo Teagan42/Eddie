@@ -61,6 +61,7 @@ class FakeAgentOrchestrator {
         prompt: request.prompt,
         context: request.context,
         history: request.history,
+        promptRole: request.promptRole,
       },
       this.tools,
       request.parent

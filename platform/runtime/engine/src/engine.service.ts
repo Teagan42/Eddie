@@ -51,6 +51,7 @@ export interface EngineOptions extends CliRuntimeOptions {
     autoApprove?: boolean;
     nonInteractive?: boolean;
     sessionId?: string;
+    promptRole?: ChatMessage["role"];
 }
 
 export interface EngineResult {
@@ -91,18 +92,20 @@ export class EngineService {
      * aggregated result or failure context.
      */
   async run(prompt: string, options: EngineOptions = {}): Promise<EngineResult> {
+    const promptRole = options.promptRole ?? "user";
+    const resolvedOptions: EngineOptions = { ...options, promptRole };
     const runStartedAt = Date.now();
-    const sessionId = options.sessionId ?? randomUUID();
+    const sessionId = resolvedOptions.sessionId ?? randomUUID();
     let hooks: HookBus | undefined;
     let session: SessionMetadata | undefined;
     let result: EngineResult | undefined;
     let failure: unknown;
     let logger!: Logger;
 
-    this.metrics.countMessage("user");
+    this.metrics.countMessage(promptRole);
 
     try {
-      const cfg = await this.resolveRuntimeConfig(options);
+      const cfg = await this.resolveRuntimeConfig(resolvedOptions);
       const projectDir = cfg.projectDir ?? process.cwd();
       if (!cfg.context.baseDir) {
         cfg.context.baseDir = projectDir;
@@ -139,7 +142,7 @@ export class EngineService {
       const sessionStart = await hooks.emitAsync(HOOK_EVENTS.sessionStart, {
         metadata: session,
         config: cfg,
-        options,
+        options: resolvedOptions,
       });
       this.handleHookDispatchResult(
         HOOK_EVENTS.sessionStart,
@@ -154,7 +157,7 @@ export class EngineService {
         HOOK_EVENTS.beforeContextPack,
         {
           config: cfg,
-          options,
+          options: resolvedOptions,
         }
       );
       this.handleHookDispatchResult(
@@ -210,8 +213,8 @@ export class EngineService {
       const catalog = this.buildAgentCatalog(cfg, toolsEnabled, context);
       const managerDescriptor = catalog.getManager();
       const confirm = this.confirmService.create({
-        autoApprove: options.autoApprove ?? cfg.tools?.autoApprove,
-        nonInteractive: options.nonInteractive ?? false,
+        autoApprove: resolvedOptions.autoApprove ?? cfg.tools?.autoApprove,
+        nonInteractive: resolvedOptions.nonInteractive ?? false,
       });
       const transcriptCompaction = this.transcriptCompactionService.createSelector(
         cfg,
@@ -238,8 +241,8 @@ export class EngineService {
         {
           metadata: session,
           prompt,
-          historyLength: options.history?.length ?? 0,
-          options,
+          historyLength: resolvedOptions.history?.length ?? 0,
+          options: resolvedOptions,
         }
       );
       this.handleHookDispatchResult(
@@ -288,7 +291,8 @@ export class EngineService {
               definition: managerDescriptor.definition,
               prompt,
               context,
-              history: options.history,
+              history: resolvedOptions.history,
+              promptRole,
             },
             runtime
           )

@@ -84,6 +84,7 @@ implements IEventHandler<ChatMessageCreatedEvent> {
           autoApprove: true,
           nonInteractive: true,
           sessionId,
+          promptRole: message.role,
         })
       );
 

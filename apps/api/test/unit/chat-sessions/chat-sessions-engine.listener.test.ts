@@ -183,6 +183,7 @@ describe("ChatSessionsEngineListener", () => {
         autoApprove: true,
         nonInteractive: true,
         sessionId: "session-1",
+        promptRole: ChatMessageRole.User,
       })
     );
 
@@ -233,6 +234,49 @@ describe("ChatSessionsEngineListener", () => {
     );
 
     expect(saveAgentInvocations).toHaveBeenCalledWith("session-1", []);
+  });
+
+  it("forwards the message role to the engine invocation", async () => {
+    const developerMessage = createChatMessage({
+      id: "m-4",
+      role: ChatMessageRole.Developer,
+      content: "Run diagnostics",
+    });
+
+    listMessages.mockReturnValue([developerMessage]);
+
+    const engineResult: EngineResult = {
+      messages: [
+        { role: "system", content: "system prompt" },
+        { role: "developer", content: "Run diagnostics" },
+        { role: "assistant", content: "Diagnostics complete" },
+      ],
+      context: { files: [], totalBytes: 0, text: "" },
+      agents: [],
+    };
+
+    engineRun.mockResolvedValue(engineResult);
+
+    capture.mockImplementation(async (_sessionId: string, handler: () => Promise<EngineResult>) => ({
+      result: await handler(),
+      error: undefined,
+      state: {
+        sessionId: developerMessage.sessionId,
+        messageId: undefined,
+        buffer: "Diagnostics complete",
+      },
+    }));
+
+    await listener.handle(
+      new ChatMessageCreatedEvent(developerMessage.sessionId, developerMessage.id)
+    );
+
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(engineRun).toHaveBeenCalledWith(
+      "Run diagnostics",
+      expect.objectContaining({ promptRole: ChatMessageRole.Developer })
+    );
   });
 
   it("captures agent runtime metadata in invocation snapshots", async () => {

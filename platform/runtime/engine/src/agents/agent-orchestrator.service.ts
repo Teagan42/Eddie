@@ -120,6 +120,7 @@ export class AgentOrchestratorService {
         prompt: request.prompt,
         context: request.context,
         history: request.history,
+        promptRole: request.promptRole,
       },
       request.parent
     );
