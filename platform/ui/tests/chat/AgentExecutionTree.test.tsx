@@ -215,7 +215,7 @@ describe("AgentExecutionTree", () => {
     ).toBeInTheDocument();
   });
 
-  it.skip("shows context bundle labels when titles are absent",
+  it("shows context bundle labels when titles are absent",
     async () => {
       const user = setupUser();
 

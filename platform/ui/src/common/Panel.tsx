@@ -75,6 +75,7 @@ export function Panel({
   const generatedId = useId();
   const bodyId = id ? `${ id }__panel-body` : `${ generatedId }-panel-body`;
   const [ isExpanded, setIsExpanded ] = useState(true);
+  const toggleLabel = isExpanded ? "Collapse panel" : "Expand panel";
   const handleToggle = (): void => {
     setIsExpanded((value) => !value);
   };
@@ -108,6 +109,7 @@ export function Panel({
                 onClick={handleToggle}
                 aria-expanded={isExpanded}
                 aria-controls={bodyId}
+                aria-label={toggleLabel}
               >
                 {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
               </button>

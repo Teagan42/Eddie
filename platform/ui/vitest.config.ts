@@ -12,7 +12,7 @@ const shikiTransformersStub = path.join(
 
 const createSourceAlias = (specifier: string) => [
   { find: specifier, replacement: sourceDir },
-  { find: `${specifier}/`, replacement: `${sourceDir}/` },
+  { find: `${ specifier }/`, replacement: `${ sourceDir }/` },
 ];
 
 export default defineConfig({
@@ -26,14 +26,14 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "jsdom",
-    setupFiles: ["./vitest.setup.ts"],
-    pool: "threads",
-    include: ["**/*.test.ts", "**/*.test.tsx"],
+    setupFiles: [ "./vitest.setup.ts" ],
+    pool: "forks",
+    include: [ "**/*.test.ts", "**/*.test.tsx" ],
     coverage: {
       provider: "v8",
-      reporter: ["text", "json", "html"],
+      reporter: [ "text", "json", "html" ],
       reportsDirectory: "coverage",
-      exclude: ["tests/**"],
+      exclude: [ "tests/**" ],
     },
   },
 });
