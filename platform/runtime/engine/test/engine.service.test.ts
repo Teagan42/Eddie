@@ -4,6 +4,7 @@ import { EngineService } from "../src/engine.service";
 import type { AgentRuntimeCatalog, EddieConfig, PackedContext } from "@eddie/types";
 import type { AgentRuntimeOptions } from "../src/agents/agent-orchestrator.service";
 import type { DiscoveredMcpResource } from "@eddie/mcp";
+import type { Memory } from "mem0ai";
 
 const baseConfig: EddieConfig = {
   model: "base-model",
@@ -197,6 +198,71 @@ describe("EngineService", () => {
 
     expect(manager.metadata?.memory).toEqual({ recall: true });
     expect(worker?.metadata?.memory).toEqual({ recall: true });
+  });
+
+  it("normalizes recalled memories to the agent format", async () => {
+    const recalled: Memory[] = [
+      {
+        id: "mem-1",
+        memory: "Remember the sprint goal",
+        metadata: { importance: "high" },
+        facets: { project: "apollo" },
+      } as Memory,
+      {
+        id: "mem-2",
+        memory: undefined,
+        metadata: { importance: "low" },
+      } as Memory,
+    ];
+
+    const memoryFacade = {
+      recallMemories: vi.fn(async () => recalled),
+    };
+
+    const { service, agentOrchestrator } = createService(
+      {
+        context: { include: [], baseDir: "/tmp/project", maxBytes: 120 },
+        memory: { enabled: true },
+        agents: {
+          mode: "manager",
+          enableSubagents: false,
+          manager: { prompt: "Manage", memory: { recall: true } },
+          subagents: [],
+        },
+      },
+      { memoryFacade }
+    );
+
+    await service.run("plan the sprint");
+
+    const runtime = getFirstRuntimeOptions(agentOrchestrator)!;
+    const adapter = runtime.memory?.adapter;
+    expect(adapter).toBeDefined();
+
+    const descriptor = runtime.catalog.getManager();
+    const result = await adapter!.recallMemories({
+      agent: descriptor,
+      query: "plan the sprint",
+      session: runtime.memory?.session,
+      metadata: undefined,
+      maxBytes: 1024,
+    });
+
+    expect(memoryFacade.recallMemories).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: runtime.memory?.session?.id,
+        agentId: descriptor.id,
+      })
+    );
+
+    expect(result).toEqual([
+      {
+        id: "mem-1",
+        memory: "Remember the sprint goal",
+        metadata: { importance: "high" },
+        facets: { project: "apollo" },
+      },
+    ]);
   });
 
   it("requests a transcript compaction selector for each run", async () => {

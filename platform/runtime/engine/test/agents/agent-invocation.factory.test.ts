@@ -278,6 +278,42 @@ describe("AgentInvocationFactory", () => {
     );
   });
 
+  it("omits fallback session metadata when runtime does not provide it", async () => {
+    const definition: AgentDefinition = {
+      id: "planner",
+      systemPrompt: "System",
+    };
+
+    const descriptor: AgentRuntimeDescriptor = {
+      id: "planner",
+      definition,
+      model: "gpt-4",
+      provider: {} as ProviderAdapter,
+      metadata: {
+        memory: { recall: true },
+      },
+    };
+
+    const memoryAdapter = {
+      recallMemories: vi.fn(async () => [] as AgentRecalledMemory[]),
+    };
+
+    const runtime = createRuntime(descriptor, {
+      sessionId: "session-123",
+      memory: {
+        adapter: memoryAdapter,
+      },
+    });
+
+    await factory.create(definition, { prompt: "Plan the sprint" }, runtime);
+
+    expect(memoryAdapter.recallMemories).toHaveBeenCalledWith(
+      expect.objectContaining({
+        session: undefined,
+      })
+    );
+  });
+
   it("appends recalled memories to the agent context when within budget", async () => {
     const definition: AgentDefinition = {
       id: "planner",
