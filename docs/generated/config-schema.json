@@ -803,6 +803,62 @@
           }
         }
       },
+      "memory": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "facets": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "defaultStrategy": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "vectorStore": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "provider"
+            ],
+            "properties": {
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "qdrant"
+                ]
+              },
+              "qdrant": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "apiKey": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "collection": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "timeoutMs": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "agents": {
         "type": "object",
         "additionalProperties": false,
@@ -1023,6 +1079,65 @@
                 "items": {
                   "type": "string",
                   "minLength": 1
+                }
+              },
+              "memory": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "recall": {
+                    "type": "boolean"
+                  },
+                  "store": {
+                    "type": "boolean"
+                  },
+                  "facets": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "defaultStrategy": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "vectorStore": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "provider"
+                    ],
+                    "properties": {
+                      "provider": {
+                        "type": "string",
+                        "enum": [
+                          "qdrant"
+                        ]
+                      },
+                      "qdrant": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "url": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "apiKey": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "collection": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "timeoutMs": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -1251,6 +1366,65 @@
                   "items": {
                     "type": "string",
                     "minLength": 1
+                  }
+                },
+                "memory": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "recall": {
+                      "type": "boolean"
+                    },
+                    "store": {
+                      "type": "boolean"
+                    },
+                    "facets": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "defaultStrategy": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "vectorStore": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "provider"
+                      ],
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "qdrant"
+                          ]
+                        },
+                        "qdrant": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "url": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "apiKey": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "collection": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "timeoutMs": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -2327,6 +2501,62 @@
           }
         }
       },
+      "memory": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "facets": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "defaultStrategy": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "vectorStore": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "provider"
+            ],
+            "properties": {
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "qdrant"
+                ]
+              },
+              "qdrant": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "apiKey": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "collection": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "timeoutMs": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "agents": {
         "type": "object",
         "additionalProperties": false,
@@ -2542,6 +2772,65 @@
                 "items": {
                   "type": "string",
                   "minLength": 1
+                }
+              },
+              "memory": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "recall": {
+                    "type": "boolean"
+                  },
+                  "store": {
+                    "type": "boolean"
+                  },
+                  "facets": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "defaultStrategy": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "vectorStore": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "provider"
+                    ],
+                    "properties": {
+                      "provider": {
+                        "type": "string",
+                        "enum": [
+                          "qdrant"
+                        ]
+                      },
+                      "qdrant": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "url": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "apiKey": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "collection": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "timeoutMs": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -2770,6 +3059,65 @@
                   "items": {
                     "type": "string",
                     "minLength": 1
+                  }
+                },
+                "memory": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "recall": {
+                      "type": "boolean"
+                    },
+                    "store": {
+                      "type": "boolean"
+                    },
+                    "facets": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "defaultStrategy": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "vectorStore": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "provider"
+                      ],
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "qdrant"
+                          ]
+                        },
+                        "qdrant": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "url": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "apiKey": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "collection": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "timeoutMs": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               }

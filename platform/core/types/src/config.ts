@@ -214,6 +214,35 @@ export type ContextResourceConfig =
   | ContextResourceBundleConfig
   | ContextResourceTemplateConfig;
 
+export interface MemoryFacetsConfig {
+  defaultStrategy?: string;
+}
+
+export interface MemoryVectorStoreQdrantConfig {
+  url?: string;
+  apiKey?: string;
+  collection?: string;
+  timeoutMs?: number;
+}
+
+export interface MemoryVectorStoreConfig {
+  provider: "qdrant";
+  qdrant?: MemoryVectorStoreQdrantConfig;
+}
+
+export interface MemoryConfig {
+  enabled?: boolean;
+  facets?: MemoryFacetsConfig;
+  vectorStore?: MemoryVectorStoreConfig;
+}
+
+export interface AgentMemoryConfig {
+  recall?: boolean;
+  store?: boolean;
+  facets?: MemoryFacetsConfig;
+  vectorStore?: MemoryVectorStoreConfig;
+}
+
 export interface AgentManagerConfig {
   prompt: string;
   instructions?: string;
@@ -225,6 +254,7 @@ export interface AgentManagerConfig {
   provider?: AgentProviderConfig;
   transcript?: TranscriptConfig;
   allowedSubagents?: string[];
+  memory?: AgentMemoryConfig;
   [key: string]: unknown;
 }
 
@@ -243,6 +273,7 @@ export interface AgentDefinitionConfig {
   provider?: AgentProviderConfig;
   transcript?: TranscriptConfig;
   allowedSubagents?: string[];
+  memory?: AgentMemoryConfig;
   [key: string]: unknown;
 }
 
@@ -344,6 +375,7 @@ export interface EddieConfig {
   tools?: ToolsConfig;
   hooks?: HooksConfig;
   tokenizer?: TokenizerConfig;
+  memory?: MemoryConfig;
   agents: AgentsConfig;
   transcript?: TranscriptConfig;
   metrics?: MetricsConfig;
@@ -365,6 +397,7 @@ export interface EddieConfigInput {
   tools?: Partial<ToolsConfig>;
   hooks?: Partial<HooksConfig>;
   tokenizer?: Partial<TokenizerConfig>;
+  memory?: Partial<MemoryConfig>;
   agents?: AgentsConfigInput;
   transcript?: TranscriptConfig;
   metrics?: Partial<MetricsConfig>;

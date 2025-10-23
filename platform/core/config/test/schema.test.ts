@@ -54,6 +54,7 @@ describe("EDDIE_CONFIG_SCHEMA_BUNDLE", () => {
     expect(schemaProperties).toHaveProperty("tools");
     expect(schemaProperties).toHaveProperty("hooks");
     expect(schemaProperties).toHaveProperty("agents");
+    expect(schemaProperties).toHaveProperty("memory");
     expect(schemaProperties).toHaveProperty("demoSeeds");
   });
 
@@ -121,6 +122,113 @@ describe("EDDIE_CONFIG_SCHEMA_BUNDLE", () => {
   it("disables additional properties at the top level", () => {
     expect(EDDIE_CONFIG_SCHEMA_BUNDLE.schema.additionalProperties).toBe(false);
     expect(EDDIE_CONFIG_SCHEMA_BUNDLE.inputSchema.additionalProperties).toBe(false);
+  });
+
+  it("documents the memory configuration surface", () => {
+    const schemaProperties =
+      EDDIE_CONFIG_SCHEMA_BUNDLE.schema.properties ?? {};
+    const inputProperties =
+      EDDIE_CONFIG_SCHEMA_BUNDLE.inputSchema.properties ?? {};
+
+    expect(schemaProperties.memory).toMatchObject({
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        enabled: { type: "boolean" },
+        facets: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            defaultStrategy: { type: "string" },
+          },
+        },
+        vectorStore: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            provider: { type: "string" },
+            qdrant: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                url: { type: "string" },
+                apiKey: { type: "string" },
+                collection: { type: "string" },
+                timeoutMs: { type: "integer", minimum: 0 },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(inputProperties.memory).toMatchObject({
+      type: "object",
+      additionalProperties: false,
+    });
+
+    const agentsSchema = EDDIE_CONFIG_SCHEMA_BUNDLE.schema.properties?.agents;
+    const agentsInputSchema =
+      EDDIE_CONFIG_SCHEMA_BUNDLE.inputSchema.properties?.agents;
+
+    expect(agentsSchema).toBeDefined();
+    expect(agentsInputSchema).toBeDefined();
+
+    const managerSchema = extractSchemaProperties(agentsSchema)?.manager;
+    const managerInputSchema =
+      extractSchemaProperties(agentsInputSchema)?.manager;
+
+    expect(managerSchema).toBeDefined();
+    expect(managerInputSchema).toBeDefined();
+
+    expect(managerSchema).toHaveProperty("properties.memory");
+    expect(managerInputSchema).toHaveProperty("properties.memory");
+
+    const managerMemorySchema =
+      extractSchemaProperties(managerSchema)?.memory;
+    const managerMemoryInputSchema =
+      extractSchemaProperties(managerInputSchema)?.memory;
+
+    expect(managerMemorySchema).toMatchObject({
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        recall: { type: "boolean" },
+        store: { type: "boolean" },
+      },
+    });
+    expect(managerMemoryInputSchema).toMatchObject({
+      type: "object",
+      additionalProperties: false,
+    });
+
+    const subagentsSchema = extractSchemaProperties(agentsSchema)?.subagents;
+    const subagentsInputSchema =
+      extractSchemaProperties(agentsInputSchema)?.subagents;
+
+    expect(subagentsSchema).toHaveProperty("items");
+    expect(subagentsInputSchema).toHaveProperty("items");
+
+    const subagentSchema = extractSchemaProperties(subagentsSchema?.items);
+    const subagentInputSchema = extractSchemaProperties(
+      subagentsInputSchema?.items,
+    );
+
+    expect(subagentSchema).toHaveProperty("memory");
+    expect(subagentInputSchema).toHaveProperty("memory");
+
+    expect(subagentSchema?.memory).toMatchObject({
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        recall: { type: "boolean" },
+        store: { type: "boolean" },
+      },
+    });
+    expect(subagentInputSchema?.memory).toMatchObject({
+      type: "object",
+      additionalProperties: false,
+    });
   });
 
   it("keeps the generated JSON schema bundle in sync", () => {

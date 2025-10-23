@@ -8,6 +8,17 @@ context:
   baseDir: ../..
   variables:
     householdName: Vega Residence
+memory:
+  enabled: true
+  facets:
+    defaultStrategy: semantic
+  vectorStore:
+    provider: qdrant
+    qdrant:
+      url: https://qdrant.local
+      apiKey: "${QDRANT_API_KEY}"
+      collection: household-memories
+      timeoutMs: 8000
 
 agents:
   mode: single
@@ -50,6 +61,11 @@ agents:
             name: Plex Premier
             nickname: "Cinematic curator"
             focus: "movie and music metadata"
+    memory:
+      recall: true
+      store: true
+      facets:
+        defaultStrategy: persona
     defaultUserPromptTemplate:
       file: user.jinja
       baseDir: ./examples/personal-assistant/prompts

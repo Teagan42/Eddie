@@ -1,4 +1,8 @@
-import type { TemplateDescriptor, TemplateVariables } from "./config";
+import type {
+  AgentMemoryConfig,
+  TemplateDescriptor,
+  TemplateVariables,
+} from "./config";
 import type {
   ChatMessage,
   PackedContext,
@@ -76,6 +80,7 @@ export interface AgentRuntimeMetadata {
   routingThreshold?: number;
   profileId?: string;
   allowedSubagents?: string[];
+  memory?: AgentMemoryConfig;
 }
 
 export interface AgentRuntimeDescriptor {

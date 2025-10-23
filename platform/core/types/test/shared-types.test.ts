@@ -44,6 +44,19 @@ describe("@eddie/types shared contracts", () => {
     }>();
 
     expectTypeOf<EddieConfig>().toHaveProperty("provider").toMatchTypeOf<ProviderConfig>();
+    expectTypeOf<EddieConfig>().toHaveProperty("memory").toMatchTypeOf<{
+      enabled?: boolean;
+      facets?: { defaultStrategy?: string };
+      vectorStore?: {
+        provider: string;
+        qdrant?: {
+          url?: string;
+          apiKey?: string;
+          collection?: string;
+          timeoutMs?: number;
+        };
+      };
+    }>();
     expectTypeOf<CliRuntimeOptions>().toHaveProperty("config").toMatchTypeOf<string | undefined>();
   });
 

@@ -25,6 +25,21 @@ export const DEFAULT_CONFIG: EddieConfig = {
     include: ["src/**/*"],
     baseDir: CWD,
   },
+  memory: {
+    enabled: false,
+    facets: {
+      defaultStrategy: "none",
+    },
+    vectorStore: {
+      provider: "qdrant",
+      qdrant: {
+        url: "http://localhost:6333",
+        apiKey: undefined,
+        collection: "eddie-memory",
+        timeoutMs: 5000,
+      },
+    },
+  },
   api: {
     host: "0.0.0.0",
     port: 3000,
@@ -89,6 +104,10 @@ export const DEFAULT_CONFIG: EddieConfig = {
     mode: "single",
     manager: {
       prompt: DEFAULT_SYSTEM_PROMPT,
+      memory: {
+        recall: false,
+        store: false,
+      },
     },
     subagents: [],
     routing: {
