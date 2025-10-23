@@ -304,10 +304,7 @@ describe("AgentExecutionTree", () => {
 
       await user.click(detailsButton);
 
-      const dialog = await waitFor(() => screen.findByRole(
-        "dialog",
-        { name: /tool invocation details/i },
-      ), { timeout: 10_000 });
+      const dialog = await waitFor(() => screen.getByTestId("tool-invocation-details"), { timeout: 10_000 });
       expect(dialog).toBeInTheDocument();
       expect(within(dialog).getByText(/Research briefing/)).toBeInTheDocument();
     },

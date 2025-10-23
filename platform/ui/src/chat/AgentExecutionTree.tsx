@@ -774,6 +774,7 @@ export function AgentExecutionTree({
       <Dialog
         open={detailsTarget != null}
         aria-label="Tool invocation details"
+        data-testid="tool-invocation-details"
         onOpenChange={(open) => {
           if (!open) {
             setDetailsTarget(null);
