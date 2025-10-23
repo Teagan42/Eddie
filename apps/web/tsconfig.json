@@ -1,43 +1,37 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "jsx": "react-jsx",
     "baseUrl": "./src",
     "rootDir": "./src",
     "outDir": "dist/",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "paths": {
-      "@/auth": ["auth"],
-      "@/auth/*": ["auth/*"],
-      "@/api": ["api"],
-      "@/api/*": ["api/*"],
-      "@/chat": ["pages/chat"],
-      "@/chat/*": ["pages/chat/*"],
-      "@/config": ["config"],
-      "@/config/*": ["config/*"],
-      "@/hooks": ["hooks"],
-      "@/hooks/*": ["hooks/*"],
-      "@/styles": ["styles"],
-      "@/styles/*": ["styles/*"],
-      "@/theme": ["theme"],
-      "@/theme/*": ["theme/*"],
-      "@/vendor": ["vendor"],
-      "@/vendor/*": ["vendor/*"],
-      "@/*": ["./*"],
-      "@shikijs/transformers": ["vendor/shiki-transformers.ts"]
-    },
+    "jsx": "react-jsx",
     "types": [
       "vite/client",
-      "vitest"
+      "vitest",
+      "@testing-library/jest-dom"
     ],
-    "noEmit": true
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@shikijs/transformers": [
+        "vendor/shiki-transformers.ts"
+      ]
+    },
   },
-  "include": ["src"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
   "references": [
     {
       "path": "../../platform/ui"
+    },
+    {
+      "path": "../../platform/integrations/api-client"
     }
   ]
 }
