@@ -275,7 +275,7 @@ export class AgentInvocationFactory {
       usage: AgentInvocationMemoryUsage[];
       appendText?: string;
       appendBytes?: number;
-    } {
+      } {
     return { memories: [], usage: [] };
   }
 
