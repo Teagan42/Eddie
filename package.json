@@ -33,6 +33,8 @@
     "docs:serve": "npx serve docs",
     "docs:config-schema": "tsx platform/core/config/scripts/render-config-schema-diagram.ts",
     "docs:config-schema:check": "tsx platform/core/config/scripts/render-config-schema-diagram.ts --check",
+    "docs:database-diagram": "tsx apps/api/scripts/render-database-diagram.ts",
+    "docs:database-diagram:check": "tsx apps/api/scripts/render-database-diagram.ts --check",
     "db:migrate": "npm run db:migrate --workspace @eddie/api --if-present",
     "db:seed": "npm run db:seed --workspace @eddie/api --if-present",
     "cli:start": "npm run start --workspace @eddie/cli --if-present",

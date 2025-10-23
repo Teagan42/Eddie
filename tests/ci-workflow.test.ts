@@ -65,6 +65,12 @@ function extractJobNeeds(jobSection: string): string[] {
     .map((line) => line.trim().replace(/^- /, ''));
 }
 
+function expectJobNeeds(jobId: string, expectedNeeds: string[]): void {
+  const jobSection = extractJobSection(`${jobId}:`);
+
+  expect(extractJobNeeds(jobSection)).toEqual(expectedNeeds);
+}
+
 describe('ci workflow configuration', () => {
   it('defines a combined build-test job', () => {
     expect(workflow).toContain('build-test:');
@@ -129,11 +135,8 @@ describe('ci workflow configuration', () => {
     expect(jobSection).not.toMatch(/git push/);
   });
 
-  it('runs license sync after docs diagram to avoid push conflicts', () => {
-    const docsJob = extractJobSection('docs-config-schema:');
-    const licensesJob = extractJobSection('sync-third-party-licenses:');
-
-    expect(extractJobNeeds(docsJob)).toEqual([]);
-    expect(extractJobNeeds(licensesJob)).toEqual(['docs-config-schema']);
+  it('runs third-party notices before docs diagram jobs to avoid push conflicts', () => {
+    expectJobNeeds('docs-database-diagram', ['sync-third-party-licenses']);
+    expectJobNeeds('sync-third-party-licenses', ['docs-config-schema']);
   });
 });
