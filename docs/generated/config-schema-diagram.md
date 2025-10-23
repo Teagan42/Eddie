@@ -25,6 +25,30 @@ graph LR
   agents__manager__defaultUserPromptTemplate__variables["variables: object"]
   agents__manager --> agents__manager__instructions
   agents__manager__instructions["instructions: string"]
+  agents__manager --> agents__manager__memory
+  agents__manager__memory["memory: object"]
+  agents__manager__memory --> agents__manager__memory__facets
+  agents__manager__memory__facets["facets: object"]
+  agents__manager__memory__facets --> agents__manager__memory__facets__defaultStrategy
+  agents__manager__memory__facets__defaultStrategy["defaultStrategy: string"]
+  agents__manager__memory --> agents__manager__memory__recall
+  agents__manager__memory__recall["recall: boolean"]
+  agents__manager__memory --> agents__manager__memory__store
+  agents__manager__memory__store["store: boolean"]
+  agents__manager__memory --> agents__manager__memory__vectorStore
+  agents__manager__memory__vectorStore["vectorStore: object"]
+  agents__manager__memory__vectorStore --> agents__manager__memory__vectorStore__provider
+  agents__manager__memory__vectorStore__provider["provider (required): string"]
+  agents__manager__memory__vectorStore --> agents__manager__memory__vectorStore__qdrant
+  agents__manager__memory__vectorStore__qdrant["qdrant: object"]
+  agents__manager__memory__vectorStore__qdrant --> agents__manager__memory__vectorStore__qdrant__apiKey
+  agents__manager__memory__vectorStore__qdrant__apiKey["apiKey: string"]
+  agents__manager__memory__vectorStore__qdrant --> agents__manager__memory__vectorStore__qdrant__collection
+  agents__manager__memory__vectorStore__qdrant__collection["collection: string"]
+  agents__manager__memory__vectorStore__qdrant --> agents__manager__memory__vectorStore__qdrant__timeoutMs
+  agents__manager__memory__vectorStore__qdrant__timeoutMs["timeoutMs: integer"]
+  agents__manager__memory__vectorStore__qdrant --> agents__manager__memory__vectorStore__qdrant__url
+  agents__manager__memory__vectorStore__qdrant__url["url: string"]
   agents__manager --> agents__manager__model
   agents__manager__model["model: string"]
   agents__manager --> agents__manager__prompt
@@ -71,6 +95,30 @@ graph LR
   agents__subagents__item__description["description: string"]
   agents__subagents__item --> agents__subagents__item__id
   agents__subagents__item__id["id (required): string"]
+  agents__subagents__item --> agents__subagents__item__memory
+  agents__subagents__item__memory["memory: object"]
+  agents__subagents__item__memory --> agents__subagents__item__memory__facets
+  agents__subagents__item__memory__facets["facets: object"]
+  agents__subagents__item__memory__facets --> agents__subagents__item__memory__facets__defaultStrategy
+  agents__subagents__item__memory__facets__defaultStrategy["defaultStrategy: string"]
+  agents__subagents__item__memory --> agents__subagents__item__memory__recall
+  agents__subagents__item__memory__recall["recall: boolean"]
+  agents__subagents__item__memory --> agents__subagents__item__memory__store
+  agents__subagents__item__memory__store["store: boolean"]
+  agents__subagents__item__memory --> agents__subagents__item__memory__vectorStore
+  agents__subagents__item__memory__vectorStore["vectorStore: object"]
+  agents__subagents__item__memory__vectorStore --> agents__subagents__item__memory__vectorStore__provider
+  agents__subagents__item__memory__vectorStore__provider["provider (required): string"]
+  agents__subagents__item__memory__vectorStore --> agents__subagents__item__memory__vectorStore__qdrant
+  agents__subagents__item__memory__vectorStore__qdrant["qdrant: object"]
+  agents__subagents__item__memory__vectorStore__qdrant --> agents__subagents__item__memory__vectorStore__qdrant__apiKey
+  agents__subagents__item__memory__vectorStore__qdrant__apiKey["apiKey: string"]
+  agents__subagents__item__memory__vectorStore__qdrant --> agents__subagents__item__memory__vectorStore__qdrant__collection
+  agents__subagents__item__memory__vectorStore__qdrant__collection["collection: string"]
+  agents__subagents__item__memory__vectorStore__qdrant --> agents__subagents__item__memory__vectorStore__qdrant__timeoutMs
+  agents__subagents__item__memory__vectorStore__qdrant__timeoutMs["timeoutMs: integer"]
+  agents__subagents__item__memory__vectorStore__qdrant --> agents__subagents__item__memory__vectorStore__qdrant__url
+  agents__subagents__item__memory__vectorStore__qdrant__url["url: string"]
   agents__subagents__item --> agents__subagents__item__model
   agents__subagents__item__model["model: string"]
   agents__subagents__item --> agents__subagents__item__name
@@ -269,6 +317,28 @@ graph LR
   logging__enableTimestamps["enableTimestamps: boolean"]
   logging --> logging__level
   logging__level["level (required): string"]
+  root --> memory
+  memory["memory: object"]
+  memory --> memory__enabled
+  memory__enabled["enabled: boolean"]
+  memory --> memory__facets
+  memory__facets["facets: object"]
+  memory__facets --> memory__facets__defaultStrategy
+  memory__facets__defaultStrategy["defaultStrategy: string"]
+  memory --> memory__vectorStore
+  memory__vectorStore["vectorStore: object"]
+  memory__vectorStore --> memory__vectorStore__provider
+  memory__vectorStore__provider["provider (required): string"]
+  memory__vectorStore --> memory__vectorStore__qdrant
+  memory__vectorStore__qdrant["qdrant: object"]
+  memory__vectorStore__qdrant --> memory__vectorStore__qdrant__apiKey
+  memory__vectorStore__qdrant__apiKey["apiKey: string"]
+  memory__vectorStore__qdrant --> memory__vectorStore__qdrant__collection
+  memory__vectorStore__qdrant__collection["collection: string"]
+  memory__vectorStore__qdrant --> memory__vectorStore__qdrant__timeoutMs
+  memory__vectorStore__qdrant__timeoutMs["timeoutMs: integer"]
+  memory__vectorStore__qdrant --> memory__vectorStore__qdrant__url
+  memory__vectorStore__qdrant__url["url: string"]
   root --> metrics
   metrics["metrics: object"]
   metrics --> metrics__backend
