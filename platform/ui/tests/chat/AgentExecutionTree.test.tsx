@@ -305,7 +305,8 @@ describe("AgentExecutionTree", () => {
       await user.click(detailsButton);
 
       const dialog = await screen.findByText(
-        /tool invocation details/i,
+        (content: string, element: Element | null) =>
+          content.toLowerCase().includes("tool invocation details"),
         { exact: false },
         { timeout: 10_000 },
       );

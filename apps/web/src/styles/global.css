@@ -1,7 +1,7 @@
+@import '@eddie/ui/theme/tokens.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@import "@eddie/ui/theme/tokens.css";
 
 :root {
   --color-background: 210 50% 6%;
@@ -11,13 +11,13 @@
   --color-muted: 210 12% 28%;
   --color-accent: 160 84% 44%;
   --shadow-soft: 0 40px 80px -40px rgba(15, 23, 42, 0.7);
-  --font-sans: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  --font-sans: 'Inter', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 body {
   font-family: var(--font-sans);
-  background: radial-gradient(circle at 20% 20%, rgba(34, 197, 94, 0.08), transparent 60%),
+  background:
+    radial-gradient(circle at 20% 20%, rgba(34, 197, 94, 0.08), transparent 60%),
     radial-gradient(circle at 80% 0%, rgba(6, 182, 212, 0.06), transparent 55%),
     hsl(var(--color-background));
   color: hsl(var(--color-foreground));
@@ -59,7 +59,9 @@ a {
   color: hsl(var(--color-accent));
   text-decoration: none;
   font-weight: 500;
-  transition: color 150ms ease, text-shadow 150ms ease;
+  transition:
+    color 150ms ease,
+    text-shadow 150ms ease;
 }
 
 a:hover,
@@ -98,19 +100,19 @@ a:focus-visible {
 }
 
 /* Radix theming overrides to ensure legibility on dark glass surfaces */
-.rt-Text[data-accent-color="gray"] {
+.rt-Text[data-accent-color='gray'] {
   color: rgba(226, 232, 240, 0.82);
 }
 
-.rt-Text[data-accent-color="gray"] a {
+.rt-Text[data-accent-color='gray'] a {
   color: rgba(226, 232, 240, 0.9);
 }
 
-.rt-Badge[class*="rt-variant-soft"][data-accent-color] {
+.rt-Badge[class*='rt-variant-soft'][data-accent-color] {
   color: rgba(241, 245, 249, 0.9);
 }
 
-.rt-Badge[class*="rt-variant-soft"][data-accent-color="gray"] {
+.rt-Badge[class*='rt-variant-soft'][data-accent-color='gray'] {
   color: rgba(226, 232, 240, 0.85);
 }
 
@@ -132,9 +134,10 @@ a:focus-visible {
   }
 }
 
-::view-transition-old(root), ::view-transition-new(root) {
-    animation: none;
-    mix-blend-mode: normal;
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
 }
 
 @theme inline {
@@ -161,7 +164,8 @@ a:focus-visible {
     }
   }
   @keyframes aurora-pulse {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 0.35;
       filter: blur(0px);
       transform: scale(0.9) translate3d(0, 0, 0);
@@ -178,27 +182,29 @@ a:focus-visible {
     }
   }
   @keyframes gradient {
-  to {
-    background-position: var(--bg-size, 300%) 0;
+    to {
+      background-position: var(--bg-size, 300%) 0;
     }
   }
   @keyframes shimmer-slide {
-  to {
-    transform: translate(calc(100cqw - 100%), 0);
+    to {
+      transform: translate(calc(100cqw - 100%), 0);
     }
   }
   @keyframes spin-around {
-  0% {
-    transform: translateZ(0) rotate(0);
+    0% {
+      transform: translateZ(0) rotate(0);
     }
-  15%, 35% {
-    transform: translateZ(0) rotate(90deg);
+    15%,
+    35% {
+      transform: translateZ(0) rotate(90deg);
     }
-  65%, 85% {
-    transform: translateZ(0) rotate(270deg);
+    65%,
+    85% {
+      transform: translateZ(0) rotate(270deg);
     }
-  100% {
-    transform: translateZ(0) rotate(360deg);
+    100% {
+      transform: translateZ(0) rotate(360deg);
     }
   }
 }
