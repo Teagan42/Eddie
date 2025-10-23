@@ -213,7 +213,7 @@ export class McpToolSourceService {
         )
       );
 
-      return prompts.map((response) => this.clonePrompt(response.prompt));
+      return prompts.filter((response) => response?.prompt).map((response) => this.clonePrompt(response.prompt));
     } catch (error) {
       if (this.isPromptsNotSupportedError(error)) {
         return [];

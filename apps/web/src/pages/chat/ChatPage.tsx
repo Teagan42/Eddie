@@ -23,21 +23,20 @@ import type {
   RuntimeConfigDto,
 } from '@eddie/api-client';
 import type { LayoutPreferencesDto } from '@eddie/api-client';
-import { applyToolCallEvent, applyToolResultEvent, AgentToolsDrawer, ChatWindow, cloneExecutionTreeState, cn, coerceExecutionTreeState, composeExecutionTreeState, createEmptyExecutionTreeState, createExecutionTreeStateFromMetadata, Panel, SessionSelector, Sheet, sortSessions, ToolEventPayload, upsertMessage } from '@eddie/ui';
+import { applyToolCallEvent, applyToolResultEvent, AgentToolsDrawer, ChatWindow, cloneExecutionTreeState, cn, coerceExecutionTreeState, composeExecutionTreeState, createEmptyExecutionTreeState, createExecutionTreeStateFromMetadata, Panel, SessionSelector, Sheet, sortSessions, ToolEventPayload, upsertMessage, SessionSelectorSession, SessionSelectorMetricsSummary, SheetTrigger } from '@eddie/ui';
 import { useApi } from '@/api/api-provider.js';
 import { useAuth } from '@/auth/auth-context.js';
 import { useLayoutPreferences } from '../../hooks/useLayoutPreferences.js';
 import { extractProviderProfiles, createProviderProfileOptions, ProviderOption } from '../shared/providerProfiles.js';
 import { getSurfaceLayoutClasses, SURFACE_CONTENT_CLASS } from '../../styles/surfaces.js';
-import { SessionSelectorSession, SessionSelectorMetricsSummary, SheetTrigger } from '@eddie/ui';
 import { useChatMessagesRealtime } from './useChatMessagesRealtime.js';
 import { toast } from '@/vendor/hooks/use-toast.js';
-import { useTheme } from '@/theme';
+import { useTheme } from '@/theme/theme-provider.js';
 
 const ORCHESTRATOR_METADATA_QUERY_KEY = 'orchestrator-metadata' as const;
 
 const getOrchestratorMetadataQueryKey = (sessionId: string | null) =>
-  [ORCHESTRATOR_METADATA_QUERY_KEY, sessionId] as const;
+  [ ORCHESTRATOR_METADATA_QUERY_KEY, sessionId ] as const;
 
 function resolveErrorMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -55,10 +54,10 @@ const PANEL_IDS = {
 
 const SCROLL_VIEWPORT_SELECTOR = '[data-radix-scroll-area-viewport]';
 
-const DEFAULT_THEME: RuntimeConfigDto['theme'] = 'dark';
+const DEFAULT_THEME: RuntimeConfigDto[ 'theme' ] = 'dark';
 
-const CHAT_SESSIONS_QUERY_KEY = ['chat-sessions'] as const;
-const CONFIG_EDITOR_QUERY_KEY = ['config', 'editor'] as const;
+const CHAT_SESSIONS_QUERY_KEY = [ 'chat-sessions' ] as const;
+const CONFIG_EDITOR_QUERY_KEY = [ 'config', 'editor' ] as const;
 
 const scrollMessageViewportToBottom = (anchor: HTMLElement): void => {
   const viewport = anchor.closest(SCROLL_VIEWPORT_SELECTOR);
@@ -75,7 +74,7 @@ const scrollMessageViewportToBottom = (anchor: HTMLElement): void => {
   anchor.scrollIntoView({ block: 'end' });
 };
 
-type ChatPreferences = NonNullable<LayoutPreferencesDto['chat']>;
+type ChatPreferences = NonNullable<LayoutPreferencesDto[ 'chat' ]>;
 const DEFAULT_COMPOSER_ROLE: Role = 'user';
 
 type AutoSessionAttemptStatus = 'idle' | 'pending' | 'failed';
@@ -95,9 +94,9 @@ type SessionContextSnapshot = {
 
 type PartialExecutionTreeMetadata = {
   executionTree?: ExecutionTreeState | null;
-  agentHierarchy?: ExecutionTreeState['agentHierarchy'];
-  toolInvocations?: ExecutionTreeState['toolInvocations'];
-  contextBundles?: ExecutionTreeState['contextBundles'];
+  agentHierarchy?: ExecutionTreeState[ 'agentHierarchy' ];
+  toolInvocations?: ExecutionTreeState[ 'toolInvocations' ];
+  contextBundles?: ExecutionTreeState[ 'contextBundles' ];
 };
 
 function deriveExecutionTreeFromSnapshotLike(value: unknown): ExecutionTreeState | null {
@@ -150,7 +149,7 @@ function removeSessionKey<T extends Record<string, unknown>>(
   }
 
   const next = { ...record } as T;
-  delete next[sessionId];
+  delete next[ sessionId ];
   return next;
 }
 
@@ -173,11 +172,11 @@ export function ChatPage(): JSX.Element {
   const { preferences, updatePreferences } = useLayoutPreferences();
   useChatMessagesRealtime(api);
   const { resolvedTheme } = useTheme();
-  const drawerTheme = (resolvedTheme ?? DEFAULT_THEME) as RuntimeConfigDto['theme'];
-  const [composerValue, setComposerValue] = useState('');
+  const drawerTheme = (resolvedTheme ?? DEFAULT_THEME) as RuntimeConfigDto[ 'theme' ];
+  const [ composerValue, setComposerValue ] = useState('');
   // Derive a safe default for composer role from the DTO union (fall back to 'user')
-  const [composerRole, setComposerRole] = useState<Role>(DEFAULT_COMPOSER_ROLE);
-  const [agentStreamActivity, setAgentStreamActivity] = useState<
+  const [ composerRole, setComposerRole ] = useState<Role>(DEFAULT_COMPOSER_ROLE);
+  const [ agentStreamActivity, setAgentStreamActivity ] = useState<
     Exclude<AgentActivityState, 'sending'>
   >('idle');
 
@@ -186,7 +185,7 @@ export function ChatPage(): JSX.Element {
     queryFn: () => api.http.chatSessions.list(),
   });
 
-  const sessions = useMemo(() => sortSessions(sessionsQuery.data ?? []), [sessionsQuery.data]);
+  const sessions = useMemo(() => sortSessions(sessionsQuery.data ?? []), [ sessionsQuery.data ]);
   const sessionsLoaded = sessionsQuery.isSuccess;
 
   const selectedSessionIdRef = useRef<string | null>(null);
@@ -210,15 +209,15 @@ export function ChatPage(): JSX.Element {
       displayedSessionIdsRef.current = next;
     }
   }, []);
-  const [autoSessionAttempt, setAutoSessionAttempt] = useState<AutoSessionAttemptState>({
+  const [ autoSessionAttempt, setAutoSessionAttempt ] = useState<AutoSessionAttemptState>({
     status: 'idle',
     apiKey: null,
     lastAttemptAt: null,
     lastFailureAt: null,
   });
-  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
-  const [isAgentToolsOpen, setAgentToolsOpen] = useState(false);
-  const [focusedToolInvocationId, setFocusedToolInvocationId] = useState<string | null>(null);
+  const [ selectedAgentId, setSelectedAgentId ] = useState<string | null>(null);
+  const [ isAgentToolsOpen, setAgentToolsOpen ] = useState(false);
+  const [ focusedToolInvocationId, setFocusedToolInvocationId ] = useState<string | null>(null);
   const setAutoSessionAttemptState = useCallback(
     (updates: Partial<AutoSessionAttemptState>) => {
       setAutoSessionAttempt((previous) => ({ ...previous, ...updates }));
@@ -227,13 +226,13 @@ export function ChatPage(): JSX.Element {
   );
   const resetAutoSessionAttempt = useCallback(() => {
     setAutoSessionAttemptState({ status: 'idle', lastAttemptAt: null, lastFailureAt: null });
-  }, [setAutoSessionAttemptState]);
+  }, [ setAutoSessionAttemptState ]);
   const agentActivitySessionRef = useRef<string | null>(null);
   const sessionContextByIdRef = useRef<Record<string, SessionContextSnapshot>>({});
-  const [sessionContextById, setSessionContextById] = useState<
+  const [ sessionContextById, setSessionContextById ] = useState<
     Record<string, SessionContextSnapshot>
   >({});
-  const [messageCountBySession, setMessageCountBySession] = useState<Record<string, number>>({});
+  const [ messageCountBySession, setMessageCountBySession ] = useState<Record<string, number>>({});
 
   const syncSessionContextCache = useCallback(
     (sessionId: string, snapshot: SessionContextSnapshot | null) => {
@@ -242,14 +241,14 @@ export function ChatPage(): JSX.Element {
         snapshot,
       );
     },
-    [queryClient],
+    [ queryClient ],
   );
 
   const setSessionContext = useCallback(
     (
       sessionId: string,
       snapshot: SessionContextSnapshot | null,
-      options?: { syncQueryCache?: boolean },
+      options?: { syncQueryCache?: boolean; },
     ): SessionContextSnapshot | null => {
       const { syncQueryCache = true } = options ?? {};
 
@@ -262,18 +261,18 @@ export function ChatPage(): JSX.Element {
       }
 
       const cloned = cloneSessionContext(snapshot);
-      setSessionContextById(<T extends object,>(previous: T) => ({ ...previous, [sessionId]: cloned }));
+      setSessionContextById(<T extends object,>(previous: T) => ({ ...previous, [ sessionId ]: cloned }));
       if (syncQueryCache) {
         syncSessionContextCache(sessionId, cloned);
       }
       return cloned;
     },
-    [syncSessionContextCache],
+    [ syncSessionContextCache ],
   );
 
   useEffect(() => {
     sessionContextByIdRef.current = sessionContextById;
-  }, [sessionContextById]);
+  }, [ sessionContextById ]);
 
   const handleToolLifecycleEvent = useCallback(
     (type: 'call' | 'result', payload: unknown) => {
@@ -287,7 +286,7 @@ export function ChatPage(): JSX.Element {
         return;
       }
 
-      const existing = sessionContextByIdRef.current[sessionId];
+      const existing = sessionContextByIdRef.current[ sessionId ];
       const clonedExisting = existing ? cloneSessionContext(existing) : null;
       const snapshot: SessionContextSnapshot = clonedExisting ?? {
         sessionId,
@@ -306,7 +305,7 @@ export function ChatPage(): JSX.Element {
         executionTree: nextTree,
       });
     },
-    [setSessionContext],
+    [ setSessionContext ],
   );
 
   useEffect(() => {
@@ -329,7 +328,7 @@ export function ChatPage(): JSX.Element {
         }
       });
     };
-  }, [api, handleToolLifecycleEvent]);
+  }, [ api, handleToolLifecycleEvent ]);
 
   useEffect(() => {
     const chatSessions = api.sockets.chatSessions;
@@ -374,7 +373,7 @@ export function ChatPage(): JSX.Element {
         return;
       }
 
-      const existingSnapshot = sessionContextByIdRef.current[sessionId];
+      const existingSnapshot = sessionContextByIdRef.current[ sessionId ];
       const existingTree = existingSnapshot?.executionTree;
 
       let mergedTree = normalizedState;
@@ -419,7 +418,7 @@ export function ChatPage(): JSX.Element {
           return;
         }
 
-        const existingSnapshot = sessionContextByIdRef.current[targetSessionId];
+        const existingSnapshot = sessionContextByIdRef.current[ targetSessionId ];
         const existingCapturedAt = existingSnapshot?.capturedAt;
         const fetchedCapturedAt = normalized.updatedAt ?? undefined;
 
@@ -462,7 +461,7 @@ export function ChatPage(): JSX.Element {
         // Ignore teardown errors to keep realtime updates resilient.
       }
     };
-  }, [api, setSessionContext]);
+  }, [ api, setSessionContext ]);
 
   const getMessageCacheLength = useCallback(
     (sessionId: string): number | undefined => {
@@ -486,7 +485,7 @@ export function ChatPage(): JSX.Element {
 
       return undefined;
     },
-    [queryClient],
+    [ queryClient ],
   );
 
   const synchronizeMessageCount = useCallback(
@@ -501,43 +500,43 @@ export function ChatPage(): JSX.Element {
           return previous;
         }
 
-        if (previous[sessionId] === nextCount) {
+        if (previous[ sessionId ] === nextCount) {
           return previous;
         }
 
-        return { ...previous, [sessionId]: nextCount };
+        return { ...previous, [ sessionId ]: nextCount };
       });
     },
-    [getMessageCacheLength],
+    [ getMessageCacheLength ],
   );
 
   const resolveMessageCount = useCallback(
     (sessionId: string): number | undefined => {
-      const cached = messageCountBySession[sessionId];
+      const cached = messageCountBySession[ sessionId ];
       if (typeof cached === 'number') {
         return cached;
       }
 
       return getMessageCacheLength(sessionId);
     },
-    [getMessageCacheLength, messageCountBySession],
+    [ getMessageCacheLength, messageCountBySession ],
   );
 
   useEffect(() => {
     sessions.forEach((session) => {
       synchronizeMessageCount(session.id);
     });
-  }, [sessions, synchronizeMessageCount]);
+  }, [ sessions, synchronizeMessageCount ]);
 
   const getSessionContextBundles = useCallback(
-    (sessionId: string | null): ExecutionTreeState['contextBundles'] => {
+    (sessionId: string | null): ExecutionTreeState[ 'contextBundles' ] => {
       if (!sessionId) {
         return [];
       }
 
-      return sessionContextById[sessionId]?.executionTree.contextBundles ?? [];
+      return sessionContextById[ sessionId ]?.executionTree.contextBundles ?? [];
     },
-    [sessionContextById],
+    [ sessionContextById ],
   );
 
   const sessionsWithMetrics = useMemo<SessionSelectorSession[]>(() => {
@@ -559,7 +558,7 @@ export function ChatPage(): JSX.Element {
 
       return hasMetrics ? { ...session, metrics } : session;
     });
-  }, [getSessionContextBundles, resolveMessageCount, sessions]);
+  }, [ getSessionContextBundles, resolveMessageCount, sessions ]);
 
   const invalidateSessionContext = useCallback(
     (sessionId?: string) => {
@@ -573,7 +572,7 @@ export function ChatPage(): JSX.Element {
         queryKey: getOrchestratorMetadataQueryKey(targetSessionId),
       });
     },
-    [queryClient],
+    [ queryClient ],
   );
 
   const applyChatUpdate = useCallback(
@@ -594,7 +593,7 @@ export function ChatPage(): JSX.Element {
         };
       });
     },
-    [updatePreferences],
+    [ updatePreferences ],
   );
 
   const setSelectedSessionPreference = useCallback(
@@ -603,12 +602,12 @@ export function ChatPage(): JSX.Element {
       selectedSessionIdRef.current = normalized;
       applyChatUpdate((chat) => ({ ...chat, selectedSessionId: normalized }));
     },
-    [applyChatUpdate],
+    [ applyChatUpdate ],
   );
 
   const removeMissingSessions = useCallback(
     (missingSessionIds: string[]) => {
-      const uniqueSessionIds = [...new Set(missingSessionIds)].filter(
+      const uniqueSessionIds = [ ...new Set(missingSessionIds) ].filter(
         (value): value is string => typeof value === 'string' && value.length > 0,
       );
 
@@ -629,19 +628,19 @@ export function ChatPage(): JSX.Element {
         setSessionContext(sessionId, null);
         setMessageCountBySession((previous) => removeSessionKey(previous, sessionId));
         queryClient.removeQueries({
-          queryKey: ['chat-session', sessionId, 'messages'],
+          queryKey: [ 'chat-session', sessionId, 'messages' ],
           exact: true,
         });
         queryClient.removeQueries({
-          queryKey: ['chat-sessions', sessionId, 'messages'],
+          queryKey: [ 'chat-sessions', sessionId, 'messages' ],
           exact: true,
         });
         queryClient.removeQueries({
           queryKey: getOrchestratorMetadataQueryKey(sessionId),
           exact: true,
         });
-        queryClient.setQueryData(['chat-session', sessionId, 'messages'], undefined);
-        queryClient.setQueryData(['chat-sessions', sessionId, 'messages'], undefined);
+        queryClient.setQueryData([ 'chat-session', sessionId, 'messages' ], undefined);
+        queryClient.setQueryData([ 'chat-sessions', sessionId, 'messages' ], undefined);
       });
 
       const currentSelection = selectedSessionIdRef.current;
@@ -661,11 +660,11 @@ export function ChatPage(): JSX.Element {
             mutated = true;
           }
           if (sessionId in nextSessionSettings) {
-            delete nextSessionSettings[sessionId];
+            delete nextSessionSettings[ sessionId ];
             mutated = true;
           }
           if (sessionId in nextTemplates) {
-            delete nextTemplates[sessionId];
+            delete nextTemplates[ sessionId ];
             mutated = true;
           }
         });
@@ -702,33 +701,33 @@ export function ChatPage(): JSX.Element {
     if (preferences.chat?.selectedSessionId) {
       return preferences.chat.selectedSessionId;
     }
-    return sessions[0]?.id ?? null;
-  }, [preferences.chat?.selectedSessionId, sessions]);
+    return sessions[ 0 ]?.id ?? null;
+  }, [ preferences.chat?.selectedSessionId, sessions ]);
 
   selectedSessionIdRef.current = selectedSessionId ?? null;
 
   const selectedSessionSnapshot = selectedSessionId
-    ? sessionContextById[selectedSessionId] ?? null
+    ? sessionContextById[ selectedSessionId ] ?? null
     : null;
   const executionTreeState = useMemo(
     () => selectedSessionSnapshot?.executionTree ?? null,
-    [selectedSessionSnapshot],
+    [ selectedSessionSnapshot ],
   );
 
   useEffect(() => {
-    if (!preferences.chat?.selectedSessionId && sessions[0]?.id) {
-      setSelectedSessionPreference(sessions[0]!.id);
+    if (!preferences.chat?.selectedSessionId && sessions[ 0 ]?.id) {
+      setSelectedSessionPreference(sessions[ 0 ]!.id);
     }
-  }, [preferences.chat?.selectedSessionId, sessions, setSelectedSessionPreference]);
+  }, [ preferences.chat?.selectedSessionId, sessions, setSelectedSessionPreference ]);
 
   useEffect(() => {
     setComposerValue('');
     setComposerRole(DEFAULT_COMPOSER_ROLE);
     setSelectedAgentId(null);
-  }, [selectedSessionId]);
+  }, [ selectedSessionId ]);
 
   const messagesQuery = useQuery({
-    queryKey: ['chat-session', selectedSessionId, 'messages'],
+    queryKey: [ 'chat-session', selectedSessionId, 'messages' ],
     enabled: Boolean(selectedSessionId),
     queryFn: () =>
       selectedSessionId
@@ -737,7 +736,7 @@ export function ChatPage(): JSX.Element {
   });
 
   useEffect(() => {
-    const error = messagesQuery.error as { status?: number } | null | undefined;
+    const error = messagesQuery.error as { status?: number; } | null | undefined;
     if (!error) {
       return;
     }
@@ -757,8 +756,8 @@ export function ChatPage(): JSX.Element {
       variant: 'warning',
     });
 
-    removeMissingSessions([missingSessionId]);
-  }, [messagesQuery.error, removeMissingSessions]);
+    removeMissingSessions([ missingSessionId ]);
+  }, [ messagesQuery.error, removeMissingSessions ]);
 
   useEffect(() => {
     const currentSessionIds = new Set(sessions.map((session) => session.id));
@@ -769,7 +768,7 @@ export function ChatPage(): JSX.Element {
       return;
     }
 
-    const missingSessionIds = [...previousSessionIds].filter(
+    const missingSessionIds = [ ...previousSessionIds ].filter(
       (sessionId) => !currentSessionIds.has(sessionId),
     );
 
@@ -784,7 +783,7 @@ export function ChatPage(): JSX.Element {
     });
 
     removeMissingSessions(missingSessionIds);
-  }, [removeMissingSessions, sessions]);
+  }, [ removeMissingSessions, sessions ]);
 
   useEffect(() => {
     if (!selectedSessionId) {
@@ -795,7 +794,7 @@ export function ChatPage(): JSX.Element {
     }
 
     synchronizeMessageCount(selectedSessionId);
-  }, [messagesQuery.data, selectedSessionId, synchronizeMessageCount]);
+  }, [ messagesQuery.data, selectedSessionId, synchronizeMessageCount ]);
 
   useEffect(() => {
     const normalizedSessionId = selectedSessionId ?? null;
@@ -817,7 +816,7 @@ export function ChatPage(): JSX.Element {
     return () => {
       unsubscribe?.();
     };
-  }, [api, selectedSessionId]);
+  }, [ api, selectedSessionId ]);
 
   useEffect(() => {
     const unsubscribes = [
@@ -835,9 +834,9 @@ export function ChatPage(): JSX.Element {
         queryClient.setQueryData<ChatSessionDto[]>(CHAT_SESSIONS_QUERY_KEY, (previous = []) =>
           previous.filter((item) => item.id !== sessionId),
         );
-        removeDisplayedSessionIds([sessionId]);
-        queryClient.removeQueries({ queryKey: ['chat-session', sessionId, 'messages'] });
-        queryClient.removeQueries({ queryKey: ['chat-sessions', sessionId, 'messages'] });
+        removeDisplayedSessionIds([ sessionId ]);
+        queryClient.removeQueries({ queryKey: [ 'chat-session', sessionId, 'messages' ] });
+        queryClient.removeQueries({ queryKey: [ 'chat-sessions', sessionId, 'messages' ] });
         if (selectedSessionIdRef.current === sessionId) {
           setSelectedSessionPreference(null);
         }
@@ -846,11 +845,11 @@ export function ChatPage(): JSX.Element {
       }),
       api.sockets.chatSessions.onMessageCreated((message) => {
         queryClient.setQueryData<ChatMessageDto[]>(
-          ['chat-session', message.sessionId, 'messages'],
+          [ 'chat-session', message.sessionId, 'messages' ],
           (previous = []) => {
             const next = previous.some((existing) => existing.id === message.id)
               ? previous
-              : [...previous, message];
+              : [ ...previous, message ];
             return next.sort(
               (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
             );
@@ -860,14 +859,14 @@ export function ChatPage(): JSX.Element {
       }),
       api.sockets.chatSessions.onMessageUpdated((message) => {
         queryClient.setQueryData<ChatMessageDto[]>(
-          ['chat-session', message.sessionId, 'messages'],
+          [ 'chat-session', message.sessionId, 'messages' ],
           (previous = []) => {
             const exists = previous.some((existing) => existing.id === message.id);
             const next = exists
               ? previous.map((existing) =>
                 existing.id === message.id ? { ...existing, ...message } : existing,
               )
-              : [...previous, message];
+              : [ ...previous, message ];
             return next.sort(
               (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
             );
@@ -934,7 +933,7 @@ export function ChatPage(): JSX.Element {
       return;
     }
 
-    const existing = sessionContextByIdRef.current[sessionId];
+    const existing = sessionContextByIdRef.current[ sessionId ];
     const incomingTree = deriveExecutionTreeFromSnapshotLike(sessionContextQueryData);
 
     if (!incomingTree) {
@@ -972,8 +971,8 @@ export function ChatPage(): JSX.Element {
   const renameSessionMutation = useMutation<
     ChatSessionDto,
     unknown,
-    { sessionId: string; title: string },
-    { previousSessions: ChatSessionDto[] }
+    { sessionId: string; title: string; },
+    { previousSessions: ChatSessionDto[]; }
   >({
     mutationFn: ({ sessionId, title }) =>
       api.http.chatSessions.rename(sessionId, { title }),
@@ -998,7 +997,7 @@ export function ChatPage(): JSX.Element {
       );
       toast({
         title: 'Session renamed',
-        description: `Renamed to "${session.title}"`,
+        description: `Renamed to "${ session.title }"`,
         variant: 'success',
       });
     },
@@ -1018,7 +1017,7 @@ export function ChatPage(): JSX.Element {
     void,
     unknown,
     string,
-    { previousSessions: ChatSessionDto[]; previousSelected: string | null }
+    { previousSessions: ChatSessionDto[]; previousSelected: string | null; }
   >({
     mutationFn: (sessionId) => api.http.chatSessions.delete(sessionId),
     onMutate: async (sessionId) => {
@@ -1029,15 +1028,15 @@ export function ChatPage(): JSX.Element {
         CHAT_SESSIONS_QUERY_KEY,
         previousSessions.filter((session) => session.id !== sessionId),
       );
-      removeDisplayedSessionIds([sessionId]);
+      removeDisplayedSessionIds([ sessionId ]);
       return {
         previousSessions,
         previousSelected: selectedSessionIdRef.current ?? null,
       };
     },
     onSuccess: async (_result, sessionId) => {
-      const messagesQueryKey = ['chat-session', sessionId, 'messages'] as const;
-      const overviewMessagesQueryKey = ['chat-sessions', sessionId, 'messages'] as const;
+      const messagesQueryKey = [ 'chat-session', sessionId, 'messages' ] as const;
+      const overviewMessagesQueryKey = [ 'chat-sessions', sessionId, 'messages' ] as const;
       const orchestratorQueryKey = getOrchestratorMetadataQueryKey(sessionId);
 
       await Promise.all([
@@ -1053,7 +1052,7 @@ export function ChatPage(): JSX.Element {
       const remainingSessions =
         queryClient.getQueryData<ChatSessionDto[]>(CHAT_SESSIONS_QUERY_KEY) ?? [];
       if (selectedSessionIdRef.current === sessionId) {
-        setSelectedSessionPreference(remainingSessions[0]?.id ?? null);
+        setSelectedSessionPreference(remainingSessions[ 0 ]?.id ?? null);
       }
       toast({
         title: 'Session deleted',
@@ -1105,13 +1104,13 @@ export function ChatPage(): JSX.Element {
         lastFailureAt: null,
       });
     }
-  }, [apiKey, autoSessionAttempt.apiKey, setAutoSessionAttemptState]);
+  }, [ apiKey, autoSessionAttempt.apiKey, setAutoSessionAttemptState ]);
 
   useEffect(() => {
     if (sessions.length > 0) {
       resetAutoSessionAttempt();
     }
-  }, [resetAutoSessionAttempt, sessions.length]);
+  }, [ resetAutoSessionAttempt, sessions.length ]);
 
   useEffect(() => {
     if (!apiKey || !sessionsLoaded || sessions.length > 0) {
@@ -1154,12 +1153,12 @@ export function ChatPage(): JSX.Element {
   ]);
 
   const sendMessageMutation = useMutation({
-    mutationFn: (input: { sessionId: string; message: CreateChatMessageDto }) =>
+    mutationFn: (input: { sessionId: string; message: CreateChatMessageDto; }) =>
       api.http.chatSessions.createMessage(input.sessionId, input.message),
     onSuccess: (message) => {
       setComposerValue('');
       queryClient.setQueryData<ChatMessageDto[]>(
-        ['chat-session', message.sessionId, 'messages'],
+        [ 'chat-session', message.sessionId, 'messages' ],
         (previous = []) => upsertMessage(previous, message),
       );
     },
@@ -1176,14 +1175,14 @@ export function ChatPage(): JSX.Element {
 
   const providerProfiles = useMemo(
     () => extractProviderProfiles(configSourceQuery.data?.config ?? null),
-    [configSourceQuery.data?.config],
+    [ configSourceQuery.data?.config ],
   );
 
-  const activeSettings = selectedSessionId ? (sessionSettings[selectedSessionId] ?? {}) : {};
+  const activeSettings = selectedSessionId ? (sessionSettings[ selectedSessionId ] ?? {}) : {};
 
   const profileProviderOptions = useMemo(
     () => createProviderProfileOptions(providerProfiles),
-    [providerProfiles],
+    [ providerProfiles ],
   );
 
   const providerOptions = useMemo<ProviderOption[]>(() => {
@@ -1191,7 +1190,7 @@ export function ChatPage(): JSX.Element {
       return [];
     }
 
-    const options = [...profileProviderOptions];
+    const options = [ ...profileProviderOptions ];
 
     if (
       activeSettings.provider &&
@@ -1207,7 +1206,7 @@ export function ChatPage(): JSX.Element {
     }
 
     return options;
-  }, [activeSettings.model, activeSettings.provider, profileProviderOptions]);
+  }, [ activeSettings.model, activeSettings.provider, profileProviderOptions ]);
 
   const providerOptionsByValue = useMemo(() => {
     const map = new Map<string, ProviderOption>();
@@ -1215,16 +1214,16 @@ export function ChatPage(): JSX.Element {
       map.set(option.value, option);
     }
     return map;
-  }, [providerOptions]);
+  }, [ providerOptions ]);
 
   const selectedProviderOption = useMemo(() => {
     if (providerOptions.length === 0) {
       return null;
     }
 
-    const providerName = activeSettings.provider ?? providerOptions[0]?.providerName;
+    const providerName = activeSettings.provider ?? providerOptions[ 0 ]?.providerName;
     if (!providerName) {
-      return providerOptions[0] ?? null;
+      return providerOptions[ 0 ] ?? null;
     }
 
     const activeModel =
@@ -1240,30 +1239,30 @@ export function ChatPage(): JSX.Element {
     }
 
     return providerOptions.find((option) => option.providerName === providerName) ?? null;
-  }, [activeSettings.model, activeSettings.provider, providerOptions]);
+  }, [ activeSettings.model, activeSettings.provider, providerOptions ]);
 
   const selectedProviderName = selectedProviderOption?.providerName ?? '';
   const selectedProviderValue = selectedProviderOption?.value ??
-    (selectedProviderName ? selectedProviderName : providerOptions[0]?.value ?? '');
+    (selectedProviderName ? selectedProviderName : providerOptions[ 0 ]?.value ?? '');
 
 
   const messagesWithMetadata = useMemo(() => {
     const baseMessages = messagesQuery.data ?? [];
     return enrichMessagesWithExecutionTree(baseMessages, executionTreeState);
-  }, [executionTreeState, messagesQuery.data]);
+  }, [ executionTreeState, messagesQuery.data ]);
   const hasStreamingReasoning = useMemo(
     () =>
       messagesWithMetadata.some(
         (message) => message.reasoning?.status === "streaming"
       ),
-    [messagesWithMetadata]
+    [ messagesWithMetadata ]
   );
   const selectedContextBundles = useMemo(
     () => getSessionContextBundles(selectedSessionId ?? null),
-    [getSessionContextBundles, selectedSessionId],
+    [ getSessionContextBundles, selectedSessionId ],
   );
   const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
-  const lastMessage = messagesWithMetadata[messagesWithMetadata.length - 1] ?? null;
+  const lastMessage = messagesWithMetadata[ messagesWithMetadata.length - 1 ] ?? null;
   const agentActivityState = useMemo<AgentActivityState>(() => {
     if (sendMessageMutation.isError) {
       return 'error';
@@ -1300,7 +1299,7 @@ export function ChatPage(): JSX.Element {
     }
 
     scrollMessageViewportToBottom(scrollAnchor);
-  }, [lastMessage, lastMessage?.content, lastMessage?.id, messagesWithMetadata.length]);
+  }, [ lastMessage, lastMessage?.content, lastMessage?.id, messagesWithMetadata.length ]);
 
   const handleSelectSession = useCallback(
     (sessionId: string) => {
@@ -1309,7 +1308,7 @@ export function ChatPage(): JSX.Element {
       }
       setSelectedSessionPreference(sessionId);
     },
-    [selectedSessionId, setSelectedSessionPreference],
+    [ selectedSessionId, setSelectedSessionPreference ],
   );
 
   const handleRenameSession = useCallback(
@@ -1325,7 +1324,7 @@ export function ChatPage(): JSX.Element {
       }
       runRenameSession({ sessionId, title: trimmed });
     },
-    [isRenamingSession, runRenameSession, sessions],
+    [ isRenamingSession, runRenameSession, sessions ],
   );
   const handleDeleteSession = useCallback(
     (sessionId: string) => {
@@ -1337,7 +1336,7 @@ export function ChatPage(): JSX.Element {
       }
       runDeleteSession(sessionId);
     },
-    [isDeletingSession, runDeleteSession],
+    [ isDeletingSession, runDeleteSession ],
   );
 
   const composerUnavailable = !apiKey || !selectedSessionId;
@@ -1356,14 +1355,14 @@ export function ChatPage(): JSX.Element {
         content: trimmed,
       },
     });
-  }, [apiKey, composerRole, composerValue, selectedSessionId, sendMessageMutation]);
+  }, [ apiKey, composerRole, composerValue, selectedSessionId, sendMessageMutation ]);
 
   const handleComposerSubmit = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
       handleSendMessage();
     },
-    [handleSendMessage],
+    [ handleSendMessage ],
   );
 
   const handleInspectToolInvocation = useCallback(
@@ -1385,7 +1384,7 @@ export function ChatPage(): JSX.Element {
 
       setAgentToolsOpen(true);
     },
-    [executionTreeState, setSelectedAgentId],
+    [ executionTreeState, setSelectedAgentId ],
   );
 
   const handleProviderChange = useCallback(
@@ -1410,17 +1409,17 @@ export function ChatPage(): JSX.Element {
 
       applyChatUpdate((chat) => {
         const nextSettings = { ...(chat.sessionSettings ?? {}) };
-        const current = nextSettings[selectedSessionId] ?? {};
+        const current = nextSettings[ selectedSessionId ] ?? {};
         const updated = {
           ...current,
           provider: providerName,
-        } as { provider: string; model?: string };
+        } as { provider: string; model?: string; };
         if (nextModel) {
           updated.model = nextModel;
         } else {
           delete updated.model;
         }
-        nextSettings[selectedSessionId] = updated;
+        nextSettings[ selectedSessionId ] = updated;
         return { ...chat, sessionSettings: nextSettings };
       });
     },
@@ -1437,11 +1436,11 @@ export function ChatPage(): JSX.Element {
     (panelId: string, collapsed: boolean) => {
       applyChatUpdate((chat) => {
         const nextPanels = { ...(chat.collapsedPanels ?? {}) };
-        nextPanels[panelId] = collapsed;
+        nextPanels[ panelId ] = collapsed;
         return { ...chat, collapsedPanels: nextPanels };
       });
     },
-    [applyChatUpdate],
+    [ applyChatUpdate ],
   );
 
   const handleModelInputChange = useCallback(
@@ -1452,9 +1451,9 @@ export function ChatPage(): JSX.Element {
 
       applyChatUpdate((chat) => {
         const nextSettings = { ...(chat.sessionSettings ?? {}) };
-        const current = nextSettings[selectedSessionId] ?? {};
+        const current = nextSettings[ selectedSessionId ] ?? {};
         const trimmedValue = value.trim();
-        const typedCurrent = current as { provider?: string; model?: string };
+        const typedCurrent = current as { provider?: string; model?: string; };
         const currentModel =
           typeof typedCurrent.model === 'string' ? typedCurrent.model : '';
         if (trimmedValue === currentModel) {
@@ -1472,11 +1471,11 @@ export function ChatPage(): JSX.Element {
         } else {
           delete updated.model;
         }
-        nextSettings[selectedSessionId] = updated;
+        nextSettings[ selectedSessionId ] = updated;
         return { ...chat, sessionSettings: nextSettings };
       });
     },
-    [applyChatUpdate, selectedProviderName, selectedSessionId],
+    [ applyChatUpdate, selectedProviderName, selectedSessionId ],
   );
 
   const handleCreateSession = useCallback(() => {
@@ -1489,14 +1488,14 @@ export function ChatPage(): JSX.Element {
       description: '',
     };
     createSessionMutation.mutate(payload);
-  }, [createSessionMutation]);
+  }, [ createSessionMutation ]);
 
   const handleReissueCommand = useCallback((message: ChatMessageDto) => {
     setComposerValue(message.content);
     setComposerRole(message.role as ComposerRole);
   }, []);
 
-  const isContextBundlesCollapsed = Boolean(collapsedPanels[PANEL_IDS.context]);
+  const isContextBundlesCollapsed = Boolean(collapsedPanels[ PANEL_IDS.context ]);
 
   return (
     <Sheet
@@ -1668,8 +1667,8 @@ type ChatMessageWithMetadata = ChatMessageDto & {
   reasoning?: MessageReasoningState | null;
 };
 
-type AgentHierarchyNode = ExecutionTreeState['agentHierarchy'][number];
-type ToolInvocationNode = ExecutionTreeState['toolInvocations'][number];
+type AgentHierarchyNode = ExecutionTreeState[ 'agentHierarchy' ][ number ];
+type ToolInvocationNode = ExecutionTreeState[ 'toolInvocations' ][ number ];
 
 function enrichMessagesWithExecutionTree(
   messages: ChatMessageDto[],
@@ -1693,7 +1692,7 @@ function enrichMessagesWithExecutionTree(
 
     const toolCallId = message.toolCallId ?? null;
     const invocation = toolCallId ? toolLookup.get(toolCallId) ?? null : null;
-    const metadataUpdates: Partial<NonNullable<ChatMessageWithMetadata['metadata']>> = {};
+    const metadataUpdates: Partial<NonNullable<ChatMessageWithMetadata[ 'metadata' ]>> = {};
 
     if (invocation) {
       metadataUpdates.tool = {
@@ -1706,8 +1705,8 @@ function enrichMessagesWithExecutionTree(
       if (agentId) {
         const agentNode = agentLookup.get(agentId) ?? null;
         if (agentNode) {
-          const lineage = [...agentNode.lineage];
-          const parentId = lineage.length >= 2 ? lineage[lineage.length - 2] ?? null : null;
+          const lineage = [ ...agentNode.lineage ];
+          const parentId = lineage.length >= 2 ? lineage[ lineage.length - 2 ] ?? null : null;
           const parentName = parentId ? agentLookup.get(parentId)?.name ?? null : null;
           metadataUpdates.agent = {
             id: agentNode.id,
@@ -1738,10 +1737,10 @@ function enrichMessagesWithExecutionTree(
 }
 
 function mergeMessageMetadata(
-  current: ChatMessageWithMetadata['metadata'],
-  incoming: Partial<NonNullable<ChatMessageWithMetadata['metadata']>>,
-): ChatMessageWithMetadata['metadata'] {
-  const base: NonNullable<ChatMessageWithMetadata['metadata']> =
+  current: ChatMessageWithMetadata[ 'metadata' ],
+  incoming: Partial<NonNullable<ChatMessageWithMetadata[ 'metadata' ]>>,
+): ChatMessageWithMetadata[ 'metadata' ] {
+  const base: NonNullable<ChatMessageWithMetadata[ 'metadata' ]> =
     current && typeof current === 'object' ? { ...current } : {};
 
   let changed = false;
@@ -1790,7 +1789,7 @@ function shallowEqualRecord(
     return false;
   }
   for (const key of leftKeys) {
-    if (left[key] !== right[key]) {
+    if (left[ key ] !== right[ key ]) {
       return false;
     }
   }
@@ -1798,7 +1797,7 @@ function shallowEqualRecord(
 }
 
 function indexAgentHierarchyById(
-  nodes: ExecutionTreeState['agentHierarchy'],
+  nodes: ExecutionTreeState[ 'agentHierarchy' ],
 ): Map<string, AgentHierarchyNode> {
   const map = new Map<string, AgentHierarchyNode>();
 
@@ -1817,7 +1816,7 @@ function indexAgentHierarchyById(
 }
 
 function indexToolInvocationsById(
-  nodes: ExecutionTreeState['toolInvocations'],
+  nodes: ExecutionTreeState[ 'toolInvocations' ],
 ): Map<string, ToolInvocationNode> {
   const map = new Map<string, ToolInvocationNode>();
 
@@ -1836,7 +1835,7 @@ function indexToolInvocationsById(
 }
 
 function findToolInvocationById(
-  nodes: ExecutionTreeState['toolInvocations'],
+  nodes: ExecutionTreeState[ 'toolInvocations' ],
   id: string,
 ): ToolInvocationNode | null {
   for (const node of nodes) {
@@ -1855,6 +1854,6 @@ function mergeSessionList(
   previous: ChatSessionDto[],
   session: ChatSessionDto,
 ): ChatSessionDto[] {
-  return sortSessions([session, ...previous.filter((item) => item.id !== session.id)]);
+  return sortSessions([ session, ...previous.filter((item) => item.id !== session.id) ]);
 }
 

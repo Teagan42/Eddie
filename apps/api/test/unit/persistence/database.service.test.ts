@@ -4,6 +4,7 @@ import type { Knex } from "knex";
 
 import { DatabaseService } from "../../../src/persistence/database.service";
 import { KNEX_INSTANCE } from "../../../src/persistence/knex.provider";
+import { ConfigModule } from '@eddie/config';
 
 describe("DatabaseService", () => {
   it("runs pending migrations during module initialization", async () => {
@@ -15,6 +16,7 @@ describe("DatabaseService", () => {
     } as unknown as Knex;
 
     const moduleRef = await Test.createTestingModule({
+      imports: [ ConfigModule.register({}) ],
       providers: [
         DatabaseService,
         { provide: KNEX_INSTANCE, useValue: knex },
@@ -41,6 +43,7 @@ describe("DatabaseService", () => {
     } as unknown as Knex;
 
     const moduleRef = await Test.createTestingModule({
+      imports: [ ConfigModule.register({}) ],
       providers: [
         DatabaseService,
         { provide: KNEX_INSTANCE, useValue: knex },
@@ -56,7 +59,8 @@ describe("DatabaseService", () => {
 
   it("skips migrations when knex is not configured", async () => {
     const moduleRef = await Test.createTestingModule({
-      providers: [DatabaseService],
+      imports: [ ConfigModule.register({}) ],
+      providers: [ DatabaseService, { provide: KNEX_INSTANCE, useValue: undefined } ],
     }).compile();
 
     const service = moduleRef.get(DatabaseService);

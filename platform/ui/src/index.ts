@@ -41,7 +41,7 @@ export type { NavigationLinkProps } from './navigation';
 export * from './chat';
 export * from './overview';
 export * from './theme';
-export { useToast, toast } from './vendor/hooks/use-toast'
+export { useToast, toast } from './vendor/hooks/use-toast';
 export { cn } from './vendor/lib/utils';
 export { Accordion } from './vendor/components/ui/accordion';
 export { AccordionTrigger } from './vendor/components/ui/accordion';
@@ -53,7 +53,7 @@ export { AnimatedGridPattern } from './vendor/components/ui/animated-grid-patter
 export type { AnimatedGridPatternProps } from './vendor/components/ui/animated-grid-pattern';
 export { AuroraText } from './vendor/components/ui/aurora-text';
 export { Badge } from './vendor/components/ui/badge';
-export { BadgeProps } from './vendor/components/ui/badge';
+export type { BadgeProps } from './vendor/components/ui/badge';
 export { BentoGrid } from './vendor/components/ui/bento-grid';
 export { BorderBeam } from './vendor/components/ui/border-beam';
 export { ButtonGroup } from './vendor/components/ui/button-group';

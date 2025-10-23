@@ -1,10 +1,11 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { userEvent } from '@testing-library/user-event';
 import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createExecutionTreeStateFromMetadata, type ExecutionTreeState } from './execution-tree-state';
-import { createChatPageRenderer } from './test-utils';
+import { createExecutionTreeStateFromMetadata } from '@eddie/ui';
+import { createChatPageRenderer } from './test-utils.js';
+import { ExecutionTreeState } from '@eddie/types';
 
 const listSessionsMock = vi.fn();
 const listMessagesMock = vi.fn();
@@ -28,9 +29,9 @@ const onExecutionTreeUpdatedMock = vi.fn(
 );
 
 class ResizeObserverMock {
-  observe(): void {}
-  unobserve(): void {}
-  disconnect(): void {}
+  observe(): void { }
+  unobserve(): void { }
+  disconnect(): void { }
 }
 
 Object.defineProperty(globalThis, 'ResizeObserver', {
@@ -82,12 +83,12 @@ vi.mock('@/api/api-provider', () => ({
     },
     sockets: {
       chatSessions: {
-        onSessionCreated: vi.fn().mockReturnValue(() => {}),
-        onSessionUpdated: vi.fn().mockReturnValue(() => {}),
-        onSessionDeleted: vi.fn().mockReturnValue(() => {}),
-        onMessageCreated: vi.fn().mockReturnValue(() => {}),
-        onMessageUpdated: vi.fn().mockReturnValue(() => {}),
-        onAgentActivity: vi.fn().mockReturnValue(() => {}),
+        onSessionCreated: vi.fn().mockReturnValue(() => { }),
+        onSessionUpdated: vi.fn().mockReturnValue(() => { }),
+        onSessionDeleted: vi.fn().mockReturnValue(() => { }),
+        onMessageCreated: vi.fn().mockReturnValue(() => { }),
+        onMessageUpdated: vi.fn().mockReturnValue(() => { }),
+        onAgentActivity: vi.fn().mockReturnValue(() => { }),
         onExecutionTreeUpdated: onExecutionTreeUpdatedMock,
       },
       tools: {
@@ -246,7 +247,7 @@ describe('ChatPage execution tree realtime updates', () => {
       const snapshot = client.getQueryData([
         'orchestrator-metadata',
         'session-1',
-      ]) as { executionTree: unknown; capturedAt?: string } | undefined;
+      ]) as { executionTree: unknown; capturedAt?: string; } | undefined;
       expect(snapshot).toMatchObject({
         capturedAt: updatedTree.updatedAt,
       });
@@ -310,13 +311,13 @@ describe('ChatPage execution tree realtime updates', () => {
       const snapshot = client.getQueryData([
         'orchestrator-metadata',
         'session-1',
-      ]) as { executionTree?: ExecutionTreeState } | undefined;
+      ]) as { executionTree?: ExecutionTreeState; } | undefined;
       expect(snapshot?.executionTree).toMatchObject({
         agentHierarchy: executionState.agentHierarchy,
         updatedAt: executionState.updatedAt,
       });
       expect(
-        snapshot?.executionTree?.toolGroupsByAgentId?.['agent-unique'],
+        snapshot?.executionTree?.toolGroupsByAgentId?.[ 'agent-unique' ],
       ).toBeDefined();
     });
   });
@@ -371,7 +372,7 @@ describe('ChatPage execution tree realtime updates', () => {
       const snapshot = client.getQueryData([
         'orchestrator-metadata',
         'session-1',
-      ]) as { executionTree?: ExecutionTreeState; capturedAt?: string } | undefined;
+      ]) as { executionTree?: ExecutionTreeState; capturedAt?: string; } | undefined;
       expect(snapshot?.capturedAt).toBe(freshState.updatedAt);
     });
 
@@ -383,7 +384,7 @@ describe('ChatPage execution tree realtime updates', () => {
       const snapshot = client.getQueryData([
         'orchestrator-metadata',
         'session-1',
-      ]) as { executionTree?: ExecutionTreeState; capturedAt?: string } | undefined;
+      ]) as { executionTree?: ExecutionTreeState; capturedAt?: string; } | undefined;
       expect(snapshot?.capturedAt).toBe(freshState.updatedAt);
       expect(snapshot?.executionTree).toEqual(freshState);
     });
@@ -461,7 +462,7 @@ describe('ChatPage execution tree realtime updates', () => {
       ]);
       expect(
         snapshot?.executionTree?.toolInvocations?.some(
-          (invocation: { id?: string }) => invocation?.id === 'call-1',
+          (invocation: { id?: string; }) => invocation?.id === 'call-1',
         ),
       ).toBe(true);
     });
@@ -543,7 +544,7 @@ describe('ChatPage execution tree realtime updates', () => {
       ]);
       expect(
         snapshot?.executionTree?.contextBundles?.some(
-          (bundle: { id?: string }) => bundle?.id === 'bundle-1',
+          (bundle: { id?: string; }) => bundle?.id === 'bundle-1',
         ),
       ).toBe(true);
     });
@@ -575,7 +576,7 @@ describe('ChatPage execution tree realtime updates', () => {
       ]);
       const bundleIds =
         snapshot?.executionTree?.contextBundles?.map(
-          (bundle: { id?: string }) => bundle?.id,
+          (bundle: { id?: string; }) => bundle?.id,
         ) ?? [];
       expect(bundleIds).toContain('bundle-1');
       expect(snapshot?.capturedAt).toBe(updateState.updatedAt);
@@ -718,7 +719,7 @@ describe('ChatPage execution tree realtime updates', () => {
           name: 'upload_context',
           result: JSON.stringify({
             metadata: {
-              contextBundleIds: ['bundle-identifier'],
+              contextBundleIds: [ 'bundle-identifier' ],
             },
           }),
           timestamp: '2024-05-01T12:07:00.000Z',
@@ -734,12 +735,12 @@ describe('ChatPage execution tree realtime updates', () => {
       ]);
       const bundles = snapshot?.executionTree?.contextBundles ?? [];
       expect(
-        bundles.some((bundle: { id?: string }) => bundle?.id === 'bundle-identifier'),
+        bundles.some((bundle: { id?: string; }) => bundle?.id === 'bundle-identifier'),
       ).toBe(true);
       const agentBundles =
-        snapshot?.executionTree?.contextBundlesByAgentId?.['agent-primary'] ?? [];
+        snapshot?.executionTree?.contextBundlesByAgentId?.[ 'agent-primary' ] ?? [];
       expect(
-        agentBundles.some((bundle: { id?: string }) => bundle?.id === 'bundle-identifier'),
+        agentBundles.some((bundle: { id?: string; }) => bundle?.id === 'bundle-identifier'),
       ).toBe(true);
     });
   });

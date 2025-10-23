@@ -1,7 +1,8 @@
 import { useId, useState, type ReactNode } from "react";
-import { Box } from "@radix-ui/themes";
+import { Box, ChevronDownIcon } from "@radix-ui/themes";
 
 import { combineClassNames } from "../utils/class-names";
+import { ChevronRightIcon } from '@radix-ui/react-icons';
 
 const PANEL_SURFACE_CLASS = [
   "group relative overflow-hidden rounded-[2.75rem] border bg-card bg-gradient-to-br p-10 text-foreground",
@@ -72,8 +73,8 @@ export function Panel({
 }: PanelProps): JSX.Element {
   const surfaceClassName = combineClassNames(PANEL_SURFACE_CLASS, className);
   const generatedId = useId();
-  const bodyId = id ? `${id}__panel-body` : `${generatedId}-panel-body`;
-  const [isExpanded, setIsExpanded] = useState(true);
+  const bodyId = id ? `${ id }__panel-body` : `${ generatedId }-panel-body`;
+  const [ isExpanded, setIsExpanded ] = useState(true);
   const toggleLabel = isExpanded ? "Collapse panel" : "Expand panel";
   const handleToggle = (): void => {
     setIsExpanded((value) => !value);
@@ -108,8 +109,9 @@ export function Panel({
                 onClick={handleToggle}
                 aria-expanded={isExpanded}
                 aria-controls={bodyId}
+                aria-label={toggleLabel}
               >
-                {toggleLabel}
+                {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
               </button>
             </div>
           </header>

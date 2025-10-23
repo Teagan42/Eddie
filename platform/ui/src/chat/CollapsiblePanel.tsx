@@ -27,7 +27,7 @@ const COLLAPSIBLE_CONTENT_VARIANTS = {
 
 const COLLAPSIBLE_CONTENT_TRANSITION = {
   duration: 0.3,
-  ease: [0.22, 1, 0.36, 1],
+  ease: [ 0.22, 1, 0.36, 1 ],
 } as const;
 
 const COLLAPSIBLE_CONTENT_CLASS = 'grid overflow-hidden text-sm text-slate-200/90';
@@ -50,14 +50,14 @@ export function CollapsiblePanel({
   children,
 }: CollapsiblePanelProps): JSX.Element {
   const shouldRenderContent = !collapsed;
-  const contentKey = `${id}-collapsible`;
+  const contentKey = `${ id }-collapsible`;
   return (
     <Collapsible
       asChild
       open={!collapsed}
       onOpenChange={(isOpen) => onToggle(id, !isOpen)}
     >
-      <section className={`${SIDEBAR_PANEL_CLASS} flex flex-col gap-3 p-5 text-white`}>
+      <section className={`${ SIDEBAR_PANEL_CLASS } flex flex-col gap-3 p-5 text-white`}>
         <Flex align="center" justify="between" gap="3">
           <Box>
             <Heading as="h3" size="3">

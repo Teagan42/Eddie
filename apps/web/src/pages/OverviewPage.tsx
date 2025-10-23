@@ -1,6 +1,7 @@
-import { useApi } from '@/api/api-provider';
-import { useAuth } from '@/auth/auth-context';
-import { AVAILABLE_THEMES, formatThemeLabel, useTheme } from '@/theme';
+import { useApi } from '../api/api-provider.js';
+import { useAuth } from '../auth/auth-context.js';
+import { useTheme } from '../theme/theme-provider.js';
+import { AVAILABLE_THEMES, formatThemeLabel } from '@eddie/ui';
 import type {
   ChatSessionDto,
   CreateChatMessageDto,
@@ -8,7 +9,7 @@ import type {
   LogEntryDto,
   RuntimeConfigDto
 } from '@eddie/api-client';
-import { cn, ChatSessionsPanel, OverviewAuthPanel, OverviewHero,  Panel } from "@eddie/ui";
+import { cn, ChatSessionsPanel, OverviewAuthPanel, OverviewHero, Panel } from "@eddie/ui";
 import { ReloadIcon } from '@radix-ui/react-icons';
 import {
   Badge,
@@ -29,8 +30,8 @@ import {
   useQueryClient,
   type InfiniteData,
 } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { useChatSessionEvents, useOverviewStats } from './hooks';
+import { ComponentType, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useChatSessionEvents, useOverviewStats } from './hooks/index.js';
 
 type StatItem = {
   label: string;
@@ -291,6 +292,8 @@ export function OverviewPage(): JSX.Element {
         onRemoveApiKey={() => setApiKey(null)}
         stats={stats}
         isThemeSelectorDisabled={isThemeStale}
+        formatThemeLabel={formatThemeLabel}
+        availableThemes={AVAILABLE_THEMES}
       />
 
       <OverviewAuthPanel apiKey={apiKey} onApiKeyChange={setApiKey} />
