@@ -2,6 +2,7 @@ import { Injectable, type Provider } from "@nestjs/common";
 import type {
   AgentDefinition,
   AgentInvocationOptions,
+  AgentRecalledMemory,
   ChatMessage,
   ContextResourceTemplateConfig,
   PackedContext,
@@ -23,6 +24,7 @@ export interface RenderSystemPromptParams {
   context: PackedContext;
   history: ChatMessage[];
   parent?: ParentAgentContext;
+  memories?: AgentRecalledMemory[];
 }
 
 export interface RenderSystemPromptResult {
@@ -152,6 +154,10 @@ export class TemplateRuntimeService {
 
     if (params.parent) {
       builtin.parent = params.parent;
+    }
+
+    if (params.memories) {
+      builtin.memories = params.memories;
     }
 
     return builtin;

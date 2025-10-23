@@ -352,7 +352,8 @@ describe("AgentOrchestratorService", () => {
     expect(worker.messages.find((m) => m.role === "user")?.content).toContain("slice");
     expect(renderer.flushCount).toBe(1);
     expect(createSpy).toHaveBeenCalledTimes(2);
-    expect(createSpy.mock.calls[1]?.[2]).toBe(manager);
+    expect(createSpy.mock.calls[1]?.[2]).toBe(runtime);
+    expect(createSpy.mock.calls[1]?.[3]).toBe(manager);
   });
 
   it("allows hooks to intercept spawn_subagent requests before delegation", async () => {
