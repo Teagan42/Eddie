@@ -339,10 +339,10 @@ describe("AgentExecutionTree", () => {
       createdAt: "2024-05-01T12:11:00.000Z",
       updatedAt: "2024-05-01T12:11:30.000Z",
       metadata: { result: { status: "done" } },
-      children: [nestedInvocation],
+      children: [],
     } as ExecutionTreeState["toolInvocations"][number];
 
-    const executionTree: ExecutionTreeState = {
+    const state = {
       agentHierarchy: [
         {
           id: "root-agent",
@@ -369,14 +369,10 @@ describe("AgentExecutionTree", () => {
       contextBundlesByToolCallId: {},
       createdAt: "2024-05-01T12:10:00.000Z",
       updatedAt: "2024-05-01T12:13:00.000Z",
-    } as ExecutionTreeState;
+    } satisfies ExecutionTreeState;
 
     render(
-      <AgentExecutionTree
-        state={createExecutionTreeStateFromMetadata({ executionTree } as unknown)}
-        selectedAgentId={null}
-        onSelectAgent={() => {}}
-      />,
+      <AgentExecutionTree state={state} selectedAgentId={null} onSelectAgent={() => {}} />,
     );
 
     const agentToggle = screen.getByRole("button", { name: /select orchestrator agent/i });
@@ -407,7 +403,7 @@ describe("AgentExecutionTree", () => {
       name: /tool invocation details/i,
     });
 
-    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveAccessibleName(/tool invocation details/i);
     expect(within(dialog).getByText(/summarize-report/i)).toBeInTheDocument();
   });
 });

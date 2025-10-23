@@ -158,6 +158,31 @@ function findInvocationById(
   return null;
 }
 
+function findInvocationInGroups(
+  groups: ExecutionTreeState['toolGroupsByAgentId'][string] | undefined,
+  id: string,
+): ToolInvocationNode | null {
+  if (!groups) {
+    return null;
+  }
+
+  for (const status of TOOL_STATUS_ORDER) {
+    const match = groups[status]?.find((entry) => entry.id === id);
+    if (match) {
+      return match;
+    }
+  }
+
+  for (const entries of Object.values(groups)) {
+    const match = entries?.find((entry) => entry.id === id);
+    if (match) {
+      return match;
+    }
+  }
+
+  return null;
+}
+
 export function AgentExecutionTree({
   state,
   selectedAgentId,
@@ -705,13 +730,16 @@ export function AgentExecutionTree({
     );
   }
 
-  const detailsInvocation = useMemo(
-    () =>
-      detailsTarget
-        ? findInvocationById(toolInvocations, detailsTarget.invocationId)
-        : null,
-    [detailsTarget, toolInvocations],
-  );
+  const detailsInvocation = useMemo(() => {
+    if (!detailsTarget) {
+      return null;
+    }
+
+    return (
+      findInvocationById(toolInvocations, detailsTarget.invocationId) ??
+      findInvocationInGroups(toolGroupsByAgentId[detailsTarget.agentId], detailsTarget.invocationId)
+    );
+  }, [detailsTarget, toolGroupsByAgentId, toolInvocations]);
   const detailsAgent = detailsTarget ? (agentsById.get(detailsTarget.agentId) ?? null) : null;
 
   const dialogTitleId = useId();
