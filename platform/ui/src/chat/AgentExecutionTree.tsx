@@ -142,6 +142,11 @@ type DetailsTarget = {
   invocationId: string;
 };
 
+type DetailsResolution = {
+  agentId: string | null | undefined;
+  invocation: ToolInvocationNode;
+};
+
 function findInvocationById(
   nodes: ExecutionTreeState[ 'toolInvocations' ],
   id: string,
@@ -351,7 +356,11 @@ export function AgentExecutionTree({
   }, [ agentLineageById, agentsWithActivity ]);
 
   useEffect(() => {
-    if (!focusedInvocationId) {
+    if (focusedInvocationId === undefined) {
+      return;
+    }
+
+    if (focusedInvocationId === null) {
       setDetailsTarget(null);
       return;
     }
@@ -753,17 +762,52 @@ export function AgentExecutionTree({
     );
   }
 
-  const detailsInvocation = useMemo(() => {
+  const detailsResolution = useMemo<DetailsResolution | null>(() => {
     if (!detailsTarget) {
       return null;
     }
 
-    return (
-      findInvocationById(toolInvocations, detailsTarget.invocationId) ??
-      findInvocationInGroups(toolGroupsByAgentId[ detailsTarget.agentId ], detailsTarget.invocationId)
+    const fromTree = findInvocationById(toolInvocations, detailsTarget.invocationId);
+    if (fromTree) {
+      return {
+        agentId: fromTree.agentId ?? detailsTarget.agentId,
+        invocation: fromTree,
+      };
+    }
+
+    const fromTargetGroup = findInvocationInGroups(
+      toolGroupsByAgentId[ detailsTarget.agentId ],
+      detailsTarget.invocationId,
     );
+
+    if (fromTargetGroup) {
+      return {
+        agentId: detailsTarget.agentId,
+        invocation: fromTargetGroup,
+      };
+    }
+
+    const fromAnyGroup = findInvocationInAgentGroups(
+      toolGroupsByAgentId,
+      detailsTarget.invocationId,
+    );
+
+    if (fromAnyGroup) {
+      return {
+        agentId:
+          fromAnyGroup.agentId ??
+          fromAnyGroup.invocation.agentId ??
+          detailsTarget.agentId,
+        invocation: fromAnyGroup.invocation,
+      };
+    }
+
+    return null;
   }, [ detailsTarget, toolGroupsByAgentId, toolInvocations ]);
-  const detailsAgent = detailsTarget ? (agentsById.get(detailsTarget.agentId) ?? null) : null;
+  const detailsInvocation = detailsResolution?.invocation ?? null;
+  const detailsAgent = detailsResolution?.agentId
+    ? agentsById.get(detailsResolution.agentId) ?? null
+    : null;
 
   const dialogTitleId = useId();
   const dialogDescriptionId = useId();

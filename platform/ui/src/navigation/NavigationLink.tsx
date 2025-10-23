@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import type { FC } from "react";
 
 import { combineClassNames } from "../utils/class-names";
 
@@ -8,7 +9,7 @@ export interface NavigationLinkProps {
   className?: string;
 }
 
-export function NavigationLink({ to, label, className }: NavigationLinkProps): JSX.Element {
+export const NavigationLink: FC<NavigationLinkProps> = ({ to, label, className }) => {
   const location = useLocation();
   const isActive = location.pathname === to;
 
@@ -28,4 +29,4 @@ export function NavigationLink({ to, label, className }: NavigationLinkProps): J
       <span className="absolute inset-0 z-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
     </Link>
   );
-}
+};

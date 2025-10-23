@@ -126,6 +126,9 @@ export class TemplateRendererService {
     const paths = new Set<string>();
     if (options.baseDir) {
       paths.add(path.resolve(options.baseDir));
+      if (options.defaultBaseDir && options.baseDir !== options.defaultBaseDir) {
+        paths.add(path.resolve(options.defaultBaseDir, options.baseDir));
+      }
     }
     if (options.filename) {
       paths.add(path.resolve(path.dirname(options.filename)));

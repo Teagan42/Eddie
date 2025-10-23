@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from "react";
+import { useId, useState, type FC, type ReactNode } from "react";
 import { Box, ChevronDownIcon } from "@radix-ui/themes";
 
 import { combineClassNames } from "../utils/class-names";
@@ -63,14 +63,14 @@ export interface PanelProps {
   id?: string;
 }
 
-export function Panel({
+export const Panel: FC<PanelProps> = ({
   title,
   description,
   actions = null,
   className,
   id,
   children,
-}: PanelProps): JSX.Element {
+}) => {
   const surfaceClassName = combineClassNames(PANEL_SURFACE_CLASS, className);
   const generatedId = useId();
   const bodyId = id ? `${ id }__panel-body` : `${ generatedId }-panel-body`;
@@ -124,4 +124,4 @@ export function Panel({
       </section>
     </Box>
   );
-}
+};
