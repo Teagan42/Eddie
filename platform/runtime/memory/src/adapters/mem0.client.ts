@@ -1,3 +1,9 @@
+import { Inject, Injectable } from "@nestjs/common";
+import {
+  MEM0_MEMORY_MODULE_OPTIONS_TOKEN,
+  type Mem0MemoryModuleOptions,
+} from "../mem0.memory.module-definition";
+
 export interface Mem0RestCredentials {
   apiKey: string;
   host?: string;
@@ -45,15 +51,20 @@ interface Mem0ErrorPayload {
   };
 }
 
+@Injectable()
 export class Mem0Client {
   private readonly baseUrl: string;
   private readonly fetchImpl: typeof fetch;
+  private readonly apiKey: string;
 
   constructor(
-    credentials: Mem0RestCredentials,
-    fetchImpl: typeof fetch = globalThis.fetch,
+    @Inject(MEM0_MEMORY_MODULE_OPTIONS_TOKEN)
+    options: Mem0MemoryModuleOptions,
   ) {
-    if (!credentials.apiKey) {
+    const credentials = options.credentials;
+    const fetchImpl = globalThis.fetch;
+
+    if (!credentials?.apiKey) {
       throw new Error("Mem0 API key is required");
     }
 
@@ -65,8 +76,6 @@ export class Mem0Client {
     this.fetchImpl = fetchImpl;
     this.apiKey = credentials.apiKey;
   }
-
-  private readonly apiKey: string;
 
   async searchMemories(
     request: Mem0SearchMemoriesRequest,

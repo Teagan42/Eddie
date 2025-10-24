@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import {
   type Mem0CreateMemoriesRequest,
   type Mem0MemoryMessage,
@@ -9,6 +9,11 @@ import {
   type QdrantVectorStore,
   type QdrantVectorStoreMetadata,
 } from "./adapters/qdrant.vector-store";
+import {
+  MEM0_CLIENT_TOKEN,
+  MEM0_FACET_EXTRACTOR_TOKEN,
+  MEM0_VECTOR_STORE_TOKEN,
+} from "./mem0.memory.tokens";
 
 export interface AgentMemoryRecord {
   id?: string;
@@ -74,14 +79,29 @@ export class Mem0MemoryService {
   private readonly vectorStore?: QdrantVectorStore;
   private readonly facetExtractor?: FacetExtractorStrategy;
 
-  constructor({
-    client,
-    vectorStore,
-    facetExtractor,
-  }: Mem0MemoryServiceDependencies) {
+  constructor(
+    @Inject(MEM0_CLIENT_TOKEN)
+    client: Mem0MemoryServiceDependencies["client"],
+    @Optional()
+    @Inject(MEM0_VECTOR_STORE_TOKEN)
+    vectorStore?: QdrantVectorStore,
+    @Optional()
+    @Inject(MEM0_FACET_EXTRACTOR_TOKEN)
+    facetExtractor?: FacetExtractorStrategy,
+  ) {
     this.client = client;
     this.vectorStore = vectorStore;
     this.facetExtractor = facetExtractor;
+  }
+
+  static create(
+    dependencies: Mem0MemoryServiceDependencies,
+  ): Mem0MemoryService {
+    return new Mem0MemoryService(
+      dependencies.client,
+      dependencies.vectorStore,
+      dependencies.facetExtractor,
+    );
   }
 
   async loadAgentMemories(
