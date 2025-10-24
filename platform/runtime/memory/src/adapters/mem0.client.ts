@@ -3,6 +3,7 @@ import {
   MEM0_MEMORY_MODULE_OPTIONS_TOKEN,
   type Mem0MemoryModuleOptions,
 } from "../mem0.memory.module-definition";
+import type { QdrantVectorStoreMetadata } from "./qdrant.vector-store";
 
 export interface Mem0RestCredentials {
   apiKey: string;
@@ -34,7 +35,7 @@ export interface Mem0CreateMemoriesRequest {
   sessionId?: string;
   userId?: string;
   metadata?: Record<string, unknown>;
-  vectorStore?: Record<string, unknown>;
+  vectorStore?: QdrantVectorStoreMetadata;
   facets?: Record<string, unknown>;
   memories: Mem0MemoryMessage[];
 }
@@ -58,8 +59,8 @@ export class Mem0Client {
   private readonly apiKey: string;
 
   constructor(
-    @Inject(MEM0_MEMORY_MODULE_OPTIONS_TOKEN)
-    options: Mem0MemoryModuleOptions,
+      @Inject(MEM0_MEMORY_MODULE_OPTIONS_TOKEN)
+        options: Mem0MemoryModuleOptions,
   ) {
     const credentials = options.credentials;
     const fetchImpl = globalThis.fetch;

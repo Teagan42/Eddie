@@ -10,7 +10,7 @@ import {
   MEM0_FACET_EXTRACTOR_TOKEN,
   MEM0_VECTOR_STORE_TOKEN,
   Mem0MemoryModule,
-} from "../src/mem0.memory.module";
+} from "@eddie/memory";
 
 type FacetExtractorStub = Mem0MemoryServiceDependencies["facetExtractor"];
 
@@ -214,6 +214,38 @@ describe("Mem0MemoryService", () => {
       sessionId: "session-42",
       userId: "user-7",
       domain: "support",
+    });
+  });
+
+  it("redacts vector store secrets provided via metadata", async () => {
+    const createMemories = vi.fn().mockResolvedValue(undefined);
+    const client = {
+      searchMemories: vi.fn(),
+      createMemories,
+    } satisfies Mem0MemoryServiceDependencies["client"];
+
+    const service = Mem0MemoryService.create({
+      client,
+    });
+
+    await service.persistAgentMemories({
+      metadata: {
+        vectorStore: {
+          type: "qdrant",
+          url: "https://qdrant.example",
+          apiKey: "vector-key",
+          collection: "agent-memories",
+        },
+      },
+      memories: [{ role: "assistant", content: "hi" }],
+    });
+
+    const [payload] = createMemories.mock.calls[0] ?? [];
+
+    expect(payload?.metadata?.vectorStore).toEqual({
+      type: "qdrant",
+      url: "https://qdrant.example",
+      collection: "agent-memories",
     });
   });
 

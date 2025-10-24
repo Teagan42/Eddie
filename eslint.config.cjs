@@ -11,6 +11,7 @@ module.exports = [
       "node_modules/**",
       "tailwind.config.ts",
       "platform/integrations/api-client/src/generated/**",
+      "platform/runtime/memory/src/**/*.d.ts",
     ],
   },
   {

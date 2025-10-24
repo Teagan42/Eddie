@@ -30,11 +30,10 @@ import {
   TraceWriterDelegate,
 } from "./agents/runner";
 import { DemoSeedReplayService } from "./demo/demo-seed-replay.service";
-import { Mem0MemoryModule } from "../../memory/src/mem0.memory.module";
+import { Mem0MemoryModule } from "@eddie/memory";
 import type { CliRuntimeOptions, EddieConfig, MemoryConfig } from "@eddie/types";
-import type { QdrantVectorStoreDescriptor } from "../../memory/src/adapters/qdrant.vector-store";
+import type { QdrantVectorStoreDescriptor, Mem0MemoryModuleOptions } from "@eddie/memory";
 import { createMem0FacetExtractor } from "./memory/mem0-facet-extractor.factory";
-import type { Mem0MemoryModuleOptions } from "../../memory/src/mem0.memory.module-definition";
 
 @Module({
   imports: [

@@ -12,14 +12,14 @@ import {
   transcriptCompactorFactoryProvider,
 } from "../src/transcript/transcript-compactor.factory";
 import { MetricsService } from "../src/telemetry/metrics.service";
-import { Mem0MemoryModule } from "../../memory/src/mem0.memory.module";
+import { Mem0MemoryModule } from "@eddie/memory";
 import { ConfigModule, ConfigStore } from "@eddie/config";
 import type { CliRuntimeOptions, EddieConfig } from "@eddie/types";
 import { MODULE_OPTIONS_TOKEN } from "@eddie/config/config.const";
 import {
   MEM0_MEMORY_MODULE_OPTIONS_TOKEN,
   type Mem0MemoryModuleOptions,
-} from "../../memory/src/mem0.memory.module-definition";
+} from "@eddie/memory";
 
 function getMetadataArray<T = unknown>(key: string): T[] {
   const metadata = Reflect.getMetadata(key, EngineModule);

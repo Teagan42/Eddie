@@ -3,7 +3,7 @@ import type {
   FacetExtractorStrategy,
   FacetExtractionContext,
   AgentMemoryRecord,
-} from "../../memory/src/mem0.memory.service";
+} from "@eddie/memory";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
