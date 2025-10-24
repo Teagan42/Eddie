@@ -12,6 +12,8 @@ type CliStringOptionKey =
   | "jsonlTrace"
   | "logFile"
   | "agentMode"
+  | "mem0ApiKey"
+  | "mem0Host"
   | "metricsBackend"
   | "metricsLoggingLevel";
 
@@ -105,6 +107,16 @@ export const CLI_VALUE_OPTION_DEFINITIONS: readonly CliValueOptionDefinition[] =
   {
     runtimeKey: "jsonlTrace",
     keys: ["--jsonl-trace"],
+    valueType: "string",
+  },
+  {
+    runtimeKey: "mem0ApiKey",
+    keys: ["--mem0-api-key"],
+    valueType: "string",
+  },
+  {
+    runtimeKey: "mem0Host",
+    keys: ["--mem0-host"],
     valueType: "string",
   },
   {

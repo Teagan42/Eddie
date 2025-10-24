@@ -51,4 +51,15 @@ describe("CliOptionsService", () => {
     expect(result.metricsBackend).toBe("logging");
     expect(result.metricsLoggingLevel).toBe("verbose");
   });
+
+  it("passes through mem0 credential overrides", () => {
+    const service = new CliOptionsService();
+    const result = service.parse({
+      mem0ApiKey: "cli-key",
+      mem0Host: "https://mem0.example",
+    });
+
+    expect(result.mem0ApiKey).toBe("cli-key");
+    expect(result.mem0Host).toBe("https://mem0.example");
+  });
 });
