@@ -135,6 +135,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      undefined,
       createExecutionTreeTrackerFactory(),
     );
 
@@ -153,6 +154,138 @@ describe("AgentOrchestratorService", () => {
       undefined,
     );
     expect(runSpy).toHaveBeenCalled();
+    runSpy.mockRestore();
+  });
+
+  it("requests a memory binding for each agent invocation", async () => {
+    const agentDefinition = {
+      id: "agent-1",
+      systemPrompt: "You are helpful.",
+      tools: [],
+    };
+
+    const invocation = {
+      definition: agentDefinition,
+      prompt: "List files",
+      context: { files: [], totalBytes: 0, text: "" },
+      history: [],
+      messages: [
+        { role: "system", content: agentDefinition.systemPrompt },
+        { role: "user", content: "List files" },
+      ],
+      children: [],
+      parent: undefined,
+      toolRegistry: {
+        schemas: () => [],
+        execute: vi.fn().mockResolvedValue({ schema: "tool", content: "done" }),
+      },
+      setSpawnHandler: vi.fn(),
+      setRuntime: vi.fn(),
+      addChild: vi.fn(),
+      spawn: vi.fn(),
+      id: agentDefinition.id,
+      isRoot: true,
+    } as unknown as AgentInvocation;
+
+    const descriptor: AgentRuntimeDescriptor = {
+      id: agentDefinition.id,
+      definition: agentDefinition,
+      model: "gpt-test",
+      provider: {
+        name: "openai",
+        stream: vi.fn().mockReturnValue(createStream([{ type: "end" }])),
+      },
+    };
+
+    const catalog: AgentRuntimeCatalog = {
+      enableSubagents: false,
+      getManager: () => descriptor,
+      getAgent: () => descriptor,
+      getSubagent: () => undefined,
+      listSubagents: () => [],
+      listSpawnableSubagents: () => [],
+    };
+
+    const runtime = {
+      catalog,
+      hooks: { emitAsync: vi.fn().mockResolvedValue({}) },
+      confirm: vi.fn().mockResolvedValue(true),
+      cwd: process.cwd(),
+      logger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      traceAppend: true,
+      tracePath: undefined,
+      transcriptCompactor: undefined,
+      metrics: createMetrics(),
+      sessionId: "session-123",
+      session: {
+        id: "session-123",
+        startedAt: new Date().toISOString(),
+        prompt: "List files",
+        provider: "openai",
+        model: "gpt-test",
+      },
+      memoryDefaults: { enabled: true },
+    };
+
+    const invocationFactory = {
+      create: vi.fn().mockResolvedValue(invocation),
+    };
+
+    const streamRenderer = {
+      render: vi.fn(),
+      flush: vi.fn(),
+    };
+
+    const traceWriter = {
+      write: vi.fn(),
+    };
+
+    const eventBus = { publish: vi.fn() };
+    const runnerDeps = createRunnerDependencies();
+    const memoryBinding = {
+      prepareProviderMessages: vi.fn(async ({ messages }) => messages),
+      finalize: vi.fn(),
+    };
+    const memoryCoordinator = {
+      createBinding: vi.fn().mockResolvedValue(memoryBinding),
+    };
+
+    const OrchestratorCtor =
+      AgentOrchestratorService as unknown as {
+        new (
+          ...args: ConstructorParameters<typeof AgentOrchestratorService>
+        ): AgentOrchestratorService;
+      };
+
+    const orchestrator = new OrchestratorCtor(
+      invocationFactory as any,
+      streamRenderer as any,
+      eventBus as any,
+      traceWriter as any,
+      runnerDeps.runLoop,
+      runnerDeps.toolCallHandler,
+      runnerDeps.traceWriterDelegate,
+      memoryCoordinator as any,
+      createExecutionTreeTrackerFactory(),
+    );
+
+    const runSpy = vi
+      .spyOn(AgentRunner.prototype as Record<string, unknown>, "run")
+      .mockResolvedValue(undefined);
+
+    await orchestrator.runAgent(
+      { definition: agentDefinition, prompt: "List files" },
+      runtime as any,
+    );
+
+    expect(memoryCoordinator.createBinding).toHaveBeenCalledTimes(1);
+    const callArgs = memoryCoordinator.createBinding.mock.calls[0]?.[0];
+    expect(callArgs).toMatchObject({
+      descriptor,
+      invocation,
+      runtime,
+    });
+
     runSpy.mockRestore();
   });
 
@@ -240,6 +373,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      undefined,
       createExecutionTreeTrackerFactory(),
     );
 
@@ -270,6 +404,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      undefined,
       createExecutionTreeTrackerFactory(),
     );
 
@@ -286,6 +421,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      undefined,
       createExecutionTreeTrackerFactory(),
     );
 
@@ -465,6 +601,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      undefined,
       createExecutionTreeTrackerFactory(),
     );
 
@@ -543,6 +680,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      undefined,
       createExecutionTreeTrackerFactory(),
     );
 
@@ -680,6 +818,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      undefined,
       createExecutionTreeTrackerFactory(),
     );
 
@@ -788,6 +927,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      undefined,
       createExecutionTreeTrackerFactory(),
     );
 
@@ -928,6 +1068,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      undefined,
       createExecutionTreeTrackerFactory(),
     );
 
@@ -1066,6 +1207,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      undefined,
       createExecutionTreeTrackerFactory(),
     );
 
@@ -1217,6 +1359,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      undefined,
       createExecutionTreeTrackerFactory(),
     );
 
@@ -1382,6 +1525,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      undefined,
       createExecutionTreeTrackerFactory(),
     );
 
@@ -1461,6 +1605,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      undefined,
       createExecutionTreeTrackerFactory(),
     );
 
@@ -1583,6 +1728,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      undefined,
       createExecutionTreeTrackerFactory(),
     );
 
@@ -1667,6 +1813,7 @@ describe("AgentOrchestratorService", () => {
       runnerDeps.runLoop,
       runnerDeps.toolCallHandler,
       runnerDeps.traceWriterDelegate,
+      undefined,
       createExecutionTreeTrackerFactory(),
     );
 

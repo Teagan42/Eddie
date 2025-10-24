@@ -8,10 +8,12 @@ import {
   type AgentRunnerOptions,
 } from "../../../src/agents/agent-runner";
 import type { AgentRuntimeDescriptor } from "../../../src/agents/agent-runtime.types";
+import type { AgentMemoryBinding } from "../../../src/memory/agent-memory-coordinator";
 
 export type RunnerOptions = AgentRunnerOptions;
 export type RunnerOverrides = Partial<RunnerOptions> & {
   runnerDependencies?: AgentRunnerDependencies;
+  memoryBinding?: AgentMemoryBinding;
 };
 export type HookBusLike = RunnerOptions["hooks"];
 export type StreamRendererLike = RunnerOptions["streamRenderer"];
@@ -135,6 +137,7 @@ export const createAgentRunnerTestContext = (
     writeTrace,
     metrics,
     executionTreeTracker: overrides.executionTreeTracker,
+    memoryBinding: overrides.memoryBinding,
   }, overrides.runnerDependencies);
 
   return {

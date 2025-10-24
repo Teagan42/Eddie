@@ -31,6 +31,7 @@ import {
   type PackedContextSnapshot,
 } from "./runner";
 import { ExecutionTreeStateTracker } from "../execution-tree/execution-tree-tracker.service";
+import type { AgentMemoryBinding } from "../memory/agent-memory-coordinator";
 
 export interface AgentTraceEvent {
   phase: string;
@@ -68,6 +69,7 @@ export interface AgentRunnerOptions {
   writeTrace: (event: AgentTraceEvent, append?: boolean) => Promise<void>;
   metrics: MetricsService;
   executionTreeTracker?: ExecutionTreeStateTracker;
+  memoryBinding?: AgentMemoryBinding;
 }
 
 export interface AgentRunnerDependencies {
@@ -143,6 +145,10 @@ export class AgentRunner {
       startTraceAppend,
       executionTreeTracker,
     } = this.options;
+    const memoryBinding = this.options.memoryBinding;
+    const initialMessageCount = invocation.messages.length;
+    let agentFailed = false;
+    let iterationCount = 0;
 
     if (!invocation.isRoot) {
       streamRenderer.flush();
@@ -170,34 +176,49 @@ export class AgentRunner {
       },
     });
 
-    const { agentFailed, iterationCount } = await this.runLoop.run(
-      this.createRunLoopContext()
-    );
+    try {
+      const result = await this.runLoop.run(this.createRunLoopContext());
+      agentFailed = result.agentFailed;
+      iterationCount = result.iterationCount;
 
-    if (agentFailed) {
-      await this.emitSubagentStop();
-      return;
-    }
+      if (agentFailed) {
+        await this.emitSubagentStop();
+        return;
+      }
 
-    await hooks.emitAsync(HOOK_EVENTS.afterAgentComplete, {
-      ...lifecycle,
-      iterations: iterationCount,
-      messages: invocation.messages,
-    });
-    await this.traceWriter.write({
-      writeTrace,
-      event: {
-        phase: "agent_complete",
-        data: {
-          iterations: iterationCount,
-          messageCount: invocation.messages.length,
-          finalMessage: invocation.messages.at(-1)?.content,
+      await hooks.emitAsync(HOOK_EVENTS.afterAgentComplete, {
+        ...lifecycle,
+        iterations: iterationCount,
+        messages: invocation.messages,
+      });
+      await this.traceWriter.write({
+        writeTrace,
+        event: {
+          phase: "agent_complete",
+          data: {
+            iterations: iterationCount,
+            messageCount: invocation.messages.length,
+            finalMessage: invocation.messages.at(-1)?.content,
+          },
         },
-      },
-    });
+      });
 
-    await this.emitSubagentStop();
-    executionTreeTracker?.recordAgentCompletion(invocation.id);
+      await this.emitSubagentStop();
+      executionTreeTracker?.recordAgentCompletion(invocation.id);
+    } catch (error) {
+      agentFailed = true;
+      throw error;
+    } finally {
+      if (memoryBinding) {
+        const newMessages = invocation.messages.slice(initialMessageCount);
+        await memoryBinding.finalize({
+          invocation,
+          descriptor,
+          newMessages,
+          failed: agentFailed,
+        });
+      }
+    }
   }
 
   private createRunLoopContext(): AgentRunLoopContext {

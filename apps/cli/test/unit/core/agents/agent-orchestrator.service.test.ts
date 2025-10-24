@@ -129,6 +129,7 @@ describe("AgentOrchestratorService", () => {
       agentRunLoop,
       toolCallHandler,
       traceWriterDelegate,
+      undefined,
       executionTreeTrackerFactory as any
     );
     loggerService = new LoggerService();
@@ -593,6 +594,7 @@ describe("AgentOrchestratorService", () => {
       agentRunLoop,
       toolCallHandler,
       traceWriterDelegate,
+      undefined,
       executionTreeTrackerFactory as any
     );
 

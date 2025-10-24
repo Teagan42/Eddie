@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import path from "path";
 import type {
   AgentDefinition,
+  AgentMemoryConfig,
   AgentProviderConfig,
   AgentRuntimeCatalog,
   AgentRuntimeDescriptor,
@@ -235,6 +236,8 @@ export class EngineService {
       };
       // Attach sessionId so trace writes include it
       runtime.sessionId = sessionId;
+      runtime.session = session;
+      runtime.memoryDefaults = cfg.memory;
 
       const userPromptSubmit = await hooks.emitAsync(
         HOOK_EVENTS.userPromptSubmit,
@@ -506,6 +509,11 @@ export class EngineService {
         ...managerConfig.allowedSubagents,
       ];
     }
+    if (managerConfig?.memory) {
+      managerMetadataEntries.memory = this.cloneAgentMemoryConfig(
+        managerConfig.memory
+      );
+    }
 
     const managerMetadata =
       Object.keys(managerMetadataEntries).length > 0
@@ -563,6 +571,9 @@ export class EngineService {
       }
       if (typeof subagent.allowedSubagents !== "undefined") {
         metadataEntries.allowedSubagents = [...subagent.allowedSubagents];
+      }
+      if (subagent.memory) {
+        metadataEntries.memory = this.cloneAgentMemoryConfig(subagent.memory);
       }
 
       const descriptor: AgentRuntimeDescriptor = {
@@ -630,6 +641,16 @@ export class EngineService {
 
   private cloneProviderConfig(config: ProviderConfig): ProviderConfig {
     return JSON.parse(JSON.stringify(config)) as ProviderConfig;
+  }
+
+  private cloneAgentMemoryConfig(
+    memory: AgentMemoryConfig | undefined
+  ): AgentMemoryConfig | undefined {
+    if (!memory) {
+      return undefined;
+    }
+
+    return JSON.parse(JSON.stringify(memory)) as AgentMemoryConfig;
   }
 
   private filterTools(

@@ -22,7 +22,9 @@ import {
   type AgentRuntimeMetadata,
   type AgentSpawnHandler,
   type ChatMessage,
+  type MemoryConfig,
   type PackedContext,
+  type SessionMetadata,
   type StreamEvent,
   type ToolResult,
   type ToolSchema,
@@ -36,6 +38,7 @@ import {
   type AgentRunnerDependencies,
 } from "./agent-runner";
 import { AgentRunLoop, ToolCallHandler, TraceWriterDelegate } from "./runner";
+import { AgentMemoryCoordinator } from "../memory/agent-memory-coordinator";
 import type { TemplateVariables } from "@eddie/templates";
 import type { TranscriptCompactionWorkflow } from "../transcript/transcript-compaction.service";
 import type { MetricsService } from "../telemetry/metrics.service";
@@ -74,6 +77,8 @@ export interface AgentRuntimeOptions {
     metrics: MetricsService;
     executionTreeTracker?: ExecutionTreeStateTracker;
     executionTreeTrackerFactory?: ExecutionTreeTrackerFactoryLike;
+    session?: SessionMetadata;
+    memoryDefaults?: MemoryConfig;
 }
 
 export interface AgentRunRequest extends AgentInvocationOptions {
@@ -98,6 +103,8 @@ export class AgentOrchestratorService {
         private readonly agentRunLoop: AgentRunLoop,
         private readonly toolCallHandler: ToolCallHandler,
         private readonly traceWriterDelegate: TraceWriterDelegate,
+        @Optional()
+        private readonly memoryCoordinator?: AgentMemoryCoordinator,
         @Optional()
         private readonly executionTreeTrackerFactory?: ExecutionTreeTrackerFactory
   ) {
@@ -774,6 +781,15 @@ export class AgentOrchestratorService {
 
     const descriptor = this.getInvocationDescriptor(invocation);
 
+    const memoryBinding = this.memoryCoordinator
+      ? await this.memoryCoordinator.createBinding({
+          descriptor,
+          invocation,
+          runtime,
+          session: runtime.session,
+        })
+      : undefined;
+
     const lifecycle = this.createLifecyclePayload(invocation);
     const runner = new AgentRunner({
       invocation,
@@ -803,6 +819,7 @@ export class AgentOrchestratorService {
         this.writeTrace(runtime, invocation, event, append),
       metrics: runtime.metrics,
       executionTreeTracker: this.ensureExecutionTreeTracker(runtime),
+      memoryBinding,
     }, this.agentRunnerDependencies);
 
     await runner.run();
