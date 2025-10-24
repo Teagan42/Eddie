@@ -187,6 +187,33 @@ describe("TemplateRuntimeService", () => {
     });
   });
 
+  it("exposes recalled memories to templates", async () => {
+    const definition: AgentDefinition = {
+      id: "planner",
+      systemPrompt: "System",
+    };
+
+    const memories = [
+      { id: "1", memory: "Remember the deployment checklist" },
+      { id: "2", memory: "Follow the testing pyramid" },
+    ];
+
+    await service.renderSystemPrompt({
+      definition,
+      options: { prompt: "Plan" },
+      context: { files: [], text: "ctx", totalBytes: 0 },
+      history: [],
+      memories,
+    });
+
+    expect(renderer.renderString).toHaveBeenCalledWith(
+      definition.systemPrompt,
+      expect.objectContaining({
+        memories,
+      })
+    );
+  });
+
   it("renders context resource templates with merged variables", async () => {
     const context: PackedContext = { files: [], text: "ctx", totalBytes: 0 };
     const history: ChatMessage[] = [];

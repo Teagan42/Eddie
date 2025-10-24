@@ -83,6 +83,20 @@ export interface AgentRuntimeMetadata {
   memory?: AgentMemoryConfig;
 }
 
+export interface AgentRecalledMemory {
+  id: string;
+  memory: string;
+  metadata?: Record<string, unknown>;
+  facets?: Record<string, unknown>;
+}
+
+export interface AgentInvocationMemoryUsage {
+  id: string;
+  facets?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  bytes?: number;
+}
+
 export interface AgentRuntimeDescriptor {
   id: string;
   definition: AgentDefinition;

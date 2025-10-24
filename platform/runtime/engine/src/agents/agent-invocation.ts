@@ -1,5 +1,6 @@
 import type {
   AgentDefinition,
+  AgentInvocationMemoryUsage,
   AgentInvocationOptions,
   AgentInvocationRuntimeDetails,
   AgentSpawnHandler,
@@ -23,6 +24,7 @@ export class AgentInvocation {
   readonly toolRegistry: ToolRegistry;
   private spawnHandler?: AgentInvocationSpawnHandler;
   private runtimeDetails?: AgentInvocationRuntimeDetails;
+  readonly memoryUsage: AgentInvocationMemoryUsage[];
 
   constructor(
     readonly definition: AgentDefinition,
@@ -35,6 +37,7 @@ export class AgentInvocation {
     this.history = options.history ? [...options.history] : [];
     this.promptRole = options.promptRole ?? "user";
     this.toolRegistry = toolRegistryFactory.create(definition.tools ?? []);
+    this.memoryUsage = [];
     this.messages = [
       { role: "system", content: definition.systemPrompt },
       ...this.history,
@@ -60,6 +63,13 @@ export class AgentInvocation {
 
   setRuntime(details: AgentInvocationRuntimeDetails): void {
     this.runtimeDetails = details;
+  }
+
+  setMemoryUsage(records: AgentInvocationMemoryUsage[]): void {
+    this.memoryUsage.length = 0;
+    for (const record of records) {
+      this.memoryUsage.push({ ...record });
+    }
   }
 
   get runtime(): AgentInvocationRuntimeDetails | undefined {

@@ -7,6 +7,7 @@ import type {
   AgentProviderConfig,
   AgentRuntimeCatalog,
   AgentRuntimeDescriptor,
+  AgentRecalledMemory,
   CliRuntimeOptions,
   ContextConfig,
   EddieConfig,
@@ -45,6 +46,8 @@ import type { DiscoveredMcpResource } from "@eddie/mcp";
 import { TranscriptCompactionService } from "./transcript/transcript-compaction.service";
 import { MetricsService } from "./telemetry/metrics.service";
 import { DemoSeedReplayService } from "./demo/demo-seed-replay.service";
+import { MemoryFacade } from "@eddie/memory";
+import type { AgentMemoryRuntime, AgentMemoryAdapter } from "./agents/memory.types";
 
 export interface EngineOptions extends CliRuntimeOptions {
     history?: ChatMessage[];
@@ -81,7 +84,9 @@ export class EngineService {
         private readonly mcpToolSourceService: McpToolSourceService,
         private readonly metrics: MetricsService,
         @Optional()
-        private readonly demoSeedReplayService?: DemoSeedReplayService
+        private readonly demoSeedReplayService?: DemoSeedReplayService,
+        @Optional()
+        private readonly memoryFacade?: MemoryFacade
   ) {}
 
   /**
@@ -232,9 +237,17 @@ export class EngineService {
         traceAppend: cfg.output?.jsonlAppend ?? true,
         transcriptCompaction,
         metrics: this.metrics,
+        contextMaxBytes: cfg.context?.maxBytes,
       };
       // Attach sessionId so trace writes include it
       runtime.sessionId = sessionId;
+
+      const memoryRuntime = session
+        ? this.createMemoryRuntime(cfg, session)
+        : undefined;
+      if (memoryRuntime) {
+        runtime.memory = memoryRuntime;
+      }
 
       const userPromptSubmit = await hooks.emitAsync(
         HOOK_EVENTS.userPromptSubmit,
@@ -506,6 +519,11 @@ export class EngineService {
         ...managerConfig.allowedSubagents,
       ];
     }
+    if (managerConfig?.memory) {
+      managerMetadataEntries.memory = this.cloneMemoryConfig(
+        managerConfig.memory
+      );
+    }
 
     const managerMetadata =
       Object.keys(managerMetadataEntries).length > 0
@@ -564,6 +582,9 @@ export class EngineService {
       if (typeof subagent.allowedSubagents !== "undefined") {
         metadataEntries.allowedSubagents = [...subagent.allowedSubagents];
       }
+      if (subagent.memory) {
+        metadataEntries.memory = this.cloneMemoryConfig(subagent.memory);
+      }
 
       const descriptor: AgentRuntimeDescriptor = {
         id: subagent.id,
@@ -586,6 +607,76 @@ export class EngineService {
       cfg.agents.enableSubagents,
       spawnRules
     );
+  }
+
+  private createMemoryRuntime(
+    cfg: EddieConfig,
+    session: SessionMetadata
+  ): AgentMemoryRuntime | undefined {
+    if (!this.memoryFacade || cfg.memory?.enabled !== true) {
+      return undefined;
+    }
+
+    const adapter: AgentMemoryAdapter = {
+      recallMemories: async (request) => {
+        const sessionId = request.session?.id ?? session.id;
+        const recalled = await this.memoryFacade!.recallMemories({
+          query: request.query,
+          agentId: request.agent.id,
+          sessionId,
+          metadata: request.metadata,
+        });
+
+        return this.normalizeRecalledMemories(
+          recalled as Array<{
+            id: string;
+            memory?: unknown;
+            metadata?: unknown;
+            facets?: unknown;
+          }>
+        );
+      },
+    };
+
+    return {
+      adapter,
+      session,
+    };
+  }
+
+  private normalizeRecalledMemories(
+    recalled: Array<{
+      id: string;
+      memory?: unknown;
+      metadata?: unknown;
+      facets?: unknown;
+    }>
+  ): AgentRecalledMemory[] {
+    return recalled
+      .filter(
+        (memory): memory is {
+          id: string;
+          memory: string;
+          metadata?: Record<string, unknown>;
+          facets?: Record<string, unknown>;
+        } => typeof memory.memory === "string" && memory.memory.trim().length > 0
+      )
+      .map((memory) => ({
+        id: memory.id,
+        memory: memory.memory,
+        metadata: this.cloneRecord(memory.metadata),
+        facets: this.cloneRecord(memory.facets),
+      }));
+  }
+
+  private cloneRecord(
+    value: unknown
+  ): Record<string, unknown> | undefined {
+    if (!value || typeof value !== "object") {
+      return undefined;
+    }
+
+    return { ...(value as Record<string, unknown>) };
   }
 
   private resolveAgentProviderConfig(
@@ -630,6 +721,14 @@ export class EngineService {
 
   private cloneProviderConfig(config: ProviderConfig): ProviderConfig {
     return JSON.parse(JSON.stringify(config)) as ProviderConfig;
+  }
+
+  private cloneMemoryConfig<T>(config: T | undefined): T | undefined {
+    if (!config) {
+      return undefined;
+    }
+
+    return JSON.parse(JSON.stringify(config)) as T;
   }
 
   private filterTools(

@@ -150,6 +150,7 @@ describe("AgentOrchestratorService", () => {
     expect(invocationFactory.create).toHaveBeenCalledWith(
       agentDefinition,
       expect.objectContaining({ prompt: "List files" }),
+      expect.objectContaining({ catalog }),
       undefined,
     );
     expect(runSpy).toHaveBeenCalled();

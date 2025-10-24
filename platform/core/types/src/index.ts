@@ -9,6 +9,8 @@ export type {
   AgentRuntimeMetadata,
   AgentSpawnHandler,
   AgentActivityState,
+  AgentRecalledMemory,
+  AgentInvocationMemoryUsage,
 } from "./agents";
 
 export * from "./providers";

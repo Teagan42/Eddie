@@ -2,7 +2,9 @@ import path from "node:path";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { EngineService } from "../src/engine.service";
 import type { AgentRuntimeCatalog, EddieConfig, PackedContext } from "@eddie/types";
+import type { AgentRuntimeOptions } from "../src/agents/agent-orchestrator.service";
 import type { DiscoveredMcpResource } from "@eddie/mcp";
+import type { Memory } from "mem0ai";
 
 const baseConfig: EddieConfig = {
   model: "base-model",
@@ -30,7 +32,7 @@ const baseConfig: EddieConfig = {
 
 function createService(
   overrides: Partial<EddieConfig> = {},
-  options: { includeDemoSeedReplayService?: boolean } = {}
+  options: { includeDemoSeedReplayService?: boolean; memoryFacade?: unknown } = {}
 ) {
   const config: EddieConfig = { ...baseConfig, ...overrides };
   const configStore = { getSnapshot: vi.fn(() => config) };
@@ -112,6 +114,7 @@ function createService(
     mcpToolSourceService as any,
     metrics as any,
     includeDemoSeedReplayService ? (demoSeedReplayService as any) : undefined,
+    options.memoryFacade as any,
   );
 
   return {
@@ -125,14 +128,15 @@ function createService(
     agentOrchestrator,
     demoSeedReplayService,
     config,
+    memoryFacade: options.memoryFacade,
   };
 }
 
 function getFirstRuntimeOptions(
   agentOrchestrator: { runAgent: ReturnType<typeof vi.fn> },
-): Record<string, unknown> | undefined {
+): AgentRuntimeOptions | undefined {
   const [, runtimeOptions] = agentOrchestrator.runAgent.mock.calls[0] ?? [];
-  return runtimeOptions as Record<string, unknown> | undefined;
+  return runtimeOptions as AgentRuntimeOptions | undefined;
 }
 
 beforeEach(() => {
@@ -147,7 +151,7 @@ afterEach(() => {
 
 describe("EngineService", () => {
   it("does not declare a ConfigService dependency", () => {
-    expect(EngineService.length).toBe(12);
+    expect(EngineService.length).toBe(13);
   });
 
   it("does not reload configuration when runtime overrides are provided", async () => {
@@ -156,6 +160,109 @@ describe("EngineService", () => {
     await service.run("prompt", { provider: "override" });
 
     expect(configStore.getSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it("enables memory runtime when configured and available", async () => {
+    const memoryFacade = { recallMemories: vi.fn() };
+    const { service, agentOrchestrator } = createService(
+      {
+        context: { include: [], baseDir: "/tmp/project", maxBytes: 120 },
+        memory: { enabled: true },
+        agents: {
+          mode: "manager",
+          enableSubagents: true,
+          manager: { prompt: "Manage", memory: { recall: true } },
+          subagents: [
+            {
+              id: "worker",
+              prompt: "Work",
+              memory: { recall: true },
+            },
+          ],
+        },
+      },
+      { memoryFacade }
+    );
+
+    await service.run("plan the sprint");
+
+    const runtime = getFirstRuntimeOptions(agentOrchestrator)!;
+
+    expect(runtime.contextMaxBytes).toBe(120);
+    expect(runtime.memory).toBeDefined();
+    expect(runtime.memory?.session?.id).toBeDefined();
+    expect(runtime.memory?.adapter).toBeDefined();
+
+    const manager = runtime.catalog.getManager();
+    const worker = runtime.catalog.getAgent("worker");
+
+    expect(manager.metadata?.memory).toEqual({ recall: true });
+    expect(worker?.metadata?.memory).toEqual({ recall: true });
+  });
+
+  it("normalizes recalled memories to the agent format", async () => {
+    const recalled: Memory[] = [
+      {
+        id: "mem-1",
+        memory: "Remember the sprint goal",
+        metadata: { importance: "high" },
+        facets: { project: "apollo" },
+      } as Memory,
+      {
+        id: "mem-2",
+        memory: undefined,
+        metadata: { importance: "low" },
+      } as Memory,
+    ];
+
+    const memoryFacade = {
+      recallMemories: vi.fn(async () => recalled),
+    };
+
+    const { service, agentOrchestrator } = createService(
+      {
+        context: { include: [], baseDir: "/tmp/project", maxBytes: 120 },
+        memory: { enabled: true },
+        agents: {
+          mode: "manager",
+          enableSubagents: false,
+          manager: { prompt: "Manage", memory: { recall: true } },
+          subagents: [],
+        },
+      },
+      { memoryFacade }
+    );
+
+    await service.run("plan the sprint");
+
+    const runtime = getFirstRuntimeOptions(agentOrchestrator)!;
+    const adapter = runtime.memory?.adapter;
+    expect(adapter).toBeDefined();
+
+    const descriptor = runtime.catalog.getManager();
+    const result = await adapter!.recallMemories({
+      agent: descriptor,
+      query: "plan the sprint",
+      session: runtime.memory?.session,
+      metadata: undefined,
+      maxBytes: 1024,
+    });
+
+    expect(memoryFacade.recallMemories).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: runtime.memory?.session?.id,
+        agentId: descriptor.id,
+      })
+    );
+
+    expect(result).toEqual([
+      {
+        id: "mem-1",
+        memory: "Remember the sprint goal",
+        metadata: { importance: "high" },
+        facets: { project: "apollo" },
+      },
+    ]);
   });
 
   it("requests a transcript compaction selector for each run", async () => {
