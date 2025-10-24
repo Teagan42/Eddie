@@ -106,4 +106,65 @@ describe("AgentMemoryCoordinator", () => {
       }),
     );
   });
+
+  it("creates a memory binding using runtime defaults when metadata omits memory", async () => {
+    const loadAgentMemories = vi.fn().mockResolvedValue([]);
+    const persistAgentMemories = vi.fn();
+    const coordinator = new AgentMemoryCoordinator({
+      loadAgentMemories,
+      persistAgentMemories,
+    } as any);
+
+    const descriptorWithoutMemory = {
+      ...descriptor,
+      metadata: undefined,
+    } as AgentRuntimeDescriptor;
+
+    const binding = await coordinator.createBinding({
+      descriptor: descriptorWithoutMemory,
+      invocation: { prompt: "hello" } as AgentInvocation,
+      runtime: {
+        sessionId: "session-456",
+        memoryDefaults: {
+          enabled: true,
+          recall: true,
+          store: true,
+        } as any,
+      },
+    });
+
+    expect(binding).toBeDefined();
+
+    await binding!.prepareProviderMessages({
+      messages: [],
+      invocation: { prompt: "hello" } as AgentInvocation,
+      descriptor: descriptorWithoutMemory,
+    });
+
+    expect(loadAgentMemories).toHaveBeenCalled();
+
+    await binding!.finalize({
+      invocation: { prompt: "hello" } as AgentInvocation,
+      descriptor: descriptorWithoutMemory,
+      newMessages: [
+        {
+          role: "assistant",
+          content: "Stored from defaults",
+        },
+      ],
+      failed: false,
+    });
+
+    expect(persistAgentMemories).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "session-456",
+        memories: [
+          {
+            role: "assistant",
+            content: "Stored from defaults",
+          },
+        ],
+      }),
+    );
+  });
 });

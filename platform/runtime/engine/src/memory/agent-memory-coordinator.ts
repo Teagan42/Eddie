@@ -83,18 +83,15 @@ export class AgentMemoryCoordinator {
     agentConfig: AgentMemoryConfig | undefined,
     defaults: MemoryConfig | undefined,
   ): ResolvedAgentMemoryConfig | undefined {
-    if (!agentConfig) {
-      return undefined;
-    }
-
     if (defaults?.enabled === false) {
       return undefined;
     }
 
     const defaultsWithFlags = defaults as MemoryDefaults | undefined;
+    const memory = agentConfig ?? ({} as AgentMemoryConfig);
 
-    const recall = agentConfig.recall ?? defaultsWithFlags?.recall ?? false;
-    const store = agentConfig.store ?? defaultsWithFlags?.store ?? false;
+    const recall = memory.recall ?? defaultsWithFlags?.recall ?? false;
+    const store = memory.store ?? defaultsWithFlags?.store ?? false;
 
     if (!recall && !store) {
       return undefined;
@@ -103,8 +100,8 @@ export class AgentMemoryCoordinator {
     return {
       recall,
       store,
-      facets: agentConfig.facets ?? defaults?.facets,
-      vectorStore: agentConfig.vectorStore ?? defaults?.vectorStore,
+      facets: memory.facets ?? defaults?.facets,
+      vectorStore: memory.vectorStore ?? defaults?.vectorStore,
     };
   }
 }
