@@ -26,6 +26,49 @@ function getMetadataArray<T = unknown>(key: string): T[] {
   return Array.isArray(metadata) ? metadata : [];
 }
 
+function resolveMem0DynamicModule(): {
+  module: Record<string, unknown>;
+  optionsProvider: {
+    provide: unknown;
+    useFactory: (
+      ...args: unknown[]
+    ) => Mem0MemoryModuleOptions | Promise<Mem0MemoryModuleOptions>;
+    inject?: unknown[];
+  };
+} {
+  const importsList = getMetadataArray<unknown>(MODULE_METADATA.IMPORTS);
+  const dynamicModule = importsList.find(
+    (entry): entry is Record<string, unknown> =>
+      Boolean(entry && typeof entry === "object" && "module" in entry),
+  );
+
+  if (!dynamicModule) {
+    throw new Error("Mem0MemoryModule dynamic import was not registered");
+  }
+
+  const optionsProvider = (dynamicModule.providers as unknown[]).find(
+    (provider): provider is {
+      provide: unknown;
+      useFactory: (...args: unknown[]) =>
+        | Mem0MemoryModuleOptions
+        | Promise<Mem0MemoryModuleOptions>;
+      inject?: unknown[];
+    } =>
+      Boolean(
+        provider &&
+          typeof provider === "object" &&
+          "provide" in provider &&
+          provider.provide === MEM0_MEMORY_MODULE_OPTIONS_TOKEN,
+      ),
+  );
+
+  if (!optionsProvider) {
+    throw new Error("Mem0MemoryModule options factory provider was not found");
+  }
+
+  return { module: dynamicModule, optionsProvider };
+}
+
 describe("EngineModule runtime providers", () => {
   it("reuses template runtime providers", () => {
     const providers = getMetadataArray(MODULE_METADATA.PROVIDERS);
@@ -59,11 +102,7 @@ describe("EngineModule runtime providers", () => {
   });
 
   it("registers mem0 memory module with config-driven options", async () => {
-    const importsList = getMetadataArray<unknown>(MODULE_METADATA.IMPORTS);
-    const dynamicModule = importsList.find(
-      (entry): entry is Record<string, unknown> =>
-        Boolean(entry && typeof entry === "object" && "module" in entry),
-    );
+    const { module: dynamicModule, optionsProvider } = resolveMem0DynamicModule();
 
     expect(dynamicModule).toBeDefined();
     expect(dynamicModule?.module).toBe(Mem0MemoryModule);
@@ -71,21 +110,6 @@ describe("EngineModule runtime providers", () => {
       expect.arrayContaining([ConfigModule]),
     );
 
-    const optionsProvider = (dynamicModule?.providers as unknown[]).find(
-      (provider): provider is {
-        provide: unknown;
-        useFactory: (...args: unknown[]) => Mem0MemoryModuleOptions | Promise<Mem0MemoryModuleOptions>;
-        inject?: unknown[];
-      } =>
-        Boolean(
-          provider &&
-            typeof provider === "object" &&
-            "provide" in provider &&
-            provider.provide === MEM0_MEMORY_MODULE_OPTIONS_TOKEN,
-        ),
-    );
-
-    expect(optionsProvider).toBeDefined();
     expect(optionsProvider?.inject).toEqual(
       expect.arrayContaining([ConfigStore, MODULE_OPTIONS_TOKEN]),
     );
@@ -159,5 +183,26 @@ describe("EngineModule runtime providers", () => {
         urgency: "low",
       }),
     );
+  });
+
+  it("omits mem0 credentials when no API key is configured", async () => {
+    const { optionsProvider } = resolveMem0DynamicModule();
+
+    const config = {
+      version: 1,
+      projectDir: process.cwd(),
+      model: "gpt-4o",
+      provider: { name: "openai" },
+      context: { include: [], baseDir: process.cwd() },
+      memory: { enabled: true },
+      agents: { mode: "single" },
+    } as EddieConfig;
+
+    const options = await optionsProvider!.useFactory(
+      { getSnapshot: () => config } as unknown as ConfigStore,
+      {} as CliRuntimeOptions,
+    );
+
+    expect(options.credentials).toBeUndefined();
   });
 });

@@ -286,4 +286,26 @@ describe("Mem0MemoryService", () => {
     );
     expect(providedFacetExtractor).toBe(facetExtractor);
   });
+
+  it("initializes the module even when credentials are absent", async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [
+        Mem0MemoryModule.register({
+          credentials: { apiKey: "" },
+        }),
+      ],
+    }).compile();
+
+    const service = moduleRef.get(Mem0MemoryService);
+
+    await expect(
+      service.loadAgentMemories({ query: "anything" }),
+    ).rejects.toThrowError(/Mem0 API key is required/);
+
+    await expect(
+      service.persistAgentMemories({
+        memories: [{ role: "assistant", content: "hi" }],
+      }),
+    ).rejects.toThrowError(/Mem0 API key is required/);
+  });
 });

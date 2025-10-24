@@ -33,7 +33,6 @@ import { DemoSeedReplayService } from "./demo/demo-seed-replay.service";
 import { Mem0MemoryModule } from "../../memory/src/mem0.memory.module";
 import type { CliRuntimeOptions, EddieConfig, MemoryConfig } from "@eddie/types";
 import type { QdrantVectorStoreDescriptor } from "../../memory/src/adapters/qdrant.vector-store";
-import type { Mem0RestCredentials } from "../../memory/src/adapters/mem0.client";
 import { createMem0FacetExtractor } from "./memory/mem0-facet-extractor.factory";
 import type { Mem0MemoryModuleOptions } from "../../memory/src/mem0.memory.module-definition";
 
@@ -49,8 +48,9 @@ import type { Mem0MemoryModuleOptions } from "../../memory/src/mem0.memory.modul
       ): Promise<Mem0MemoryModuleOptions> => {
         const snapshot = configStore.getSnapshot();
         const memory = snapshot.memory;
+        const credentials = resolveMem0Credentials(memory, cliOptions);
         return {
-          credentials: resolveMem0Credentials(memory, cliOptions),
+          ...(credentials ? { credentials } : {}),
           vectorStore: resolveMem0VectorStore(memory),
           facetExtractor: createMem0FacetExtractor(memory?.facets),
         };
@@ -103,13 +103,22 @@ interface Mem0CredentialsConfig {
   };
 }
 
+interface Mem0Credentials {
+  apiKey: string;
+  host?: string;
+}
+
 function resolveMem0Credentials(
   memory: EddieConfig["memory"],
   cliOptions: CliRuntimeOptions,
-): Mem0RestCredentials {
+): Mem0Credentials | undefined {
   const configCredentials = (memory as Mem0CredentialsConfig | undefined)?.mem0 ?? {};
-  const apiKey = cliOptions.mem0ApiKey ?? configCredentials.apiKey ?? "";
+  const apiKey = cliOptions.mem0ApiKey ?? configCredentials.apiKey;
   const host = cliOptions.mem0Host ?? configCredentials.host;
+
+  if (!apiKey) {
+    return undefined;
+  }
 
   return host ? { apiKey, host } : { apiKey };
 }

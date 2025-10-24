@@ -4,7 +4,7 @@ import type { QdrantVectorStoreDescriptor } from "./adapters/qdrant.vector-store
 import type { FacetExtractorStrategy } from "./mem0.memory.service";
 
 export interface Mem0MemoryModuleOptions {
-  credentials: Mem0RestCredentials;
+  credentials?: Mem0RestCredentials;
   vectorStore?: QdrantVectorStoreDescriptor;
   facetExtractor?: FacetExtractorStrategy;
 }
