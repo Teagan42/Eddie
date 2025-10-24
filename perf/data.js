@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761231122222,
+  "lastUpdate": 1761273851005,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -1886,6 +1886,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 23.603,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e541946c96d2a0c796a3357fcbc81b9f16d3f20b",
+          "message": "refactor: align mem0 memory service with nest module patterns (#759)\n\n* refactor(memory): align nest module naming conventions\n\n* refactor: configure mem0 module with builder\n\n* refactor: provide the Mem0MemoryService directly\n\n* refactor: shareed configurable module definition",
+          "timestamp": "2025-10-23T20:33:34-06:00",
+          "tree_id": "35ee110f52118dc14163d44be3940d5e72b5512d",
+          "url": "https://github.com/Teagan42/Eddie/commit/e541946c96d2a0c796a3357fcbc81b9f16d3f20b"
+        },
+        "date": 1761273850487,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 46.781,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 33.276,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.3,
             "unit": "ms",
             "extra": "[object Object]"
           }
