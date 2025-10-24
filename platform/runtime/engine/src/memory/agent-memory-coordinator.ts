@@ -47,6 +47,10 @@ type LoadedMemoryRecord = Awaited<
 
 type MemoryDefaults = MemoryConfig & Partial<Pick<AgentMemoryConfig, "recall" | "store">>;
 
+type PersistOptions = Parameters<Mem0MemoryService["persistAgentMemories"]>[0];
+type MetadataOverride = PersistOptions["metadata"];
+type VectorStoreOverride = PersistOptions["vectorStore"];
+
 @Injectable()
 export class AgentMemoryCoordinator {
   constructor(
@@ -117,9 +121,13 @@ interface Mem0BindingDependencies {
 class Mem0AgentMemoryBinding implements AgentMemoryBinding {
   private recalled = false;
   private readonly sessionId?: string;
+  private readonly metadataOverrides?: MetadataOverride;
+  private readonly vectorStoreOverride?: VectorStoreOverride;
 
   constructor(private readonly deps: Mem0BindingDependencies) {
     this.sessionId = deps.runtime.session?.id ?? deps.runtime.sessionId;
+    this.metadataOverrides = this.computeMetadataOverrides();
+    this.vectorStoreOverride = this.computeVectorStoreOverride();
   }
 
   async prepareProviderMessages(options: {
@@ -168,6 +176,8 @@ class Mem0AgentMemoryBinding implements AgentMemoryBinding {
     await this.deps.service.persistAgentMemories({
       agentId: this.deps.descriptor.id,
       sessionId: this.sessionId,
+      ...(this.metadataOverrides ? { metadata: this.metadataOverrides } : {}),
+      ...(this.vectorStoreOverride ? { vectorStore: this.vectorStoreOverride } : {}),
       memories,
     });
   }
@@ -202,6 +212,8 @@ class Mem0AgentMemoryBinding implements AgentMemoryBinding {
       agentId: this.deps.descriptor.id,
       sessionId: this.sessionId,
       query: this.deps.invocation.prompt,
+      ...(this.metadataOverrides ? { metadata: this.metadataOverrides } : {}),
+      ...(this.vectorStoreOverride ? { vectorStore: this.vectorStoreOverride } : {}),
     });
 
     if (!records?.length) {
@@ -211,5 +223,45 @@ class Mem0AgentMemoryBinding implements AgentMemoryBinding {
     return records
       .map((record) => this.toChatMessage(record))
       .filter((message): message is ChatMessage => Boolean(message));
+  }
+
+  private computeMetadataOverrides(): MetadataOverride | undefined {
+    const facets = this.deps.config.facets;
+    if (!facets) {
+      return undefined;
+    }
+
+    return { facets };
+  }
+
+  private computeVectorStoreOverride(): VectorStoreOverride | undefined {
+    const vectorStore = this.deps.config.vectorStore;
+    if (!vectorStore || vectorStore.provider !== "qdrant") {
+      return undefined;
+    }
+
+    const qdrant = vectorStore.qdrant;
+    if (!qdrant?.url) {
+      return undefined;
+    }
+
+    const override: NonNullable<VectorStoreOverride> = {
+      type: "qdrant",
+      url: qdrant.url,
+    };
+
+    if (qdrant.apiKey) {
+      override.apiKey = qdrant.apiKey;
+    }
+
+    if (qdrant.collection) {
+      override.collection = qdrant.collection;
+    }
+
+    if (typeof qdrant.timeoutMs === "number") {
+      override.timeoutMs = qdrant.timeoutMs;
+    }
+
+    return override;
   }
 }
