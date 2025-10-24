@@ -29,6 +29,64 @@ currently recognises the `qdrant` provider and accepts optional `url`, `apiKey`,
 `collection`, and `timeoutMs` fields to match the hosted instance you are
 connecting to.【F:platform/core/config/src/schema.ts†L38-L78】
 
+Mem0 support layers on top of those primitives. Supplying a `memory.mem0`
+credentials block (`apiKey` with an optional `host`) unlocks the Mem0 memory
+module and lets the engine pull credentials from configuration or CLI runtime
+overrides.【F:platform/runtime/engine/src/engine.module.ts†L101-L134】【F:platform/core/types/src/config.ts†L421-L440】 When an API key is
+present the engine pairs the Mem0 client with the configured vector store by
+adapting the Qdrant connection into a Mem0-compatible descriptor, so your
+`memory.vectorStore` (or per-agent overrides) determine where embeddings and
+metadata are persisted.【F:platform/runtime/engine/src/engine.module.ts†L135-L170】【F:platform/runtime/memory/src/mem0.memory.module.ts†L19-L67】 If you omit
+`memory.mem0.host` the REST adapter falls back to `https://api.mem0.ai`, trimming
+trailing slashes automatically.【F:platform/runtime/memory/src/adapters/mem0.client.ts†L67-L88】
+
+Populate the credentials block alongside the vector store definition, then reuse
+agent overrides when you need dedicated Mem0 collections:
+
+```yaml
+memory:
+  enabled: true
+  mem0:
+    apiKey: ${MEM0_API_KEY}
+    host: https://mem0.example.com
+  vectorStore:
+    provider: qdrant
+    qdrant:
+      url: http://localhost:6333
+      apiKey: ${QDRANT_API_KEY}
+      collection: global-memories
+agents:
+  manager:
+    memory:
+      vectorStore:
+        provider: qdrant
+        qdrant:
+          collection: manager-notes
+```
+
+```jsonc
+// eddie.config.json
+{
+  "memory": {
+    "enabled": true,
+    "mem0": {
+      "apiKey": "${MEM0_API_KEY}",
+      "host": "https://mem0.example.com"
+    },
+    "vectorStore": {
+      "provider": "qdrant",
+      "qdrant": {
+        "url": "http://localhost:6333",
+        "collection": "global-memories"
+      }
+    }
+  }
+}
+```
+
+With credentials in place you can still disable recall or swap collections per
+agent exactly as you would with the default Qdrant-only pipeline.
+
 Agents inherit the global defaults but can override them through
 `agents.manager.memory` and each `subagents[].memory` block. These blocks expose
 `recall` and `store` booleans so you can disable retrieval while still writing

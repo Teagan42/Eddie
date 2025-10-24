@@ -94,6 +94,20 @@ describe("parseCliRuntimeOptionsFromArgv", () => {
       expect(value).toBe(`${definition.runtimeKey}-value`);
     }
   });
+
+  it("parses mem0 credential overrides", () => {
+    const parsed = parseCliRuntimeOptionsFromArgv([
+      "--mem0-api-key",
+      "cli-key",
+      "--mem0-host",
+      "https://mem0.example",
+    ]);
+
+    expect(parsed).toMatchObject({
+      mem0ApiKey: "cli-key",
+      mem0Host: "https://mem0.example",
+    });
+  });
 });
 
 describe("CLI option definitions", () => {
