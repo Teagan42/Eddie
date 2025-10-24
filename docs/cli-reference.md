@@ -34,6 +34,8 @@ discovery helpers that you can enable or disable via the `--tools` and
 | `--log-file` | – | string | Writes structured logs to the specified file instead of standard output. Pretty-printing and colour are disabled when writing to files.【F:apps/cli/src/cli/cli-parser.service.ts†L23-L74】【F:platform/core/config/src/config.service.ts†L609-L619】 | Logs stream to pretty stdout transport by default.【F:platform/core/config/src/defaults.ts†L61-L70】 |
 | `--metrics-backend` | – | string | Chooses the metrics backend for the engine. Use `logging` to emit counters and histograms via the Nest logger, `noop` to disable emissions, or `otel` to hand metrics to an OpenTelemetry SDK provided at runtime. See the [metrics configuration](./configuration.md#metrics-configuration) reference for advanced setup guidance.【F:platform/core/config/src/runtime-cli-options.ts†L100-L135】【F:apps/cli/src/cli/cli-options.service.ts†L32-L88】【F:platform/runtime/engine/src/telemetry/metrics.service.ts†L58-L179】 | `noop` via the default configuration.【F:platform/core/config/src/defaults.ts†L99-L101】 |
 | `--metrics-backend-level` | – | string | When the `logging` backend is active, overrides the logger method used for metric events (`debug`, `log`, or `verbose`). Values outside this set are ignored; the flag has no effect for the `otel` or `noop` backends but the configuration docs cover when metrics-backend-level applies to OpenTelemetry deployments.【F:platform/core/config/src/runtime-cli.ts†L150-L183】【F:apps/cli/src/cli/cli-options.service.ts†L32-L88】【F:platform/runtime/engine/src/telemetry/logging-metrics.backend.ts†L5-L43】 | `debug` when the logging backend is selected.【F:platform/runtime/engine/src/telemetry/logging-metrics.backend.ts†L17-L43】 |
+| `--mem0-api-key` | – | string | Supplies the Mem0 REST API key when running the CLI, overriding any `memory.mem0.apiKey` credential loaded from configuration.【F:platform/runtime/engine/src/engine.module.ts†L101-L134】【F:platform/core/types/src/config.ts†L421-L440】 | None. |
+| `--mem0-host` | – | string | Overrides the Mem0 base URL for the current run. Pair with `--mem0-api-key` when your Mem0 deployment uses a regional host or private ingress; defaults to `https://api.mem0.ai` if omitted.【F:platform/runtime/engine/src/engine.module.ts†L101-L146】【F:platform/runtime/memory/src/adapters/mem0.client.ts†L67-L88】 | `https://api.mem0.ai`.【F:platform/runtime/memory/src/adapters/mem0.client.ts†L67-L88】 |
 | `--agent-mode` | – | string | Switches the agent orchestration strategy (for example `single`, `manager`, or custom modes defined in config).【F:apps/cli/src/cli/cli-parser.service.ts†L24-L74】【F:platform/core/config/src/config.service.ts†L628-L630】 | `single`.【F:platform/core/config/src/defaults.ts†L87-L96】 |
 | `--disable-subagents` | – | boolean | Prevents manager agents from spawning additional subagents during the run.【F:apps/cli/src/cli/cli-parser.service.ts†L27-L90】【F:platform/core/config/src/config.service.ts†L632-L634】 | Subagents enabled (`true`).【F:platform/core/config/src/defaults.ts†L87-L96】 |
 
@@ -111,6 +113,8 @@ Environment variables map directly to the flag surface. Common examples include:
 | `EDDIE_CLI_AGENT_MODE=manager` | Enables the multi-agent orchestrator without editing configuration files.【F:platform/core/config/src/runtime-env.ts†L71-L168】 |
 | `EDDIE_CLI_METRICS_BACKEND=logging` | Switches the metrics backend to the logging implementation without modifying config files.【F:platform/core/config/src/runtime-env.ts†L71-L168】 |
 | `EDDIE_CLI_METRICS_LOGGING_LEVEL=verbose` | Raises the logging backend verbosity for metrics events when combined with the logging backend.【F:platform/core/config/src/runtime-env.ts†L71-L168】 |
+| `EDDIE_CLI_MEM0_API_KEY=sk_live_...` | Provides the Mem0 API key without typing the flag each run; the engine reads the value into `CliRuntimeOptions.mem0ApiKey` before merging CLI overrides.【F:platform/core/types/src/config.ts†L421-L440】【F:platform/runtime/engine/src/engine.module.ts†L101-L134】 |
+| `EDDIE_CLI_MEM0_HOST=https://mem0.example.com` | Pins the Mem0 REST endpoint when you host Mem0 outside the default domain.【F:platform/core/types/src/config.ts†L421-L440】【F:platform/runtime/memory/src/adapters/mem0.client.ts†L67-L88】 |
 
 Shell interpolation keeps secrets and workspace-specific paths out of the repository:
 
@@ -119,6 +123,15 @@ export EDDIE_CLI_PROVIDER="${DEFAULT_PROVIDER:-openai}"
 export EDDIE_CLI_JSONL_TRACE="${TMPDIR}/eddie.trace.jsonl"
 export EDDIE_CLI_TOOLS="bash,file_read"
 eddie ask "Summarise production alerts"
+```
+
+Mem0 credentials follow the same pattern, so you can validate a deployment with
+either exported variables or one-off flags:
+
+```bash
+export EDDIE_CLI_MEM0_API_KEY="sk_live_example"
+export EDDIE_CLI_MEM0_HOST="https://mem0.example.com"
+eddie run "Sync customer history" --mem0-api-key "$EDDIE_CLI_MEM0_API_KEY" --mem0-host "$EDDIE_CLI_MEM0_HOST"
 ```
 
 Flags typed on the command line still win, so `eddie run "Deploy" --provider anthropic` temporarily overrides the environment values set above.【F:platform/core/config/src/runtime-cli.ts†L1-L120】
