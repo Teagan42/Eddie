@@ -45,6 +45,8 @@ type LoadedMemoryRecord = Awaited<
   ReturnType<Mem0MemoryService["loadAgentMemories"]>
 >[number];
 
+type MemoryDefaults = MemoryConfig & Partial<Pick<AgentMemoryConfig, "recall" | "store">>;
+
 @Injectable()
 export class AgentMemoryCoordinator {
   constructor(
@@ -89,8 +91,10 @@ export class AgentMemoryCoordinator {
       return undefined;
     }
 
-    const recall = agentConfig.recall ?? false;
-    const store = agentConfig.store ?? false;
+    const defaultsWithFlags = defaults as MemoryDefaults | undefined;
+
+    const recall = agentConfig.recall ?? defaultsWithFlags?.recall ?? false;
+    const store = agentConfig.store ?? defaultsWithFlags?.store ?? false;
 
     if (!recall && !store) {
       return undefined;

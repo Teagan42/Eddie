@@ -45,4 +45,65 @@ describe("AgentMemoryCoordinator", () => {
       }),
     );
   });
+
+  it("applies runtime defaults when agent memory overrides omit flags", async () => {
+    const loadAgentMemories = vi.fn().mockResolvedValue([]);
+    const persistAgentMemories = vi.fn();
+    const coordinator = new AgentMemoryCoordinator({
+      loadAgentMemories,
+      persistAgentMemories,
+    } as any);
+
+    const binding = await coordinator.createBinding({
+      descriptor: {
+        ...descriptor,
+        metadata: {
+          memory: { facets: { defaultStrategy: "agent" } },
+        },
+      },
+      invocation: { prompt: "hello" } as AgentInvocation,
+      runtime: {
+        sessionId: "session-123",
+        memoryDefaults: {
+          enabled: true,
+          recall: true,
+          store: true,
+        } as any,
+      },
+    });
+
+    expect(binding).toBeDefined();
+
+    await binding!.prepareProviderMessages({
+      messages: [],
+      invocation: { prompt: "hello" } as AgentInvocation,
+      descriptor,
+    });
+
+    expect(loadAgentMemories).toHaveBeenCalled();
+
+    await binding!.finalize({
+      invocation: { prompt: "hello" } as AgentInvocation,
+      descriptor,
+      newMessages: [
+        {
+          role: "assistant",
+          content: "Here you go",
+        },
+      ],
+      failed: false,
+    });
+
+    expect(persistAgentMemories).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "session-123",
+        memories: [
+          {
+            role: "assistant",
+            content: "Here you go",
+          },
+        ],
+      }),
+    );
+  });
 });
