@@ -6,10 +6,10 @@ import {
   type Mem0MemoryServiceDependencies,
 } from "../src/mem0.memory.service";
 import {
-  createMem0MemoryModule,
   MEM0_CLIENT_TOKEN,
   MEM0_FACET_EXTRACTOR_TOKEN,
   MEM0_VECTOR_STORE_TOKEN,
+  Mem0MemoryModule,
 } from "../src/mem0.memory.module";
 
 type FacetExtractorStub = Mem0MemoryServiceDependencies["facetExtractor"];
@@ -28,7 +28,7 @@ describe("Mem0MemoryService", () => {
       createMemories: vi.fn(),
     } satisfies Mem0MemoryServiceDependencies["client"];
 
-    const service = new Mem0MemoryService({
+    const service = Mem0MemoryService.create({
       client,
     });
 
@@ -63,7 +63,7 @@ describe("Mem0MemoryService", () => {
       extract: vi.fn(() => ({ topic: "billing" })),
     } satisfies FacetExtractorStub;
 
-    const service = new Mem0MemoryService({
+    const service = Mem0MemoryService.create({
       client,
       vectorStore: {
         describe: () => ({
@@ -171,7 +171,7 @@ describe("Mem0MemoryService", () => {
       createMemories,
     } satisfies Mem0MemoryServiceDependencies["client"];
 
-    const service = new Mem0MemoryService({
+    const service = Mem0MemoryService.create({
       client,
     });
 
@@ -239,7 +239,7 @@ describe("Mem0MemoryService", () => {
 
     const moduleRef = await Test.createTestingModule({
       imports: [
-        createMem0MemoryModule({
+        Mem0MemoryModule.register({
           credentials: { apiKey: "token", host: "https://mem0.example" },
           vectorStore: {
             type: "qdrant",
