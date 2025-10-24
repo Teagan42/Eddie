@@ -11,11 +11,24 @@ import {
   MEM0_FACET_EXTRACTOR_TOKEN,
   MEM0_VECTOR_STORE_TOKEN,
 } from "./mem0.memory.tokens";
-import { Mem0MemoryService, type FacetExtractorStrategy } from "./mem0.memory.service";
+import {
+  Mem0MemoryService,
+  type FacetExtractorStrategy,
+  type Mem0MemoryServiceDependencies,
+} from "./mem0.memory.service";
 
-const clientTokenProvider: Provider = {
+type Mem0ClientContract = Mem0MemoryServiceDependencies["client"];
+
+const mem0ClientProvider: Provider<Mem0ClientContract> = {
   provide: MEM0_CLIENT_TOKEN,
-  useExisting: Mem0Client,
+  useFactory: (options: Mem0MemoryModuleOptions) =>
+    createMem0Client(options),
+  inject: [MEM0_MEMORY_MODULE_OPTIONS_TOKEN],
+};
+
+const mem0ClientClassProvider: Provider = {
+  provide: Mem0Client,
+  useExisting: MEM0_CLIENT_TOKEN,
 };
 
 const vectorStoreProvider: Provider<QdrantVectorStore | undefined> = {
@@ -33,8 +46,8 @@ const facetExtractorProvider: Provider<FacetExtractorStrategy | undefined> = {
 
 @Module({
   providers: [
-    Mem0Client,
-    clientTokenProvider,
+    mem0ClientProvider,
+    mem0ClientClassProvider,
     vectorStoreProvider,
     facetExtractorProvider,
     Mem0MemoryService,
@@ -56,3 +69,26 @@ export {
   MEM0_VECTOR_STORE_TOKEN,
   MEM0_FACET_EXTRACTOR_TOKEN,
 } from "./mem0.memory.tokens";
+
+function createMem0Client(
+  options: Mem0MemoryModuleOptions,
+): Mem0ClientContract {
+  const credentials = options.credentials;
+
+  if (!credentials?.apiKey) {
+    return createDisabledMem0Client();
+  }
+
+  return new Mem0Client(options);
+}
+
+function createDisabledMem0Client(): Mem0ClientContract {
+  return {
+    searchMemories: () => Promise.reject(createMem0CredentialsError()),
+    createMemories: () => Promise.reject(createMem0CredentialsError()),
+  } satisfies Mem0ClientContract;
+}
+
+function createMem0CredentialsError(): Error {
+  return new Error("Mem0 API key is required");
+}

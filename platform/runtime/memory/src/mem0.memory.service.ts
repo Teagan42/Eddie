@@ -81,13 +81,13 @@ export class Mem0MemoryService {
 
   constructor(
     @Inject(MEM0_CLIENT_TOKEN)
-    client: Mem0MemoryServiceDependencies["client"],
+      client: Mem0MemoryServiceDependencies["client"],
     @Optional()
     @Inject(MEM0_VECTOR_STORE_TOKEN)
-    vectorStore?: QdrantVectorStore,
+      vectorStore?: QdrantVectorStore,
     @Optional()
     @Inject(MEM0_FACET_EXTRACTOR_TOKEN)
-    facetExtractor?: FacetExtractorStrategy,
+      facetExtractor?: FacetExtractorStrategy,
   ) {
     this.client = client;
     this.vectorStore = vectorStore;
@@ -204,6 +204,12 @@ export class Mem0MemoryService {
       ...(options.metadata ?? {}),
     };
 
+    if (isQdrantVectorStoreMetadata(metadata.vectorStore)) {
+      metadata.vectorStore = this.redactVectorStoreSecrets(
+        metadata.vectorStore,
+      );
+    }
+
     if (options.agentId) {
       metadata.agentId = options.agentId;
     }
@@ -237,7 +243,20 @@ export class Mem0MemoryService {
     vectorStore: QdrantVectorStoreMetadata,
   ): QdrantVectorStoreMetadata {
     const { apiKey: _apiKey, ...rest } = vectorStore;
+    void _apiKey;
     const sanitized: QdrantVectorStoreMetadata = { ...rest };
     return sanitized;
   }
+}
+
+function isQdrantVectorStoreMetadata(
+  value: unknown,
+): value is QdrantVectorStoreMetadata {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "type" in value &&
+    (value as { type: unknown }).type === "qdrant" &&
+    "url" in value
+  );
 }

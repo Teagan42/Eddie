@@ -58,6 +58,8 @@ describe("@eddie/types shared contracts", () => {
       };
     }>();
     expectTypeOf<CliRuntimeOptions>().toHaveProperty("config").toMatchTypeOf<string | undefined>();
+    expectTypeOf<CliRuntimeOptions>().toHaveProperty("mem0ApiKey").toMatchTypeOf<string | undefined>();
+    expectTypeOf<CliRuntimeOptions>().toHaveProperty("mem0Host").toMatchTypeOf<string | undefined>();
   });
 
   it("exposes tool source configuration contracts", () => {

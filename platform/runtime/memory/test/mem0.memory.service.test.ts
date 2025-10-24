@@ -10,7 +10,7 @@ import {
   MEM0_FACET_EXTRACTOR_TOKEN,
   MEM0_VECTOR_STORE_TOKEN,
   Mem0MemoryModule,
-} from "../src/mem0.memory.module";
+} from "@eddie/memory";
 
 type FacetExtractorStub = Mem0MemoryServiceDependencies["facetExtractor"];
 
@@ -217,6 +217,38 @@ describe("Mem0MemoryService", () => {
     });
   });
 
+  it("redacts vector store secrets provided via metadata", async () => {
+    const createMemories = vi.fn().mockResolvedValue(undefined);
+    const client = {
+      searchMemories: vi.fn(),
+      createMemories,
+    } satisfies Mem0MemoryServiceDependencies["client"];
+
+    const service = Mem0MemoryService.create({
+      client,
+    });
+
+    await service.persistAgentMemories({
+      metadata: {
+        vectorStore: {
+          type: "qdrant",
+          url: "https://qdrant.example",
+          apiKey: "vector-key",
+          collection: "agent-memories",
+        },
+      },
+      memories: [{ role: "assistant", content: "hi" }],
+    });
+
+    const [payload] = createMemories.mock.calls[0] ?? [];
+
+    expect(payload?.metadata?.vectorStore).toEqual({
+      type: "qdrant",
+      url: "https://qdrant.example",
+      collection: "agent-memories",
+    });
+  });
+
   it("is decorated as a Nest injectable", () => {
     const injectableMetadata = Reflect.getMetadata(
       "__injectable__",
@@ -285,5 +317,27 @@ describe("Mem0MemoryService", () => {
       { strict: false },
     );
     expect(providedFacetExtractor).toBe(facetExtractor);
+  });
+
+  it("initializes the module even when credentials are absent", async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [
+        Mem0MemoryModule.register({
+          credentials: { apiKey: "" },
+        }),
+      ],
+    }).compile();
+
+    const service = moduleRef.get(Mem0MemoryService);
+
+    await expect(
+      service.loadAgentMemories({ query: "anything" }),
+    ).rejects.toThrowError(/Mem0 API key is required/);
+
+    await expect(
+      service.persistAgentMemories({
+        memories: [{ role: "assistant", content: "hi" }],
+      }),
+    ).rejects.toThrowError(/Mem0 API key is required/);
   });
 });

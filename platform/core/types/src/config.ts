@@ -434,6 +434,8 @@ export interface CliRuntimeOptions {
   disableSubagents?: boolean;
   metricsBackend?: MetricsBackendConfig["type"];
   metricsLoggingLevel?: MetricsLoggingLevel;
+  mem0ApiKey?: string;
+  mem0Host?: string;
 }
 
 export interface OutputConfig {

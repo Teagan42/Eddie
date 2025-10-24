@@ -1,6 +1,10 @@
 import { Module } from "@nestjs/common";
 import { CqrsModule } from "@nestjs/cqrs";
-import { ConfigModule } from "@eddie/config";
+import {
+  ConfigModule,
+  ConfigStore,
+  MODULE_OPTIONS_TOKEN,
+} from "@eddie/config";
 import { ContextModule } from "@eddie/context";
 import { IoModule } from "@eddie/io";
 import { HooksModule } from "@eddie/hooks";
@@ -26,10 +30,31 @@ import {
   TraceWriterDelegate,
 } from "./agents/runner";
 import { DemoSeedReplayService } from "./demo/demo-seed-replay.service";
+import { Mem0MemoryModule } from "@eddie/memory";
+import type { CliRuntimeOptions, EddieConfig, MemoryConfig } from "@eddie/types";
+import type { QdrantVectorStoreDescriptor, Mem0MemoryModuleOptions } from "@eddie/memory";
+import { createMem0FacetExtractor } from "./memory/mem0-facet-extractor.factory";
 
 @Module({
   imports: [
     ConfigModule,
+    Mem0MemoryModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigStore, MODULE_OPTIONS_TOKEN],
+      useFactory: async (
+        configStore: ConfigStore,
+        cliOptions: CliRuntimeOptions,
+      ): Promise<Mem0MemoryModuleOptions> => {
+        const snapshot = configStore.getSnapshot();
+        const memory = snapshot.memory;
+        const credentials = resolveMem0Credentials(memory, cliOptions);
+        return {
+          ...(credentials ? { credentials } : {}),
+          vectorStore: resolveMem0VectorStore(memory),
+          facetExtractor: createMem0FacetExtractor(memory?.facets),
+        };
+      },
+    }),
     ContextModule,
     IoModule,
     CqrsModule,
@@ -69,3 +94,63 @@ import { DemoSeedReplayService } from "./demo/demo-seed-replay.service";
   ],
 })
 export class EngineModule {}
+
+interface Mem0CredentialsConfig {
+  mem0?: {
+    apiKey?: string;
+    host?: string;
+  };
+}
+
+interface Mem0Credentials {
+  apiKey: string;
+  host?: string;
+}
+
+function resolveMem0Credentials(
+  memory: EddieConfig["memory"],
+  cliOptions: CliRuntimeOptions,
+): Mem0Credentials | undefined {
+  const configCredentials = (memory as Mem0CredentialsConfig | undefined)?.mem0 ?? {};
+  const apiKey = cliOptions.mem0ApiKey ?? configCredentials.apiKey;
+  const host = cliOptions.mem0Host ?? configCredentials.host;
+
+  if (!apiKey) {
+    return undefined;
+  }
+
+  return host ? { apiKey, host } : { apiKey };
+}
+
+function resolveMem0VectorStore(
+  memory: MemoryConfig | undefined,
+): QdrantVectorStoreDescriptor | undefined {
+  const vectorStore = memory?.vectorStore;
+  if (vectorStore?.provider !== "qdrant") {
+    return undefined;
+  }
+
+  const qdrant = vectorStore.qdrant ?? {};
+  if (!qdrant.url) {
+    return undefined;
+  }
+
+  const descriptor: QdrantVectorStoreDescriptor = {
+    type: "qdrant",
+    url: qdrant.url,
+  };
+
+  if (qdrant.apiKey) {
+    descriptor.apiKey = qdrant.apiKey;
+  }
+
+  if (qdrant.collection) {
+    descriptor.collection = qdrant.collection;
+  }
+
+  if (typeof qdrant.timeoutMs === "number") {
+    descriptor.timeoutMs = qdrant.timeoutMs;
+  }
+
+  return descriptor;
+}

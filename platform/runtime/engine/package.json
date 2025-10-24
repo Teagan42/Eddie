@@ -20,6 +20,7 @@
     "@eddie/context": "^0.0.0",
     "@eddie/hooks": "^0.0.0",
     "@eddie/io": "^0.0.0",
+    "@eddie/memory": "^0.0.0",
     "@eddie/mcp": "^0.0.0",
     "@eddie/providers": "^0.0.0",
     "@eddie/templates": "^0.0.0",

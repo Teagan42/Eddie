@@ -12,10 +12,61 @@ import {
   transcriptCompactorFactoryProvider,
 } from "../src/transcript/transcript-compactor.factory";
 import { MetricsService } from "../src/telemetry/metrics.service";
+import { Mem0MemoryModule } from "@eddie/memory";
+import { ConfigModule, ConfigStore } from "@eddie/config";
+import type { CliRuntimeOptions, EddieConfig } from "@eddie/types";
+import { MODULE_OPTIONS_TOKEN } from "@eddie/config/config.const";
+import {
+  MEM0_MEMORY_MODULE_OPTIONS_TOKEN,
+  type Mem0MemoryModuleOptions,
+} from "@eddie/memory";
 
 function getMetadataArray<T = unknown>(key: string): T[] {
   const metadata = Reflect.getMetadata(key, EngineModule);
   return Array.isArray(metadata) ? metadata : [];
+}
+
+function resolveMem0DynamicModule(): {
+  module: Record<string, unknown>;
+  optionsProvider: {
+    provide: unknown;
+    useFactory: (
+      ...args: unknown[]
+    ) => Mem0MemoryModuleOptions | Promise<Mem0MemoryModuleOptions>;
+    inject?: unknown[];
+  };
+} {
+  const importsList = getMetadataArray<unknown>(MODULE_METADATA.IMPORTS);
+  const dynamicModule = importsList.find(
+    (entry): entry is Record<string, unknown> =>
+      Boolean(entry && typeof entry === "object" && "module" in entry),
+  );
+
+  if (!dynamicModule) {
+    throw new Error("Mem0MemoryModule dynamic import was not registered");
+  }
+
+  const optionsProvider = (dynamicModule.providers as unknown[]).find(
+    (provider): provider is {
+      provide: unknown;
+      useFactory: (...args: unknown[]) =>
+        | Mem0MemoryModuleOptions
+        | Promise<Mem0MemoryModuleOptions>;
+      inject?: unknown[];
+    } =>
+      Boolean(
+        provider &&
+          typeof provider === "object" &&
+          "provide" in provider &&
+          provider.provide === MEM0_MEMORY_MODULE_OPTIONS_TOKEN,
+      ),
+  );
+
+  if (!optionsProvider) {
+    throw new Error("Mem0MemoryModule options factory provider was not found");
+  }
+
+  return { module: dynamicModule, optionsProvider };
 }
 
 describe("EngineModule runtime providers", () => {
@@ -48,5 +99,110 @@ describe("EngineModule runtime providers", () => {
     const exportsList = getMetadataArray(MODULE_METADATA.EXPORTS);
 
     expect(exportsList).not.toContain(MetricsService);
+  });
+
+  it("registers mem0 memory module with config-driven options", async () => {
+    const { module: dynamicModule, optionsProvider } = resolveMem0DynamicModule();
+
+    expect(dynamicModule).toBeDefined();
+    expect(dynamicModule?.module).toBe(Mem0MemoryModule);
+    expect(dynamicModule?.imports).toEqual(
+      expect.arrayContaining([ConfigModule]),
+    );
+
+    expect(optionsProvider?.inject).toEqual(
+      expect.arrayContaining([ConfigStore, MODULE_OPTIONS_TOKEN]),
+    );
+
+    const config: EddieConfig = {
+      version: 1,
+      projectDir: process.cwd(),
+      model: "gpt-4o", // irrelevant
+      provider: { name: "openai" },
+      context: { include: [], baseDir: process.cwd() },
+      memory: {
+        enabled: true,
+        facets: { defaultStrategy: "semantic" },
+        vectorStore: {
+          provider: "qdrant",
+          qdrant: {
+            url: "https://qdrant.example", // http mode
+            apiKey: "vector-key",
+            collection: "agent-memories",
+            timeoutMs: 4200,
+          },
+        },
+      },
+      agents: { mode: "single" },
+    } as EddieConfig;
+
+    const cliOverrides = {
+      mem0ApiKey: "cli-api-key",
+      mem0Host: "https://mem0.example",
+    } as CliRuntimeOptions;
+
+    const options = await optionsProvider!.useFactory(
+      { getSnapshot: () => config } as unknown as ConfigStore,
+      cliOverrides,
+    );
+
+    expect(options.credentials).toEqual({
+      apiKey: "cli-api-key",
+      host: "https://mem0.example",
+    });
+
+    expect(options.vectorStore).toMatchObject({
+      type: "qdrant",
+      url: "https://qdrant.example",
+      apiKey: "vector-key",
+      collection: "agent-memories",
+      timeoutMs: 4200,
+    });
+
+    const facets = options.facetExtractor?.extract(
+      [
+        {
+          role: "assistant",
+          content: "remember this",
+          metadata: {
+            facets: { topic: "support" },
+          },
+        },
+      ],
+      {
+        metadata: {
+          facets: { urgency: "low" },
+        },
+      },
+    );
+
+    expect(facets).toEqual(
+      expect.objectContaining({
+        strategy: "semantic",
+        topic: "support",
+        urgency: "low",
+      }),
+    );
+  });
+
+  it("omits mem0 credentials when no API key is configured", async () => {
+    const { optionsProvider } = resolveMem0DynamicModule();
+
+    const config = {
+      version: 1,
+      projectDir: process.cwd(),
+      model: "gpt-4o",
+      provider: { name: "openai" },
+      context: { include: [], baseDir: process.cwd() },
+      memory: { enabled: true },
+      agents: { mode: "single" },
+    } as EddieConfig;
+
+    const options = await optionsProvider!.useFactory(
+      { getSnapshot: () => config } as unknown as ConfigStore,
+      {} as CliRuntimeOptions,
+    );
+
+    expect(options.credentials).toBeUndefined();
   });
 });

@@ -25,6 +25,8 @@
       "@eddie/perf-benchmarks/*": ["platform/testing/perf-benchmarks/src/*"],
       "@eddie/io": ["platform/runtime/io/src"],
       "@eddie/io/*": ["platform/runtime/io/src/*"],
+      "@eddie/memory": ["platform/runtime/memory/src"],
+      "@eddie/memory/*": ["platform/runtime/memory/src/*"],
       "@eddie/mcp": ["platform/integrations/mcp/src"],
       "@eddie/mcp/*": ["platform/integrations/mcp/src/*"],
       "@eddie/providers": ["platform/integrations/providers/src"],
