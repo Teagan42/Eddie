@@ -249,6 +249,74 @@ describe("Mem0MemoryService", () => {
     });
   });
 
+  it("applies agent metadata overrides without leaking secrets", async () => {
+    const searchMemories = vi.fn().mockResolvedValue([]);
+    const createMemories = vi.fn().mockResolvedValue(undefined);
+    const client = {
+      searchMemories,
+      createMemories,
+    } satisfies Mem0MemoryServiceDependencies["client"];
+
+    const service = Mem0MemoryService.create({
+      client,
+    });
+
+    const vectorStoreOverride = {
+      type: "qdrant",
+      url: "https://agent.qdrant",
+      apiKey: "agent-secret",
+      collection: "agent-collection",
+    } as const;
+
+    await service.loadAgentMemories({
+      agentId: "agent-7",
+      sessionId: "session-9",
+      query: "remind me",
+      metadata: { facets: { defaultStrategy: "agent" } },
+      vectorStore: vectorStoreOverride as any,
+    });
+
+    expect(searchMemories).toHaveBeenCalledWith({
+      query: "remind me",
+      filters: {
+        agentId: "agent-7",
+        sessionId: "session-9",
+        facets: { defaultStrategy: "agent" },
+        vectorStore: {
+          type: "qdrant",
+          url: "https://agent.qdrant",
+          collection: "agent-collection",
+        },
+      },
+    });
+
+    await service.persistAgentMemories({
+      agentId: "agent-7",
+      sessionId: "session-9",
+      metadata: { facets: { defaultStrategy: "agent" } },
+      vectorStore: vectorStoreOverride as any,
+      memories: [{ role: "assistant", content: "hello" }],
+    });
+
+    const [payload] = createMemories.mock.calls[0] ?? [];
+
+    expect(payload?.vectorStore).toEqual(vectorStoreOverride);
+    expect(payload?.metadata?.vectorStore).toEqual({
+      type: "qdrant",
+      url: "https://agent.qdrant",
+      collection: "agent-collection",
+    });
+    expect(payload?.metadata?.facets).toEqual({ defaultStrategy: "agent" });
+    const [memory] = payload?.memories ?? [];
+    expect(memory?.metadata?.vectorStore).toEqual({
+      type: "qdrant",
+      url: "https://agent.qdrant",
+      collection: "agent-collection",
+    });
+    expect(memory?.metadata?.facets).toEqual({ defaultStrategy: "agent" });
+    expect(memory?.metadata).not.toHaveProperty("apiKey");
+  });
+
   it("is decorated as a Nest injectable", () => {
     const injectableMetadata = Reflect.getMetadata(
       "__injectable__",
