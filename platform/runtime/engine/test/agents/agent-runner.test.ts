@@ -6,6 +6,7 @@ import {
 } from "@eddie/types";
 import { describe, expect, it, vi } from "vitest";
 import { AgentRunner } from "../../src/agents/agent-runner";
+import { AgentMemoryCoordinator } from "../../src/memory/agent-memory-coordinator";
 import { ExecutionTreeStateTracker } from "../../src/execution-tree/execution-tree-tracker.service";
 import {
   createAgentRunnerTestContext,
@@ -618,5 +619,123 @@ describe("AgentRunner", () => {
 
     const spawnNode = latestState?.toolInvocations.find((node) => node.id === "spawn-1");
     expect(spawnNode).toMatchObject({ status: "completed" });
+  });
+
+  it("appends recalled memories to provider messages", async () => {
+    const invocation = createInvocation();
+    const providerStream = vi.fn().mockReturnValue(createStream([{ type: "end" }]));
+    const descriptor = createDescriptor({
+      provider: { name: "openai", stream: providerStream },
+      metadata: { memory: { recall: true } },
+    });
+
+    const memoryService = {
+      loadAgentMemories: vi
+        .fn()
+        .mockResolvedValue([
+          { id: "1", content: "Recalled fact", role: "assistant" },
+        ]),
+      persistAgentMemories: vi.fn(),
+    };
+    const coordinator = new AgentMemoryCoordinator(memoryService as any);
+    const binding = await coordinator.createBinding({
+      descriptor,
+      invocation,
+      runtime: {
+        sessionId: "session-1",
+        session: {
+          id: "session-1",
+          startedAt: new Date().toISOString(),
+          prompt: invocation.prompt,
+          provider: descriptor.provider.name,
+          model: descriptor.model,
+        },
+        memoryDefaults: { enabled: true },
+      } as unknown,
+    });
+
+    expect(binding).toBeDefined();
+
+    const { runner } = createAgentRunnerTestContext({
+      invocation,
+      descriptor,
+      memoryBinding: binding!,
+      composeToolSchemas: () => [],
+    });
+
+    await runner.run();
+
+    expect(memoryService.loadAgentMemories).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentId: descriptor.id,
+        sessionId: "session-1",
+        query: invocation.prompt,
+      }),
+    );
+
+    const streamCall = providerStream.mock.calls[0]?.[0];
+    expect(streamCall?.messages).toHaveLength(invocation.messages.length + 1);
+    expect(streamCall?.messages.at(-1)).toEqual({
+      role: "assistant",
+      content: "Recalled fact",
+    });
+  });
+
+  it("persists new assistant messages via the memory binding", async () => {
+    const invocation = createInvocation();
+    const providerStream = vi
+      .fn()
+      .mockReturnValue(
+        createStream([
+          { type: "delta", text: "Stored response" },
+          { type: "end" },
+        ]),
+      );
+    const descriptor = createDescriptor({
+      provider: { name: "openai", stream: providerStream },
+      metadata: { memory: { store: true } },
+    });
+
+    const memoryService = {
+      loadAgentMemories: vi.fn().mockResolvedValue([]),
+      persistAgentMemories: vi.fn(),
+    };
+    const coordinator = new AgentMemoryCoordinator(memoryService as any);
+    const binding = await coordinator.createBinding({
+      descriptor,
+      invocation,
+      runtime: {
+        sessionId: "session-2",
+        session: {
+          id: "session-2",
+          startedAt: new Date().toISOString(),
+          prompt: invocation.prompt,
+          provider: descriptor.provider.name,
+          model: descriptor.model,
+        },
+        memoryDefaults: { enabled: true },
+      } as unknown,
+    });
+
+    expect(binding).toBeDefined();
+
+    const { runner } = createAgentRunnerTestContext({
+      invocation,
+      descriptor,
+      memoryBinding: binding!,
+      composeToolSchemas: () => [],
+    });
+
+    await runner.run();
+
+    expect(memoryService.persistAgentMemories).toHaveBeenCalledTimes(1);
+    const persistArgs = memoryService.persistAgentMemories.mock.calls[0]?.[0];
+    expect(persistArgs).toMatchObject({
+      agentId: descriptor.id,
+      sessionId: "session-2",
+    });
+    expect(persistArgs.memories).toEqual([
+      { role: "assistant", content: "Stored response" },
+    ]);
   });
 });

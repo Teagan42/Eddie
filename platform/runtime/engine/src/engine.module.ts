@@ -34,6 +34,7 @@ import { Mem0MemoryModule } from "@eddie/memory";
 import type { CliRuntimeOptions, EddieConfig, MemoryConfig } from "@eddie/types";
 import type { QdrantVectorStoreDescriptor, Mem0MemoryModuleOptions } from "@eddie/memory";
 import { createMem0FacetExtractor } from "./memory/mem0-facet-extractor.factory";
+import { AgentMemoryCoordinator } from "./memory/agent-memory-coordinator";
 
 @Module({
   imports: [
@@ -75,6 +76,7 @@ import { createMem0FacetExtractor } from "./memory/mem0-facet-extractor.factory"
     AgentRunLoop,
     ToolCallHandler,
     TraceWriterDelegate,
+    AgentMemoryCoordinator,
     transcriptCompactorFactoryProvider,
     TranscriptCompactionService,
     DemoSeedReplayService,

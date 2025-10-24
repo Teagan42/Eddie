@@ -96,9 +96,17 @@ export class AgentRunLoop {
           );
         };
 
+        const providerMessages = options.memoryBinding
+          ? await options.memoryBinding.prepareProviderMessages({
+            messages: invocation.messages,
+            invocation,
+            descriptor,
+          })
+          : invocation.messages;
+
         const stream = descriptor.provider.stream({
           model: descriptor.model,
-          messages: invocation.messages,
+          messages: providerMessages,
           tools: toolSchemas,
           ...(getPreviousResponseId()
             ? { previousResponseId: getPreviousResponseId() }

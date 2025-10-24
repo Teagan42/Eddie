@@ -22,7 +22,9 @@ import {
   type AgentRuntimeMetadata,
   type AgentSpawnHandler,
   type ChatMessage,
+  type MemoryConfig,
   type PackedContext,
+  type SessionMetadata,
   type StreamEvent,
   type ToolResult,
   type ToolSchema,
@@ -36,6 +38,7 @@ import {
   type AgentRunnerDependencies,
 } from "./agent-runner";
 import { AgentRunLoop, ToolCallHandler, TraceWriterDelegate } from "./runner";
+import { AgentMemoryCoordinator } from "../memory/agent-memory-coordinator";
 import type { TemplateVariables } from "@eddie/templates";
 import type { TranscriptCompactionWorkflow } from "../transcript/transcript-compaction.service";
 import type { MetricsService } from "../telemetry/metrics.service";
@@ -74,6 +77,8 @@ export interface AgentRuntimeOptions {
     metrics: MetricsService;
     executionTreeTracker?: ExecutionTreeStateTracker;
     executionTreeTrackerFactory?: ExecutionTreeTrackerFactoryLike;
+    session?: SessionMetadata;
+    memoryDefaults?: MemoryConfig;
 }
 
 export interface AgentRunRequest extends AgentInvocationOptions {
@@ -98,6 +103,8 @@ export class AgentOrchestratorService {
         private readonly agentRunLoop: AgentRunLoop,
         private readonly toolCallHandler: ToolCallHandler,
         private readonly traceWriterDelegate: TraceWriterDelegate,
+        @Optional()
+        private readonly memoryCoordinator?: AgentMemoryCoordinator,
         @Optional()
         private readonly executionTreeTrackerFactory?: ExecutionTreeTrackerFactory
   ) {
@@ -758,14 +765,14 @@ export class AgentOrchestratorService {
   }
 
   /**
-     * Drives a single agent invocation through its lifecycle, emitting
-     * `beforeAgentStart` once, then for each iteration optionally `preCompact`,
-     * followed by `beforeModelCall`. Tool calls trigger the
-     * `preToolUse`/`postToolUse` pair (or `onAgentError` on failure), stream
-     * anomalies emit `notification`, `onError`, and `onAgentError`, and each
-     * iteration culminates with `stop`. When the agent finishes cleanly,
-     * `afterAgentComplete` fires, and non-root agents also raise `subagentStop`.
-     */
+   * Drives a single agent invocation through its lifecycle, emitting
+   * `beforeAgentStart` once, then for each iteration optionally `preCompact`,
+   * followed by `beforeModelCall`. Tool calls trigger the
+   * `preToolUse`/`postToolUse` pair (or `onAgentError` on failure), stream
+   * anomalies emit `notification`, `onError`, and `onAgentError`, and each
+   * iteration culminates with `stop`. When the agent finishes cleanly,
+   * `afterAgentComplete` fires, and non-root agents also raise `subagentStop`.
+   */
   private async executeInvocation(invocation: AgentInvocation): Promise<void> {
     const runtime = this.runtimeMap.get(invocation);
     if (!runtime) {
@@ -773,6 +780,15 @@ export class AgentOrchestratorService {
     }
 
     const descriptor = this.getInvocationDescriptor(invocation);
+
+    const memoryBinding = this.memoryCoordinator
+      ? await this.memoryCoordinator.createBinding({
+        descriptor,
+        invocation,
+        runtime,
+        session: runtime.session,
+      })
+      : undefined;
 
     const lifecycle = this.createLifecyclePayload(invocation);
     const runner = new AgentRunner({
@@ -803,6 +819,7 @@ export class AgentOrchestratorService {
         this.writeTrace(runtime, invocation, event, append),
       metrics: runtime.metrics,
       executionTreeTracker: this.ensureExecutionTreeTracker(runtime),
+      memoryBinding,
     }, this.agentRunnerDependencies);
 
     await runner.run();

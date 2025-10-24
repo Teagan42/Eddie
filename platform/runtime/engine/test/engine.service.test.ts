@@ -263,6 +263,52 @@ describe("EngineService", () => {
     ).toEqual(["writer"]);
   });
 
+  it("includes agent memory configuration in runtime metadata", () => {
+    const managerMemory = { recall: true, store: false };
+    const researcherMemory = {
+      recall: false,
+      store: true,
+      facets: { defaultStrategy: "tags" },
+    };
+
+    const { service, config } = createService({
+      memory: { enabled: true, facets: { defaultStrategy: "global" } },
+      agents: {
+        ...baseConfig.agents,
+        manager: {
+          ...baseConfig.agents.manager,
+          prompt: "Manage",
+          memory: managerMemory,
+        },
+        subagents: [
+          {
+            id: "researcher",
+            prompt: "Research",
+            memory: researcherMemory,
+          },
+        ],
+      },
+    });
+
+    const catalog = (service as unknown as {
+      buildAgentCatalog(
+        cfg: EddieConfig,
+        tools: never[],
+        context: PackedContext,
+      ): AgentRuntimeCatalog;
+    }).buildAgentCatalog(config, [], {
+      files: [],
+      totalBytes: 0,
+      text: "",
+      resources: [],
+    });
+
+    expect(catalog.getManager().metadata?.memory).toEqual(managerMemory);
+    expect(
+      catalog.getAgent("researcher")?.metadata?.memory
+    ).toEqual(researcherMemory);
+  });
+
   it("replays demo seeds when provided", async () => {
     const {
       service,
