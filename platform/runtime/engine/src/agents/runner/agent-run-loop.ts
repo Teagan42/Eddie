@@ -98,10 +98,10 @@ export class AgentRunLoop {
 
         const providerMessages = options.memoryBinding
           ? await options.memoryBinding.prepareProviderMessages({
-              messages: invocation.messages,
-              invocation,
-              descriptor,
-            })
+            messages: invocation.messages,
+            invocation,
+            descriptor,
+          })
           : invocation.messages;
 
         const stream = descriptor.provider.stream({

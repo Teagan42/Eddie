@@ -11,4 +11,11 @@ describe('json package manifest', () => {
     expect(typeof manifest.scripts?.build).toBe('string');
     expect(manifest.scripts.build.length).toBeGreaterThan(0);
   });
+
+  it('exposes a lint script for workspace linting', () => {
+    const manifest = loadManifest();
+
+    expect(typeof manifest.scripts?.lint).toBe('string');
+    expect(manifest.scripts.lint.length).toBeGreaterThan(0);
+  });
 });
