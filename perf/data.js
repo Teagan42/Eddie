@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761293784732,
+  "lastUpdate": 1761303076859,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -1970,6 +1970,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 23.391,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "29bb4596c2b845bafdf0dd179b0bf02bc4af6644",
+          "message": "Ensure engine memory binding uses cached session identifiers (#766)\n\n* refactor(engine): extract helper for memory recall loading\n\n* refactor(engine): alias memory defaults flag typing\n\n* refactor(memory): normalize agent default merging\n\n* refactor(engine): fix lint formatting for agent runtime",
+          "timestamp": "2025-10-24T04:40:38-06:00",
+          "tree_id": "153d89feed11049b4808b778ab2e988dc4e1f1cf",
+          "url": "https://github.com/Teagan42/Eddie/commit/29bb4596c2b845bafdf0dd179b0bf02bc4af6644"
+        },
+        "date": 1761303076117,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 48.961,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 34.212,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 24.008,
             "unit": "ms",
             "extra": "[object Object]"
           }
