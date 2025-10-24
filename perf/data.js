@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761273851005,
+  "lastUpdate": 1761293784732,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -1928,6 +1928,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 23.3,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2f2b75b7e302a6a1681738870511095a7c02c7f1",
+          "message": "Integrate Mem0 memory module into engine runtime (#765)\n\n* refactor(engine): simplify facet metadata extraction\n\n* refactor(engine): centralize mem0 options provider lookup\n\n* refactor(memory): align constructor formatting",
+          "timestamp": "2025-10-24T02:05:38-06:00",
+          "tree_id": "f466a074ef027312b6e51583d4add3df505850b8",
+          "url": "https://github.com/Teagan42/Eddie/commit/2f2b75b7e302a6a1681738870511095a7c02c7f1"
+        },
+        "date": 1761293783927,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 46.55,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 34.28,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.391,
             "unit": "ms",
             "extra": "[object Object]"
           }
