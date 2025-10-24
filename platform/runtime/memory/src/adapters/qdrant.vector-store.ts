@@ -3,6 +3,7 @@ export interface QdrantVectorStoreDescriptor {
   url: string;
   apiKey?: string;
   collection?: string;
+  timeoutMs?: number;
 }
 
 export interface QdrantVectorStoreMetadata {
@@ -10,6 +11,7 @@ export interface QdrantVectorStoreMetadata {
   url: string;
   apiKey?: string;
   collection?: string;
+  timeoutMs?: number;
 }
 
 export class QdrantVectorStore {
@@ -29,6 +31,9 @@ export class QdrantVectorStore {
       url: descriptor.url,
       apiKey: descriptor.apiKey,
       collection: descriptor.collection,
+      ...(typeof descriptor.timeoutMs === "number"
+        ? { timeoutMs: descriptor.timeoutMs }
+        : {}),
     };
   }
 
