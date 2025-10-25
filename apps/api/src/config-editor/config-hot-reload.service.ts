@@ -13,13 +13,19 @@ export class ConfigHotReloadService {
   async persist(source: string, format: ConfigFileFormat): Promise<ConfigFileSnapshot> {
     const runtimeOptions: CliRuntimeOptions = {};
     const input = this.configService.parseSource(source, format);
-    const composed = await this.configService.compose(input, runtimeOptions);
+    const composedConfig = await this.configService.compose(
+      input,
+      runtimeOptions
+    );
     const snapshot = await this.configService.writeSource(
       source,
       format,
       runtimeOptions
     );
-    this.configStore.setSnapshot(composed);
-    return { ...snapshot, config: composed } satisfies ConfigFileSnapshot;
+    this.configStore.setSnapshot(composedConfig);
+    return {
+      ...snapshot,
+      config: composedConfig,
+    } satisfies ConfigFileSnapshot;
   }
 }
