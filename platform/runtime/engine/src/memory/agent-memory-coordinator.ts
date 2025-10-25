@@ -120,6 +120,7 @@ interface Mem0BindingDependencies {
 
 class Mem0AgentMemoryBinding implements AgentMemoryBinding {
   private recalled = false;
+  private recalledMessages?: ChatMessage[];
   private readonly sessionId?: string;
   private readonly metadataOverrides?: MetadataOverride;
   private readonly vectorStoreOverride?: VectorStoreOverride;
@@ -139,19 +140,30 @@ class Mem0AgentMemoryBinding implements AgentMemoryBinding {
       return options.messages;
     }
 
-    if (this.recalled) {
-      return options.messages;
+    if (!this.recalled) {
+      this.recalledMessages = await this.loadRecalledMessages();
+      this.recalled = true;
     }
 
-    const recalledMessages = await this.loadRecalledMessages();
-
-    this.recalled = true;
+    const recalledMessages = this.recalledMessages ?? [];
 
     if (recalledMessages.length === 0) {
       return options.messages;
     }
 
-    return [...options.messages, ...recalledMessages];
+    if (this.messagesAlreadyContainRecall(options.messages, recalledMessages)) {
+      return options.messages;
+    }
+
+    const finalPrompt = options.messages.at(-1);
+
+    if (!finalPrompt) {
+      return recalledMessages;
+    }
+
+    const leadingMessages = options.messages.slice(0, -1);
+
+    return [...leadingMessages, ...recalledMessages, finalPrompt];
   }
 
   async finalize(options: {
@@ -223,6 +235,33 @@ class Mem0AgentMemoryBinding implements AgentMemoryBinding {
     return records
       .map((record) => this.toChatMessage(record))
       .filter((message): message is ChatMessage => Boolean(message));
+  }
+
+  private messagesAlreadyContainRecall(
+    messages: ChatMessage[],
+    recalled: ChatMessage[],
+  ): boolean {
+    if (recalled.length === 0) {
+      return false;
+    }
+
+    if (messages.length < recalled.length + 1) {
+      return false;
+    }
+
+    const recallWindow = messages.slice(-1 - recalled.length, -1);
+
+    if (recallWindow.length !== recalled.length) {
+      return false;
+    }
+
+    return recalled.every((message, index) =>
+      this.messagesEqual(message, recallWindow[index]!),
+    );
+  }
+
+  private messagesEqual(a: ChatMessage, b: ChatMessage): boolean {
+    return a.role === b.role && a.content === b.content;
   }
 
   private computeMetadataOverrides(): MetadataOverride | undefined {
