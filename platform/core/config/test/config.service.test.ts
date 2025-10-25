@@ -87,6 +87,24 @@ describe("ConfigService compose precedence", () => {
     expect(composed.api?.port).toBe(4242);
   });
 
+  it("exposes mem0 credentials from config input", async () => {
+    const { service } = createService();
+
+    const composed = await service.compose({
+      memory: {
+        mem0: {
+          apiKey: "config-key",
+          host: "https://mem0.example",
+        },
+      },
+    } satisfies EddieConfigInput);
+
+    expect(composed.memory?.mem0).toEqual({
+      apiKey: "config-key",
+      host: "https://mem0.example",
+    });
+  });
+
   it("keeps default context include when config omits it", async () => {
     const defaults: EddieConfig = {
       ...clone(DEFAULT_CONFIG),
