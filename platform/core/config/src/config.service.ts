@@ -32,6 +32,10 @@ import type {
   EddieConfigInput,
   DemoSeedsConfig,
   LoggingConfig,
+  MemoryConfig,
+  MemoryMem0Config,
+  MemoryVectorStoreConfig,
+  MemoryVectorStoreQdrantConfig,
   MetricsConfig,
   ProviderConfig,
   ProviderProfileConfig,
@@ -614,6 +618,7 @@ export class ConfigService {
       provider,
       providers,
       context: mergedContext,
+      memory: this.mergeMemoryConfig(base.memory, input.memory),
       api: mergedApi,
       output: {
         ...base.output,
@@ -655,6 +660,139 @@ export class ConfigService {
     return {
       ...(base ?? {}),
       ...(input ?? {}),
+    };
+  }
+
+  private mergeMemoryConfig(
+    base: MemoryConfig | undefined,
+    input: Partial<MemoryConfig> | undefined,
+  ): MemoryConfig | undefined {
+    if (!base && !input) {
+      return undefined;
+    }
+
+    const merged: MemoryConfig = {};
+
+    if (typeof base?.enabled === "boolean") {
+      merged.enabled = base.enabled;
+    }
+
+    if (typeof input?.enabled === "boolean") {
+      merged.enabled = input.enabled;
+    }
+
+    const facets =
+      base?.facets || input?.facets
+        ? {
+          ...(base?.facets ?? {}),
+          ...(input?.facets ?? {}),
+        }
+        : undefined;
+
+    if (facets && Object.keys(facets).length > 0) {
+      merged.facets = facets;
+    }
+
+    const vectorStore = this.mergeMemoryVectorStore(
+      base?.vectorStore,
+      input?.vectorStore,
+    );
+
+    if (vectorStore) {
+      merged.vectorStore = vectorStore;
+    }
+
+    const mem0 = this.mergeMem0Credentials(base?.mem0, input?.mem0);
+
+    if (mem0) {
+      merged.mem0 = mem0;
+    }
+
+    if (
+      typeof merged.enabled === "undefined" &&
+      !merged.facets &&
+      !merged.vectorStore &&
+      !merged.mem0
+    ) {
+      return undefined;
+    }
+
+    return merged;
+  }
+
+  private mergeMemoryVectorStore(
+    base: MemoryVectorStoreConfig | undefined,
+    input: MemoryVectorStoreConfig | undefined,
+  ): MemoryVectorStoreConfig | undefined {
+    if (!base && !input) {
+      return undefined;
+    }
+
+    const provider = input?.provider ?? base?.provider;
+    if (!provider) {
+      return undefined;
+    }
+
+    const qdrant = this.mergeMemoryVectorStoreQdrant(
+      base?.qdrant,
+      input?.qdrant,
+    );
+
+    const merged: MemoryVectorStoreConfig = { provider };
+
+    if (qdrant) {
+      merged.qdrant = qdrant;
+    }
+
+    return merged;
+  }
+
+  private mergeMemoryVectorStoreQdrant(
+    base: MemoryVectorStoreQdrantConfig | undefined,
+    input: MemoryVectorStoreQdrantConfig | undefined,
+  ): MemoryVectorStoreQdrantConfig | undefined {
+    if (!base && !input) {
+      return undefined;
+    }
+
+    const merged: MemoryVectorStoreQdrantConfig = {
+      ...(base ?? {}),
+      ...(input ?? {}),
+    };
+
+    return Object.keys(merged).length > 0 ? merged : undefined;
+  }
+
+  private mergeMem0Credentials(
+    base: MemoryMem0Config | undefined,
+    input: MemoryMem0Config | undefined,
+  ): MemoryMem0Config | undefined {
+    if (!base && !input) {
+      return undefined;
+    }
+
+    const merged: MemoryMem0Config = {
+      ...(base ?? {}),
+      ...(input ?? {}),
+    };
+
+    return Object.values(merged).some((value) => value !== undefined)
+      ? merged
+      : undefined;
+  }
+
+  private createCliMem0Credentials(
+    options: CliRuntimeOptions,
+  ): MemoryMem0Config | undefined {
+    const { mem0ApiKey, mem0Host } = options;
+
+    if (!mem0ApiKey && !mem0Host) {
+      return undefined;
+    }
+
+    return {
+      ...(mem0ApiKey ? { apiKey: mem0ApiKey } : {}),
+      ...(mem0Host ? { host: mem0Host } : {}),
     };
   }
 
@@ -829,6 +967,22 @@ export class ConfigService {
         type: "logging",
         level: options.metricsLoggingLevel,
       };
+    }
+
+    const cliMem0Credentials = this.createCliMem0Credentials(options);
+
+    if (cliMem0Credentials) {
+      const mergedMem0 = this.mergeMem0Credentials(
+        merged.memory?.mem0,
+        cliMem0Credentials,
+      );
+
+      if (mergedMem0) {
+        merged.memory = {
+          ...(merged.memory ?? {}),
+          mem0: mergedMem0,
+        };
+      }
     }
 
     const agents = this.ensureAgentsShape(

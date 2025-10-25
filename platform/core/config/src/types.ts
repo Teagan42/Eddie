@@ -37,6 +37,7 @@ export type {
   LoggingDestination,
   MemoryConfig,
   MemoryFacetsConfig,
+  MemoryMem0Config,
   MemoryVectorStoreConfig,
   MemoryVectorStoreQdrantConfig,
   MetricsBackendConfig,

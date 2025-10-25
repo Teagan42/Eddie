@@ -26,6 +26,18 @@ function assignStringOption<Key extends keyof CliRuntimeOptions>(
   }
 }
 
+const STRING_RUNTIME_OPTION_KEYS = [
+  "config",
+  "preset",
+  "model",
+  "provider",
+  "jsonlTrace",
+  "logFile",
+  "agentMode",
+  "mem0ApiKey",
+  "mem0Host",
+] as const satisfies readonly (keyof CliRuntimeOptions)[];
+
 @Injectable()
 export class CliOptionsService {
   parse(options: Record<string, unknown>): EngineOptions {
@@ -34,16 +46,12 @@ export class CliOptionsService {
     const context = toStringArray(options.context);
     if (context) base.context = context;
 
-    assignStringOption(base, options, "config");
-    assignStringOption(base, options, "preset");
-    assignStringOption(base, options, "model");
-    assignStringOption(base, options, "provider");
-    assignStringOption(base, options, "jsonlTrace");
+    for (const key of STRING_RUNTIME_OPTION_KEYS) {
+      assignStringOption(base, options, key);
+    }
     if (typeof options.logLevel === "string") {
       base.logLevel = options.logLevel as CliRuntimeOptions["logLevel"];
     }
-    assignStringOption(base, options, "logFile");
-    assignStringOption(base, options, "agentMode");
     if (typeof options.metricsBackend === "string") {
       const backend = options.metricsBackend;
       if (backend === "logging" || backend === "noop") {

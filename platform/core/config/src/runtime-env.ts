@@ -105,6 +105,18 @@ export function resolveCliRuntimeOptionsFromEnv(
     options.jsonlTrace = jsonlTrace;
   }
 
+  const mem0ApiKey =
+    parseString(env.EDDIE_CLI_MEM0_API_KEY) ?? parseString(env.EDDIE_MEM0_API_KEY);
+  if (mem0ApiKey !== undefined) {
+    options.mem0ApiKey = mem0ApiKey;
+  }
+
+  const mem0Host =
+    parseString(env.EDDIE_CLI_MEM0_HOST) ?? parseString(env.EDDIE_MEM0_HOST);
+  if (mem0Host !== undefined) {
+    options.mem0Host = mem0Host;
+  }
+
   if (autoApprove !== undefined) {
     options.autoApprove = autoApprove;
   }
@@ -158,6 +170,8 @@ export function resolveCliRuntimeOptionsFromEnv(
       options.metricsLoggingLevel = candidate;
     }
   }
+
+
 
   return options;
 }

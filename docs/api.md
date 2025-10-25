@@ -390,7 +390,18 @@ Operate on the running Eddie configuration through the dedicated editor routes:
 - **`POST /config/editor/preview`** – validate and preview an arbitrary
   configuration payload without persisting it.【F:apps/api/src/config-editor/config-editor.controller.ts†L46-L58】
 - **`PUT /config/editor`** – persist configuration changes and return the new
-  snapshot from disk.【F:apps/api/src/config-editor/config-editor.controller.ts†L60-L78】
+  snapshot from disk. The controller delegates writes to
+  `ConfigHotReloadService`, which applies the payload, refreshes the runtime
+  snapshot, and publishes a `RuntimeConfigUpdated` event so `/config` websocket
+  subscribers receive `config.updated` once the refreshed state is live.【F:apps/api/src/config-editor/config-editor.controller.ts†L60-L78】【F:apps/api/src/config-editor/config-hot-reload.service.ts†L1-L38】【F:apps/api/src/runtime-config/runtime-config.gateway.events-handler.ts†L7-L23】
+
+Subscribe to the `/config` websocket to receive the `config.updated` broadcast
+and confirm when the hot reload finishes:
+
+- Keep that websocket connection open while issuing editor requests from
+  external tooling so the refresh notification is not missed.
+- Review the [Realtime events inventory](./migration/api-realtime-events.md)
+  for additional event payload details and subscription options.
 
 ## Provider Catalog
 
