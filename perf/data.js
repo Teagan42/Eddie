@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761353172931,
+  "lastUpdate": 1761364724009,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -2264,6 +2264,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 23.48,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0372c4ce97bc7bf9911820d13dc26a6cb38c7f14",
+          "message": "Add mem0 credentials support to memory configuration (#774)\n\n* refactor(config): rely on typed mem0 credentials\n\n* refactor(config): extract cli mem0 builder",
+          "timestamp": "2025-10-24T21:47:27-06:00",
+          "tree_id": "2acb13dc136e25ad7b951debeca57f35a341de62",
+          "url": "https://github.com/Teagan42/Eddie/commit/0372c4ce97bc7bf9911820d13dc26a6cb38c7f14"
+        },
+        "date": 1761364723301,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 46.88,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 34.047,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.721,
             "unit": "ms",
             "extra": "[object Object]"
           }
