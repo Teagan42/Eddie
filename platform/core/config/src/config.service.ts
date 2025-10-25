@@ -684,9 +684,9 @@ export class ConfigService {
     const facets =
       base?.facets || input?.facets
         ? {
-            ...(base?.facets ?? {}),
-            ...(input?.facets ?? {}),
-          }
+          ...(base?.facets ?? {}),
+          ...(input?.facets ?? {}),
+        }
         : undefined;
 
     if (facets && Object.keys(facets).length > 0) {
@@ -779,6 +779,21 @@ export class ConfigService {
     return Object.values(merged).some((value) => value !== undefined)
       ? merged
       : undefined;
+  }
+
+  private createCliMem0Credentials(
+    options: CliRuntimeOptions,
+  ): MemoryMem0Config | undefined {
+    const { mem0ApiKey, mem0Host } = options;
+
+    if (!mem0ApiKey && !mem0Host) {
+      return undefined;
+    }
+
+    return {
+      ...(mem0ApiKey ? { apiKey: mem0ApiKey } : {}),
+      ...(mem0Host ? { host: mem0Host } : {}),
+    };
   }
 
   private normalizeConfig(config: EddieConfig): EddieConfig {
@@ -952,6 +967,22 @@ export class ConfigService {
         type: "logging",
         level: options.metricsLoggingLevel,
       };
+    }
+
+    const cliMem0Credentials = this.createCliMem0Credentials(options);
+
+    if (cliMem0Credentials) {
+      const mergedMem0 = this.mergeMem0Credentials(
+        merged.memory?.mem0,
+        cliMem0Credentials,
+      );
+
+      if (mergedMem0) {
+        merged.memory = {
+          ...(merged.memory ?? {}),
+          mem0: mergedMem0,
+        };
+      }
     }
 
     const agents = this.ensureAgentsShape(

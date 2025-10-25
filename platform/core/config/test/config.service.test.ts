@@ -105,6 +105,30 @@ describe("ConfigService compose precedence", () => {
     });
   });
 
+  it("overrides mem0 credentials with CLI options", async () => {
+    const { service } = createService();
+
+    const composed = await service.compose(
+      {
+        memory: {
+          mem0: {
+            apiKey: "config-key",
+            host: "https://mem0.config",
+          },
+        },
+      } satisfies EddieConfigInput,
+      {
+        mem0ApiKey: "cli-key",
+        mem0Host: "https://mem0.cli",
+      } as CliRuntimeOptions,
+    );
+
+    expect(composed.memory?.mem0).toEqual({
+      apiKey: "cli-key",
+      host: "https://mem0.cli",
+    });
+  });
+
   it("keeps default context include when config omits it", async () => {
     const defaults: EddieConfig = {
       ...clone(DEFAULT_CONFIG),
