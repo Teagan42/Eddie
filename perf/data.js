@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761352497255,
+  "lastUpdate": 1761353172931,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -2222,6 +2222,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 24.558,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0df4dc7f30c142de0763841e417fc959492f37fd",
+          "message": "Add mem0 runtime overrides to CLI and environment parsing (#770)\n\n* refactor(cli): centralize string option parsing\n\n* refactor(config): collapse mem0 env overrides (#773)",
+          "timestamp": "2025-10-24T18:35:04-06:00",
+          "tree_id": "86e956a6290ac0e705152742ea8314a1131d2190",
+          "url": "https://github.com/Teagan42/Eddie/commit/0df4dc7f30c142de0763841e417fc959492f37fd"
+        },
+        "date": 1761353172444,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 48.978,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 34.651,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.48,
             "unit": "ms",
             "extra": "[object Object]"
           }
