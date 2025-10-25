@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761351532321,
+  "lastUpdate": 1761352497255,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -2180,6 +2180,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 23.306,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "95505b732de715f9ac4588d423d6aee725985e41",
+          "message": "Document config editor hot reload websocket workflow (#771)\n\n* refactor(api-docs): clarify config websocket guidance\n\n* fix(api): broadcast config updates after editor save",
+          "timestamp": "2025-10-24T18:24:02-06:00",
+          "tree_id": "6c59749c7bd04a571b2ca227ea43f6f92f6997c8",
+          "url": "https://github.com/Teagan42/Eddie/commit/95505b732de715f9ac4588d423d6aee725985e41"
+        },
+        "date": 1761352496870,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 47.364,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 33.53,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 24.558,
             "unit": "ms",
             "extra": "[object Object]"
           }
