@@ -65,6 +65,13 @@ Use the session list to rename or delete chat sessions; changes are broadcast im
 - Lifecycle hooks, optional OpenTelemetry spans, and JSONL traces for observability that every surface can replay
 - Interactive chat, single-shot prompts, context previews, automated run mode, and collaborative UI approvals
 
+Mem0-powered long-term memory is available across surfaces when you supply API
+credentials and point the runtime at a Qdrant collection. Configure the
+`memory.mem0` block and vector store pairing as described in
+[docs/configuration.md#memory-configuration](docs/configuration.md#memory-configuration)
+to start syncing recall data to Mem0 while keeping CLI overrides available for
+per-run testing.【F:platform/runtime/engine/src/engine.module.ts†L101-L170】【F:docs/configuration.md†L39-L87】
+
 ## Performance benchmarks
 
 Continuous performance tracking lives in the [`benchmarks.yml`](.github/workflows/benchmarks.yml)

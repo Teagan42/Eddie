@@ -33,5 +33,6 @@ const runtimeConfigEventHandlers = [RuntimeConfigGatewayEventsHandler];
     ...runtimeConfigCommandHandlers,
   ],
   controllers: [RuntimeConfigController],
+  exports: [RuntimeConfigService],
 })
 export class RuntimeConfigModule {}

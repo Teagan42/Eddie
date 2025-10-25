@@ -28,6 +28,7 @@ export interface LoadAgentMemoriesOptions {
   query: string;
   limit?: number;
   metadata?: Record<string, unknown>;
+  vectorStore?: QdrantVectorStoreMetadata;
 }
 
 export interface PersistAgentMemoriesOptions {
@@ -35,6 +36,7 @@ export interface PersistAgentMemoriesOptions {
   sessionId?: string;
   userId?: string;
   metadata?: Record<string, unknown>;
+  vectorStore?: QdrantVectorStoreMetadata;
   memories: AgentMemoryRecord[];
 }
 
@@ -109,6 +111,14 @@ export class Mem0MemoryService {
   ): Promise<Mem0MemoryRecord[]> {
     const filters: Record<string, unknown> = { ...(options.metadata ?? {}) };
 
+    if (isQdrantVectorStoreMetadata(filters.vectorStore)) {
+      filters.vectorStore = this.redactVectorStoreSecrets(filters.vectorStore);
+    }
+
+    if (options.vectorStore) {
+      filters.vectorStore = this.redactVectorStoreSecrets(options.vectorStore);
+    }
+
     if (options.agentId) {
       filters.agentId = options.agentId;
     }
@@ -136,7 +146,8 @@ export class Mem0MemoryService {
       return;
     }
 
-    const vectorStore = this.vectorStore?.describe();
+    const vectorStoreOverride = options.vectorStore;
+    const vectorStore = vectorStoreOverride ?? this.vectorStore?.describe();
     const sanitizedVectorStore = vectorStore
       ? this.redactVectorStoreSecrets(vectorStore)
       : undefined;

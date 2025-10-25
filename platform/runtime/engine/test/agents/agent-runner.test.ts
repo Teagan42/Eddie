@@ -675,7 +675,10 @@ describe("AgentRunner", () => {
 
     const streamCall = providerStream.mock.calls[0]?.[0];
     expect(streamCall?.messages).toHaveLength(invocation.messages.length + 1);
-    expect(streamCall?.messages.at(-1)).toEqual({
+
+    const originalPrompt = invocation.messages.at(-1);
+    expect(streamCall?.messages.at(-1)).toEqual(originalPrompt);
+    expect(streamCall?.messages.at(-2)).toEqual({
       role: "assistant",
       content: "Recalled fact",
     });

@@ -165,6 +165,10 @@ describe('api documentation reference examples', () => {
     expectAllMatches(apiDoc, logsDocumentationPatterns);
   });
 
+  it('details config editor hot reload workflow and websocket prerequisites', () => {
+    expectAllMatches(apiDoc, configEditorHotReloadPatterns);
+  });
+
   it('details persistence configuration for sql drivers', () => {
     for (const driver of ["sqlite", "postgres", "mysql", "mariadb"]) {
       expect(apiDoc).toMatch(new RegExp(String.raw`driver:\s+${driver}`));
