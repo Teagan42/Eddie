@@ -372,36 +372,100 @@ curl -X POST http://localhost:4000/config/editor/preview \
 curl -X PUT http://localhost:4000/config/editor \
   -H "Content-Type: application/json" \
   -H "x-api-key: $EDDIE_API_KEY" \
-  -d '{"content":"{}","format":"json","path":"./eddie.config.json"}'
+  -d '{"content":"{}","format":"json"}'
 ```
 
 Connected WebSocket clients receive JSON payloads with `event` and `data` fields
 mirroring the gateway events above, allowing dashboards to reflect live agent
 progress.【F:apps/api/src/chat-sessions/chat-sessions.gateway.ts†L21-L76】【F:apps/api/src/websocket/utils.ts†L1-L33】
 
-## Configuration Editor
+## Config editor endpoints
 
-Operate on the running Eddie configuration through the dedicated editor routes:
+The configuration editor routes sit behind the global `ApiKeyGuard`, so every
+request must include an `x-api-key` header that matches the configured
+credentials. Use them alongside the [configuration overview](./configuration.md)
+or [guided wizard walkthrough](./configuration-wizard.md) to understand how
+changes influence the running platform—see `docs/configuration.md` and
+`docs/configuration-wizard.md` for the broader configuration lifecycle.【F:apps/api/src/config-editor/config-editor.controller.ts†L14-L78】
 
-- **`GET /config/schema`** – return the bundled configuration schema and input
-  schema used by the editor UI.【F:apps/api/src/config-editor/config-editor.controller.ts†L14-L24】
-- **`GET /config/editor`** – fetch the currently loaded configuration source,
-  including parsing results and validation errors.【F:apps/api/src/config-editor/config-editor.controller.ts†L26-L44】
-- **`POST /config/editor/preview`** – validate and preview an arbitrary
-  configuration payload without persisting it.【F:apps/api/src/config-editor/config-editor.controller.ts†L46-L58】
-- **`PUT /config/editor`** – persist configuration changes and return the new
-  snapshot from disk. The controller delegates writes to
-  `ConfigHotReloadService`, which applies the payload, refreshes the runtime
-  snapshot, and publishes a `RuntimeConfigUpdated` event so `/config` websocket
-  subscribers receive `config.updated` once the refreshed state is live.【F:apps/api/src/config-editor/config-editor.controller.ts†L60-L78】【F:apps/api/src/config-editor/config-hot-reload.service.ts†L1-L38】【F:apps/api/src/runtime-config/runtime-config.gateway.events-handler.ts†L7-L23】
+All endpoints rely on the DTOs shipped with the `ConfigEditorController`:
+`ConfigSchemaDto`, `ConfigSourceDto`, `ConfigPreviewDto`, and
+`ConfigSourcePayloadDto`. These types mirror the structures consumed by the web
+editor and other deployer tooling.
 
-Subscribe to the `/config` websocket to receive the `config.updated` broadcast
-and confirm when the hot reload finishes:
+- **`GET /config/schema`** – returns the compiled configuration schema bundle as
+  a `ConfigSchemaDto`. The payload exposes the bundle identifier, semantic
+  version, and the JSON Schema definitions for both the resolved config and the
+  raw input format so clients can build local validation.
 
-- Keep that websocket connection open while issuing editor requests from
-  external tooling so the refresh notification is not missed.
-- Review the [Realtime events inventory](./migration/api-realtime-events.md)
-  for additional event payload details and subscription options.
+  ```json
+  {
+    "id": "eddie-config",
+    "version": "1.0.0",
+    "schema": { "title": "EddieConfig", "type": "object" },
+    "inputSchema": { "title": "EddieConfigInput", "type": "object" }
+  }
+  ```
+
+- **`GET /config/editor`** – reads the currently active configuration file and
+  returns a `ConfigSourceDto`. The response echoes the raw source, parsed input,
+  composed configuration, and any previous validation error so operators can see
+  what the runtime is using right now.
+
+  ```json
+  {
+    "path": "/workspace/eddie.config.yaml",
+    "format": "yaml",
+    "content": "{\n  \"api\": {\n    \"host\": \"127.0.0.1\"\n  }\n}",
+    "input": { "api": { "host": "127.0.0.1" } },
+    "config": {
+      "api": {
+        "host": "127.0.0.1",
+        "port": 4000
+      }
+    },
+    "error": null
+  }
+  ```
+
+- **`POST /config/editor/preview`** – accepts a `ConfigSourcePayloadDto`
+  containing `content` and `format`, validates the payload, and responds with a
+  `ConfigPreviewDto`. Previews never touch disk; they compose the configuration
+  in-memory so deployers can check the resolved values before saving.
+
+  ```bash
+  curl -X POST http://localhost:4000/config/editor/preview \
+    -H "Content-Type: application/json" \
+    -H "x-api-key: $EDDIE_API_KEY" \
+    -d '{
+      "content": "{\n  \"api\": { \"port\": 4100 }\n}",
+      "format": "json"
+    }'
+  ```
+
+  ```json
+  {
+    "input": { "api": { "port": 4100 } },
+    "config": {
+      "api": {
+        "host": "127.0.0.1",
+        "port": 4100
+      }
+    }
+  }
+  ```
+
+  Invalid previews return a `400 Bad Request` with the normalised error message
+  produced by `ConfigEditorService`, e.g. `{ "statusCode": 400, "message":
+  "Unknown provider: gpt-oops", "error": "Bad Request" }`.
+
+- **`PUT /config/editor`** – accepts the same `ConfigSourcePayloadDto`, writes
+  the payload to disk, and hot-reloads the runtime configuration. Successful
+  calls broadcast the composed configuration through `ConfigHotReloadService` so
+  in-memory consumers immediately observe the new values without a restart. The
+  response mirrors `GET /config/editor`, including the updated `content`,
+  `input`, and `config` data along with any validation error captured during the
+  reload. Errors follow the same `400 Bad Request` shape as preview failures.
 
 ## Provider Catalog
 
