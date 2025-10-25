@@ -114,6 +114,52 @@ describe("AgentMemoryCoordinator", () => {
 
     expect(second).toEqual(initial);
     expect(second.at(-1)?.role).toBe("user");
+    expect(loadAgentMemories).toHaveBeenCalledTimes(1);
+  });
+
+  it("recalls memories using the latest user message", async () => {
+    const loadAgentMemories = vi.fn().mockResolvedValue([]);
+    const coordinator = new AgentMemoryCoordinator({
+      loadAgentMemories,
+      persistAgentMemories: vi.fn(),
+    } as any);
+
+    const binding = await coordinator.createBinding({
+      descriptor,
+      invocation: { prompt: "hello" } as AgentInvocation,
+      runtime: {
+        sessionId: "session-202",
+        memoryDefaults: { enabled: true, recall: true },
+      } as any,
+    });
+
+    await binding!.prepareProviderMessages({
+      messages: [
+        { role: "system", content: "You are helpful." },
+        { role: "user", content: "First prompt" },
+      ],
+      invocation: { prompt: "hello" } as AgentInvocation,
+      descriptor,
+    });
+
+    expect(loadAgentMemories).toHaveBeenLastCalledWith(
+      expect.objectContaining({ query: "First prompt" }),
+    );
+
+    await binding!.prepareProviderMessages({
+      messages: [
+        { role: "system", content: "You are helpful." },
+        { role: "assistant", content: "Response" },
+        { role: "user", content: "Follow up" },
+      ],
+      invocation: { prompt: "hello" } as AgentInvocation,
+      descriptor,
+    });
+
+    expect(loadAgentMemories).toHaveBeenCalledTimes(2);
+    expect(loadAgentMemories).toHaveBeenLastCalledWith(
+      expect.objectContaining({ query: "Follow up" }),
+    );
   });
 
   it("applies runtime defaults when agent memory overrides omit flags", async () => {
