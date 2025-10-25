@@ -4,7 +4,6 @@ import { ConfigService, ConfigStore } from "@eddie/config";
 import type { CliRuntimeOptions } from "@eddie/config";
 import type { ConfigFileFormat, ConfigFileSnapshot } from "@eddie/types";
 import { RuntimeConfigService } from "../runtime-config/runtime-config.service";
-import { RuntimeConfigUpdated } from "../runtime-config/events/runtime-config-updated.event";
 
 @Injectable()
 export class ConfigHotReloadService {
