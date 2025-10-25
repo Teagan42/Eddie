@@ -325,6 +325,12 @@ graph LR
   memory__facets["facets: object"]
   memory__facets --> memory__facets__defaultStrategy
   memory__facets__defaultStrategy["defaultStrategy: string"]
+  memory --> memory__mem0
+  memory__mem0["mem0: object"]
+  memory__mem0 --> memory__mem0__apiKey
+  memory__mem0__apiKey["apiKey: string"]
+  memory__mem0 --> memory__mem0__host
+  memory__mem0__host["host: string"]
   memory --> memory__vectorStore
   memory__vectorStore["vectorStore: object"]
   memory__vectorStore --> memory__vectorStore__provider

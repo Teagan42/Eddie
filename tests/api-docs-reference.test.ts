@@ -48,6 +48,19 @@ const logsDocumentationPatterns = [
   /LogsForwarderService/,
 ];
 
+const configEditorDocumentationPatterns = [
+  /##\s+Config\s+editor\s+endpoints/i,
+  /ConfigSchemaDto/,
+  /ConfigSourceDto/,
+  /ConfigPreviewDto/,
+  /ConfigSourcePayloadDto/,
+  /x-api-key/,
+  /hot-?reload/i,
+  /"content"\s*:\s*"\{.*\}"/,
+  /"config"\s*:\s*\{[\s\S]*"api"/,
+  /"error"\s*:\s*(null|\{)/,
+];
+
 describe('api documentation reference examples', () => {
   let apiDoc: string;
   const renameExamplePayload = '{\n  "name": "Renamed session title"\n}';
@@ -69,6 +82,12 @@ describe('api documentation reference examples', () => {
     expect(apiDoc).toMatch(/GET\s+\/config\/editor/);
     expect(apiDoc).toMatch(/POST\s+\/config\/editor\/preview/);
     expect(apiDoc).toMatch(/PUT\s+\/config\/editor/);
+  });
+
+  it('documents config editor DTOs, auth, and example payloads', () => {
+    expectAllMatches(apiDoc, configEditorDocumentationPatterns);
+
+    expect(apiDoc).toMatch(/docs\/configuration(?:-wizard)?\.md/);
   });
 
   it('documents provider catalog and user preference routes', () => {
@@ -144,6 +163,10 @@ describe('api documentation reference examples', () => {
 
   it('documents logs feature routes, payloads, and websocket forwarding', () => {
     expectAllMatches(apiDoc, logsDocumentationPatterns);
+  });
+
+  it('details config editor hot reload workflow and websocket prerequisites', () => {
+    expectAllMatches(apiDoc, configEditorHotReloadPatterns);
   });
 
   it('details persistence configuration for sql drivers', () => {

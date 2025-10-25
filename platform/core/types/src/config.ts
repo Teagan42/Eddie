@@ -214,6 +214,11 @@ export type ContextResourceConfig =
   | ContextResourceBundleConfig
   | ContextResourceTemplateConfig;
 
+export interface MemoryMem0Config {
+  apiKey?: string;
+  host?: string;
+}
+
 export interface MemoryFacetsConfig {
   defaultStrategy?: string;
 }
@@ -233,6 +238,7 @@ export interface MemoryVectorStoreConfig {
 export interface MemoryConfig {
   enabled?: boolean;
   facets?: MemoryFacetsConfig;
+  mem0?: MemoryMem0Config;
   vectorStore?: MemoryVectorStoreConfig;
 }
 
