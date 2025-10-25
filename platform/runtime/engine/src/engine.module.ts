@@ -31,7 +31,7 @@ import {
 } from "./agents/runner";
 import { DemoSeedReplayService } from "./demo/demo-seed-replay.service";
 import { Mem0MemoryModule } from "@eddie/memory";
-import type { CliRuntimeOptions, EddieConfig, MemoryConfig } from "@eddie/types";
+import type { CliRuntimeOptions, MemoryConfig } from "@eddie/types";
 import type { QdrantVectorStoreDescriptor, Mem0MemoryModuleOptions } from "@eddie/memory";
 import { createMem0FacetExtractor } from "./memory/mem0-facet-extractor.factory";
 import { AgentMemoryCoordinator } from "./memory/agent-memory-coordinator";
@@ -97,23 +97,16 @@ import { AgentMemoryCoordinator } from "./memory/agent-memory-coordinator";
 })
 export class EngineModule {}
 
-interface Mem0CredentialsConfig {
-  mem0?: {
-    apiKey?: string;
-    host?: string;
-  };
-}
-
 interface Mem0Credentials {
   apiKey: string;
   host?: string;
 }
 
 function resolveMem0Credentials(
-  memory: EddieConfig["memory"],
+  memory: MemoryConfig | undefined,
   cliOptions: CliRuntimeOptions,
 ): Mem0Credentials | undefined {
-  const configCredentials = (memory as Mem0CredentialsConfig | undefined)?.mem0 ?? {};
+  const configCredentials = memory?.mem0 ?? {};
   const apiKey = cliOptions.mem0ApiKey ?? configCredentials.apiKey;
   const host = cliOptions.mem0Host ?? configCredentials.host;
 

@@ -142,6 +142,14 @@ describe("EDDIE_CONFIG_SCHEMA_BUNDLE", () => {
             defaultStrategy: { type: "string" },
           },
         },
+        mem0: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            apiKey: { type: "string" },
+            host: { type: "string" },
+          },
+        },
         vectorStore: {
           type: "object",
           additionalProperties: false,
