@@ -61,6 +61,7 @@ export interface PanelProps {
   actions?: ReactNode;
   children: ReactNode;
   id?: string;
+  meta?: ReactNode;
 }
 
 export const Panel: FC<PanelProps> = ({
@@ -70,6 +71,7 @@ export const Panel: FC<PanelProps> = ({
   className,
   id,
   children,
+  meta,
 }) => {
   const surfaceClassName = combineClassNames(PANEL_SURFACE_CLASS, className);
   const generatedId = useId();
@@ -87,10 +89,13 @@ export const Panel: FC<PanelProps> = ({
         <div className={PANEL_GLARE_CLASS} aria-hidden />
         <div className={PANEL_CONTENT_CLASS}>
           <header className="flex flex-wrap items-center gap-4 justify-between">
-            <div className="max-w-xl space-y-1">
-              <div className={PANEL_BADGE_CLASS}>
-                <span className={PANEL_BADGE_DOT_CLASS} />
-                Live Surface
+            <div className="max-w-xl space-y-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className={PANEL_BADGE_CLASS}>
+                  <span className={PANEL_BADGE_DOT_CLASS} />
+                  Live Surface
+                </div>
+                {meta ? <div className="flex items-center">{meta}</div> : null}
               </div>
               <h2 className="text-2xl font-semibold tracking-tight text-[color:var(--overview-panel-foreground)] drop-shadow-sm">
                 {title}

@@ -6,7 +6,7 @@ import {
   useState,
   type FormEvent,
 } from 'react';
-import { Box, Button, Flex, Heading, Select, Text, TextField } from '@radix-ui/themes';
+import { Badge, Box, Button, Flex, Heading, Select, Text, TextField } from '@radix-ui/themes';
 import {
   ChatBubbleIcon,
   MagicWandIcon,
@@ -567,6 +567,34 @@ export function ChatPage(): JSX.Element {
       return hasMetrics ? { ...session, metrics } : session;
     });
   }, [ getSessionContextBundles, resolveMessageCount, sessions ]);
+
+  const activeSessionCount = useMemo(
+    () => sessions.filter((session) => session.status !== 'archived').length,
+    [ sessions ],
+  );
+
+  const activeSessionsBadge = useMemo(
+    () => (
+      <Badge
+        data-testid="active-sessions-badge"
+        radius="full"
+        variant="surface"
+        color="grass"
+        className={cn(
+          'flex items-center gap-3',
+          'w-fit',
+          'bg-[color:var(--hero-badge-bg)]',
+          'text-[color:var(--hero-badge-fg)]',
+          'dark:bg-[color:var(--hero-badge-bg-dark)]',
+          'dark:text-[color:var(--hero-badge-fg-dark)]',
+        )}
+      >
+        <span className="text-xs font-semibold uppercase tracking-[0.25em]">Active Sessions</span>
+        <span className="text-base font-semibold tracking-tight">{activeSessionCount}</span>
+      </Badge>
+    ),
+    [ activeSessionCount ],
+  );
 
   const invalidateSessionContext = useCallback(
     (sessionId?: string) => {
@@ -1539,6 +1567,7 @@ export function ChatPage(): JSX.Element {
                 ? 'Create a session to begin orchestrating conversations.'
                 : undefined
             }
+            meta={activeSessionsBadge}
             actions={
               <Button
                 onClick={handleCreateSession}

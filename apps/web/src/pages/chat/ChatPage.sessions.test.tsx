@@ -344,6 +344,22 @@ describe("ChatPage session creation", () => {
     expect(description).toHaveTextContent("2 bundles");
   });
 
+  it("shows the active session count badge in the sessions panel header", async () => {
+    renderChatPage();
+
+    await screen.findByRole("tab", { name: "Session 1" });
+
+    const heading = await screen.findByRole("heading", { level: 2, name: "Sessions" });
+    const header = heading.closest("header");
+
+    expect(header).not.toBeNull();
+
+    const badge = within(header as HTMLElement).getByTestId("active-sessions-badge");
+    expect(badge).toHaveTextContent(/Active Sessions/i);
+    expect(badge).toHaveTextContent("1");
+    expect(badge).toHaveClass("bg-[color:var(--hero-badge-bg)]");
+  });
+
   it("updates message metrics when new messages stream in", async () => {
     const now = new Date().toISOString();
     listMessagesMock.mockResolvedValueOnce([]);
