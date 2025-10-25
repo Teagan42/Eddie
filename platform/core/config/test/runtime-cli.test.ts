@@ -95,7 +95,7 @@ describe("parseCliRuntimeOptionsFromArgv", () => {
     }
   });
 
-  it("parses mem0 credential overrides", () => {
+  it("parses mem0 credential options", () => {
     const parsed = parseCliRuntimeOptionsFromArgv([
       "--mem0-api-key",
       "cli-key",
@@ -103,10 +103,8 @@ describe("parseCliRuntimeOptionsFromArgv", () => {
       "https://mem0.example",
     ]);
 
-    expect(parsed).toMatchObject({
-      mem0ApiKey: "cli-key",
-      mem0Host: "https://mem0.example",
-    });
+    expect(parsed.mem0ApiKey).toBe("cli-key");
+    expect(parsed.mem0Host).toBe("https://mem0.example");
   });
 });
 
