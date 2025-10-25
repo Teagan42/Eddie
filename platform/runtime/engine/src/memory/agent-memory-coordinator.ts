@@ -119,8 +119,8 @@ interface Mem0BindingDependencies {
 }
 
 class Mem0AgentMemoryBinding implements AgentMemoryBinding {
-  private recalled = false;
   private recalledMessages?: ChatMessage[];
+  private lastRecallQuery?: string;
   private readonly sessionId?: string;
   private readonly metadataOverrides?: MetadataOverride;
   private readonly vectorStoreOverride?: VectorStoreOverride;
@@ -140,9 +140,11 @@ class Mem0AgentMemoryBinding implements AgentMemoryBinding {
       return options.messages;
     }
 
-    if (!this.recalled) {
-      this.recalledMessages = await this.loadRecalledMessages();
-      this.recalled = true;
+    const recallQuery = this.resolveRecallQuery(options.messages);
+
+    if (this.lastRecallQuery !== recallQuery) {
+      this.recalledMessages = await this.loadRecalledMessages(recallQuery);
+      this.lastRecallQuery = recallQuery;
     }
 
     const recalledMessages = this.recalledMessages ?? [];
@@ -219,11 +221,27 @@ class Mem0AgentMemoryBinding implements AgentMemoryBinding {
     };
   }
 
-  private async loadRecalledMessages(): Promise<ChatMessage[]> {
+  private resolveRecallQuery(messages: ChatMessage[]): string {
+    const latestUserMessage = this.extractLatestUserContent(messages);
+    return latestUserMessage ?? this.deps.invocation.prompt;
+  }
+
+  private extractLatestUserContent(messages: ChatMessage[]): string | undefined {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (message.role === "user" && message.content) {
+        return message.content;
+      }
+    }
+
+    return undefined;
+  }
+
+  private async loadRecalledMessages(query: string): Promise<ChatMessage[]> {
     const records = await this.deps.service.loadAgentMemories({
       agentId: this.deps.descriptor.id,
       sessionId: this.sessionId,
-      query: this.deps.invocation.prompt,
+      query,
       ...(this.metadataOverrides ? { metadata: this.metadataOverrides } : {}),
       ...(this.vectorStoreOverride ? { vectorStore: this.vectorStoreOverride } : {}),
     });
