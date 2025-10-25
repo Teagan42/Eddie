@@ -48,6 +48,14 @@ const logsDocumentationPatterns = [
   /LogsForwarderService/,
 ];
 
+const configEditorHotReloadPatterns = [
+  /ConfigHotReloadService/,
+  /refreshes\s+the\s+runtime\s+snapshot/i,
+  /config\.updated/,
+  /subscribe\s+to\s+the\s+`?\/config`?\s+websocket/i,
+  /keep\s+that\s+websocket\s+connection\s+open/i,
+];
+
 describe('api documentation reference examples', () => {
   let apiDoc: string;
   const renameExamplePayload = '{\n  "name": "Renamed session title"\n}';
@@ -144,6 +152,10 @@ describe('api documentation reference examples', () => {
 
   it('documents logs feature routes, payloads, and websocket forwarding', () => {
     expectAllMatches(apiDoc, logsDocumentationPatterns);
+  });
+
+  it('details config editor hot reload workflow and websocket prerequisites', () => {
+    expectAllMatches(apiDoc, configEditorHotReloadPatterns);
   });
 
   it('details persistence configuration for sql drivers', () => {
