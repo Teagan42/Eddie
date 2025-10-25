@@ -54,7 +54,9 @@ describe("ToolRegistry", () => {
 
     await expect(
       registry.execute({ name: "echo", arguments: {} }, ctx),
-    ).rejects.toThrow(/Validation failed/);
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[Error: Validation failed for tool echo: Field text is required but missing. Suggestion: Add the "text" property to the tool arguments.]`,
+    );
   });
 
   it("throws when the tool output violates the declared schema", async () => {
@@ -86,7 +88,9 @@ describe("ToolRegistry", () => {
 
     await expect(
       registry.execute({ name: "broken", arguments: {} }, ctx),
-    ).rejects.toThrow(/Output validation failed/);
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[Error: Output validation failed for tool broken: Field data.value must be number. Suggestion: Provide a number for "data.value" in the tool result data.]`,
+    );
   });
 
   it("generates a discriminator id when the output schema omits one", async () => {
