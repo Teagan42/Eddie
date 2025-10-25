@@ -1,6 +1,12 @@
-import type { ConfigFileFormat, ConfigFileSnapshot, EddieConfig, EddieConfigInput } from "@eddie/types";
+import type {
+  ConfigFileFormat,
+  ConfigFileSnapshot,
+  EddieConfig,
+  EddieConfigInput,
+} from "@eddie/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConfigHotReloadService } from "../../../src/config-editor/config-hot-reload.service";
+import { RuntimeConfigUpdated } from "../../../src/runtime-config/events/runtime-config-updated.event";
 
 describe("ConfigHotReloadService", () => {
   const source = "model: gpt-4";
@@ -12,6 +18,8 @@ describe("ConfigHotReloadService", () => {
     writeSource: ReturnType<typeof vi.fn>;
   };
   let configStore: { setSnapshot: ReturnType<typeof vi.fn> };
+  let runtimeConfigService: { get: ReturnType<typeof vi.fn> };
+  let eventBus: { publish: ReturnType<typeof vi.fn> };
   let service: ConfigHotReloadService;
 
   const input: EddieConfigInput = { model: "gpt-4" } as EddieConfigInput;
@@ -30,10 +38,21 @@ describe("ConfigHotReloadService", () => {
       writeSource: vi.fn(),
     };
     configStore = { setSnapshot: vi.fn() };
+    runtimeConfigService = { get: vi.fn() };
+    eventBus = { publish: vi.fn() };
     service = new ConfigHotReloadService(
       configService as never,
-      configStore as never
+      configStore as never,
+      runtimeConfigService as never,
+      eventBus as never
     );
+    runtimeConfigService.get.mockReturnValue({
+      apiUrl: "https://api.example.test",
+      websocketUrl: "wss://api.example.test",
+      features: { chat: true, logs: true, traces: false },
+      theme: "midnight",
+    });
+    eventBus.publish.mockReturnValue(undefined);
   });
 
   it("uses the snapshot config when available without recomposing", async () => {
@@ -59,6 +78,11 @@ describe("ConfigHotReloadService", () => {
     expect(configService.compose).not.toHaveBeenCalled();
     expect(configService.writeSource).toHaveBeenCalledWith(source, format, {});
     expect(configStore.setSnapshot).toHaveBeenCalledWith(snapshotConfig);
+    expect(runtimeConfigService.get).toHaveBeenCalledWith();
+    expect(eventBus.publish).toHaveBeenCalledTimes(1);
+    expect(eventBus.publish.mock.calls[0][0]).toBeInstanceOf(
+      RuntimeConfigUpdated
+    );
   });
 
   it("propagates write failures without storing a snapshot", async () => {
@@ -70,6 +94,8 @@ describe("ConfigHotReloadService", () => {
     expect(configService.parseSource).not.toHaveBeenCalled();
     expect(configService.compose).not.toHaveBeenCalled();
     expect(configStore.setSnapshot).not.toHaveBeenCalled();
+    expect(runtimeConfigService.get).not.toHaveBeenCalled();
+    expect(eventBus.publish).not.toHaveBeenCalled();
   });
 
   it("fills in missing snapshot config by composing the written input", async () => {
@@ -98,5 +124,10 @@ describe("ConfigHotReloadService", () => {
     );
     expect(configService.writeSource).toHaveBeenCalledWith(source, format, {});
     expect(configStore.setSnapshot).toHaveBeenCalledWith(fallbackConfig);
+    expect(runtimeConfigService.get).toHaveBeenCalledWith();
+    expect(eventBus.publish).toHaveBeenCalledTimes(1);
+    expect(eventBus.publish.mock.calls[0][0]).toBeInstanceOf(
+      RuntimeConfigUpdated
+    );
   });
 });
