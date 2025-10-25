@@ -392,8 +392,8 @@ Operate on the running Eddie configuration through the dedicated editor routes:
 - **`PUT /config/editor`** – persist configuration changes and return the new
   snapshot from disk. The controller delegates writes to
   `ConfigHotReloadService`, which applies the payload, refreshes the runtime
-  snapshot, and emits `config.updated` once the state is live on the `/config`
-  websocket channel.【F:apps/api/src/config-editor/config-editor.controller.ts†L60-L78】【F:apps/api/src/runtime-config/runtime-config.gateway.events-handler.ts†L7-L23】
+  snapshot, and publishes a `RuntimeConfigUpdated` event so `/config` websocket
+  subscribers receive `config.updated` once the refreshed state is live.【F:apps/api/src/config-editor/config-editor.controller.ts†L60-L78】【F:apps/api/src/config-editor/config-hot-reload.service.ts†L1-L38】【F:apps/api/src/runtime-config/runtime-config.gateway.events-handler.ts†L7-L23】
 
 Subscribe to the `/config` websocket to receive the `config.updated` broadcast
 and confirm when the hot reload finishes:
