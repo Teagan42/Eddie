@@ -12,8 +12,12 @@ type CliStringOptionKey =
   | "jsonlTrace"
   | "logFile"
   | "agentMode"
+  | "mem0ApiKey"
+  | "mem0Host"
   | "metricsBackend"
-  | "metricsLoggingLevel";
+  | "metricsLoggingLevel"
+  | "mem0ApiKey"
+  | "mem0Host";
 
 type CliListOptionKey = "context" | "tools" | "disabledTools";
 
@@ -108,6 +112,16 @@ export const CLI_VALUE_OPTION_DEFINITIONS: readonly CliValueOptionDefinition[] =
     valueType: "string",
   },
   {
+    runtimeKey: "mem0ApiKey",
+    keys: ["--mem0-api-key"],
+    valueType: "string",
+  },
+  {
+    runtimeKey: "mem0Host",
+    keys: ["--mem0-host"],
+    valueType: "string",
+  },
+  {
     runtimeKey: "logLevel",
     keys: ["--log-level"],
     valueType: "logLevel",
@@ -131,6 +145,16 @@ export const CLI_VALUE_OPTION_DEFINITIONS: readonly CliValueOptionDefinition[] =
   {
     runtimeKey: "metricsLoggingLevel",
     keys: ["--metrics-backend-level"],
+    valueType: "string",
+  },
+  {
+    runtimeKey: "mem0ApiKey",
+    keys: ["--mem0-api-key"],
+    valueType: "string",
+  },
+  {
+    runtimeKey: "mem0Host",
+    keys: ["--mem0-host"],
     valueType: "string",
   },
 ] satisfies readonly CliValueOptionDefinition[];

@@ -94,6 +94,15 @@ const MEMORY_VECTOR_STORE_SCHEMA: JSONSchema7 = {
   },
 };
 
+const MEMORY_MEM0_SCHEMA: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    apiKey: { type: "string", minLength: 1 },
+    host: { type: "string", minLength: 1 },
+  },
+};
+
 const MEMORY_SHARED_PROPERTIES = {
   facets: MEMORY_FACETS_CONFIG_SCHEMA,
   vectorStore: MEMORY_VECTOR_STORE_SCHEMA,
@@ -104,6 +113,7 @@ const MEMORY_CONFIG_SCHEMA: JSONSchema7 = {
   additionalProperties: false,
   properties: {
     enabled: { type: "boolean" },
+    mem0: MEMORY_MEM0_SCHEMA,
     ...MEMORY_SHARED_PROPERTIES,
   },
 };

@@ -94,6 +94,18 @@ describe("parseCliRuntimeOptionsFromArgv", () => {
       expect(value).toBe(`${definition.runtimeKey}-value`);
     }
   });
+
+  it("parses mem0 credential options", () => {
+    const parsed = parseCliRuntimeOptionsFromArgv([
+      "--mem0-api-key",
+      "cli-key",
+      "--mem0-host",
+      "https://mem0.example",
+    ]);
+
+    expect(parsed.mem0ApiKey).toBe("cli-key");
+    expect(parsed.mem0Host).toBe("https://mem0.example");
+  });
 });
 
 describe("CLI option definitions", () => {

@@ -31,6 +31,21 @@ describe("cli reference documentation", () => {
     expect(cliReferenceContent).toMatch(/\$\{[A-Z0-9_]+\}/);
   });
 
+  it("enumerates cli environment variables for runtime overrides", () => {
+    const requiredVariables = [
+      "EDDIE_CLI_DISABLE_CONTEXT",
+      "EDDIE_CLI_AUTO_APPROVE",
+      "EDDIE_CLI_NON_INTERACTIVE",
+      "EDDIE_CLI_DISABLED_TOOLS",
+      "EDDIE_CLI_LOG_FILE",
+      "EDDIE_CLI_DISABLE_SUBAGENTS",
+    ];
+
+    for (const variable of requiredVariables) {
+      expect(cliReferenceContent).toContain(variable);
+    }
+  });
+
   it("explains configuration discovery and merging behaviour", () => {
     expect(cliReferenceContent).toMatch(/eddie\.config\.ya?ml/i);
     expect(cliReferenceContent).toMatch(/\.eddierc/i);
