@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761371293181,
+  "lastUpdate": 1761375917883,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -2390,6 +2390,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 24.301,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "565450ea0e224208452b990d86bfb3594cc97548",
+          "message": "Improve config hot reload snapshot handling (#778)\n\n* refactor(config-editor): early return when snapshot has config\n\n* fix(api): remove unused runtime config event import\n\n* fix(api): broadcast runtime config updates on hot reload",
+          "timestamp": "2025-10-25T00:54:08-06:00",
+          "tree_id": "71ba4002c2e07b1f70a3c68d7dbd272dc2b9de1c",
+          "url": "https://github.com/Teagan42/Eddie/commit/565450ea0e224208452b990d86bfb3594cc97548"
+        },
+        "date": 1761375917188,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 46.604,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 32.62,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 22.876,
             "unit": "ms",
             "extra": "[object Object]"
           }
