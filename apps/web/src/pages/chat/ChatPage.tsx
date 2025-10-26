@@ -6,7 +6,7 @@ import {
   useState,
   type FormEvent,
 } from 'react';
-import { Badge, Box, Button, Flex, Heading, Select, Text, TextField } from '@radix-ui/themes';
+import { Badge, Box, Button, ContextMenu, Flex, Heading, Select, Text, TextField } from '@radix-ui/themes';
 import {
   ChatBubbleIcon,
   MagicWandIcon,
@@ -568,33 +568,15 @@ export function ChatPage(): JSX.Element {
     });
   }, [ getSessionContextBundles, resolveMessageCount, sessions ]);
 
-  const activeSessionCount = useMemo(
-    () => sessions.filter((session) => session.status !== 'archived').length,
+  const activeSessionIds = useMemo(
+    () =>
+      sessions
+        .filter((session) => session.status !== 'archived')
+        .map((session) => session.id),
     [ sessions ],
   );
 
-  const activeSessionsBadge = useMemo(
-    () => (
-      <Badge
-        data-testid="active-sessions-badge"
-        radius="full"
-        variant="surface"
-        color="grass"
-        className={cn(
-          'flex items-center gap-3',
-          'w-fit',
-          'bg-[color:var(--hero-badge-bg)]',
-          'text-[color:var(--hero-badge-fg)]',
-          'dark:bg-[color:var(--hero-badge-bg-dark)]',
-          'dark:text-[color:var(--hero-badge-fg-dark)]',
-        )}
-      >
-        <span className="text-xs font-semibold uppercase tracking-[0.25em]">Active Sessions</span>
-        <span className="text-base font-semibold tracking-tight">{activeSessionCount}</span>
-      </Badge>
-    ),
-    [ activeSessionCount ],
-  );
+  const activeSessionCount = activeSessionIds.length;
 
   const invalidateSessionContext = useCallback(
     (sessionId?: string) => {
@@ -1112,7 +1094,11 @@ export function ChatPage(): JSX.Element {
   });
 
   const { mutate: runRenameSession, isPending: isRenamingSession } = renameSessionMutation;
-  const { mutate: runDeleteSession, isPending: isDeletingSession } = deleteSessionMutation;
+  const {
+    mutate: runDeleteSession,
+    mutateAsync: runDeleteSessionAsync,
+    isPending: isDeletingSession,
+  } = deleteSessionMutation;
 
   const createSessionMutation = useMutation({
     mutationFn: (payload: CreateChatSessionDto) => api.http.chatSessions.create(payload),
@@ -1345,6 +1331,59 @@ export function ChatPage(): JSX.Element {
       setSelectedSessionPreference(sessionId);
     },
     [ selectedSessionId, setSelectedSessionPreference ],
+  );
+
+  const handleDeleteAllSessions = useCallback(async () => {
+    if (activeSessionIds.length === 0) {
+      return;
+    }
+
+    if (!window.confirm('Delete all sessions? This action cannot be undone.')) {
+      return;
+    }
+
+    await activeSessionIds.reduce(
+      (previous, sessionId) => previous.then(() => runDeleteSessionAsync(sessionId)),
+      Promise.resolve(),
+    );
+  }, [ activeSessionIds, runDeleteSessionAsync ]);
+
+  const activeSessionsBadge = useMemo(
+    () => (
+      <ContextMenu.Root modal={false}>
+        <ContextMenu.Trigger asChild>
+          <Badge
+            data-testid="active-sessions-badge"
+            radius="full"
+            variant="surface"
+            color="grass"
+            className={cn(
+              'flex items-center gap-3',
+              'w-fit',
+              'bg-[color:var(--hero-badge-bg)]',
+              'text-[color:var(--hero-badge-fg)]',
+              'dark:bg-[color:var(--hero-badge-bg-dark)]',
+              'dark:text-[color:var(--hero-badge-fg-dark)]',
+            )}
+          >
+            <span className="text-xs font-semibold uppercase tracking-[0.25em]">Active Sessions</span>
+            <span className="text-base font-semibold tracking-tight">{activeSessionCount}</span>
+          </Badge>
+        </ContextMenu.Trigger>
+        <ContextMenu.Content align="end">
+          <ContextMenu.Item
+            color="ruby"
+            disabled={activeSessionCount === 0}
+            onSelect={() => {
+              void handleDeleteAllSessions();
+            }}
+          >
+            Delete all sessions
+          </ContextMenu.Item>
+        </ContextMenu.Content>
+      </ContextMenu.Root>
+    ),
+    [ activeSessionCount, handleDeleteAllSessions ],
   );
 
   const handleRenameSession = useCallback(
