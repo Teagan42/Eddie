@@ -360,6 +360,36 @@ describe("ChatPage session creation", () => {
     expect(badge).toHaveClass("bg-[color:var(--hero-badge-bg)]");
   });
 
+  it("allows deleting all sessions from the active session badge context menu", async () => {
+    const now = new Date().toISOString();
+    const sessionOne = buildSessionDto("session-1", "Session 1", now);
+    const sessionTwo = buildSessionDto("session-2", "Session 2", now);
+    listSessionsMock.mockResolvedValue([ sessionOne, sessionTwo ]);
+    deleteSessionMock.mockResolvedValue(undefined);
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    try {
+      const user = userEvent.setup();
+      renderChatPage();
+
+      const badge = await screen.findByTestId("active-sessions-badge");
+      await user.pointer({ target: badge, keys: "[MouseRight]" });
+
+      const deleteAll = await screen.findByRole("menuitem", {
+        name: "Delete all sessions",
+      });
+      await user.click(deleteAll);
+
+      await waitFor(() => {
+        expect(deleteSessionMock).toHaveBeenCalledWith("session-1");
+        expect(deleteSessionMock).toHaveBeenCalledWith("session-2");
+      });
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
+
   it("updates message metrics when new messages stream in", async () => {
     const now = new Date().toISOString();
     listMessagesMock.mockResolvedValueOnce([]);
