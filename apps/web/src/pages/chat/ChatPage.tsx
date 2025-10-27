@@ -1334,7 +1334,7 @@ export function ChatPage(): JSX.Element {
   );
 
   const handleDeleteAllSessions = useCallback(async () => {
-    if (activeSessionIds.length === 0) {
+    if (isDeletingSession || activeSessionIds.length === 0) {
       return;
     }
 
@@ -1346,7 +1346,7 @@ export function ChatPage(): JSX.Element {
       (previous, sessionId) => previous.then(() => runDeleteSessionAsync(sessionId)),
       Promise.resolve(),
     );
-  }, [ activeSessionIds, runDeleteSessionAsync ]);
+  }, [ activeSessionIds, isDeletingSession, runDeleteSessionAsync ]);
 
   const activeSessionsBadge = useMemo(
     () => (
@@ -1373,7 +1373,7 @@ export function ChatPage(): JSX.Element {
         <ContextMenu.Content align="end">
           <ContextMenu.Item
             color="ruby"
-            disabled={activeSessionCount === 0}
+            disabled={activeSessionCount === 0 || isDeletingSession}
             onSelect={() => {
               void handleDeleteAllSessions();
             }}
