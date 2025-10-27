@@ -26,8 +26,8 @@ describe('mem0 docker-compose stack', () => {
     const mem0 = services.mem0;
     expect(mem0).toBeDefined();
     expect(mem0.build).toMatchObject({
-      context: '..',
-      dockerfile: 'server/dev.Dockerfile',
+      context: '../mem0',
+      dockerfile: 'packages/server/dev.Dockerfile',
     });
     expect(mem0.ports).toContain('8888:8000');
     expect(mem0.env_file).toContain('.env');
@@ -60,6 +60,7 @@ describe('mem0 docker-compose stack', () => {
     expect(qdrant.networks).toContain('mem0_network');
     expect(neo4j.networks).toContain('mem0_network');
     expect(postgres.networks).toContain('mem0_network');
+    expect(neo4j.healthcheck?.test).toContain('http://localhost:7474');
   });
 
   it('declares persistent volumes for qdrant and neo4j', () => {
