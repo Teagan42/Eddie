@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761578796185,
+  "lastUpdate": 1761578835616,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -2640,6 +2640,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 24.58,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a4409433463e4781cf5b2c9cac8bf3ff83adb80c",
+          "message": "Add delete-all option to chat session badge context menu (#783)\n\n* refactor(chat-page): rename deletable session ids for clarity\n\n* fix(web): guard delete-all during pending deletion",
+          "timestamp": "2025-10-27T15:16:14Z",
+          "tree_id": "c79cfcc05893dcfac381e93243dd8c78c84c487e",
+          "url": "https://github.com/Teagan42/Eddie/commit/a4409433463e4781cf5b2c9cac8bf3ff83adb80c"
+        },
+        "date": 1761578835062,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 48.267,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 35.457,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 25.2,
             "unit": "ms",
             "extra": "[object Object]"
           }
