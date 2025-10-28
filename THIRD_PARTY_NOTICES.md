@@ -66078,7 +66078,7 @@ SOFTWARE.
 
 ---
 
-## validator@13.15.15
+## validator@13.15.20
 
 **License:** MIT
 
