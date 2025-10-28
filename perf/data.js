@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761578835616,
+  "lastUpdate": 1761646262780,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -2682,6 +2682,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 25.2,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "23ebaee28cafcf665fc6d31f1a2e9d2c225efbbb",
+          "message": "refactor(providers): simplify ollama delta handling (#785)",
+          "timestamp": "2025-10-28T04:00:21-06:00",
+          "tree_id": "a50f40a79dc6fa56b94cb98473d1348aec8a8a91",
+          "url": "https://github.com/Teagan42/Eddie/commit/23ebaee28cafcf665fc6d31f1a2e9d2c225efbbb"
+        },
+        "date": 1761646262006,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 47.374,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 34.577,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.809,
             "unit": "ms",
             "extra": "[object Object]"
           }
