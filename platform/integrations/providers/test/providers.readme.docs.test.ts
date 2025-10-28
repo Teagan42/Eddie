@@ -13,6 +13,7 @@ describe('providers README documentation', () => {
       /OpenAI/,
       /Anthropic/,
       /OpenAI-compatible/,
+      /Ollama/,
       /ProviderFactoryService/,
       /resolveResponseFormat/,
       /tool schemas?/i,
