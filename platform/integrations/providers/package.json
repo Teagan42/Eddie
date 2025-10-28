@@ -19,6 +19,7 @@
     "@eddie/config": "^0.0.0",
     "@eddie/types": "^0.0.0",
     "@nestjs/common": "^11.0.0",
+    "ollama": "^0.5.18",
     "openai": "^6.2.0",
     "undici": "^7.16.0"
   }

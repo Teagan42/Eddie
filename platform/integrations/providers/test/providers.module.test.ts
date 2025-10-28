@@ -7,6 +7,7 @@ import {
 import { AnthropicAdapterFactory } from "../src/anthropic";
 import { OpenAIAdapterFactory } from "../src/openai";
 import { OpenAICompatibleAdapterFactory } from "../src/openai_compatible";
+import { OllamaAdapterFactory } from "../src/ollama";
 import { expectTypeOf } from "vitest";
 
 describe("ProvidersModule", () => {
@@ -40,6 +41,15 @@ describe("ProvidersModule", () => {
 
   it("provides OpenAICompatibleAdapterFactory via factory provider", () => {
     const provider = factoryProviderFor(OpenAICompatibleAdapterFactory);
+    expect(provider).toBeDefined();
+    expect((provider as { useFactory?: unknown }).useFactory).toEqual(
+      expect.any(Function)
+    );
+    expect((provider as { inject?: unknown[] }).inject).toEqual([]);
+  });
+
+  it("provides OllamaAdapterFactory via factory provider", () => {
+    const provider = factoryProviderFor(OllamaAdapterFactory);
     expect(provider).toBeDefined();
     expect((provider as { useFactory?: unknown }).useFactory).toEqual(
       expect.any(Function)

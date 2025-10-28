@@ -6,7 +6,7 @@ through the public exports defined in [`src/index.ts`](src/index.ts).
 
 ## Available adapters
 
-Three adapters are exported alongside their Nest-friendly factories:
+Four adapters are exported alongside their Nest-friendly factories:
 
 - **OpenAI** (`OpenAIAdapter` / `OpenAIAdapterFactory`) – streams from the
   official OpenAI Responses API. It normalises tool call deltas, propagates
@@ -19,8 +19,12 @@ Three adapters are exported alongside their Nest-friendly factories:
   `OpenAICompatibleAdapterFactory`) – targets APIs that implement an
   OpenAI-style `/chat/completions` contract (for example, Groq). It keeps
   request headers configurable so self-hosted services can be reached.
+- **Ollama** (`OllamaAdapter` / `OllamaAdapterFactory`) – connects to the
+  official Ollama JavaScript client so self-hosted and remote Ollama
+  instances stream chat responses, function calls, and usage metrics using
+  the same `StreamEvent` contract as other providers.
 
-All three adapters share the same streaming contract. Each one yields
+All adapters share the same streaming contract. Each one yields
 `StreamEvent` records (`delta`, `tool_call`, `notification`, `end`, `error`)
 that downstream surfaces consume without provider-specific branching.
 

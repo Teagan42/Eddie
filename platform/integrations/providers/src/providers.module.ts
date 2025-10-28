@@ -5,6 +5,7 @@ import { OpenAIAdapterFactory } from "./openai";
 import { OpenAICompatibleAdapterFactory } from "./openai_compatible";
 import { ProviderFactoryService } from "./provider-factory.service";
 import { PROVIDER_ADAPTER_FACTORIES } from "./provider.tokens";
+import { OllamaAdapterFactory } from "./ollama";
 
 const anthropicAdapterFactoryProvider: FactoryProvider<AnthropicAdapterFactory> = {
   provide: AnthropicAdapterFactory,
@@ -24,10 +25,17 @@ const openAICompatibleAdapterFactoryProvider: FactoryProvider<OpenAICompatibleAd
   inject: [],
 };
 
+const ollamaAdapterFactoryProvider: FactoryProvider<OllamaAdapterFactory> = {
+  provide: OllamaAdapterFactory,
+  useFactory: () => new OllamaAdapterFactory(),
+  inject: [],
+};
+
 export const adapterFactoryProviders: FactoryProvider[] = [
   anthropicAdapterFactoryProvider,
   openAIAdapterFactoryProvider,
   openAICompatibleAdapterFactoryProvider,
+  ollamaAdapterFactoryProvider,
 ];
 
 const adapterFactoryProviderTokens: FactoryProvider["provide"][] =
@@ -46,8 +54,9 @@ const adapterFactoryProviderTokens: FactoryProvider["provide"][] =
       useFactory: (
         anthropic: AnthropicAdapterFactory,
         openai: OpenAIAdapterFactory,
-        openaiCompatible: OpenAICompatibleAdapterFactory
-      ) => [anthropic, openai, openaiCompatible],
+        openaiCompatible: OpenAICompatibleAdapterFactory,
+        ollama: OllamaAdapterFactory
+      ) => [anthropic, openai, openaiCompatible, ollama],
       inject: adapterFactoryProviderTokens,
     },
     ProviderFactoryService,
