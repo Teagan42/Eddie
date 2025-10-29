@@ -474,6 +474,22 @@ describe('assertLicensesAllowed', () => {
     ).not.toThrow();
   });
 
+  it('treats comma-separated licenses without whitespace as OR', () => {
+    expect(() =>
+      assertLicensesAllowed(
+        [
+          {
+            name: 'comma-separated',
+            version: '4.0.0',
+            license: 'MIT,Apache-2.0',
+            path: 'node_modules/comma-separated',
+          },
+        ],
+        new Set(['MIT', 'Apache-2.0']),
+      ),
+    ).not.toThrow();
+  });
+
   it('rejects SPDX expressions with OR when none of the options are permitted', () => {
     expect(() =>
       assertLicensesAllowed(
