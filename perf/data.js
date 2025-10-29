@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761646262780,
+  "lastUpdate": 1761768362159,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -2724,6 +2724,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 23.809,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "142c1eab8d6b29da4ee68bad2db6d6538e171327",
+          "message": "chore(deps): bump validator from 13.15.15 to 13.15.20 in the npm_and_yarn group across 1 directory (#784)\n\n* chore(deps): bump validator in the npm_and_yarn group across 1 directory\n\nBumps the npm_and_yarn group with 1 update in the / directory: [validator](https://github.com/validatorjs/validator.js).\n\n\nUpdates `validator` from 13.15.15 to 13.15.20\n- [Release notes](https://github.com/validatorjs/validator.js/releases)\n- [Changelog](https://github.com/validatorjs/validator.js/blob/master/CHANGELOG.md)\n- [Commits](https://github.com/validatorjs/validator.js/compare/13.15.15...13.15.20)\n\n---\nupdated-dependencies:\n- dependency-name: validator\n  dependency-version: 13.15.20\n  dependency-type: indirect\n  dependency-group: npm_and_yarn\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\n\n* chore: update third-party notices\n\n---------\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: dependabot[bot] <dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2025-10-29T19:55:17Z",
+          "tree_id": "6fa2d5c8a45bc445f2d6193dd31dd4d65a6edb27",
+          "url": "https://github.com/Teagan42/Eddie/commit/142c1eab8d6b29da4ee68bad2db6d6538e171327"
+        },
+        "date": 1761768361715,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 46.977,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 32.066,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.597,
             "unit": "ms",
             "extra": "[object Object]"
           }
