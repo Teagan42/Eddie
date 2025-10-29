@@ -7,6 +7,16 @@ import { createExecutionTreeStateFromMetadata } from '@eddie/ui';
 import { createChatPageRenderer } from './test-utils.js';
 import { ExecutionTreeState } from '@eddie/types';
 
+async function expectInvocationInToolGroup(
+  region: HTMLElement,
+  options: { namePattern: RegExp; previewPattern: RegExp; },
+): Promise<void> {
+  const { namePattern, previewPattern } = options;
+
+  await within(region).findByText(namePattern);
+  await within(region).findByText(previewPattern);
+}
+
 const listSessionsMock = vi.fn();
 const listMessagesMock = vi.fn();
 const getMetadataMock = vi.fn();
@@ -659,12 +669,10 @@ describe('ChatPage execution tree realtime updates', () => {
       name: /running tool invocations for primary agent/i,
     });
 
-    expect(
-      within(runningRegion).getByText(/web_search/i),
-    ).toBeInTheDocument();
-    expect(
-      within(runningRegion).getByText(/latest docs/i),
-    ).toBeInTheDocument();
+    await expectInvocationInToolGroup(runningRegion, {
+      namePattern: /web_search/i,
+      previewPattern: /latest docs/i,
+    });
 
     await act(async () => {
       toolResultHandlers.forEach((handler) =>
@@ -696,12 +704,10 @@ describe('ChatPage execution tree realtime updates', () => {
       name: /completed tool invocations for primary agent/i,
     });
 
-    expect(
-      within(completedRegion).getByText(/web_search/i),
-    ).toBeInTheDocument();
-    expect(
-      within(completedRegion).getByText(/done/i),
-    ).toBeInTheDocument();
+    await expectInvocationInToolGroup(completedRegion, {
+      namePattern: /web_search/i,
+      previewPattern: /done/i,
+    });
   }, 20000);
 
   it('hydrates context bundles when tool results report bundle identifiers', async () => {
