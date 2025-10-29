@@ -435,37 +435,32 @@ type LicenseExpression =
 
 type LicenseToken = '(' | ')' | 'AND' | 'OR' | string;
 
-function tokenizeLicenseExpression(input: string): LicenseToken[] {
-  const tokens: LicenseToken[] = [];
-  const pattern = /\s*(\(|\)|AND|OR|,|[^()\s]+)\s*/gi;
-  let match: RegExpExecArray | null;
+const LICENSE_TOKEN_PATTERN = /([()]|AND|OR|,|[^(),\s]+)/gi;
 
-  while ((match = pattern.exec(input))) {
-    const raw = match[1];
-    if (!raw) {
-      continue;
-    }
-
-    if (raw === '(' || raw === ')') {
-      tokens.push(raw);
-      continue;
-    }
-
-    const upper = raw.toUpperCase();
-    if (upper === 'AND' || upper === 'OR') {
-      tokens.push(upper);
-      continue;
-    }
-
-    if (raw === ',') {
-      tokens.push('OR');
-      continue;
-    }
-
-    tokens.push(raw);
+const normalizeLicenseToken = (raw: string): LicenseToken => {
+  if (raw === '(' || raw === ')') {
+    return raw;
   }
 
-  return tokens;
+  if (raw === ',') {
+    return 'OR';
+  }
+
+  const upper = raw.toUpperCase();
+  if (upper === 'AND' || upper === 'OR') {
+    return upper;
+  }
+
+  return raw;
+};
+
+function tokenizeLicenseExpression(input: string): LicenseToken[] {
+  const matches = input.match(LICENSE_TOKEN_PATTERN);
+  if (!matches) {
+    return [];
+  }
+
+  return matches.map(normalizeLicenseToken);
 }
 
 function parseLicenseExpression(input: string): LicenseExpression | undefined {
