@@ -36894,7 +36894,7 @@ Exhibit B - "Incompatible With Secondary Licenses" Notice
 
 ---
 
-## axios@1.7.7
+## axios@1.12.0
 
 **License:** MIT
 
@@ -65610,7 +65610,7 @@ SOFTWARE.
 
 ---
 
-## undici@5.28.5
+## undici@5.29.0
 
 **License:** MIT
 
