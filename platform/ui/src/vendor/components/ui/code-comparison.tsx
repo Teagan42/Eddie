@@ -8,6 +8,16 @@ import { useTheme } from "next-themes"
 
 import { cn } from "../../lib/utils"
 
+// Escape special HTML characters to prevent XSS in <pre> fallback.
+function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 interface CodeComparisonProps {
   beforeCode: string
   afterCode: string
@@ -75,8 +85,8 @@ export function CodeComparison({
         setHighlightedAfter(after)
       } catch (error) {
         console.error("Error highlighting code:", error)
-        setHighlightedBefore(`<pre>${beforeCode}</pre>`)
-        setHighlightedAfter(`<pre>${afterCode}</pre>`)
+        setHighlightedBefore(`<pre>${escapeHtml(beforeCode)}</pre>`)
+        setHighlightedAfter(`<pre>${escapeHtml(afterCode)}</pre>`)
       }
     }
     highlightCode()
