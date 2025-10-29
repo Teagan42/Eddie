@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761776422788,
+  "lastUpdate": 1761777848474,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -2892,6 +2892,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 24.862,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "17399a0acb78a341993bf3972f4f869fd2ee16dc",
+          "message": "fix: enforce axios and undici overrides (#789)\n\n* refactor(tests): reuse helper when asserting overrides\n\n* chore: update third-party notices",
+          "timestamp": "2025-10-29T16:33:51-06:00",
+          "tree_id": "78915c79c7fff4fdc31cc923c79a8642b73ca4f9",
+          "url": "https://github.com/Teagan42/Eddie/commit/17399a0acb78a341993bf3972f4f869fd2ee16dc"
+        },
+        "date": 1761777847967,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 46.469,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 31.261,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 24.504,
             "unit": "ms",
             "extra": "[object Object]"
           }
