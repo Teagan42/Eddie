@@ -284,6 +284,139 @@ describe("useChatMessagesRealtime", () => {
     queryClient.clear();
   });
 
+
+  it("updates streaming reasoning segments in place when text grows", () => {
+    const sessionId = "session-3";
+    const messageId = "message-99";
+    const queryClient = new QueryClient();
+    const initialMessage = {
+      id: messageId,
+      sessionId,
+      role: "assistant",
+      content: "Hello",
+      createdAt: new Date().toISOString(),
+    } as ChatMessageDto;
+
+    queryClient.setQueryData<ChatMessageDto[]>(
+      ["chat-session", sessionId, "messages"],
+      [initialMessage]
+    );
+
+    const reasoningPartialHandlers: Array<
+      (payload: {
+        sessionId: string;
+        messageId: string;
+        text: string;
+        metadata?: Record<string, unknown>;
+        timestamp?: string;
+        agentId?: string | null;
+      }) => void
+    > = [];
+
+    const api = {
+      http: {} as ApiClient["http"],
+      sockets: {
+        chatSessions: {
+          onSessionCreated: vi.fn(() => vi.fn()),
+          onSessionUpdated: vi.fn(() => vi.fn()),
+          onSessionDeleted: vi.fn(() => vi.fn()),
+          onMessageCreated: vi.fn(() => vi.fn()),
+          onMessageUpdated: vi.fn(() => vi.fn()),
+          onAgentActivity: vi.fn(() => vi.fn()),
+          emitMessage: vi.fn(),
+        },
+        chatMessages: {
+          onMessagePartial: vi.fn(() => vi.fn()),
+          onReasoningPartial(
+            handler: (payload: {
+              sessionId: string;
+              messageId: string;
+              text: string;
+              metadata?: Record<string, unknown>;
+              timestamp?: string;
+              agentId?: string | null;
+            }) => void,
+          ) {
+            reasoningPartialHandlers.push(handler);
+            return () => {
+              const index = reasoningPartialHandlers.indexOf(handler);
+              if (index >= 0) {
+                reasoningPartialHandlers.splice(index, 1);
+              }
+            };
+          },
+        },
+        traces: {} as ApiClient["sockets"]["traces"],
+        logs: {} as ApiClient["sockets"]["logs"],
+        config: {} as ApiClient["sockets"]["config"],
+      },
+      updateAuth: vi.fn(),
+      dispose: vi.fn(),
+    } as unknown as ApiClient;
+
+    renderHook(() => useChatMessagesRealtime(api), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    const firstTimestamp = "2024-02-01T10:00:00.000Z";
+    const secondTimestamp = "2024-02-01T10:00:05.000Z";
+
+    act(() => {
+      reasoningPartialHandlers.forEach((handler) =>
+        handler({
+          sessionId,
+          messageId,
+          text: "Gathering evidence",
+          metadata: { step: 1 },
+          timestamp: firstTimestamp,
+          agentId: "agent-1",
+        })
+      );
+    });
+
+    act(() => {
+      reasoningPartialHandlers.forEach((handler) =>
+        handler({
+          sessionId,
+          messageId,
+          text: "Gathering evidence with new insight",
+          metadata: { step: 2 },
+          timestamp: secondTimestamp,
+          agentId: "agent-1",
+        })
+      );
+    });
+
+    type MessageWithReasoning = ChatMessageDto & {
+      reasoning?: {
+        segments?: Array<{
+          text?: string;
+          metadata?: Record<string, unknown>;
+          timestamp?: string;
+          agentId?: string | null;
+        }>;
+        status?: string;
+      } | null;
+    };
+
+    const cached = queryClient.getQueryData<MessageWithReasoning[]>([
+      "chat-session",
+      sessionId,
+      "messages",
+    ]);
+
+    expect(cached?.[0]?.reasoning?.segments).toHaveLength(1);
+    expect(cached?.[0]?.reasoning?.segments?.[0]).toMatchObject({
+      text: "Gathering evidence with new insight",
+      metadata: { step: 2 },
+      timestamp: secondTimestamp,
+      agentId: "agent-1",
+    });
+    expect(cached?.[0]?.reasoning?.status).toBe("streaming");
+
+    queryClient.clear();
+  });
+
   it("merges metadata-only partial reasoning updates into the active segment", () => {
     const sessionId = "session-2";
     const messageId = "message-42";
