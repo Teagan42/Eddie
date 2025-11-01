@@ -287,6 +287,32 @@ describe("OpenAICompatibleAdapter", () => {
     ]);
   });
 
+  it("treats think tags with attributes as reasoning content", async () => {
+    const chunks = [
+      'data: {"choices":[{"delta":{"content":"<think reason=\\"plan\\">Hidden</think>"}}]}\n',
+      'data: {"choices":[{"delta":{"content":"Visible"},"finish_reason":"stop"}]}\n',
+      'data: [DONE]\n',
+    ];
+
+    fetchMock.mockResolvedValueOnce(createStreamingResponse(chunks));
+
+    const adapter = new OpenAICompatibleAdapter({ baseUrl: "https://example.com", apiKey: "sk-test" });
+    const events: unknown[] = [];
+    for await (const event of adapter.stream({ model: "gpt-test", messages: [] } as StreamOptions)) {
+      events.push(event);
+    }
+
+    expect(events).toEqual([
+      { type: "reasoning_delta", text: "Hidden" },
+      { type: "delta", text: "Visible" },
+      expect.objectContaining({
+        type: "reasoning_end",
+        metadata: { text: "Hidden" },
+      }),
+      expect.objectContaining({ type: "end", reason: "stop" }),
+    ]);
+  });
+
   it("buffers partial think tags before emitting reasoning and content", async () => {
     const chunks = [
       'data: {"choices":[{"delta":{"content":"<thi"}}]}\n',
