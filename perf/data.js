@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761777848474,
+  "lastUpdate": 1761999344663,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -2934,6 +2934,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 24.504,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2b69209cdc03449880d075d3e5749f484730cdb5",
+          "message": "Fix reasoning stream aggregation in chat UI (#790)\n\n* refactor(chat): extract reasoning extension helper\n\n* refactor(ui): extract reasoning toggle helper\n\n* refactor(ui): extract reasoning and content sections",
+          "timestamp": "2025-11-01T06:04:52-06:00",
+          "tree_id": "e45371e52e0983a993c0959ba54151ae43bd9296",
+          "url": "https://github.com/Teagan42/Eddie/commit/2b69209cdc03449880d075d3e5749f484730cdb5"
+        },
+        "date": 1761999344329,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 46.59,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 31.733,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 24.538,
             "unit": "ms",
             "extra": "[object Object]"
           }
