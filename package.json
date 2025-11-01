@@ -1,6 +1,6 @@
 {
   "name": "eddie",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "private": true,
   "main": "apps/cli/dist/main.js",
   "bin": {
