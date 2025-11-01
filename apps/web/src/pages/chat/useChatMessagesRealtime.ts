@@ -140,6 +140,17 @@ function getLastReasoningSegment(
   return segments[segments.length - 1] ?? null;
 }
 
+function isExtendedReasoningText(
+  last: MessageReasoningSegment | null,
+  text: string
+): boolean {
+  if (!last || typeof last.text !== "string") {
+    return false;
+  }
+
+  return text.startsWith(last.text);
+}
+
 function appendReasoningSegment(
   segments: MessageReasoningSegment[],
   segment: MessageReasoningSegment
@@ -218,6 +229,23 @@ function mergePartialReasoning(
     timestamp: payload.timestamp,
     agentId,
   };
+
+  const extendsExisting = isExtendedReasoningText(last, normalizedText);
+
+  if (extendsExisting) {
+    const nextSegments = updateLastReasoningSegment(segments, {
+      text: normalizedText,
+      metadata: payload.metadata ?? last?.metadata,
+      timestamp: payload.timestamp ?? last?.timestamp,
+      agentId,
+    });
+
+    return {
+      segments: nextSegments,
+      responseId,
+      status: "streaming",
+    };
+  }
 
   return {
     segments: appendReasoningSegment(segments, segment),
