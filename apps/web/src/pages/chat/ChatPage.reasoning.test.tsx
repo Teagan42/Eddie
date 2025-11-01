@@ -342,4 +342,38 @@ describe("ChatPage reasoning updates", () => {
       ).toHaveLength(1);
     });
   });
+
+  it("renders reasoning before the assistant response content", async () => {
+    renderChatPage();
+
+    await waitFor(() => expect(listMessagesMock).toHaveBeenCalled());
+    await waitFor(() => expect(reasoningPartialHandler).toBeDefined());
+
+    const timestamp = new Date().toISOString();
+
+    act(() => {
+      reasoningPartialHandler?.({
+        sessionId: "session-1",
+        messageId: "message-1",
+        text: "Outlining approach",
+        metadata: { step: 1 },
+        timestamp,
+        agentId: "agent-1",
+      });
+    });
+
+    const reasoning = await screen.findByTestId("chat-message-reasoning");
+    const content = await screen.findByTestId("chat-message-content");
+
+    const container = reasoning.parentElement;
+    expect(container).not.toBeNull();
+
+    const siblings = Array.from(container!.children);
+    const reasoningIndex = siblings.indexOf(reasoning);
+    const contentIndex = siblings.indexOf(content);
+
+    expect(reasoningIndex).toBeGreaterThan(-1);
+    expect(contentIndex).toBeGreaterThan(-1);
+    expect(reasoningIndex).toBeLessThan(contentIndex);
+  });
 });

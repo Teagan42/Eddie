@@ -429,6 +429,123 @@ export function MessageList({
               const isReasoningCollapsed = Boolean(
                 collapsedReasoningMessages[message.id]
               );
+              const messageContent =
+                isToolMessage && toolSummary ? (
+                  <Flex direction="column" gap="3" className="mt-4">
+                    <Text size="3" weight="medium" className="text-white">
+                      {toolSummary.name}
+                    </Text>
+                    <Badge color={TOOL_STATUS_BADGE[toolSummary.status]} variant="soft">
+                      {TOOL_STATUS_LABEL[toolSummary.status]}
+                    </Badge>
+                  </Flex>
+                ) : (
+                  <ChatMessageContent
+                    messageRole={message.role}
+                    content={message.content}
+                    className={cn(
+                      'text-base text-white',
+                      roleStyle.contentClassName,
+                      hasReasoning ? 'mt-4' : undefined,
+                    )}
+                  />
+                );
+              const reasoningSection = !hasReasoning
+                ? null
+                : (
+                    <Box
+                      className="mt-4 space-y-2 rounded-xl border border-white/10 bg-white/5 p-4"
+                      data-testid="chat-message-reasoning"
+                    >
+                      <Flex
+                        align="center"
+                        justify="between"
+                        className="flex-wrap gap-2"
+                      >
+                        <Text
+                          size="1"
+                          className="text-xs font-semibold uppercase tracking-wide text-slate-200/80"
+                        >
+                          Reasoning
+                        </Text>
+                        <Flex align="center" gap="2">
+                          <Badge color={reasoningVariant.badge} variant="soft">
+                            {reasoningVariant.label}
+                          </Badge>
+                          <Button
+                            size="1"
+                            variant="ghost"
+                            onClick={() => {
+                              toggleReasoning(message.id);
+                            }}
+                            aria-expanded={!isReasoningCollapsed}
+                            aria-controls={reasoningContentId}
+                          >
+                            {isReasoningCollapsed
+                              ? 'Show reasoning'
+                              : 'Hide reasoning'}
+                          </Button>
+                        </Flex>
+                      </Flex>
+                      {isReasoningCollapsed ? null : (
+                        <Flex
+                          id={reasoningContentId}
+                          direction="column"
+                          gap="2"
+                          className="mt-2"
+                        >
+                          {reasoningSegments.map(({ segment, text }, index) => {
+                            const agentLabel = getReasoningAgentLabel(
+                              messageWithMetadata,
+                              segment,
+                            );
+                            const segmentTimestamp = segment.timestamp
+                              ? formatTime(segment.timestamp)
+                              : null;
+
+                            return (
+                              <Box
+                                key={`${segment.timestamp ?? index}-${message.id}`}
+                                className="rounded-lg bg-slate-950/40 p-3"
+                                data-testid="chat-message-reasoning-segment"
+                              >
+                                <Flex
+                                  align="center"
+                                  justify="between"
+                                  className="flex-wrap gap-2"
+                                >
+                                  <Flex direction="column" gap="1">
+                                    {agentLabel ? (
+                                      <Text
+                                        size="1"
+                                        color="gray"
+                                        className="text-xs uppercase tracking-wide text-slate-300"
+                                      >
+                                        Agent {agentLabel}
+                                      </Text>
+                                    ) : null}
+                                    {reasoningParentLabel ? (
+                                      <Text size="1" color="gray" className="text-xs text-slate-400">
+                                        Reports to {reasoningParentLabel}
+                                      </Text>
+                                    ) : null}
+                                  </Flex>
+                                  {segmentTimestamp ? (
+                                    <Text size="1" color="gray" className="text-xs text-slate-300">
+                                      {segmentTimestamp}
+                                    </Text>
+                                  ) : null}
+                                </Flex>
+                                <Text size="2" className="mt-2 whitespace-pre-wrap text-slate-200">
+                                  {text}
+                                </Text>
+                              </Box>
+                            );
+                          })}
+                        </Flex>
+                      )}
+                    </Box>
+                  );
 
               return (
                 <Box key={message.id} className={alignmentClass}>
@@ -506,116 +623,8 @@ export function MessageList({
                         </Tooltip>
                       ) : null}
                     </Flex>
-                    {isToolMessage && toolSummary ? (
-                      <Flex direction="column" gap="3" className="mt-4">
-                        <Text size="3" weight="medium" className="text-white">
-                          {toolSummary.name}
-                        </Text>
-                        <Badge color={TOOL_STATUS_BADGE[toolSummary.status]} variant="soft">
-                          {TOOL_STATUS_LABEL[toolSummary.status]}
-                        </Badge>
-                      </Flex>
-                    ) : (
-                      <ChatMessageContent
-                        messageRole={message.role}
-                        content={message.content}
-                        className={cn('text-base text-white', roleStyle.contentClassName)}
-                      />
-                    )}
-                    {hasReasoning ? (
-                      <Box
-                        className="mt-4 space-y-2 rounded-xl border border-white/10 bg-white/5 p-4"
-                        data-testid="chat-message-reasoning"
-                      >
-                        <Flex
-                          align="center"
-                          justify="between"
-                          className="flex-wrap gap-2"
-                        >
-                          <Text
-                            size="1"
-                            className="text-xs font-semibold uppercase tracking-wide text-slate-200/80"
-                          >
-                            Reasoning
-                          </Text>
-                          <Flex align="center" gap="2">
-                            <Badge color={reasoningVariant.badge} variant="soft">
-                              {reasoningVariant.label}
-                            </Badge>
-                            <Button
-                              size="1"
-                              variant="ghost"
-                              onClick={() => {
-                                toggleReasoning(message.id);
-                              }}
-                              aria-expanded={!isReasoningCollapsed}
-                              aria-controls={reasoningContentId}
-                            >
-                              {isReasoningCollapsed
-                                ? 'Show reasoning'
-                                : 'Hide reasoning'}
-                            </Button>
-                          </Flex>
-                        </Flex>
-                        {isReasoningCollapsed ? null : (
-                          <Flex
-                            id={reasoningContentId}
-                            direction="column"
-                            gap="2"
-                            className="mt-2"
-                          >
-                            {reasoningSegments.map(({ segment, text }, index) => {
-                              const agentLabel = getReasoningAgentLabel(
-                                messageWithMetadata,
-                                segment,
-                              );
-                              const segmentTimestamp = segment.timestamp
-                                ? formatTime(segment.timestamp)
-                                : null;
-
-                              return (
-                                <Box
-                                  key={`${segment.timestamp ?? index}-${message.id}`}
-                                  className="rounded-lg bg-slate-950/40 p-3"
-                                  data-testid="chat-message-reasoning-segment"
-                                >
-                                  <Flex
-                                    align="center"
-                                    justify="between"
-                                    className="flex-wrap gap-2"
-                                  >
-                                    <Flex direction="column" gap="1">
-                                      {agentLabel ? (
-                                        <Text
-                                          size="1"
-                                          color="gray"
-                                          className="text-xs uppercase tracking-wide text-slate-300"
-                                        >
-                                          Agent {agentLabel}
-                                        </Text>
-                                      ) : null}
-                                      {reasoningParentLabel ? (
-                                        <Text size="1" color="gray" className="text-xs text-slate-400">
-                                          Reports to {reasoningParentLabel}
-                                        </Text>
-                                      ) : null}
-                                    </Flex>
-                                    {segmentTimestamp ? (
-                                      <Text size="1" color="gray" className="text-xs text-slate-300">
-                                        {segmentTimestamp}
-                                      </Text>
-                                    ) : null}
-                                  </Flex>
-                                  <Text size="2" className="mt-2 whitespace-pre-wrap text-slate-200">
-                                    {text}
-                                  </Text>
-                                </Box>
-                              );
-                            })}
-                          </Flex>
-                        )}
-                      </Box>
-                    ) : null}
+                    {reasoningSection}
+                    {messageContent}
                   </Box>
                 </Box>
               );
