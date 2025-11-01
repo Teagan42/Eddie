@@ -1,4 +1,5 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -289,6 +290,56 @@ describe("ChatPage reasoning updates", () => {
       expect(
         screen.queryByTestId("agent-activity-indicator")
       ).not.toBeInTheDocument();
+    });
+  });
+
+  it("allows collapsing and expanding reasoning segments", async () => {
+    const user = userEvent.setup();
+    renderChatPage();
+
+    await waitFor(() => expect(listMessagesMock).toHaveBeenCalled());
+    await waitFor(() => expect(reasoningPartialHandler).toBeDefined());
+
+    const timestamp = new Date().toISOString();
+
+    act(() => {
+      reasoningPartialHandler?.({
+        sessionId: "session-1",
+        messageId: "message-1",
+        text: "Considering approach",
+        metadata: { step: 1 },
+        timestamp,
+        agentId: "agent-7",
+      });
+    });
+
+    const reasoning = await screen.findByTestId("chat-message-reasoning");
+    const segments = within(reasoning).getAllByTestId(
+      "chat-message-reasoning-segment"
+    );
+    expect(segments).toHaveLength(1);
+
+    const toggle = within(reasoning).getByRole("button", {
+      name: /hide reasoning/i,
+    });
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+
+    await user.click(toggle);
+
+    await waitFor(() => {
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+      expect(within(reasoning).queryByTestId("chat-message-reasoning-segment"))
+        .not.toBeInTheDocument();
+    });
+    expect(toggle).toHaveTextContent(/show reasoning/i);
+
+    await user.click(toggle);
+
+    await waitFor(() => {
+      expect(toggle).toHaveAttribute("aria-expanded", "true");
+      expect(
+        within(reasoning).getAllByTestId("chat-message-reasoning-segment")
+      ).toHaveLength(1);
     });
   });
 });
