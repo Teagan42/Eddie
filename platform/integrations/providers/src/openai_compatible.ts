@@ -132,9 +132,12 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
       return { type: "reasoning_end", metadata: { text } };
     };
 
+    const escapeForRegex = (value: string): string =>
+      value.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
+
     const createThinkBlockRegex = () =>
       /<([\w:.-]*?)think\b[^>]*?>([\s\S]*?)<\/\1think\s*>/gi;
-    const createThinkOpenRegex = () => /<([\w:.-]*?)think\b[^>]*?>/gi;
+    const createThinkOpenRegex = () => /<([\w:.-]*?)think\b[^>]*?(?:>|$)/gi;
     const createThinkCloseRegex = (prefix: string) =>
       new RegExp(`</${ escapeForRegex(prefix) }think\\s*>`, "i");
     const partialThinkClosePattern = /^<\/[\w:.-]*?think\s*>?$/i;
@@ -185,9 +188,6 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
       return { reasoning, remainder };
     };
 
-    const escapeForRegex = (value: string): string =>
-      value.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
-
     const findIncompleteThinkStart = (text: string): number | undefined => {
       const pattern = createThinkOpenRegex();
       let match: RegExpExecArray | null;
@@ -202,8 +202,14 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
       }
 
       const prefix = lastMatch[ 1 ] ?? "";
+      const matched = lastMatch[ 0 ] ?? "";
+      if (!matched.endsWith(">")) {
+        return lastMatch.index;
+      }
+
       const closingPattern = createThinkCloseRegex(prefix);
-      if (closingPattern.test(text.slice(lastMatch.index + lastMatch[ 0 ].length))) {
+      const remainder = text.slice(lastMatch.index + matched.length);
+      if (closingPattern.test(remainder)) {
         return undefined;
       }
 
