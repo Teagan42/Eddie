@@ -132,6 +132,16 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
       return { type: "reasoning_end", metadata: { text } };
     };
 
+    const escapeForRegex = (value: string): string =>
+      value.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
+
+    const createThinkBlockRegex = () =>
+      /<([\w:.-]*?)think\b[^>]*?>([\s\S]*?)<\/\1think\s*>/gi;
+    const createThinkOpenRegex = () => /<([\w:.-]*?)think\b[^>]*?(?:>|$)/gi;
+    const createThinkCloseRegex = (prefix: string) =>
+      new RegExp(`</${ escapeForRegex(prefix) }think\\s*>`, "i");
+    const partialThinkClosePattern = /^<\/[\w:.-]*?think\s*>?$/i;
+
     const extractReasoningChunks = (value: unknown): string[] => {
       const chunks: string[] = [];
       const visit = (input: unknown): void => {
@@ -165,7 +175,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
     } => {
       const reasoning: string[] = [];
       const remainder = value.replace(
-        /<([\w:.-]*?)think>([\s\S]*?)<\/\1think>/gi,
+        createThinkBlockRegex(),
         (_match, _prefix, inner) => {
           const text = typeof inner === "string" ? inner.trim() : "";
           if (text.length > 0) {
@@ -178,11 +188,8 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
       return { reasoning, remainder };
     };
 
-    const escapeForRegex = (value: string): string =>
-      value.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
-
     const findIncompleteThinkStart = (text: string): number | undefined => {
-      const pattern = /<([\w:.-]*?)think>/gi;
+      const pattern = createThinkOpenRegex();
       let match: RegExpExecArray | null;
       let lastMatch: RegExpExecArray | null = null;
 
@@ -195,8 +202,14 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
       }
 
       const prefix = lastMatch[ 1 ] ?? "";
-      const closingPattern = new RegExp(`</${ escapeForRegex(prefix) }think>`, "i");
-      if (closingPattern.test(text.slice(lastMatch.index + lastMatch[ 0 ].length))) {
+      const matched = lastMatch[ 0 ] ?? "";
+      if (!matched.endsWith(">")) {
+        return lastMatch.index;
+      }
+
+      const closingPattern = createThinkCloseRegex(prefix);
+      const remainder = text.slice(lastMatch.index + matched.length);
+      if (closingPattern.test(remainder)) {
         return undefined;
       }
 
@@ -210,7 +223,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
       }
 
       const tail = text.slice(lastOpen);
-      if (/^<\/[\w:.-]*?think>?$/i.test(tail) && !tail.endsWith(">")) {
+      if (partialThinkClosePattern.test(tail) && !tail.endsWith(">")) {
         return lastOpen;
       }
 
