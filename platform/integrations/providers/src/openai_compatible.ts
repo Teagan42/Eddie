@@ -525,7 +525,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
 
 @Injectable()
 export class OpenAICompatibleAdapterFactory
-  implements ProviderAdapterFactory {
+implements ProviderAdapterFactory {
   readonly name = "openai_compatible";
 
   create(config: ProviderConfig): ProviderAdapter {
@@ -537,7 +537,7 @@ export class OpenAICompatibleAdapterFactory
     const baseUrl = (adapterConfig.baseUrl ?? "https://api.groq.com/v1").replace(/\/$/, "");
     const headers: Record<string, string> = {
       Authorization: `Bearer ${ adapterConfig.apiKey ?? process.env.OPENAI_API_KEY ?? ""
-        }`,
+      }`,
       "Content-Type": "application/json",
       ...adapterConfig.headers,
     };
