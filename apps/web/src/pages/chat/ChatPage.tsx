@@ -1348,6 +1348,11 @@ export function ChatPage(): JSX.Element {
     );
   }, [ activeSessionIds, isDeletingSession, runDeleteSessionAsync ]);
 
+  const [ sessionCategoryContainer, setSessionCategoryContainer ] = useState<HTMLDivElement | null>(null);
+  const handleSessionCategoryContainerRef = useCallback((element: HTMLDivElement | null) => {
+    setSessionCategoryContainer(element);
+  }, []);
+
   const activeSessionsBadge = useMemo(
     () => (
       <ContextMenu.Root modal={false}>
@@ -1606,7 +1611,16 @@ export function ChatPage(): JSX.Element {
                 ? 'Create a session to begin orchestrating conversations.'
                 : undefined
             }
-            meta={activeSessionsBadge}
+            meta={
+              <Flex align="center" gap="3" wrap="wrap">
+                {activeSessionsBadge}
+                <div
+                  ref={handleSessionCategoryContainerRef}
+                  className="flex items-center gap-2"
+                  data-testid="session-category-container"
+                />
+              </Flex>
+            }
             actions={
               <Button
                 onClick={handleCreateSession}
@@ -1627,6 +1641,7 @@ export function ChatPage(): JSX.Element {
               onDeleteSession={handleDeleteSession}
               onCreateSession={handleCreateSession}
               isCreatePending={createSessionMutation.isPending}
+              categoryPortalContainer={sessionCategoryContainer ?? undefined}
             />
           </Panel>
 
@@ -1932,4 +1947,3 @@ function mergeSessionList(
 ): ChatSessionDto[] {
   return sortSessions([ session, ...previous.filter((item) => item.id !== session.id) ]);
 }
-

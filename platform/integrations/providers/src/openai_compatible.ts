@@ -10,6 +10,7 @@ import type {
 } from "@eddie/types";
 import { extractNotificationEvents } from "./notifications";
 import { resolveResponseFormat } from "./response-format";
+import { appendFile } from 'fs/promises';
 
 interface OpenAICompatConfig {
   baseUrl?: string;
@@ -72,6 +73,14 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
     const formattedMessages = this.formatMessages(options.messages);
     const formattedTools = this.formatTools(options.tools);
     const responseFormat = resolveResponseFormat(options);
+    await appendFile('openai_requests.log', JSON.stringify({
+      model: options.model,
+      stream: true,
+      messages: formattedMessages,
+      tools: formattedTools,
+      tool_choice: formattedTools ? "auto" : undefined,
+      ...(responseFormat ? { response_format: responseFormat } : {}),
+    }) + '\n\n');
     const response = await fetch(this.endpoint(), {
       method: "POST",
       headers,
@@ -313,6 +322,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
       for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed.startsWith("data:")) continue;
+        await appendFile('openai_responses.log', trimmed + '\n');
         const payload = trimmed.slice(5).trim();
         if (!payload || payload === "[DONE]") {
           for (const event of flushPendingAssistantContent(true)) {
@@ -339,7 +349,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
           if (delta) {
             const reasoningContent = (delta as { reasoning_content?: unknown; }).reasoning_content;
             const reasoning = (delta as { reasoning?: unknown; }).reasoning;
-            const reasoningPayloads = [reasoningContent, reasoning].filter(
+            const reasoningPayloads = [ reasoningContent, reasoning ].filter(
               (value): value is unknown => value !== undefined,
             );
 
@@ -525,7 +535,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
 
 @Injectable()
 export class OpenAICompatibleAdapterFactory
-implements ProviderAdapterFactory {
+  implements ProviderAdapterFactory {
   readonly name = "openai_compatible";
 
   create(config: ProviderConfig): ProviderAdapter {
@@ -537,7 +547,7 @@ implements ProviderAdapterFactory {
     const baseUrl = (adapterConfig.baseUrl ?? "https://api.groq.com/v1").replace(/\/$/, "");
     const headers: Record<string, string> = {
       Authorization: `Bearer ${ adapterConfig.apiKey ?? process.env.OPENAI_API_KEY ?? ""
-      }`,
+        }`,
       "Content-Type": "application/json",
       ...adapterConfig.headers,
     };
