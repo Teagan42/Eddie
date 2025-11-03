@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762001855971,
+  "lastUpdate": 1762128688386,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -3018,6 +3018,48 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 23.897,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "that@teagantotally.rocks",
+            "name": "Teagan Glenn",
+            "username": "Teagan42"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d0ed28e4ea6aad35e94f3635f7656a2b6ef80b7d",
+          "message": "ui: remove the duplicate category (#792)\n\n* ui: remove the duplicate category\n\n* chore: remove debug file log\n\n* fix: linting",
+          "timestamp": "2025-11-02T17:00:26-07:00",
+          "tree_id": "7e7709fafe8a958abc5d0f8b014aa581ac691d1b",
+          "url": "https://github.com/Teagan42/Eddie/commit/d0ed28e4ea6aad35e94f3635f7656a2b6ef80b7d"
+        },
+        "date": 1762128688046,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 48.932,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 34.234,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.708,
             "unit": "ms",
             "extra": "[object Object]"
           }
