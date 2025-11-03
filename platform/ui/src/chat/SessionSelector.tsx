@@ -11,6 +11,7 @@ import {
   type CSSProperties,
   type KeyboardEvent,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { clsx } from 'clsx';
 import {
   Tabs as TabsRoot,
@@ -98,6 +99,7 @@ export interface SessionSelectorProps {
   onDeleteSession: (sessionId: string) => void;
   onCreateSession: () => void;
   isCreatePending: boolean;
+  categoryPortalContainer?: HTMLElement | null;
 }
 
 export function SessionSelector({
@@ -108,6 +110,7 @@ export function SessionSelector({
   onDeleteSession,
   onCreateSession,
   isCreatePending,
+  categoryPortalContainer,
 }: SessionSelectorProps): JSX.Element {
   void onCreateSession;
   void isCreatePending;
@@ -544,33 +547,46 @@ export function SessionSelector({
     );
   };
 
+  const shouldShowCategoryControls = categoryDefinitions.length > 1;
+  const categoryControls = shouldShowCategoryControls ? (
+    <Flex
+      align="center"
+      justify="start"
+      gap="3"
+      wrap="wrap"
+      className="session-category-controls"
+      data-testid="session-category-controls"
+    >
+      <TabsList
+        aria-label="Session categories"
+        className="inline-flex items-center gap-2 rounded-xl bg-[color:var(--slate-3)] p-1 text-[color:var(--slate-12)] dark:bg-[color:var(--slate-5)]"
+      >
+        {categoryDefinitions.map((category) => (
+          <TabsTrigger
+            key={category.id}
+            value={category.id}
+            className="rounded-lg px-3 py-1 text-sm font-medium transition-colors data-[state=active]:bg-[color:var(--jade-4)] data-[state=active]:text-[color:var(--jade-12)]"
+          >
+            <span>{category.label}</span>
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Flex>
+  ) : null;
+  const hasExternalCategoryContainer = categoryPortalContainer !== undefined;
+  const categoryControlsElement = hasExternalCategoryContainer
+    ? categoryPortalContainer && categoryControls
+      ? createPortal(categoryControls, categoryPortalContainer)
+      : null
+    : categoryControls;
+
   return (
     <TabsRoot
       value={activeCategory}
       onValueChange={<T extends string = SessionCategory>(value: T) => setActiveCategory(value as SessionCategory)}
-      className="mt-4 flex flex-col gap-3"
+      className={clsx('flex flex-col gap-3', hasExternalCategoryContainer ? 'mt-2' : 'mt-4')}
     >
-      <Flex align="center" justify="start" gap="3" wrap="wrap">
-        <TabsList
-          aria-label="Session categories"
-          className="inline-flex items-center gap-2 rounded-xl bg-[color:var(--slate-3)] p-1 text-[color:var(--slate-12)] dark:bg-[color:var(--slate-5)]"
-        >
-          {categoryDefinitions.map((category) => (
-            <TabsTrigger
-              key={category.id}
-              value={category.id}
-              className="rounded-lg px-3 py-1 text-sm font-medium transition-colors data-[state=active]:bg-[color:var(--jade-4)] data-[state=active]:text-[color:var(--jade-12)]"
-            >
-              <Flex align="center" gap="2">
-                <span>{category.label}</span>
-                <Badge variant="soft" color="gray" aria-hidden="true">
-                  {sessionsByCategory[category.id]?.length ?? 0}
-                </Badge>
-              </Flex>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Flex>
+      {categoryControlsElement}
 
       {categoryDefinitions.map((category) => {
         const categorySessions = sessionsByCategory[category.id] ?? [];

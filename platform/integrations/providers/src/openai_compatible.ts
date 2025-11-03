@@ -339,7 +339,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
           if (delta) {
             const reasoningContent = (delta as { reasoning_content?: unknown; }).reasoning_content;
             const reasoning = (delta as { reasoning?: unknown; }).reasoning;
-            const reasoningPayloads = [reasoningContent, reasoning].filter(
+            const reasoningPayloads = [ reasoningContent, reasoning ].filter(
               (value): value is unknown => value !== undefined,
             );
 
