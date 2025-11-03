@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762128688386,
+  "lastUpdate": 1762151834297,
   "repoUrl": "https://github.com/Teagan42/Eddie",
   "entries": {
     "Eddie performance benchmarks": [
@@ -3060,6 +3060,46 @@ window.BENCHMARK_DATA = {
           {
             "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
             "value": 23.708,
+            "unit": "ms",
+            "extra": "[object Object]"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Teagan Glenn",
+            "username": "Teagan42",
+            "email": "that@teagantotally.rocks"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "d0ed28e4ea6aad35e94f3635f7656a2b6ef80b7d",
+          "message": "ui: remove the duplicate category (#792)\n\n* ui: remove the duplicate category\n\n* chore: remove debug file log\n\n* fix: linting",
+          "timestamp": "2025-11-03T00:00:26Z",
+          "url": "https://github.com/Teagan42/Eddie/commit/d0ed28e4ea6aad35e94f3635f7656a2b6ef80b7d"
+        },
+        "date": 1762151833807,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Heavy tool-call loop (cold + warm)",
+            "value": 46.178,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Mixed notifications (cold + warm)",
+            "value": 33.111,
+            "unit": "ms",
+            "extra": "[object Object]"
+          },
+          {
+            "name": "OpenAIAdapter.stream recorded scenarios › Simple completion (cold + warm)",
+            "value": 23.067,
             "unit": "ms",
             "extra": "[object Object]"
           }
