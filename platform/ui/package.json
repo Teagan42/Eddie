@@ -72,6 +72,6 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@shikijs/transformers": "^3.13.0",
     "framer-motion": "^12.23.24",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.1"
   }
 }
