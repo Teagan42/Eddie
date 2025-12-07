@@ -25,14 +25,14 @@ interface OpenAIConfig {
   apiKey?: string;
 }
 
-type ResponseStreamParams = Parameters<OpenAI["responses"]["stream"]>[0];
+type ResponseStreamParams = Parameters<OpenAI[ "responses" ][ "stream" ]>[ 0 ];
 type ResponseStreamCreateParams = Extract<
   ResponseStreamParams,
-  { input?: unknown }
+  { input?: unknown; }
 >;
 type ResponseFunctionTool = FunctionTool;
-type ResponseMetadata = ResponseStreamCreateParams["metadata"] | undefined;
-type ResponseFormat = ResponseTextConfig["format"];
+type ResponseMetadata = ResponseStreamCreateParams[ "metadata" ] | undefined;
+type ResponseFormat = ResponseTextConfig[ "format" ];
 
 interface ToolAccumulator {
   arguments: string;
@@ -56,7 +56,7 @@ export class OpenAIAdapter implements ProviderAdapter {
     const toolBufferByIndex = new Map<number, ToolAccumulator>();
     const emittedToolCallIds = new Set<string>();
     let currentResponseId: string | undefined;
-    let stream: ReturnType<OpenAI["responses"]["stream"]>;
+    let stream: ReturnType<OpenAI[ "responses" ][ "stream" ]>;
 
     const createAccumulator = (): ToolAccumulator => ({
       arguments: "",
@@ -81,12 +81,12 @@ export class OpenAIAdapter implements ProviderAdapter {
 
     const findAccumulatorEntryByCallId = (
       callId: string | undefined,
-    ): { index: number; accumulator: ToolAccumulator } | undefined => {
+    ): { index: number; accumulator: ToolAccumulator; } | undefined => {
       if (!callId) {
         return undefined;
       }
 
-      for (const [index, accumulator] of toolBufferByIndex.entries()) {
+      for (const [ index, accumulator ] of toolBufferByIndex.entries()) {
         if (accumulator.callId === callId) {
           return { index, accumulator };
         }
@@ -95,7 +95,7 @@ export class OpenAIAdapter implements ProviderAdapter {
       return undefined;
     };
 
-    const resolveOutputIndex = (value: { output_index?: number }): number =>
+    const resolveOutputIndex = (value: { output_index?: number; }): number =>
       typeof value.output_index === "number" ? value.output_index : -1;
 
     const responseFormat = resolveResponseFormat(options);
@@ -105,6 +105,9 @@ export class OpenAIAdapter implements ProviderAdapter {
       input: this.formatMessages(options.messages),
       tools: this.formatTools(options.tools),
       metadata: this.formatMetadata(options.metadata),
+      reasoning: {
+        effort: "medium",
+      },
       ...(options.previousResponseId
         ? { previous_response_id: options.previousResponseId }
         : {}),
@@ -258,7 +261,7 @@ export class OpenAIAdapter implements ProviderAdapter {
     };
 
     const assignReasoningResponseId = (
-      response: { id?: string } | undefined,
+      response: { id?: string; } | undefined,
     ): void => {
       reasoningResponseId =
         response?.id ?? reasoningResponseId ?? currentResponseId;
@@ -276,7 +279,7 @@ export class OpenAIAdapter implements ProviderAdapter {
         switch (event.type) {
           case "response.output_item.added": {
             const item = event.item as
-              | { id?: string; call_id?: string; type?: string; name?: string }
+              | { id?: string; call_id?: string; type?: string; name?: string; }
               | undefined;
             if (!item || item.type !== "function_call") {
               break;
@@ -294,10 +297,10 @@ export class OpenAIAdapter implements ProviderAdapter {
           }
           case "response.reasoning_text.delta": {
             assignReasoningResponseId(
-              (event as { response?: { id?: string } }).response,
+              (event as { response?: { id?: string; }; }).response,
             );
             const emitted = maybeEmitReasoningDelta(
-              (event as { delta?: unknown }).delta as string | undefined,
+              (event as { delta?: unknown; }).delta as string | undefined,
             );
             if (emitted) {
               yield emitted;
@@ -305,11 +308,11 @@ export class OpenAIAdapter implements ProviderAdapter {
             break;
           }
           case "response.reasoning_text.done": {
-            const response = (event as { response?: { id?: string } })
+            const response = (event as { response?: { id?: string; }; })
               .response;
             assignReasoningResponseId(response);
             const reasoningEnd = maybeEmitReasoningEnd(
-              (event as { response?: { reasoning?: unknown } }).response
+              (event as { response?: { reasoning?: unknown; }; }).response
                 ?.reasoning,
               response?.id,
             );
@@ -326,11 +329,11 @@ export class OpenAIAdapter implements ProviderAdapter {
             const index = resolveOutputIndex(event);
             const accumulator = ensureAccumulatorByIndex(index);
             accumulator.arguments += event.delta;
-            const callId = (event as { call_id?: string }).call_id;
+            const callId = (event as { call_id?: string; }).call_id;
             if (callId) {
               accumulator.callId = callId;
             }
-            const eventName = (event as { name?: string }).name;
+            const eventName = (event as { name?: string; }).name;
             if (typeof eventName === "string") {
               accumulator.name = eventName;
             }
@@ -339,11 +342,11 @@ export class OpenAIAdapter implements ProviderAdapter {
           case "response.function_call_arguments.done": {
             const index = resolveOutputIndex(event);
             const accumulator = ensureAccumulatorByIndex(index);
-            const callId = (event as { call_id?: string }).call_id;
+            const callId = (event as { call_id?: string; }).call_id;
             if (callId) {
               accumulator.callId = callId;
             }
-            const eventName = (event as { name?: string }).name;
+            const eventName = (event as { name?: string; }).name;
             if (typeof eventName === "string") {
               accumulator.name = eventName;
             }
@@ -439,7 +442,7 @@ export class OpenAIAdapter implements ProviderAdapter {
         yield notification;
       }
       for (const item of finalResponse.output ?? []) {
-        if ((item as { type?: string }).type !== "function_call") {
+        if ((item as { type?: string; }).type !== "function_call") {
           continue;
         }
 
@@ -478,7 +481,7 @@ export class OpenAIAdapter implements ProviderAdapter {
       }
 
       const finalReasoningEnd = maybeEmitReasoningEnd(
-        (finalResponse as { reasoning?: unknown }).reasoning,
+        (finalResponse as { reasoning?: unknown; }).reasoning,
         finalResponse.id,
       );
       if (finalReasoningEnd) {
@@ -499,7 +502,7 @@ export class OpenAIAdapter implements ProviderAdapter {
     yield { type: "end", reason: endReason, usage, responseId: currentResponseId };
   }
 
-  private formatMessages(messages: StreamOptions["messages"]): ResponseInput {
+  private formatMessages(messages: StreamOptions[ "messages" ]): ResponseInput {
     return messages.map<ResponseInputItem>((message) => {
       if (message.role === "tool") {
         const callId = message.tool_call_id ?? message.name ?? "tool";
@@ -511,10 +514,10 @@ export class OpenAIAdapter implements ProviderAdapter {
         } satisfies ResponseInputItem.FunctionCallOutput;
       }
 
-      const role: EasyInputMessage["role"] =
+      const role: EasyInputMessage[ "role" ] =
         message.role === "system" ||
-        message.role === "user" ||
-        message.role === "assistant"
+          message.role === "user" ||
+          message.role === "assistant"
           ? message.role
           : "user";
 
@@ -541,7 +544,7 @@ export class OpenAIAdapter implements ProviderAdapter {
   }
 
   private formatMetadata(
-    metadata: StreamOptions["metadata"],
+    metadata: StreamOptions[ "metadata" ],
   ): ResponseMetadata {
     if (!metadata) {
       return undefined;
@@ -549,20 +552,20 @@ export class OpenAIAdapter implements ProviderAdapter {
 
     const normalized: Record<string, string> = {};
 
-    for (const [key, value] of Object.entries(metadata)) {
+    for (const [ key, value ] of Object.entries(metadata)) {
       if (value === undefined || value === null) {
         continue;
       }
 
-      normalized[key] = typeof value === "string" ? value : JSON.stringify(value);
+      normalized[ key ] = typeof value === "string" ? value : JSON.stringify(value);
     }
 
     return Object.keys(normalized).length > 0 ? normalized : undefined;
   }
 
   private formatResponseTextConfig(
-    format: StreamOptions["responseFormat"],
-  ): ResponseStreamCreateParams["text"] {
+    format: StreamOptions[ "responseFormat" ],
+  ): ResponseStreamCreateParams[ "text" ] {
     const normalizedFormat =
       format && typeof format === "object"
         ? this.normalizeResponseFormatObject(format)

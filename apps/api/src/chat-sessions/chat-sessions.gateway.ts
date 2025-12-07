@@ -54,7 +54,11 @@ export class ChatSessionsGateway {
     sessionId: string;
     state: ExecutionTreeState;
   }): void {
-    emitEvent(this.server, "execution-tree.updated", event);
+    try {
+      emitEvent(this.server, "execution-tree.updated", event);
+    } catch {
+      // swallow errors
+    }
   }
 
   @SubscribeMessage("message.send")

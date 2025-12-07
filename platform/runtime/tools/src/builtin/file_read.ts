@@ -49,7 +49,7 @@ const trimToUtf8Boundary = (buffer: Buffer): Buffer => {
   }
 
   let leadIndex = length - 1;
-  while (leadIndex >= 0 && isContinuationByte(buffer[leadIndex])) {
+  while (leadIndex >= 0 && isContinuationByte(buffer[ leadIndex ])) {
     leadIndex -= 1;
   }
 
@@ -57,7 +57,7 @@ const trimToUtf8Boundary = (buffer: Buffer): Buffer => {
     return buffer.subarray(0, 0);
   }
 
-  const expectedLength = expectedSequenceLength(buffer[leadIndex]);
+  const expectedLength = expectedSequenceLength(buffer[ leadIndex ]);
   const actualLength = length - leadIndex;
   if (actualLength < expectedLength) {
     return buffer.subarray(0, leadIndex);
@@ -92,7 +92,7 @@ const alignOffsetToCodePoint = async (
   }
 
   let leadIndex = bytesRead - 1;
-  while (leadIndex >= 0 && isContinuationByte(buffer[leadIndex])) {
+  while (leadIndex >= 0 && isContinuationByte(buffer[ leadIndex ])) {
     leadIndex -= 1;
   }
 
@@ -101,7 +101,7 @@ const alignOffsetToCodePoint = async (
   }
 
   const continuationCount = bytesRead - leadIndex;
-  const sequenceLength = expectedSequenceLength(buffer[leadIndex]);
+  const sequenceLength = expectedSequenceLength(buffer[ leadIndex ]);
   if (sequenceLength > continuationCount) {
     return offset - continuationCount;
   }
@@ -116,11 +116,11 @@ export const fileReadTool: ToolDefinition = {
     type: "object",
     properties: {
       path: { type: "string", minLength: 1 },
-      maxBytes: { type: "number", minimum: 1 },
+      maxBytes: { type: "number", minimum: 1, maximum: 1000 },
       page: { type: "number", minimum: 1 },
-      pageSize: { type: "number", minimum: 1 },
+      pageSize: { type: "number", minimum: 1, maximum: 1000 },
     },
-    required: ["path"],
+    required: [ "path" ],
     additionalProperties: false,
   },
   outputSchema: {
@@ -135,7 +135,7 @@ export const fileReadTool: ToolDefinition = {
       totalBytes: { type: "number" },
       totalPages: { type: "number" },
     },
-    required: ["path", "bytes", "truncated", "page", "pageSize", "totalBytes", "totalPages"],
+    required: [ "path", "bytes", "truncated", "page", "pageSize", "totalBytes", "totalPages" ],
     additionalProperties: false,
   },
   async handler(args, ctx) {

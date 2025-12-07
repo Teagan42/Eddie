@@ -100,7 +100,7 @@ const coerceOptionalString = (
   }
 
   if (typeof value !== "string") {
-    throw new Error(`${label} must be a string`);
+    throw new Error(`${ label } must be a string`);
   }
 
   return value;
@@ -114,7 +114,7 @@ const buildContentRegex = (pattern: string | undefined): RegExp | null => {
   try {
     return new RegExp(pattern, "gu");
   } catch (error) {
-    throw new Error(`Invalid content regex: ${String(error)}`);
+    throw new Error(`Invalid content regex: ${ String(error) }`);
   }
 };
 
@@ -126,7 +126,7 @@ const buildNameRegex = (pattern: string | undefined): RegExp | null => {
   try {
     return new RegExp(pattern, "u");
   } catch (error) {
-    throw new Error(`Invalid name regex: ${String(error)}`);
+    throw new Error(`Invalid name regex: ${ String(error) }`);
   }
 };
 
@@ -140,13 +140,13 @@ const buildPatternList = (
 
   return patterns.map((pattern) => {
     if (typeof pattern !== "string") {
-      throw new Error(`${label} pattern must be a string`);
+      throw new Error(`${ label } pattern must be a string`);
     }
 
     try {
       return new RegExp(pattern, "u");
     } catch (error) {
-      throw new Error(`Invalid ${label} regex: ${String(error)}`);
+      throw new Error(`Invalid ${ label } regex: ${ String(error) }`);
     }
   });
 };
@@ -160,7 +160,7 @@ const findContentMatches = (
 
   lines.forEach((line, index) => {
     const perLine = cloneRegExp(pattern);
-    const lineMatches = [...line.matchAll(perLine)];
+    const lineMatches = [ ...line.matchAll(perLine) ];
     if (lineMatches.length === 0) {
       return;
     }
@@ -169,9 +169,9 @@ const findContentMatches = (
       lineNumber: index + 1,
       line,
       matches: lineMatches.map((match) => ({
-        match: match[0] ?? "",
+        match: match[ 0 ].slice(0, Math.min(1000, match[ 0 ]?.length)) ?? "",
         start: match.index ?? 0,
-        end: (match.index ?? 0) + (match[0]?.length ?? 0),
+        end: (match.index ?? 0) + Math.min(1000, (match[ 0 ]?.length ?? 0)),
         groups: match.slice(1).map((value) => value ?? ""),
       })),
     });
@@ -193,7 +193,7 @@ export const fileSearchTool: ToolDefinition = {
       exclude: { type: "array", items: { type: "string" } },
       includeDependencies: { type: "boolean", default: false },
       page: { type: "number", minimum: 1 },
-      pageSize: { type: "number", minimum: 1 },
+      pageSize: { type: "number", minimum: 1, maximum: 1000 },
     },
     additionalProperties: false,
   },
@@ -227,17 +227,17 @@ export const fileSearchTool: ToolDefinition = {
                           items: { type: "string" },
                         },
                       },
-                      required: ["match", "start", "end", "groups"],
+                      required: [ "match", "start", "end", "groups" ],
                       additionalProperties: false,
                     },
                   },
                 },
-                required: ["lineNumber", "line", "matches"],
+                required: [ "lineNumber", "line", "matches" ],
                 additionalProperties: false,
               },
             },
           },
-          required: ["path", "lineMatches"],
+          required: [ "path", "lineMatches" ],
           additionalProperties: false,
         },
       },
@@ -246,7 +246,7 @@ export const fileSearchTool: ToolDefinition = {
       pageSize: { type: "number" },
       totalPages: { type: "number" },
     },
-    required: ["results", "totalResults", "page", "pageSize", "totalPages"],
+    required: [ "results", "totalResults", "page", "pageSize", "totalPages" ],
     additionalProperties: false,
   },
   async handler(args, ctx) {
@@ -325,7 +325,7 @@ export const fileSearchTool: ToolDefinition = {
       content:
         totalResults === 0
           ? "No matches found."
-          : `Found ${totalResults} matching file${totalResults === 1 ? "" : "s"}.`,
+          : `Found ${ totalResults } matching file${ totalResults === 1 ? "" : "s" }.`,
       data: {
         results: pagedResults,
         totalResults,
