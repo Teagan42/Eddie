@@ -61,7 +61,7 @@
   "homepage": "https://github.com/Teagan42/Eddie#readme",
   "description": "",
   "devDependencies": {
-    "@nestjs/cli": "^11.0.0",
+    "@nestjs/cli": "^11.0.12",
     "@nestjs/testing": "^11.1.6",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^24.7.0",
